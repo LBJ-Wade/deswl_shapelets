@@ -1,0 +1,19 @@
+# vim: set filetype=python :
+
+Import('env')
+
+#libwl_files='Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp Ellipse.cpp BVec.cpp EllipseSolver.cpp PsiHelper.cpp Pixel.cpp Transformation.cpp ConfigFile.cpp FittedPSF.cpp CrudeMeasure.cpp ReadCatalog.cpp'.split()
+libwl_files='Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp Ellipse.cpp BVec.cpp EllipseSolver.cpp PsiHelper.cpp Pixel.cpp Transformation.cpp ConfigFile.cpp FittedPSF.cpp CrudeMeasure.cpp ReadCatalog.cpp DoMeasurePSF.cpp DoMeasureShear.cpp SingleShear.cpp SinglePSF.cpp NLSolver.cpp'.split()
+
+
+# Library file containing generic code
+libwl = env.Library('#lib/wl',libwl_files)
+
+sblibs=['tmv','tmv_symband','cfitsio'] + env['_extralibs']
+measurepsf = env.Program('measurepsf', 'MeasurePSF.cpp', 
+                         LIBS=[libwl] + sblibs)
+measureshear = env.Program('measureshear', 'MeasureShear.cpp', 
+                           LIBS=[libwl] + sblibs)
+
+testwl = env.Program('testwl', 'TestWL.cpp', LIBS=[libwl] + sblibs )
+testnl = env.Program('testnl', 'TestNL.cpp', LIBS=[libwl] + sblibs)
