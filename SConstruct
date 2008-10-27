@@ -18,23 +18,23 @@ subdirs=[]
 # have to be sent more than once
 config_file = 'wl.conf'
 
-# The following path pieces are the only UNIX specific things I am aware
-# of in the script.  On the other hand, these are not required for the
-# script to work since prefix can be set on the command line and the
-# extra paths are not needed.
-
 # Some extra path places to look.  For extra_paths it is assumed that /bin
 # /lib and /include come after the specified path.  For extra_include_paths
 # it is assumed this is the full path to the /include directory (or whatever).
 # Similarly for extra_library_paths and extra_bin_paths
 # Note there is also the option to import paths from the shell environment
-#extra_paths = ['/sw.unstable','/sw','/opt/local']
 extra_paths = []
 extra_include_paths = []
 extra_library_paths = []
 extra_bin_paths = []
 
 # Default directory for installation.  
+# This is the only UNIX specific things I am aware
+# of in the script.  On the other hand, these are not required for the
+# script to work since prefix can be set on the command line and the
+# extra paths are not needed, but I wish I knew how to get the default 
+# prefix for the system so I didn't have to set this.
+
 default_prefix = '/usr/local'
 
 
