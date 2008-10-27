@@ -91,7 +91,7 @@ def AddOpenMPFlag(config):
     Make sure you do this after you have determined the version of
     the compiler.
 
-    gcc uses -fopemnp and an extra library, -lgomp
+    gcc uses -fopemnp and an extra library
     icc uses -openmp, library for linking?  
     
     Other compilers?
@@ -103,17 +103,14 @@ def AddOpenMPFlag(config):
     version = config.env['CXXVERSION_NUMERICAL']
     if compiler[0] == 'g':
         # g++
-        # First make sure the library is even available.  For gcc it is called gomp
-        # but the best way to invoke it is through the -fopenmp flags to both the
-        # compiler and linker
-        if config.CheckLib('gomp'):
-            # Demand recent version for stability
-            if version < openmp_mingcc_vers: 
-                return
-            flag = '-fopenmp'
-            ldflag = '-fopenmp'
-        else:
+        # In principle we should be able to look for libgomp, which is the
+        # underlying library, but this isn't in the paths often.  All I can
+        # figure out is a version check.
+        #if config.CheckLib('gomp'):
+        if version < openmp_mingcc_vers: 
             return
+        flag = '-fopenmp'
+        ldflag = '-fopenmp'
     elif compiler[0] == 'i':
         # icc
         if version < openmp_minicc_vers:
