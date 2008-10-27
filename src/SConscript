@@ -1,8 +1,9 @@
 # vim: set filetype=python :
 
+import os
+
 Import('env')
 
-#libwl_files='Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp Ellipse.cpp BVec.cpp EllipseSolver.cpp PsiHelper.cpp Pixel.cpp Transformation.cpp ConfigFile.cpp FittedPSF.cpp CrudeMeasure.cpp ReadCatalog.cpp'.split()
 libwl_files='Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp Ellipse.cpp BVec.cpp EllipseSolver.cpp PsiHelper.cpp Pixel.cpp Transformation.cpp ConfigFile.cpp FittedPSF.cpp CrudeMeasure.cpp ReadCatalog.cpp DoMeasurePSF.cpp DoMeasureShear.cpp SingleShear.cpp SinglePSF.cpp NLSolver.cpp'.split()
 
 
@@ -17,3 +18,26 @@ measureshear = env.Program('measureshear', 'MeasureShear.cpp',
 
 testwl = env.Program('testwl', 'TestWL.cpp', LIBS=[libwl] + sblibs )
 testnl = env.Program('testnl', 'TestNL.cpp', LIBS=[libwl] + sblibs)
+
+bin_install_dir = os.path.join(env['PREFIX'], 'bin')
+
+bin_targets = [measurepsf, measureshear]
+
+if 'install' in COMMAND_LINE_TARGETS:
+    # For some reason this rebuilds the library and binaries even if they
+    # are up to date.  This doesn't happen with tmv
+    env.Alias(target='install',
+              source=env.Install(dir=bin_install_dir, source=bin_targets))
+
+
+if 'uninstall' in COMMAND_LINE_TARGETS:
+    # There is no env.Uninstall method, we must build our own
+    deltarget = Delete("$TARGET")
+
+    # delete from $prefix/bin/
+    binfiles = [os.path.join(bin_install_dir, os.path.basename(str(f[0]))) for f in bin_targets]
+
+    for f in binfiles:
+        env.Alias('uninstall', env.Command(f, None, deltarget))
+
+
