@@ -12,20 +12,18 @@ libwl = env.Library('#lib/wl',libwl_files)
 
 sblibs=['tmv','tmv_symband','cfitsio'] + env['_extralibs']
 measurepsf = env.Program('measurepsf', 'MeasurePSF.cpp', 
-                         LIBS=[libwl] + sblibs)
+                         LIBS=['wl'] + sblibs)
 measureshear = env.Program('measureshear', 'MeasureShear.cpp', 
-                           LIBS=[libwl] + sblibs)
+                           LIBS=['wl'] + sblibs)
 
-testwl = env.Program('testwl', 'TestWL.cpp', LIBS=[libwl] + sblibs )
-testnl = env.Program('testnl', 'TestNL.cpp', LIBS=[libwl] + sblibs)
+testwl = env.Program('testwl', 'TestWL.cpp', LIBS=['wl'] + sblibs )
+testnl = env.Program('testnl', 'TestNL.cpp', LIBS=['wl'] + sblibs)
 
 bin_install_dir = os.path.join(env['PREFIX'], 'bin')
 
 bin_targets = [measurepsf, measureshear]
 
 if 'install' in COMMAND_LINE_TARGETS:
-    # For some reason this rebuilds the library and binaries even if they
-    # are up to date.  This doesn't happen with tmv
     env.Alias(target='install',
               source=env.Install(dir=bin_install_dir, source=bin_targets))
 
@@ -39,5 +37,4 @@ if 'uninstall' in COMMAND_LINE_TARGETS:
 
     for f in binfiles:
         env.Alias('uninstall', env.Command(f, None, deltarget))
-
 

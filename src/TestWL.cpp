@@ -24,7 +24,7 @@ std::ostream* dbgout = new std::ofstream("testwl.debug");
 //bool XDEBUG = true;
 bool XDEBUG = false;
 
-#if 1
+#if 0
 #define TEST1
 #define TEST2
 #define TEST3

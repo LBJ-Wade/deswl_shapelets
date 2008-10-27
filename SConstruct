@@ -86,7 +86,7 @@ def CCFlags(env):
         raise ValueError,'Need to add CCFLAGS for compilers other than gcc'
     return gflags
 
-def AddOpenMPFlag(env):
+def AddOpenMPFlag(config):
     """
     Make sure you do this after you have determined the version of
     the compiler.
@@ -96,14 +96,24 @@ def AddOpenMPFlag(env):
     
     Other compilers?
     """
-    compiler = os.path.basename(env['CXX'])
-    version = env['CXXVERSION_NUMERICAL']
+
+
+    print 'Checking for openmp support'
+    compiler = os.path.basename(config.env['CXX'])
+    version = config.env['CXXVERSION_NUMERICAL']
     if compiler[0] == 'g':
         # g++
-        if version < openmp_mingcc_vers: 
+        # First make sure the library is even available.  For gcc it is called gomp
+        # but the best way to invoke it is through the -fopenmp flags to both the
+        # compiler and linker
+        if config.CheckLib('gomp'):
+            # Demand recent version for stability
+            if version < openmp_mingcc_vers: 
+                return
+            flag = '-fopenmp'
+            ldflag = '-fopenmp'
+        else:
             return
-        flag = '-fopenmp'
-        ldflag = '-fopenmp'
     elif compiler[0] == 'i':
         # icc
         if version < openmp_minicc_vers:
@@ -111,11 +121,11 @@ def AddOpenMPFlag(env):
         flag = '-openmp'
         # library?
     else:
-        raise ValueError,'compiler must be g++ or icc'
+        raise ValueError,'compiler must be gnu or intel'
 
-    print 'Adding openmp support:',flag
-    env.Append(CXXFLAGS=[flag])
-    env.Append(LINKFLAGS=[ldflag])
+    print '\tAdding openmp flag:',flag
+    config.env.Append(CXXFLAGS=[flag])
+    config.env.Append(LINKFLAGS=[ldflag])
 
 def NDebugFlag(compiler):
     """
@@ -234,10 +244,21 @@ def DoLibraryAndHeaderChecks(config):
     compilation, such as if no blas is found we set -DNOBLAS.  In other
     cases we may raise an exception or just exit
     """
-    # Add cfitsio here
+
+    # Mike Jarvis' matrix libraries
+    if not config.CheckLibWithHeader('tmv','TMV.h','C++'):
+        print 'tmv library or TMV.h not found'
+        Exit(1)
+    if not config.CheckLibWithHeader('tmv_symband','TMV.h','C++'):
+        print 'tmv_symband library not found'
+        Exit(1)
+
+    # We need cfitsio in the search path
     if not config.CheckLibWithHeader('cfitsio','fitsio.h','C'):
         print 'cfitsio not found'
         Exit(1)
+
+    # Use atlas if we can find it
     if config.env['WITH_ATLAS'] and config.CheckLib('atlas'):
         if config.CheckLibWithHeader('cblas','cblas.h','C'):
             config.env.Append(CXXFLAGS=['-DATLAS'])
@@ -248,11 +269,6 @@ def DoLibraryAndHeaderChecks(config):
             #config.env.Append(LINKFLAGS='-lcblas -latlas')
             #config.env.Append(LINKFLAGS='/sw.unstable/lib/libcblas.a /sw.unstable/lib/libatlas.a')
             config.env['_extralibs'] += ['cblas','atlas']
-
-    # here is a silly example of exiting using the Exit() scons function
-    #if not config.CheckHeader('stdio.h'):
-    #    print 'stdio.h not found'
-    #    Exit(1)
 
 def DoConfig(env):
     """
@@ -285,8 +301,8 @@ def DoConfig(env):
     cxxflags=CCFlags(config.env)
     config.env.Append(CXXFLAGS=[cxxflags])
 
-    # Not supporting openmp in tmv at this moment
-    #AddOpenMPFlag(config.env)
+    # work with multiple processors
+    AddOpenMPFlag(config)
 
     DoLibraryAndHeaderChecks(config)
 
