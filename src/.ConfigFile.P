@@ -1,2 +1,0 @@
-.//ConfigFile.o: ConfigFile.cpp ConfigFile.h
-ConfigFile.cpp ConfigFile.h :
