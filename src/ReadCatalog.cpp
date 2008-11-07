@@ -62,11 +62,23 @@ void ReadGain(const std::string& fitsname, ConfigFile& params)
   params["readnoise"] = rdnoise;
 }
 
-void GetTokens(std::string line, std::vector<ConvertibleString>& tokens)
+#define DEF_BUFFER_SIZE 500
+
+void GetTokens(ConfigFile& params, std::string line,
+    std::vector<ConvertibleString>& tokens)
 {
   std::istringstream linein(line);
-  std::string temp;
-  while (linein >> temp) tokens.push_back(temp);
+  if (params.keyExists("delim")) { 
+    char delim = params["delim"];
+    int bufsize = DEF_BUFFER_SIZE;
+    if (params.keyExists("bufsize")) bufsize = params["bufsize"];
+    char temp[bufsize];
+    while (linein.getline(temp,bufsize,delim))
+      tokens.push_back(std::string(temp));
+  } else {
+    std::string temp;
+    while (linein >> temp) tokens.push_back(temp);
+  }
 }
 
 void ReadCatalog(ConfigFile& params,
@@ -156,7 +168,7 @@ void ReadCatalog(ConfigFile& params,
 	skip = true;
     if (skip) continue;
     std::vector<ConvertibleString> tokens;
-    GetTokens(line,tokens);
+    GetTokens(params,line,tokens);
     Assert(i_x <= tokens.size());
     Assert(i_y <= tokens.size());
     double x = tokens[i_x-1];
