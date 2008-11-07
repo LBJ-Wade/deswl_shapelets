@@ -9,6 +9,7 @@
 #include "DoMeasure.h"
 #include "TimeVars.h"
 #include "PsiHelper.h"
+#include "Name.h"
 
 #include <fstream>
 #include <iostream>
@@ -29,8 +30,7 @@
 int DoMeasureShear(ConfigFile& params) 
 {
   // Load image:
-  Assert(params.keyExists("fits_ext"));
-  Image<double> im(params["root"] + params["fits_ext"]);
+  Image<double> im(Name(params,"fits"));
 
   // Read catalog info
   // (Also calculates the noise or opens the noise image as appropriate)
@@ -44,8 +44,8 @@ int DoMeasureShear(ConfigFile& params)
   // Read distortion function
   Assert(params.keyExists("root"));
   Transformation trans;
-  if (params.keyExists("dist_ext")) {
-    std::string distfile = params["root"] + params["dist_ext"];
+  if (params.keyExists("dist_ext") || params.keyExists("dist_file")) {
+    std::string distfile = Name(params,"dist");
     std::ifstream distin(distfile.c_str());
     Assert(distin);
     distin >> trans;
@@ -61,8 +61,7 @@ int DoMeasureShear(ConfigFile& params)
 #endif
 
   // Read the fitted psf file
-  Assert(params.keyExists("fitpsf_ext"));
-  std::string psffile = params["root"] + params["fitpsf_ext"];
+  std::string psffile = Name(params,"fitpsf");
   xdbg<<"Read fitted psf file "<<psffile<<std::endl;
   std::ifstream psfin(psffile.c_str());
   Assert(psfin);
@@ -230,8 +229,7 @@ int DoMeasureShear(ConfigFile& params)
   if (output_dots) { std::cout<<nsuccess<<std::endl; }
 
   // Output shear information:
-  Assert(params.keyExists("outcat_ext"));
-  std::string outcatfile = params["root"] + params["outcat_ext"];
+  std::string outcatfile = Name(params,"outcat");
   std::ofstream catout(outcatfile.c_str());
   Assert(catout);
   for(int i=0;i<ngals;i++) if (success[i]) {

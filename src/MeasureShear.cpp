@@ -1,9 +1,11 @@
 
 #include "ConfigFile.h"
-#include <iostream>
 #include "DoMeasure.h"
 #include "TMV.h"
 #include "dbg.h"
+#include "Name.h"
+
+#include <iostream>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -28,35 +30,28 @@ int main(int argc, char **argv)
 {
   // Read parameters
   if (argc < 2) {
-    std::cerr<<"Usage: measureshear fitsfile [param=value ...]\n";
-    std::cerr<<"The first parameter is the input fits file name\n";
-    std::cerr<<"The file measureshear.config is the configuration file.\n";
-    std::cerr<<"Modifications to the parameters in the config file may be\n";
-    std::cerr<<"made on the command line as param/value pairs: param=value. \n";
+    std::cerr<<"Usage: measureshear configfile [param=value ...]\n";
+    std::cerr<<"The first parameter is the configuration file that has \n";
+    std::cerr<<"all the parameters for this run. \n";
+    std::cerr<<"These values may be modified on the command line by \n";
+    std::cerr<<"entering param/value pais as param=value. \n";
+    std::cerr<<"Note: root is not usuallly given in the parameter file, \n";
+    std::cerr<<"so the normal command line would be something like:\n";
+    std::cerr<<"measureshear measureshear.config root=img123\n";
     return 1;
   }
-  std::string infits = argv[1];
-  ConfigFile params("measureshear.config");
+  ConfigFile params(argv[1]);
   for(int k=2;k<argc;k++) params.Append(argv[k]);
 
-  params["root"] = RootName(infits);
-
   // Setup debugging
-  Assert(params.keyExists("verbose"));
-  if (int(params["verbose"]) > 0) {
-    if (params.keyExists("debug_file") && params["debug_file"] != "") 
-      dbgout = new std::ofstream(params["debug_file"].c_str());
-    else if (params.keyExists("debug_ext") && params["debug_ext"] != "") 
-      dbgout = new std::ofstream((params["root"]+params["debug_ext"]).c_str());
+  if (params.keyExists("verbose") && int(params["verbose"]) > 0) {
+    if (params.keyExists("debug_file") || params.keyExists("debug_ext")) {
+      dbgout = new std::ofstream(Name(params,"debug").c_str());
+    }
     else dbgout = &std::cout;
     if (int(params["verbose"]) > 1) XDEBUG = true;
   }
 
-  dbg<<"infits = "<<infits<<std::endl;
-  dbg<<"params[root] = "<<params["root"]<<std::endl;
-  dbg<<"params[fits_ext] = "<<params["fits_ext"]<<std::endl;
-  dbg<<"sum = "<<params["root"] + params["fits_ext"]<<std::endl;
-  Assert(infits == params["root"] + params["fits_ext"]);
 
 #ifdef _OPENMP
   if (params.keyExists("num_threads")) {

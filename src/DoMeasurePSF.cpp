@@ -9,6 +9,7 @@
 #include "Transformation.h"
 #include "DoMeasure.h"
 #include "PsiHelper.h"
+#include "Name.h"
 
 #include <fstream>
 #include <iostream>
@@ -23,8 +24,7 @@
 int DoMeasurePSF(ConfigFile& params) 
 {
   // Load image:
-  Assert(params.keyExists("fits_ext"));
-  Image<double> im(params["root"] + params["fits_ext"]);
+  Image<double> im(Name(params,"fits"));
 
   // Read catalog info
   // (Also calculates the noise or opens the noise image as appropriate)
@@ -38,8 +38,8 @@ int DoMeasurePSF(ConfigFile& params)
   // Read distortion function
   Assert(params.keyExists("root"));
   Transformation trans;
-  if (params.keyExists("dist_ext")) {
-    std::string distfile = params["root"] + params["dist_ext"];
+  if (params.keyExists("dist_ext") || params.keyExists("dist_file")) {
+    std::string distfile = Name(params,"dist");
     std::ifstream distin(distfile.c_str());
     Assert(distin);
     distin >> trans;
@@ -131,8 +131,7 @@ int DoMeasurePSF(ConfigFile& params)
   dbg<<nstars-nsuccess<<" unsuccessful\n";
 
   // Output psf information:
-  Assert(params.keyExists("outcat_ext"));
-  std::string outcatfile = params["root"] + params["outcat_ext"];
+  std::string outcatfile = Name(params,"outcat");
   std::ofstream catout(outcatfile.c_str());
   Assert(catout);
   catout << psforder <<"  "<< sigma_p <<std::endl;
@@ -147,8 +146,7 @@ int DoMeasurePSF(ConfigFile& params)
   dbg<<"Done fitting PSF\n";
 
   // Output fitted psf
-  Assert(params.keyExists("fitpsf_ext"));
-  std::string outfitfile = params["root"] + params["fitpsf_ext"];
+  std::string outfitfile = Name(params,"fitpsf");
   std::ofstream fitout(outfitfile.c_str());
   fitout << fittedpsf;
   fitout.close();
