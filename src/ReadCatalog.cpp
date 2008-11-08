@@ -16,6 +16,7 @@ void ReadGain(const std::string& fitsname, ConfigFile& params)
   int status=0;
   float gain, rdnoise;
 
+  std::cout<<"Opening file: "<<fitsname.c_str()<<std::endl;
   if (fits_open_file(&fitsptr,fitsname.c_str(),READONLY,&status))
     std::cerr<<"fits open file gave status #: "<<status<<std::endl;
   std::vector<std::string> gain_key = params["gain_key"];
