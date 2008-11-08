@@ -14,15 +14,6 @@
 std::ostream* dbgout = 0;
 bool XDEBUG = false;
 
-std::string RootName(std::string fullname)
-{
-  size_t pos = fullname.rfind('.');
-  Assert(pos != fullname.npos);
-  std::string root;
-  root = std::string(fullname,0,pos+1); // +1 to include the '.'
-  return root;
-}
-
 int main(int argc, char **argv) 
 #ifndef NOTHROW
   try 

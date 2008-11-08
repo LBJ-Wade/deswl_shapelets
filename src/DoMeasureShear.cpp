@@ -42,7 +42,6 @@ int DoMeasureShear(ConfigFile& params)
   ReadCatalog(params,all_pos,all_sky,all_noise,gain,weight_im);
 
   // Read distortion function
-  Assert(params.keyExists("root"));
   Transformation trans;
   if (params.keyExists("dist_ext") || params.keyExists("dist_file")) {
     std::string distfile = Name(params,"dist");
