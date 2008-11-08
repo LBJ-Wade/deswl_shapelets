@@ -1,0 +1,4 @@
+measurepsf data/wl.config root=data/decam--27--9-i-3_20 debug_file=psf.debug
+measureshear data/wl.config root=data/decam--27--9-i-3_20 debug_file=shear.debug
+echo Successfully ran weak lensing executables.
+wc data/decam--27--9-i-3_20_star.csv data/decam--27--9-i-3_20.psf data/decam--27--9-i-3_20_all.csv data/decam--27--9-i-3_20.shear

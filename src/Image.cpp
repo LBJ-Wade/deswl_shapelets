@@ -20,10 +20,6 @@ template <class T> inline void SWAP(T& a, T& b) { T temp = a; a = b; b = temp; }
 
 template <class T> Image<T>::Image(const std::string& filename, int hdu) 
 {
-  // TODO: figure out how cfitsio deals with different hdu.
-  // I'm sure it's easy - I just haven't looked yet.
-  if (hdu != 1) std::cout<<"hdu != 1 not implemented yet.\n";
-  Assert(hdu == 1);
   xxdbg<<"Start read fitsimage"<<endl;
   fitsfile *fptr;
   int fitserr=0;
@@ -31,10 +27,18 @@ template <class T> Image<T>::Image(const std::string& filename, int hdu)
   fits_open_file(&fptr,filename.c_str(),READONLY,&fitserr);
   xxdbg<<"Done open"<<endl;
   Assert(fitserr==0);
+
+  fits_movabs_hdu(fptr,hdu,0,&fitserr);
+  xdbg<<"Moved to hdu "<<hdu<<endl;
+  Assert(fitserr==0);
+
   int bitpix, naxes;
   long sizes[2];
   fits_get_img_param(fptr, int(2), &bitpix, &naxes, sizes, &fitserr);
   xxdbg<<"done getimgparam"<<endl;
+  xxdbg<<"naxes = "<<naxes<<endl;
+  xxdbg<<"bitpix = "<<bitpix<<endl;
+  xxdbg<<"FLOAT_IMG = "<<FLOAT_IMG<<endl;
   Assert(fitserr==0);
   Assert(bitpix == FLOAT_IMG);
   Assert(naxes == 2);
@@ -49,10 +53,12 @@ template <class T> Image<T>::Image(const std::string& filename, int hdu)
  
   long fpixel[2] = {1,1};
   int anynul;
-  xxdbg<<"Before read_pix\n";
+  xdbg<<"Before read_pix\n";
   fits_read_pix(fptr,TDOUBLE,fpixel,long(xmax*ymax),0,sourcem->ptr(),&anynul,
       &fitserr);
   xxdbg<<"done readpix  "<<fitserr<<endl;
+  xxdbg<<"anynul = "<<anynul<<endl;
+  xxdbg<<"fitserr = "<<fitserr<<endl;
   Assert(fitserr==0);
 
   itsm.reset(new MatrixView<T>(sourcem->View()));

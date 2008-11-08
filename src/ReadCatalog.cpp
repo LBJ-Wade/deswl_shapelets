@@ -83,7 +83,7 @@ void GetTokens(ConfigFile& params, std::string line,
   }
 }
 
-void ReadCatalog(ConfigFile& params,
+void ReadCatalog(ConfigFile& params, std::string incat,
     std::vector<Position>& all_pos, std::vector<double>& all_sky,
     std::vector<double>& all_noise, double& gain, Image<double>*& weight_im)
 {
@@ -119,7 +119,7 @@ void ReadCatalog(ConfigFile& params,
     readnoise = params["readnoise"];
   } 
   else if (params["noise_method"] == "GAIN_FITS") {
-    ReadGain(Name(params,"fits"),params);
+    ReadGain(Name(params,"image"),params);
     xdbg<<"Read gain = "<<params["gain"]<<", rdn = "<<params["readnoise"]<<std::endl;
     nm = GAIN_VALUE;
     gain = params["gain"];
@@ -141,7 +141,7 @@ void ReadCatalog(ConfigFile& params,
   if (params.keyExists("extra_sky")) extrasky = params["extra_sky"];
 
   // Read input catalog:
-  std::string incatfile = Name(params,"incat");
+  std::string incatfile = Name(params,incat);
   std::ifstream catin(incatfile.c_str());
   Assert(catin);
   std::string line;
@@ -169,6 +169,7 @@ void ReadCatalog(ConfigFile& params,
     if (skip) continue;
     std::vector<ConvertibleString> tokens;
     GetTokens(params,line,tokens);
+    xdbg<<"tokens size = "<<tokens.size()<<std::endl;
     Assert(i_x <= tokens.size());
     Assert(i_y <= tokens.size());
     double x = tokens[i_x-1];

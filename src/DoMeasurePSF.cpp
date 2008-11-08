@@ -24,7 +24,9 @@
 int DoMeasurePSF(ConfigFile& params) 
 {
   // Load image:
-  Image<double> im(Name(params,"fits"));
+  int image_hdu = 1;
+  if (params.keyExists("image_hdu")) image_hdu = params["image_hdu"];
+  Image<double> im(Name(params,"image"),image_hdu);
 
   // Read catalog info
   // (Also calculates the noise or opens the noise image as appropriate)
@@ -33,7 +35,7 @@ int DoMeasurePSF(ConfigFile& params)
   std::vector<double> all_noise;
   double gain;
   Image<double>* weight_im = 0;
-  ReadCatalog(params,all_pos,all_sky,all_noise,gain,weight_im);
+  ReadCatalog(params,"starcat",all_pos,all_sky,all_noise,gain,weight_im);
 
   // Read distortion function
   Transformation trans;
@@ -130,7 +132,7 @@ int DoMeasurePSF(ConfigFile& params)
   dbg<<nstars-nsuccess<<" unsuccessful\n";
 
   // Output psf information:
-  std::string outcatfile = Name(params,"outcat");
+  std::string outcatfile = Name(params,"psf");
   std::ofstream catout(outcatfile.c_str());
   Assert(catout);
   catout << psforder <<"  "<< sigma_p <<std::endl;

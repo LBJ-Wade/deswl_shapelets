@@ -30,7 +30,9 @@
 int DoMeasureShear(ConfigFile& params) 
 {
   // Load image:
-  Image<double> im(Name(params,"fits"));
+  int image_hdu = 1;
+  if (params.keyExists("image_hdu")) image_hdu = params["image_hdu"];
+  Image<double> im(Name(params,"image"),image_hdu);
 
   // Read catalog info
   // (Also calculates the noise or opens the noise image as appropriate)
@@ -39,7 +41,7 @@ int DoMeasureShear(ConfigFile& params)
   std::vector<double> all_noise;
   double gain;
   Image<double>* weight_im = 0;
-  ReadCatalog(params,all_pos,all_sky,all_noise,gain,weight_im);
+  ReadCatalog(params,"allcat",all_pos,all_sky,all_noise,gain,weight_im);
 
   // Read distortion function
   Transformation trans;
@@ -101,7 +103,7 @@ int DoMeasureShear(ConfigFile& params)
 #endif
   // Main loop to measure shears
 #ifdef _OPENMP
-  omp_set_num_threads(2);
+  //omp_set_num_threads(2);
 #pragma omp parallel 
   {
 #pragma omp critical 
@@ -228,7 +230,7 @@ int DoMeasureShear(ConfigFile& params)
   if (output_dots) { std::cout<<nsuccess<<std::endl; }
 
   // Output shear information:
-  std::string outcatfile = Name(params,"outcat");
+  std::string outcatfile = Name(params,"shear");
   std::ofstream catout(outcatfile.c_str());
   Assert(catout);
   for(int i=0;i<ngals;i++) if (success[i]) {

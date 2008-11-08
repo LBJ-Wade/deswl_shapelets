@@ -12,7 +12,7 @@
 int DoMeasurePSF(ConfigFile& params);
 int DoMeasureShear(ConfigFile& params);
 
-void ReadCatalog(ConfigFile& params,
+void ReadCatalog(ConfigFile& params, std::string incat,
     std::vector<Position>& all_pos, std::vector<double>& all_sky,
     std::vector<double>& all_noise, double& gain, Image<double>*& weight_im);
 
