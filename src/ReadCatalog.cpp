@@ -2,6 +2,7 @@
 #include "DoMeasure.h"
 #include "Pixel.h"
 #include "dbg.h"
+#include "Name.h"
 #include <fstream>
 #include <iostream>
 #include "fitsio.h"
@@ -118,8 +119,7 @@ void ReadCatalog(ConfigFile& params,
     readnoise = params["readnoise"];
   } 
   else if (params["noise_method"] == "GAIN_FITS") {
-    Assert(params.keyExists("fits_ext"));
-    ReadGain(params["root"]+params["fits_ext"],params);
+    ReadGain(Name(params,"fits"),params);
     xdbg<<"Read gain = "<<params["gain"]<<", rdn = "<<params["readnoise"]<<std::endl;
     nm = GAIN_VALUE;
     gain = params["gain"];
@@ -127,7 +127,7 @@ void ReadCatalog(ConfigFile& params,
   } 
   else if (params["noise_method"] = "WEIGHT_IMAGE") {
     nm = WEIGHT_IMAGE;
-    Assert(params.keyExists("weight_ext"));
+    Assert(params.keyExists("weight_ext") || params.keyExists("weight_name"));
     if (params.keyExists("weight_hdu")) weight_hdu = params["weight_hdu"];
   }
   else {
@@ -141,8 +141,7 @@ void ReadCatalog(ConfigFile& params,
   if (params.keyExists("extra_sky")) extrasky = params["extra_sky"];
 
   // Read input catalog:
-  Assert(params.keyExists("incat_ext"));
-  std::string incatfile = params["root"] + params["incat_ext"];
+  std::string incatfile = Name(params,"incat");
   std::ifstream catin(incatfile.c_str());
   Assert(catin);
   std::string line;
@@ -212,8 +211,7 @@ void ReadCatalog(ConfigFile& params,
   // Read weight image if appropriate
   if (nm == WEIGHT_IMAGE) {
     // Do mask image too?
-    weight_im = new Image<double>(params["root"] + params["fits_ext"],
-	weight_hdu);
+    weight_im = new Image<double>(Name(params,"weight"),weight_hdu);
   }
 }
 
