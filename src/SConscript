@@ -16,8 +16,8 @@ measurepsf = env.Program('measurepsf', 'MeasurePSF.cpp',
 measureshear = env.Program('measureshear', 'MeasureShear.cpp', 
                            LIBS=['wl'] + sblibs)
 
-testwl = env.Program('testwl', 'TestWL.cpp', LIBS=['wl'] + sblibs )
-testnl = env.Program('testnl', 'TestNL.cpp', LIBS=['wl'] + sblibs)
+#testwl = env.Program('testwl', 'TestWL.cpp', LIBS=['wl'] + sblibs )
+#testnl = env.Program('testnl', 'TestNL.cpp', LIBS=['wl'] + sblibs)
 
 bin_install_dir = os.path.join(env['PREFIX'], 'bin')
 

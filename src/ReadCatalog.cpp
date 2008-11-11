@@ -71,12 +71,15 @@ void GetTokens(ConfigFile& params, std::string line,
 {
   std::istringstream linein(line);
   if (params.keyExists("delim")) { 
+    //std::cout<<"delim exists"<<std::endl;
     char delim = params["delim"];
     int bufsize = DEF_BUFFER_SIZE;
     if (params.keyExists("bufsize")) bufsize = params["bufsize"];
     char temp[bufsize];
-    while (linein.getline(temp,bufsize,delim))
+    while (linein.getline(temp,bufsize,delim)) {
+      //std::cout<<"Found token: "<<temp<<std::endl;
       tokens.push_back(std::string(temp));
+    }
   } else {
     std::string temp;
     while (linein >> temp) tokens.push_back(temp);

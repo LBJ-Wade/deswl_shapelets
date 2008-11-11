@@ -13,6 +13,7 @@
 
 #include <fstream>
 #include <iostream>
+#include "Params.h"
 
 #ifdef _OPENMP
 //#include <omp.h>
@@ -20,6 +21,7 @@
 
 //#define SINGLESTAR 18
 //#define NSTARS 10
+
 
 int DoMeasurePSF(ConfigFile& params) 
 {
@@ -46,6 +48,7 @@ int DoMeasurePSF(ConfigFile& params)
     distin >> trans;
   } // else stay with identity transformation.
 
+
   // Read some needed parameters
   int nstars = all_pos.size();
   dbg<<"nstars = "<<nstars<<std::endl;
@@ -68,6 +71,14 @@ int DoMeasurePSF(ConfigFile& params)
   // Setup output vectors
   std::vector<BVec*> psf(nstars,(BVec*)(0));
   std::vector<double> nu(nstars,0.);
+
+  // Set up a default psf vector for output when an object measurement
+  // fails
+  BVec* psf_default = new BVec(psforder,sigma_p);
+  for (int i=0; i<(*psf_default).size(); i++) {
+    (*psf_default)[i] = DEFVALNEG;
+  }
+
 
 #ifdef NSTARS
   nstars = NSTARS;
@@ -126,6 +137,8 @@ int DoMeasurePSF(ConfigFile& params)
     { std::cerr<<"Caught some error in parallel region\n"; exit(1); }
   }
 #endif
+
+
   int nsuccess = 0;
   for(int i=0;i<nstars;i++) if (psf[i]) nsuccess++;
   dbg<<nsuccess<<" successful star measurements, ";
@@ -138,7 +151,7 @@ int DoMeasurePSF(ConfigFile& params)
   catout << psforder <<"  "<< sigma_p <<std::endl;
   for(int i=0;i<nstars;i++) if (psf[i]) {
     catout << all_pos[i].GetX()<<"  "<<all_pos[i].GetY();
-    catout << "  "<< nu[i] <<"  "<<psf[i]<<std::endl;
+    catout << "  "<< nu[i] <<"  "<<*psf[i]<<std::endl;
   }
   dbg<<"Done writing output catalog\n";
 
@@ -155,6 +168,7 @@ int DoMeasurePSF(ConfigFile& params)
 
   if (XDEBUG) {
     // Check fit:
+
     std::ifstream readfitout(outfitfile.c_str());
     FittedPSF readfittedpsf(readfitout);
     for(int i=0;i<nstars;i++) if (psf[i]) {
