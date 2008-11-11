@@ -1,3 +1,5 @@
+#include "types.h"
+#include "Params.h"
 
 #include "BVec.h"
 #include "Ellipse.h"
@@ -94,9 +96,24 @@ int DoMeasureShear(ConfigFile& params)
   std::vector<Position> skypos(ngals);
   std::vector<std::complex<double> > shear(ngals,0.);
   std::vector<tmv::Matrix<double> > shearcov(ngals,tmv::Matrix<double>(2,2));
-  std::vector<bool> success(ngals,false);
   std::vector<BVec*> shapelet(ngals,(BVec*)(0));
   OverallFitTimes alltimes;
+  // Vector of flag values
+  vector<int32> flagvec(ngals,0);
+
+  // Default values when we have failure
+  std::complex<double> shear_default = DEFVALNEG;
+
+  tmv::Matrix<double> shearcov_default(2,2);
+  shearcov_default(0,0) = DEFVALPOS; shearcov_default(0,1) = 0;
+  shearcov_default(1,0) = 0;         shearcov_default(1,1) = DEFVALPOS;
+
+  BVec* shapelet_default = new BVec(gal_order,DEFVALPOS);
+  for (int i=0; i<(*shapelet_default).size(); i++) {
+    (*shapelet_default)[i] = DEFVALNEG;
+  }
+
+
 
 #ifdef ENDAT
   ngals = ENDAT;
@@ -145,6 +162,7 @@ int DoMeasureShear(ConfigFile& params)
 	  dbg<<"skip: distortion range error: \n";
 	  xdbg<<"p = "<<all_pos[i]<<", b = "<<e.b<<std::endl;
 	  times.nf_range1++;
+	  flagvec[i] |= DMSH_TRANSFORM_EXCEPTION;
 	  continue;
 	}
 
@@ -157,11 +175,13 @@ int DoMeasureShear(ConfigFile& params)
 	  dbg<<"skip: fittedpsf range error: \n";
 	  xdbg<<"p = "<<all_pos[i]<<", b = "<<e.b<<std::endl;
 	  times.nf_range2++;
+	  flagvec[i] |= DMSH_FITTEDPSF_EXCEPTION;
 	  continue;
 	}
 
 	// Do the real meat of the calculation:
-	bool success1;
+	int32 flags;
+
 	std::complex<double> shear1 = 0.;
 	tmv::Matrix<double> shearcov1(2,2);
 	BVec* shapelet1=0;
@@ -178,20 +198,30 @@ int DoMeasureShear(ConfigFile& params)
 	      // Time stats if desired:
 	      timing ? &times : 0,
 	      // Ouput values:
-	      success1, shear1, shearcov1, shapelet1);
+	      shear1, shearcov1, shapelet1, flags);
 	} catch (tmv::Error& e) {
 	  dbg<<"skip: TMV Error thrown in MeasureSingleShear\n";
 	  dbg<<e<<std::endl;
+	  flags = DMSH_MSH_TMV_EXCEPTION;
+	  continue;
+	} catch (...) {
+	  dbg<<"skip: unkown exception in MeasureSingleShear\n";
+	  flags = DMSH_MSH_UNKNOWN_EXCEPTION;
 	  continue;
 	}
 #ifdef _OPENMP
 #pragma omp critical
 #endif
 	{
-	  success[i] = success1;
-	  shear[i] = shear1;
-	  shearcov[i] = shearcov1;
-	  shapelet[i] = shapelet1;
+	  flagvec[i] |= flags;
+	  // only point to these values if success
+	  if (flags == 0) {
+	    shear[i] = shear1;
+	    shearcov[i] = shearcov1;
+	    shapelet[i] = shapelet1;
+	  } else {
+	    dbg<<"Unsuccessful measurement\n"; 
+	  }
 	}
 
 	if (timing) {
@@ -224,7 +254,7 @@ int DoMeasureShear(ConfigFile& params)
     dbg<<" + "<<alltimes.nf_gamma<<" unsuccessful\n";
     nsuccess = alltimes.ns_gamma;
   } else {
-    for(int i=0;i<ngals;i++) if (success[i]) nsuccess++;
+    for(int i=0;i<ngals;i++) if (flagvec[i] == 0) nsuccess++;
     dbg<<nsuccess<<" successful shear measurements, ";
   }
   if (output_dots) { std::cout<<nsuccess<<std::endl; }
@@ -233,11 +263,28 @@ int DoMeasureShear(ConfigFile& params)
   std::string outcatfile = Name(params,"shear");
   std::ofstream catout(outcatfile.c_str());
   Assert(catout);
-  for(int i=0;i<ngals;i++) if (success[i]) {
-    catout << skypos[i].GetX()<<"   "<<skypos[i].GetY()<<"   ";;
-    catout <<"  "<<real(shear[i])<<"   "<<imag(shear[i])<<"   ";
-    catout <<shearcov[i](0,0)<<"   "<<shearcov[i](1,1)<<"   ";
-    catout <<shearcov[i](0,1)<<std::endl;
+  for(int i=0;i<ngals;i++) if (flagvec[i] == 0) {
+    catout 
+      << skypos[i].GetX()    <<"   "
+      << skypos[i].GetY()    <<"   "
+      << flagvec[i]          <<"   "
+      << real(shear[i])      <<"   "
+      << imag(shear[i])      <<"   "
+      << shearcov[i](0,0)    <<"   "
+      << shearcov[i](0,1)    <<"   "
+      << shearcov[i](1,1)<<std::endl;
+  } else {
+    // Make a print function instead of duplicating code
+
+    catout 
+      << skypos[i].GetX()         <<"   "
+      << skypos[i].GetY()         <<"   "
+      << flagvec[i]               <<"   "
+      << real(shear_default)      <<"   "
+      << imag(shear_default)      <<"   "
+      << shearcov_default(0,0)    <<"   "
+      << shearcov_default(0,1)    <<"   "
+      << shearcov_default(1,1)<<std::endl;
   }
   dbg<<"Done writing output catalog\n";
   // TODO: Also output shapelets...
@@ -247,6 +294,7 @@ int DoMeasureShear(ConfigFile& params)
   // Cleanup memory
   if (weight_im) delete weight_im;
   for(int i=0;i<ngals;i++) if (shapelet[i]) delete shapelet[i];
+  delete shapelet_default;
 
   return nsuccess;
 }

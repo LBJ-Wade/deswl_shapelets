@@ -4,7 +4,7 @@
 #include <vector>
 using std::vector;
 
-// this is not generic enough
+// this is not generic enough, but can stand in for now
 typedef char                    int8;
 typedef unsigned char           uint8;
 typedef short int               int16;

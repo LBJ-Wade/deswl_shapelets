@@ -1,6 +1,7 @@
 #ifndef DoMeasure_H
 #define DoMeasure_H
 
+#include "types.h"
 #include "ConfigFile.h"
 #include "Image.h"
 #include "TimeVars.h"
@@ -25,8 +26,9 @@ void MeasureSingleShear(
     int gal_order, int gal_order2,
     double f_psf, double min_gal_size,
     OverallFitTimes* times,
-    bool& success_shear, std::complex<double>& shear, 
-    tmv::Matrix<double>& varshear, BVec*& shapelet);
+    std::complex<double>& shear, 
+    tmv::Matrix<double>& varshear, BVec*& shapelet,
+    int32& flags);
 
 double EstimateSigma(
     const Image<double>& im,
@@ -39,6 +41,6 @@ void MeasureSinglePSF(
     const Transformation& trans,
     double noise, double gain, const Image<double>* weight_im,
     double sigma_p, double psf_aperture, int psf_order,
-    BVec*& psf, double& nu);
+    BVec*& psf, double& nu, int32& flags);
 
 #endif

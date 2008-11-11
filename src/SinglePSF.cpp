@@ -2,6 +2,7 @@
 #include "DoMeasure.h"
 #include "Pixel.h"
 #include "Ellipse.h"
+#include "Params.h"
 
 double EstimateSigma(
     const Image<double>& im,
@@ -51,22 +52,25 @@ void MeasureSinglePSF(
     const Transformation& trans,
     double noise, double gain, const Image<double>* weight_im,
     double sigma_p, double psfap, int psforder,
-    BVec*& psf, double& nu)
+    BVec*& psf, double& nu, int& flags)
 {
+  flags = 0;
   std::vector<std::vector<Pixel> > pix(1);
-  int flag = 0;
+  int getpix_flag = 0;
   try {
-    GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,psfap,flag);
+    GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,psfap,getpix_flag);
   }
   catch (Range_error& e) {
     xdbg<<"skip: transformation range error: \n";
     xdbg<<"p = "<<cen<<", b = "<<e.b<<std::endl;
     psf = 0;
+    flags |= MSPSF_GETPIX_EXCEPTION;
     return;
   }
-  if (flag) {
-    xdbg<<"skip: flag == "<<flag<<std::endl;
+  if (getpix_flag) {
+    xdbg<<"skip: getpix flag == "<<getpix_flag<<std::endl;
     psf = 0;
+    flags |= MSPSF_GETPIX_FAILED;
     return;
   }
   xdbg<<"npix = "<<pix[0].size()<<std::endl;
@@ -94,6 +98,7 @@ void MeasureSinglePSF(
     xdbg<<"Measurement failed\n";
     delete psf;
     psf = 0;
+    flags |= MSPSF_MEASURE_FAILED;
   }
 }
 

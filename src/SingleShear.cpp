@@ -1,3 +1,5 @@
+#include "types.h"
+#include "Params.h"
 
 #include "BVec.h"
 #include "Ellipse.h"
@@ -26,13 +28,15 @@ void MeasureSingleShear(
     int gal_order, int gal_order2,
     double f_psf, double min_gal_size,
     OverallFitTimes* times,
-    bool& success, std::complex<double>& shear, 
-    tmv::Matrix<double>& shearcov, BVec*& shapelet)
+    std::complex<double>& shear, 
+    tmv::Matrix<double>& shearcov, BVec*& shapelet,
+    int32& flags)
 {
 #ifdef GAMMAOUT
   static std::ofstream gammaout("gamma.out");
 #endif
-  success = false;
+
+  flags=0;
 
   // Find harmonic mean of psf sizes:
   // MJ: Is it correct to use the harmonic mean of sigma^2?
@@ -52,11 +56,12 @@ void MeasureSingleShear(
   xdbg<<"sigma_obs = "<<sigma_obs<<", sigma_p = "<<sigma_p<<std::endl;
 
   std::vector<std::vector<Pixel> > pix(1);
-  int flag = 0;
-  GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,galap,flag);
-  if (flag) {
-    dbg<<"skip: flag == "<<flag<<std::endl;
+  int getpix_flag = 0;
+  GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,galap,getpix_flag);
+  if (getpix_flag) {
+    dbg<<"skip: flag == "<<getpix_flag<<std::endl;
     if (times) times->nf_pixflag1++;
+    flags |= MSH_GETPIX1_FAILED;
     return;
   }
   int npix = pix[0].size();
@@ -64,6 +69,7 @@ void MeasureSingleShear(
   if (npix < 10) {
     dbg<<"skip: npix == "<<npix<<std::endl;
     if (times) times->nf_npix1++;
+    flags |= MSH_GETPIX1_LT10;
     return;
   }
 
@@ -98,6 +104,7 @@ void MeasureSingleShear(
       times->tf_native_final += ell.t_final;
     }
     dbg<<"Native measurement failed\n";
+    flags |= MSH_NATIVE_FAILED;
     return;
   }
   double mu_2 = ell.GetMu();
@@ -108,6 +115,7 @@ void MeasureSingleShear(
   if (sigma_obs < min_gal_size*sigma_p) {
     dbg<<"skip: galaxy is too small -- "<<sigma_obs<<" psf size = "<<sigma_p<<std::endl;
     if (times) times->nf_small++;
+    flags |= MSH_TOOSMALL;
     return;
   }
   galap *= exp(ell.GetMu());
@@ -121,10 +129,12 @@ void MeasureSingleShear(
   //xdbg<<"Mu = "<<ell.GetMu()<<std::endl;
 
   pix[0].clear();
-  GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,galap,flag);
-  if (flag) {
-    dbg<<"skip: flag == "<<flag<<std::endl;
+  getpix_flag=0;
+  GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,galap,getpix_flag);
+  if (getpix_flag) {
+    dbg<<"skip: flag == "<<getpix_flag<<std::endl;
     if (times) times->nf_pixflag2++;
+    flags |= MSH_GETPIX2_FAILED; 
     return;
   }
   npix = pix[0].size();
@@ -132,6 +142,7 @@ void MeasureSingleShear(
   if (npix < 10) {
     dbg<<"skip: npix == "<<npix<<std::endl;
     if (times) times->nf_npix2++;
+    flags |= MSH_GETPIX2_LT10; 
     return;
   }
   double sigpsq = pow(sigma_p,2);
@@ -161,6 +172,7 @@ void MeasureSingleShear(
       times->tf_mu_final += ell.t_final;
     }
     dbg<<"Deconvolving measurement failed\n";
+    flags |= MSH_DECONV_FAILED;
     return;
   }
   double mu_3 = ell.GetMu();
@@ -227,7 +239,6 @@ void MeasureSingleShear(
     }
     dbg<<"Successful Gamma fit\n";
     xdbg<<"Measured gamma = "<<ell.GetGamma()<<std::endl;
-    success = true;
     shear = ell.GetGamma();
     shearcov = cov.SubMatrix(2,4,2,4);
     //shearcov.SetToIdentity(0.001);
@@ -241,6 +252,7 @@ void MeasureSingleShear(
       times->tf_gamma_final += ell.t_final;
     }
     dbg<<"Measurement failed\n";
+    flags |= MSH_SHEAR_FAILED;
     return;
   }
   dbg<<"Stats: Mu: "<<mu_1<<"  "<<mu_2<<"  "<<mu_3<<std::endl;

@@ -1,4 +1,7 @@
 
+#include "Params.h"
+#include "types.h"
+
 #include "BVec.h"
 #include "Ellipse.h"
 #include "dbg.h"
@@ -13,7 +16,6 @@
 
 #include <fstream>
 #include <iostream>
-#include "Params.h"
 
 #ifdef _OPENMP
 //#include <omp.h>
@@ -78,7 +80,10 @@ int DoMeasurePSF(ConfigFile& params)
   for (int i=0; i<(*psf_default).size(); i++) {
     (*psf_default)[i] = DEFVALNEG;
   }
+  double nu_default = DEFVALNEG;
 
+  // Array of flag values
+  vector<int32> flagvec(nstars,0);
 
 #ifdef NSTARS
   nstars = NSTARS;
@@ -106,6 +111,7 @@ int DoMeasurePSF(ConfigFile& params)
 
 	BVec* psf1(0);
 	double nu1 = 0.;
+	int32 flags;
 	MeasureSinglePSF(
 	    // Input data:
 	    all_pos[i], im, all_sky[i], trans, 
@@ -114,11 +120,13 @@ int DoMeasurePSF(ConfigFile& params)
 	    // Parameters:
 	    sigma_p, psfap, psforder,
 	    // Ouput value:
-	    psf1, nu1);
+	    psf1, nu1, flags);
 #ifdef _OPENMP
 #pragma omp critical
 #endif
 	{
+	  flagvec[i] = flags;
+	  // only copy on success
 	  if (psf1) {
 	    psf[i] = psf1;
 	    nu[i] = nu1;
@@ -150,8 +158,24 @@ int DoMeasurePSF(ConfigFile& params)
   Assert(catout);
   catout << psforder <<"  "<< sigma_p <<std::endl;
   for(int i=0;i<nstars;i++) if (psf[i]) {
-    catout << all_pos[i].GetX()<<"  "<<all_pos[i].GetY();
-    catout << "  "<< nu[i] <<"  "<<*psf[i]<<std::endl;
+    if (flagvec[i] == 0) {
+      catout 
+	<< all_pos[i].GetX()  <<"  "
+	<< all_pos[i].GetY()  <<"  "
+	<< flagvec[i]         <<"  "
+	<< nu[i]              <<"  "
+	<< *psf[i]
+	<< std::endl;
+    } else {
+      // write a print function instead of duplicating here
+      catout
+	<< all_pos[i].GetX()  <<"  "
+	<< all_pos[i].GetY()  <<"  "
+	<< flagvec[i]         <<"  "
+	<< nu_default         <<"  "
+	<< *psf_default
+	<< std::endl;
+    }
   }
   dbg<<"Done writing output catalog\n";
 
@@ -182,6 +206,7 @@ int DoMeasurePSF(ConfigFile& params)
 
   // Cleanup memory
   for(int i=0;i<nstars;i++) if (psf[i]) delete psf[i];
+  delete psf_default;
 
   return nsuccess;
 }
