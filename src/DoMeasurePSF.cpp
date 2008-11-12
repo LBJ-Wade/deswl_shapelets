@@ -110,16 +110,21 @@ int DoMeasurePSF(ConfigFile& params)
 
 	BVec* psf1(0);
 	double nu1 = 0.;
-	int32 flags;
-	MeasureSinglePSF(
-	    // Input data:
-	    all_pos[i], im, all_sky[i], trans, 
-	    // Noise values:
-	    all_noise[i], gain, weight_im,
-	    // Parameters:
-	    sigma_p, psfap, psforder,
-	    // Ouput value:
-	    psf1, nu1, flags);
+	int32 flags=0;
+	try {
+	  MeasureSinglePSF(
+	      // Input data:
+	      all_pos[i], im, all_sky[i], trans, 
+	      // Noise values:
+	      all_noise[i], gain, weight_im,
+	      // Parameters:
+	      sigma_p, psfap, psforder,
+	      // Ouput value:
+	      psf1, nu1, flags);
+	} catch (...) {
+	  dbg<<"unkown exception in MeasureSingleShear\n";
+	  flags |= DMPSF_MSPSF_UNKOWN_EXCEPTION;
+	}
 #ifdef _OPENMP
 #pragma omp critical
 #endif
@@ -217,14 +222,13 @@ void DoMeasurePSFPrint(
     double nu, 
     BVec* psf)
 {
-    ostream
-	<< x       <<"  "
-	<< y       <<"  "
-	<< flags   <<"  "
-	<< nu      <<"  "
-	<< *psf
-	<< std::endl;
-
+  ostream
+    << x       <<"  "
+    << y       <<"  "
+    << flags   <<"  "
+    << nu      <<"  "
+    << *psf
+    << std::endl;
 }
 
 

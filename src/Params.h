@@ -14,10 +14,13 @@
 // Note, no try-catch block around Measure(), should we add one?
 #define MSPSF_MEASURE_EXCEPTION 0x4
 #define MSPSF_MEASURE_FAILED 0x8
+#define DMPSF_MSPSF_UNKOWN_EXCEPTION 0x10
+
 
 
 //
-// Flags for the DoMeasureShear main program processing
+// Flags for the DoMeasureShear main program processing, and the
+// MeasureSingleShear
 //
 // these occur in main DoMeasureShear loop
 #define DMSH_TRANSFORM_EXCEPTION    0x1
