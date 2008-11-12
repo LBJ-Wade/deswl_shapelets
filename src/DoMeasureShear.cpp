@@ -264,27 +264,20 @@ int DoMeasureShear(ConfigFile& params)
   std::ofstream catout(outcatfile.c_str());
   Assert(catout);
   for(int i=0;i<ngals;i++) if (flagvec[i] == 0) {
-    catout 
-      << skypos[i].GetX()    <<"   "
-      << skypos[i].GetY()    <<"   "
-      << flagvec[i]          <<"   "
-      << real(shear[i])      <<"   "
-      << imag(shear[i])      <<"   "
-      << shearcov[i](0,0)    <<"   "
-      << shearcov[i](0,1)    <<"   "
-      << shearcov[i](1,1)<<std::endl;
+    DoMeasureShearPrint(
+	catout,
+	skypos[i].GetX(), skypos[i].GetY(),
+	flagvec[i],
+	shear[i],
+	shearcov[i]);
   } else {
     // Make a print function instead of duplicating code
-
-    catout 
-      << skypos[i].GetX()         <<"   "
-      << skypos[i].GetY()         <<"   "
-      << flagvec[i]               <<"   "
-      << real(shear_default)      <<"   "
-      << imag(shear_default)      <<"   "
-      << shearcov_default(0,0)    <<"   "
-      << shearcov_default(0,1)    <<"   "
-      << shearcov_default(1,1)<<std::endl;
+    DoMeasureShearPrint(
+	catout,
+	skypos[i].GetX(), skypos[i].GetY(),
+	flagvec[i],
+	shear_default,
+	shearcov_default);
   }
   dbg<<"Done writing output catalog\n";
   // TODO: Also output shapelets...
@@ -297,5 +290,25 @@ int DoMeasureShear(ConfigFile& params)
   delete shapelet_default;
 
   return nsuccess;
+}
+
+void DoMeasureShearPrint(
+    std::ofstream& ostream,
+    double x, double y, 
+    int32 flags, 
+    std::complex<double>& shear, 
+    tmv::Matrix<double>& shearcov)
+{
+    ostream
+	<< x             <<"  "
+	<< y             <<"  "
+	<< flags         <<"  "
+	<< real(shear)   <<"  "
+	<< imag(shear)   <<"  "
+	<< shearcov(0,0) <<"  "
+	<< shearcov(0,1) <<"  "
+	<< shearcov(1,1)
+	<< std::endl;
+
 }
 

@@ -24,7 +24,6 @@
 //#define SINGLESTAR 18
 //#define NSTARS 10
 
-
 int DoMeasurePSF(ConfigFile& params) 
 {
   // Load image:
@@ -159,22 +158,21 @@ int DoMeasurePSF(ConfigFile& params)
   catout << psforder <<"  "<< sigma_p <<std::endl;
   for(int i=0;i<nstars;i++) if (psf[i]) {
     if (flagvec[i] == 0) {
-      catout 
-	<< all_pos[i].GetX()  <<"  "
-	<< all_pos[i].GetY()  <<"  "
-	<< flagvec[i]         <<"  "
-	<< nu[i]              <<"  "
-	<< *psf[i]
-	<< std::endl;
+      DoMeasurePSFPrint(
+	  catout, 
+	  all_pos[i].GetX(),
+	  all_pos[i].GetY(),
+	  flagvec[i],
+	  nu[i],
+	  psf[i]);
     } else {
-      // write a print function instead of duplicating here
-      catout
-	<< all_pos[i].GetX()  <<"  "
-	<< all_pos[i].GetY()  <<"  "
-	<< flagvec[i]         <<"  "
-	<< nu_default         <<"  "
-	<< *psf_default
-	<< std::endl;
+      DoMeasurePSFPrint(
+	  catout,
+	  all_pos[i].GetX(),
+	  all_pos[i].GetY(),
+	  flagvec[i],
+	  nu_default,
+	  psf_default);
     }
   }
   dbg<<"Done writing output catalog\n";
@@ -210,4 +208,23 @@ int DoMeasurePSF(ConfigFile& params)
 
   return nsuccess;
 }
+
+
+void DoMeasurePSFPrint(
+    std::ofstream& ostream,
+    double x, double y, 
+    int32 flags, 
+    double nu, 
+    BVec* psf)
+{
+    ostream
+	<< x       <<"  "
+	<< y       <<"  "
+	<< flags   <<"  "
+	<< nu      <<"  "
+	<< *psf
+	<< std::endl;
+
+}
+
 

@@ -13,6 +13,16 @@
 int DoMeasurePSF(ConfigFile& params);
 int DoMeasureShear(ConfigFile& params);
 
+void DoMeasurePSFPrint(
+    std::ofstream& ostream,
+    double x, double y, int32 flags, double nu, BVec* psf);
+void DoMeasureShearPrint(
+    std::ofstream& ostream,
+    double x, double y, 
+    int32 flags, 
+    std::complex<double>& shear, 
+    tmv::Matrix<double>& shearcov);
+
 void ReadCatalog(ConfigFile& params, std::string incat,
     std::vector<Position>& all_pos, std::vector<double>& all_sky,
     std::vector<double>& all_noise, double& gain, Image<double>*& weight_im);
