@@ -175,15 +175,12 @@ int DoMeasureShear(ConfigFile& params)
 	if (flagvec[i] == 0) {
 	  // Calculate the psf from the fitted-psf formula:
 	  std::vector<BVec> 
-	    psf(1,
-		BVec(fittedpsf.GetOrder(),
-		fittedpsf.GetSigma())
-	       );
+	    psf(1, BVec(fittedpsf.GetOrder(),fittedpsf.GetSigma()) );
 	  try {
 	    dbg<<"for fittedpsf all_pos[i] = "<<all_pos[i]<<std::endl;
 	    psf[0] = fittedpsf(all_pos[i]);
 	  } catch (Range_error& e) {
-	    dbg<<"skip: fittedpsf range error: \n";
+	    dbg<<"fittedpsf range error: \n";
 	    xdbg<<"p = "<<all_pos[i]<<", b = "<<e.b<<std::endl;
 	    times.nf_range2++;
 	    flagvec[i] |= DMSH_FITTEDPSF_EXCEPTION;
