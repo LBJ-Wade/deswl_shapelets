@@ -16,7 +16,7 @@ subdirs=[]
 
 # Configurations will be saved here so command line options don't
 # have to be sent more than once
-config_file = 'wl.conf'
+config_file = 'wl_scons.conf'
 
 # Some extra path places to look.  For extra_paths it is assumed that /bin
 # /lib and /include come after the specified path.  For extra_include_paths

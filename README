@@ -1,0 +1,35 @@
+Compiling:
+
+In the root directory of the distribution:
+
+	scons IMPORT_PATHS=True
+	scons install PREFIX=/some/path
+
+The import paths command means it will look in LD_LIBRARY_PATH and
+C_INCLUDE_PATH for libraries and header files (sich as the needed tmv,
+atlas/blas, cfitsio).
+
+If you have n processors you can speed up the compilation with
+	scons -j $n IMPORT_PATHS=True
+
+The main executables measurepsf and measureshear will be copied into the
+$PREFIX/bin directory.
+
+Running the code:
+
+measurepsf configure_file root=/full/path/to/image/without_extension
+measureshear configure_file root=/full/path/to/image/without_extension
+
+These programs use the same configuration file.  Using the root method
+the files are assumed to have the basic root name and all live under
+that same directory.  For more control over names you can specify
+the following on the command lie:
+
+	image_file=
+	allcat_file=
+	starcat_file=
+	psf_file=
+	shear_file=
+	fitpsf_file=
+	
+as well as many other things.  See example_config/wl.config for examples.
