@@ -59,7 +59,7 @@ int DoMeasurePSF(ConfigFile& params)
   Assert(params.keyExists("psf_order"));
   int psforder = params["psf_order"];
   bool output_dots=false;
-  if (params.keyExists("ouput_dots")) output_dots=true;
+  if (params.keyExists("output_dots")) output_dots=true;
 
   // Calculate a good value of sigma to use:
   // (For this calculation, psfap is psf_aperture * 1 arcsec.)

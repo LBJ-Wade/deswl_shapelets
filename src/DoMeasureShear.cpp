@@ -265,7 +265,12 @@ int DoMeasureShear(ConfigFile& params)
     for(int i=0;i<ngals;i++) if (flagvec[i] == 0) nsuccess++;
     dbg<<nsuccess<<" successful shear measurements, ";
   }
-  if (output_dots) { std::cout<<nsuccess<<std::endl; }
+  if (output_dots) { 
+	  std::cout
+		  <<std::endl
+		  <<"Success rate: "<<nsuccess<<"/"<<ngals
+		  <<std::endl; 
+  }
 
   // Output shear information:
   std::string outcatfile = Name(params,"shear");
