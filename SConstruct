@@ -54,6 +54,9 @@ opts.Add(BoolOption('DBG','Turn on debugging output',False))
 opts.Add(BoolOption('WITH_ATLAS',
                     'Look for atlas libraries and link if found.',
                     True))
+opts.Add(BoolOption('WITH_OPENMP',
+                    'Look for openmp and use if found.',
+                    True))
 opts.Add(BoolOption('IMPORT_PATHS',
                     'Import PATH, C_INCLUDE_PATH and LIBRARY_PATH/LD_INCLUDE_PATH environment variables',
                     False))
@@ -299,7 +302,8 @@ def DoConfig(env):
     config.env.Append(CXXFLAGS=[cxxflags])
 
     # work with multiple processors
-    AddOpenMPFlag(config)
+    if config.env['WITH_OPENMP']:
+        AddOpenMPFlag(config)
 
     DoLibraryAndHeaderChecks(config)
 
