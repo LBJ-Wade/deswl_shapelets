@@ -12,7 +12,7 @@ import sys
 # Subdirectories containing SConscript files.  We always process src but
 # there are some other optional ones
 src_dir = 'src'
-subdirs=[]
+subdirs=['python','example_config']
 
 # Configurations will be saved here so command line options don't
 # have to be sent more than once
@@ -73,6 +73,25 @@ initial_env['_extralibs'] = []
 openmp_mingcc_vers = 4.2
 openmp_minicc_vers = 8.0
 
+def RunInstall(env, targets, subdir):
+    install_dir = os.path.join(env['PREFIX'], subdir)
+    env.Alias(target='install',
+              source=env.Install(dir=install_dir, source=targets))
+
+def RunUninstall(env, targets, subdir):
+    # There is no env.Uninstall method, we must build our own
+    install_dir = os.path.join(env['PREFIX'], subdir)
+    deltarget = Delete("$TARGET")
+
+    # delete from $prefix/bin/
+    files = []
+    for t in targets:
+        ifile = os.path.join(install_dir, os.path.basename(str(t))) 
+        files.append(ifile)
+    #files = [os.path.join(install_dir, os.path.basename(str(f[0]))) for f in targets]
+
+    for f in files:
+        env.Alias('uninstall', env.Command(f, None, deltarget))
 
 
 def CCFlags(env):
@@ -330,12 +349,13 @@ if not GetOption('help'):
 
     # subdirectory SConscript files can use this function
     env['__readfunc'] = ReadFileList
+    env['_InstallProgram'] = RunInstall
+    env['_UninstallProgram'] = RunUninstall
 
     # subdirectores to process.  We process src by default
     script_files = [os.path.join(src_dir,'SConscript')]
     for d in subdirs:
-        if d in COMMAND_LINE_TARGETS:
-            script_files.append(os.path.join(d,'SConscript'))
+        script_files.append(os.path.join(d,'SConscript'))
 
     SConscript(script_files, exports='env')
 

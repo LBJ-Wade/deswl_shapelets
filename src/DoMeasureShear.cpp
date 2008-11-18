@@ -45,6 +45,7 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
   double gain;
   Image<double>* weight_im = 0;
   ReadCatalog(params,"allcat",all_pos,all_sky,all_noise,gain,weight_im);
+  std::cout<<"Finished Read cat\n";
 
   // Read distortion function
   Transformation trans;
