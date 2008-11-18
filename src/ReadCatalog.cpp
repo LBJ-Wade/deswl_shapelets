@@ -66,13 +66,13 @@ void ReadGain(const std::string& fitsname, ConfigFile& params)
 
 #define DEF_BUFFER_SIZE 500
 
-void GetTokens(ConfigFile& params, std::string line,
+void GetTokens(ConfigFile& params, std::string incat, std::string line,
     std::vector<ConvertibleString>& tokens)
 {
   std::istringstream linein(line);
-  if (params.keyExists("delim")) { 
+  if (params.keyExists(incat+"_delim")) { 
     //std::cout<<"delim exists"<<std::endl;
-    char delim = params["delim"];
+    char delim = params[incat+"_delim"];
     int bufsize = DEF_BUFFER_SIZE;
     if (params.keyExists("bufsize")) bufsize = params["bufsize"];
     char temp[bufsize];
@@ -122,13 +122,13 @@ void ReadCatalog(ConfigFile& params, std::string incat,
     readnoise = params["readnoise"];
   } 
   else if (params["noise_method"] == "GAIN_FITS") {
-    ReadGain(Name(params,"image"),params);
+    ReadGain(Name(params,"image",true),params);
     xdbg<<"Read gain = "<<params["gain"]<<", rdn = "<<params["readnoise"]<<std::endl;
     nm = GAIN_VALUE;
     gain = params["gain"];
     readnoise = params["readnoise"];
   } 
-  else if (params["noise_method"] = "WEIGHT_IMAGE") {
+  else if (params["noise_method"] == "WEIGHT_IMAGE") {
     nm = WEIGHT_IMAGE;
     Assert(params.keyExists("weight_ext") || params.keyExists("weight_name"));
     if (params.keyExists("weight_hdu")) weight_hdu = params["weight_hdu"];
@@ -144,9 +144,10 @@ void ReadCatalog(ConfigFile& params, std::string incat,
   if (params.keyExists("extra_sky")) extrasky = params["extra_sky"];
 
   // Read input catalog:
-  std::string incatfile = Name(params,incat);
+  std::string incatfile = Name(params,incat,true);
   std::ifstream catin(incatfile.c_str());
   Assert(catin);
+  xdbg<<"Opened catalog "<<incatfile<<std::endl;
   std::string line;
   Assert(params.keyExists("i_x"));
   Assert(params.keyExists("i_y"));
@@ -171,7 +172,7 @@ void ReadCatalog(ConfigFile& params, std::string incat,
 	skip = true;
     if (skip) continue;
     std::vector<ConvertibleString> tokens;
-    GetTokens(params,line,tokens);
+    GetTokens(params,incat,line,tokens);
     xdbg<<"tokens size = "<<tokens.size()<<std::endl;
     Assert(i_x <= tokens.size());
     Assert(i_y <= tokens.size());
@@ -214,8 +215,9 @@ void ReadCatalog(ConfigFile& params, std::string incat,
 
   // Read weight image if appropriate
   if (nm == WEIGHT_IMAGE) {
-    // Do mask image too?
-    weight_im = new Image<double>(Name(params,"weight"),weight_hdu);
+    dbg<<"Before open weight image: "<<Name(params,"weight",true)<<std::endl;
+    weight_im = new Image<double>(Name(params,"weight",true),weight_hdu);
+    dbg<<"Opened weight image.\n";
   }
 }
 

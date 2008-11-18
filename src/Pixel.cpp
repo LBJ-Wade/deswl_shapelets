@@ -9,7 +9,7 @@ void GetPixList(const Image<double>& im, std::vector<Pixel>& pix,
 {
   xdbg<<"Start GetPixList\n";
   if (wt_im) {
-    std::cerr<<"Warning: image noise method not tested yet.\n";
+    xdbg<<"Using weight image for pixel noise.\n";
   } else {
     xdbg<<"noise = "<<noise<<std::endl;
     xdbg<<"gain = "<<gain<<std::endl;

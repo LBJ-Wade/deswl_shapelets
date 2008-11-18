@@ -7,6 +7,7 @@
 #include "dbg.h"
 #include <vector>
 #include <iostream>
+#include "types.h"
 
 class FittedPSFAtXY;
 
@@ -14,7 +15,9 @@ class FittedPSF {
 
   public :
 
-    FittedPSF(std::vector<BVec*>& psf, const std::vector<Position>& pos,
+    FittedPSF(const std::vector<BVec>& psf,
+	const std::vector<int32>& flagvec,
+	const std::vector<Position>& pos,
 	const std::vector<double>& nu,
 	double sigma_p, ConfigFile& params);
     FittedPSF(std::istream& is);

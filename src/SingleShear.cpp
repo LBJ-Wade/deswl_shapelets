@@ -11,6 +11,7 @@
 #include "FittedPSF.h"
 #include "DoMeasure.h"
 #include "TimeVars.h"
+#include "Log.h"
 
 #include <fstream>
 #include <iostream>
@@ -27,9 +28,9 @@ void MeasureSingleShear(
     double gal_aperture, double max_aperture,
     int gal_order, int gal_order2,
     double f_psf, double min_gal_size,
-    OverallFitTimes* times,
+    OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
-    tmv::Matrix<double>& shearcov, BVec*& shapelet,
+    tmv::Matrix<double>& shearcov, BVec& shapelet,
     int32& flags)
 {
 #ifdef GAMMAOUT
@@ -61,23 +62,24 @@ void MeasureSingleShear(
   if (getpix_flag) {
     dbg<<"skip: flag == "<<getpix_flag<<std::endl;
     if (times) times->nf_pixflag1++;
-    flags |= MSH_GETPIX1_FAILED;
+    if (flags & EDGE) {
+      log.nf_edge1++;
+      flags |= MSH_EDGE1;
+    }
+    if (flags & LT10PIX) {
+      log.nf_npix1++;
+      flags |= MSH_LT10PIX1;
+    }
     return;
   }
   int npix = pix[0].size();
   xdbg<<"npix = "<<npix<<std::endl;
-  if (npix < 10) {
-    dbg<<"skip: npix == "<<npix<<std::endl;
-    if (times) times->nf_npix1++;
-    flags |= MSH_GETPIX1_LT10;
-    return;
-  }
 
   Ellipse ell;
   ell.FixGam();
   ell.CrudeMeasure(pix[0],sigma_obs);
   xdbg<<"Crude Measure: centroid = "<<ell.GetCen()<<", mu = "<<ell.GetMu()<<std::endl;
-  double mu_1 = ell.GetMu();
+  //double mu_1 = ell.GetMu();
 
   int go = 2;
   int gal_size = (go+1)*(go+2)/2;
@@ -91,6 +93,7 @@ void MeasureSingleShear(
       times->ts_native_fixflux += ell.t_fixflux;
       times->ts_native_final += ell.t_final;
     }
+    log.ns_native++;
     dbg<<"Successful native fit:\n";
     dbg<<"Z = "<<ell.GetCen()<<std::endl;
     dbg<<"Mu = "<<ell.GetMu()<<std::endl;
@@ -103,11 +106,14 @@ void MeasureSingleShear(
       times->tf_native_fixflux += ell.t_fixflux;
       times->tf_native_final += ell.t_final;
     }
+    log.nf_native++;
     dbg<<"Native measurement failed\n";
     flags |= MSH_NATIVE_FAILED;
+    shear = ell.GetGamma();
+    ell.MeasureShapelet(pix,shapelet);
     return;
   }
-  double mu_2 = ell.GetMu();
+  //double mu_2 = ell.GetMu();
 
   // Now we can do a deconvolving fit, but one that does not 
   // shear the coordinates.
@@ -115,7 +121,10 @@ void MeasureSingleShear(
   if (sigma_obs < min_gal_size*sigma_p) {
     dbg<<"skip: galaxy is too small -- "<<sigma_obs<<" psf size = "<<sigma_p<<std::endl;
     if (times) times->nf_small++;
+    log.nf_small++;
     flags |= MSH_TOOSMALL;
+    shear = ell.GetGamma();
+    ell.MeasureShapelet(pix,shapelet);
     return;
   }
   galap *= exp(ell.GetMu());
@@ -134,17 +143,20 @@ void MeasureSingleShear(
   if (getpix_flag) {
     dbg<<"skip: flag == "<<getpix_flag<<std::endl;
     if (times) times->nf_pixflag2++;
-    flags |= MSH_GETPIX2_FAILED; 
+    if (flags & EDGE) {
+      log.nf_edge2++;
+      flags |= MSH_EDGE2;
+    }
+    if (flags & LT10PIX) {
+      log.nf_npix2++;
+      flags |= MSH_LT10PIX2;
+    }
+    shear = ell.GetGamma();
+    ell.MeasureShapelet(pix,shapelet);
     return;
   }
   npix = pix[0].size();
   xdbg<<"npix = "<<npix<<std::endl;
-  if (npix < 10) {
-    dbg<<"skip: npix == "<<npix<<std::endl;
-    if (times) times->nf_npix2++;
-    flags |= MSH_GETPIX2_LT10; 
-    return;
-  }
   double sigpsq = pow(sigma_p,2);
   double sigma = pow(sigma_obs,2) - sigpsq;
   if (sigma < 0.1*sigpsq) sigma = 0.1*sigpsq;
@@ -160,6 +172,7 @@ void MeasureSingleShear(
       times->ts_mu_fixflux += ell.t_fixflux;
       times->ts_mu_final += ell.t_final;
     }
+    log.ns_mu++;
     dbg<<"Successful deconvolving fit:\n";
     xdbg<<"Mu = "<<ell.GetMu()<<std::endl;
   }
@@ -171,11 +184,14 @@ void MeasureSingleShear(
       times->tf_mu_fixflux += ell.t_fixflux;
       times->tf_mu_final += ell.t_final;
     }
+    log.nf_mu++;
     dbg<<"Deconvolving measurement failed\n";
     flags |= MSH_DECONV_FAILED;
+    shear = ell.GetGamma();
+    ell.MeasureShapelet(pix,psf,shapelet);
     return;
   }
-  double mu_3 = ell.GetMu();
+  //double mu_3 = ell.GetMu();
 
 #if 0
   // This doesn't work.  So for now, keep mu, sigma the same
@@ -194,7 +210,6 @@ void MeasureSingleShear(
   dbg<<"b_gal = "<<b_gal<<std::endl;
 #endif
 
-#ifdef SHAPELET
   // Measure the galaxy shape at the full order
   go = gal_order;
   gal_size = (go+1)*(go+2)/2;
@@ -203,18 +218,16 @@ void MeasureSingleShear(
     dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
     dbg<<"Reduced gal_order to "<<go<<" gal_size = "<<gal_size<<std::endl;
   }
-  shapelet = new BVec(go,sigma);
+  //shapelet = new BVec(go,sigma);
+  shapelet.SetSigma(sigma);
   std::complex<double> gale = 0.;
-  ell.MeasureShapelet(pix,psf,*shapelet);
-  xdbg<<"b_gal = "<<*shapelet<<std::endl;
-  gale = std::complex<double>((*shapelet)[3],(*shapelet)[4]);
-  gale /= (*shapelet)[0];
+  ell.MeasureShapelet(pix,psf,shapelet);
+  xdbg<<"Measured b_gal = "<<shapelet<<std::endl;
 
   // Under normal circumstances, b20/b00 ~= conj(gamma)/sqrt(2)
-  if (std::abs(gale) < 0.6) ell.SetGamma(conj(gale) * sqrt(2.));
-#else
-  shapelet = 0;
-#endif
+  gale = std::complex<double>(shapelet[3],shapelet[4]);
+  gale /= shapelet[0];
+  if (std::abs(gale) < 0.5) ell.SetGamma(conj(gale) * sqrt(2.));
 
   // Finally, we calculate the shear in the deconvolved galaxy.
   //ell.FixMu();
@@ -229,7 +242,6 @@ void MeasureSingleShear(
   if (times) ell.ResetTimes();
   tmv::Matrix<double> cov(5,5);
   if (ell.Measure(pix,psf,go,sigma,false,&cov)) {
-  //if (ell.Measure(pix,psf,go,sigma,false)) {
     if (times) {
       times->ns_gamma++;
       times->ts_gamma_integ += ell.t_integ;
@@ -237,6 +249,7 @@ void MeasureSingleShear(
       times->ts_gamma_fixflux += ell.t_fixflux;
       times->ts_gamma_final += ell.t_final;
     }
+    log.ns_gamma++;
     dbg<<"Successful Gamma fit\n";
     xdbg<<"Measured gamma = "<<ell.GetGamma()<<std::endl;
     shear = ell.GetGamma();
@@ -251,17 +264,20 @@ void MeasureSingleShear(
       times->tf_gamma_fixflux += ell.t_fixflux;
       times->tf_gamma_final += ell.t_final;
     }
+    log.nf_gamma++;
     dbg<<"Measurement failed\n";
     flags |= MSH_SHEAR_FAILED;
+    shear = ell.GetGamma();
+    shearcov = cov.SubMatrix(2,4,2,4);
     return;
   }
-  dbg<<"Stats: Mu: "<<mu_1<<"  "<<mu_2<<"  "<<mu_3<<std::endl;
-  dbg<<"       sigma = "<<sigma<<std::endl;
-#ifdef SHAPELET
-  dbg<<"       b_20 = "<<gale<<"  gamma = "<<shear<<std::endl;
-#else
-  dbg<<"       gamma = "<<shear<<std::endl;
-#endif
+  //dbg<<"Stats: Mu: "<<mu_1<<"  "<<mu_2<<"  "<<mu_3<<std::endl;
+  //dbg<<"       sigma = "<<sigma<<std::endl;
+//#ifdef SHAPELET
+  //dbg<<"       b_20 = "<<gale<<"  gamma = "<<shear<<std::endl;
+//#else
+  //dbg<<"       gamma = "<<shear<<std::endl;
+//#endif
 #ifdef GAMMAOUT
 #ifdef _OPENMP
 #pragma omp critical
@@ -272,6 +288,7 @@ void MeasureSingleShear(
 #endif
 
   // Finally measure the variance of the shear
-  // MJ
+  // TODO
+  // (I'm not convinced that the above covariance matrix is a good estiamte.)
 }
 

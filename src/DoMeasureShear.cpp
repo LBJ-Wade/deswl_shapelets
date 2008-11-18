@@ -12,6 +12,7 @@
 #include "TimeVars.h"
 #include "PsiHelper.h"
 #include "Name.h"
+#include "Log.h"
 
 #include <fstream>
 #include <iostream>
@@ -29,12 +30,12 @@
 //#define ENDAT 200
 
 
-int DoMeasureShear(ConfigFile& params) 
+int DoMeasureShear(ConfigFile& params, ShearLog& log) 
 {
   // Load image:
   int image_hdu = 1;
   if (params.keyExists("image_hdu")) image_hdu = params["image_hdu"];
-  Image<double> im(Name(params,"image"),image_hdu);
+  Image<double> im(Name(params,"image",true),image_hdu);
 
   // Read catalog info
   // (Also calculates the noise or opens the noise image as appropriate)
@@ -48,7 +49,7 @@ int DoMeasureShear(ConfigFile& params)
   // Read distortion function
   Transformation trans;
   if (params.keyExists("dist_ext") || params.keyExists("dist_file")) {
-    std::string distfile = Name(params,"dist");
+    std::string distfile = Name(params,"dist",true);
     std::ifstream distin(distfile.c_str());
     Assert(distin);
     distin >> trans;
@@ -64,7 +65,7 @@ int DoMeasureShear(ConfigFile& params)
 #endif
 
   // Read the fitted psf file
-  std::string psffile = Name(params,"fitpsf");
+  std::string psffile = Name(params,"fitpsf",true);
   xdbg<<"Read fitted psf file "<<psffile<<std::endl;
   std::ifstream psfin(psffile.c_str());
   Assert(psfin);
@@ -96,7 +97,7 @@ int DoMeasureShear(ConfigFile& params)
   std::vector<Position> skypos(ngals);
   std::vector<std::complex<double> > shear(ngals,0.);
   std::vector<tmv::Matrix<double> > shearcov(ngals,tmv::Matrix<double>(2,2));
-  std::vector<BVec*> shapelet(ngals,(BVec*)(0));
+  std::vector<BVec> shapelet(ngals,BVec(gal_order,DEFVALPOS));
   OverallFitTimes alltimes;
   // Vector of flag values
   vector<int32> flagvec(ngals,0);
@@ -108,25 +109,34 @@ int DoMeasureShear(ConfigFile& params)
   shearcov_default(0,0) = DEFVALPOS; shearcov_default(0,1) = 0;
   shearcov_default(1,0) = 0;         shearcov_default(1,1) = DEFVALPOS;
 
-  BVec* shapelet_default = new BVec(gal_order,DEFVALPOS);
-  for (int i=0; i<(*shapelet_default).size(); i++) {
-    (*shapelet_default)[i] = DEFVALNEG;
+  BVec shapelet_default(gal_order,DEFVALPOS);
+  for (int i=0; i<shapelet_default.size(); i++) {
+    shapelet_default[i] = DEFVALNEG;
   }
-
-
 
 #ifdef ENDAT
   ngals = ENDAT;
 #endif
+  
+  log.ngals = ngals;
+#ifdef STARTAT
+  log.ngals -= STARTAT;
+#endif
+#ifdef SINGLEGAL
+  log.ngals = 1;
+#endif
+
   // Main loop to measure shears
 #ifdef _OPENMP
   //omp_set_num_threads(2);
 #pragma omp parallel 
   {
+#if 0
 #pragma omp critical 
     {
       dbg<<"start parallel region: thread "<<omp_get_thread_num()<<" of  "<<omp_get_num_threads()<<" threads  (max = "<<omp_get_max_threads()<<")"<<std::endl;
     }
+#endif
     try {
 #endif
       OverallFitTimes times; // just for this thread
@@ -134,7 +144,6 @@ int DoMeasureShear(ConfigFile& params)
 #pragma omp for schedule(dynamic)
 #endif
       for(int i=0;i<ngals;i++) {
-	if (output_dots) { std::cout<<"."; std::cout.flush(); }
 #ifdef STARTAT
 	if (i < STARTAT) continue;
 #endif
@@ -142,40 +151,48 @@ int DoMeasureShear(ConfigFile& params)
 	if (i < SINGLEGAL) continue;
 	if (i > SINGLEGAL) break;
 #endif
-	dbg<<"galaxy "<<i<<":\n";
-	dbg<<"all_pos[i] = "<<all_pos[i]<<std::endl;
-
-
-	// Inputs to shear measurement code
-	std::complex<double> shear1 = 0.;
-	tmv::Matrix<double> shearcov1(2,2);
-	BVec* shapelet1=0;
-
-
-	// Get coordinates of the galaxy, and convert to sky coordinates
-	try {
-	  trans.Transform(all_pos[i],skypos[i]);
-	  dbg<<"skypos = "<<skypos[i]<<std::endl;
-#ifdef INVTRANS
-	  Position p2;
-	  invtrans.Transform(skypos[i],p2);
-	  dbg<<"p2 = "<<p2<<std::endl;
-	  Assert(std::abs(p2-all_pos[i]) < 1.);
-	  trans.InverseTransform(skypos[i],p2);
-	  dbg<<"p2 = "<<p2<<std::endl;
-	  Assert(std::abs(p2-all_pos[i]) < 1.e-5);
+#ifdef _OPENMP
+#pragma omp critical
 #endif
-	} catch (Range_error& e) {
-	  dbg<<"distortion range error: \n";
-	  xdbg<<"p = "<<all_pos[i]<<", b = "<<e.b<<std::endl;
-	  times.nf_range1++;
-	  flagvec[i] |= DMSH_TRANSFORM_EXCEPTION;
+	{
+	  if (output_dots) { std::cout<<"."; std::cout.flush(); }
+	  dbg<<"galaxy "<<i<<":\n";
+	  dbg<<"all_pos[i] = "<<all_pos[i]<<std::endl;
 	}
 
-	if (flagvec[i] == 0) {
+	// Inputs to shear measurement code
+	std::complex<double> shear1 = shear_default;
+	tmv::Matrix<double> shearcov1 = shearcov_default;
+	BVec shapelet1 = shapelet_default;
+	int32 flag1 = 0;
+
+	do {
+
+	  // Get coordinates of the galaxy, and convert to sky coordinates
+	  try {
+	    trans.Transform(all_pos[i],skypos[i]);
+	    dbg<<"skypos = "<<skypos[i]<<std::endl;
+#ifdef INVTRANS
+	    Position p2;
+	    invtrans.Transform(skypos[i],p2);
+	    dbg<<"p2 = "<<p2<<std::endl;
+	    Assert(std::abs(p2-all_pos[i]) < 1.);
+	    trans.InverseTransform(skypos[i],p2);
+	    dbg<<"p2 = "<<p2<<std::endl;
+	    Assert(std::abs(p2-all_pos[i]) < 1.e-5);
+#endif
+	  } catch (Range_error& e) {
+	    dbg<<"distortion range error: \n";
+	    xdbg<<"p = "<<all_pos[i]<<", b = "<<e.b<<std::endl;
+	    times.nf_range1++;
+	    log.nf_range1++;
+	    flag1 |= MSH_TRANSFORM_EXCEPTION;
+	    break; // From do loop, not main for loop
+	  }
+
 	  // Calculate the psf from the fitted-psf formula:
-	  std::vector<BVec> 
-	    psf(1, BVec(fittedpsf.GetOrder(),fittedpsf.GetSigma()) );
+	  std::vector<BVec> psf(1, 
+	      BVec(fittedpsf.GetOrder(), fittedpsf.GetSigma()));
 	  try {
 	    dbg<<"for fittedpsf all_pos[i] = "<<all_pos[i]<<std::endl;
 	    psf[0] = fittedpsf(all_pos[i]);
@@ -183,53 +200,56 @@ int DoMeasureShear(ConfigFile& params)
 	    dbg<<"fittedpsf range error: \n";
 	    xdbg<<"p = "<<all_pos[i]<<", b = "<<e.b<<std::endl;
 	    times.nf_range2++;
-	    flagvec[i] |= DMSH_FITTEDPSF_EXCEPTION;
+	    log.nf_range2++;
+	    flag1 |= MSH_FITTEDPSF_EXCEPTION;
+	    break; // From do loop, not main for loop
 	  }
 
-	  if (flagvec[i] == 0) {
-	    // Do the real meat of the calculation:
-	    int32 flags=0;
+	  // Do the real meat of the calculation:
+	  dbg<<"measure single shear all_pos[i] = "<<all_pos[i]<<std::endl;
+	  try {
+	    MeasureSingleShear(
+		// Input data:
+		all_pos[i], im, all_sky[i], trans, psf,
+		// Noise variables:
+		all_noise[i], gain, weight_im, 
+		// Parameters:
+		gal_aperture, max_aperture, gal_order, gal_order2, 
+		f_psf, min_gal_size, 
+		// Time stats if desired:
+		timing ? &times : 0, 
+		// Log information
+		log,
+		// Ouput values:
+		shear1, shearcov1, shapelet1, flag1);
+	  } catch (tmv::Error& e) {
+	    dbg<<"TMV Error thrown in MeasureSingleShear\n";
+	    dbg<<e<<std::endl;
+	    log.nf_tmverror++;
+	    flag1 |= MSH_TMV_EXCEPTION;
+	  } catch (...) {
+	    dbg<<"unkown exception in MeasureSingleShear\n";
+	    log.nf_othererror++;
+	    flag1 |= MSH_UNKNOWN_EXCEPTION;
+	  }
 
-	    dbg<<"measure single shear all_pos[i] = "<<all_pos[i]<<std::endl;
-
-	    try {
-	      MeasureSingleShear(
-		  // Input data:
-		  all_pos[i], im, all_sky[i], trans, psf,
-		  // Noise variables:
-		  all_noise[i], gain, weight_im, 
-		  // Parameters:
-		  gal_aperture, max_aperture, gal_order, gal_order2, 
-		  f_psf, min_gal_size, 
-		  // Time stats if desired:
-		  timing ? &times : 0,
-		  // Ouput values:
-		  shear1, shearcov1, shapelet1, flags);
-	      flagvec[i] |= flags;
-	    } catch (tmv::Error& e) {
-	      dbg<<"TMV Error thrown in MeasureSingleShear\n";
-	      dbg<<e<<std::endl;
-	      flagvec[i] |= DMSH_MSH_TMV_EXCEPTION;
-	    } catch (...) {
-	      dbg<<"unkown exception in MeasureSingleShear\n";
-	      flagvec[i] |= DMSH_MSH_UNKNOWN_EXCEPTION;
-	    }
-	  } // fittedpsf calculation succeeded
-	} // transformation calculation succeeded
+	} while (false); // Gives a place to break to.
 
 	// We always write out the answer for each object
+	// These are the default values if a catastrophic error occurred.
+	// Otherwise they are the best estimate up to the point of 
+	// any error.
+	// If there is no error, these are the correct estimates.
 #ifdef _OPENMP
 #pragma omp critical
 #endif
 	{
-	  // only point to these values if success
-	  if (flagvec[i] == 0) {
-	    shear[i] = shear1;
-	    shearcov[i] = shearcov1;
-	    shapelet[i] = shapelet1;
-	  } else {
-	    dbg<<"Unsuccessful measurement\n"; 
-	  }
+	  shear[i] = shear1;
+	  shearcov[i] = shearcov1;
+	  shapelet[i] = shapelet1;
+	  flagvec[i] = flag1;
+	  if (!flag1) dbg<<"Successful shear measurement: "<<shear1<<std::endl;
+	  else dbg<<"Unsuccessful shear measurement\n"; 
 	}
 
 	if (timing) {
@@ -262,7 +282,8 @@ int DoMeasureShear(ConfigFile& params)
     dbg<<" + "<<alltimes.nf_gamma<<" unsuccessful\n";
     nsuccess = alltimes.ns_gamma;
   } else {
-    for(int i=0;i<ngals;i++) if (flagvec[i] == 0) nsuccess++;
+    //for(int i=0;i<ngals;i++) if (flagvec[i] == 0) nsuccess++;
+    nsuccess = log.ns_gamma;
     dbg<<nsuccess<<" successful shear measurements, ";
   }
   if (output_dots) { 
@@ -273,34 +294,27 @@ int DoMeasureShear(ConfigFile& params)
   }
 
   // Output shear information:
-  std::string outcatfile = Name(params,"shear");
-  std::ofstream catout(outcatfile.c_str());
+  std::string shearfile = Name(params,"shear");
+  std::string sheardelim = "  ";
+  if (params.keyExists("shear_delim")) sheardelim = params["shear_delim"];
+  std::ofstream catout(shearfile.c_str());
   Assert(catout);
-  for(int i=0;i<ngals;i++) if (flagvec[i] == 0) {
+  for(int i=0;i<ngals;i++) {
     DoMeasureShearPrint(
 	catout,
 	skypos[i].GetX(), skypos[i].GetY(),
 	flagvec[i],
-	shear[i],
-	shearcov[i]);
-  } else {
-    // Make a print function instead of duplicating code
-    DoMeasureShearPrint(
-	catout,
-	skypos[i].GetX(), skypos[i].GetY(),
-	flagvec[i],
-	shear_default,
-	shearcov_default);
+	shear[i], shearcov[i],
+	sheardelim);
   }
-  dbg<<"Done writing output catalog\n";
+  dbg<<"Done writing output shear catalog\n";
   // TODO: Also output shapelets...
 
   if (timing) std::cout<<alltimes<<std::endl;
+  dbg<<log<<std::endl;
 
   // Cleanup memory
   if (weight_im) delete weight_im;
-  for(int i=0;i<ngals;i++) if (shapelet[i]) delete shapelet[i];
-  delete shapelet_default;
 
   return nsuccess;
 }
@@ -309,17 +323,18 @@ void DoMeasureShearPrint(
     std::ofstream& ostream,
     double x, double y, 
     int32 flags, 
-    std::complex<double>& shear, 
-    tmv::Matrix<double>& shearcov)
+    const std::complex<double>& shear, 
+    const tmv::Matrix<double>& shearcov,
+    const std::string& delim)
 {
   ostream
-    << x             <<"  "
-    << y             <<"  "
-    << flags         <<"  "
-    << real(shear)   <<"  "
-    << imag(shear)   <<"  "
-    << shearcov(0,0) <<"  "
-    << shearcov(0,1) <<"  "
+    << x             << delim
+    << y             << delim
+    << flags         << delim
+    << real(shear)   << delim
+    << imag(shear)   << delim
+    << shearcov(0,0) << delim
+    << shearcov(0,1) << delim
     << shearcov(1,1)
     << std::endl;
 }

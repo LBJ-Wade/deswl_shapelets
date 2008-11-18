@@ -17,12 +17,12 @@ struct OverallFitTimes {
     tf_mu_integ(0.), tf_mu_centroid(0.),
     tf_mu_gamma(0.), tf_mu_mu(0.),
     tf_mu_fixflux(0.), tf_mu_final(0.),
-    ts_full_integ(0.), ts_full_centroid(0.),
-    ts_full_gamma(0.), ts_full_mu(0.),
-    ts_full_fixflux(0.), ts_full_final(0.),
-    tf_full_integ(0.), tf_full_centroid(0.),
-    tf_full_gamma(0.), tf_full_mu(0.),
-    tf_full_fixflux(0.), tf_full_final(0.),
+    //ts_full_integ(0.), ts_full_centroid(0.),
+    //ts_full_gamma(0.), ts_full_mu(0.),
+    //ts_full_fixflux(0.), ts_full_final(0.),
+    //tf_full_integ(0.), tf_full_centroid(0.),
+    //tf_full_gamma(0.), tf_full_mu(0.),
+    //tf_full_fixflux(0.), tf_full_final(0.),
     ts_gamma_integ(0.), ts_gamma_centroid(0.),
     ts_gamma_gamma(0.), ts_gamma_mu(0.),
     ts_gamma_fixflux(0.), ts_gamma_final(0.),
@@ -34,7 +34,7 @@ struct OverallFitTimes {
     nf_pixflag2(0), nf_npix2(0),
     ns_native(0), nf_native(0),
     ns_mu(0), nf_mu(0),
-    ns_full(0), nf_full(0),
+    //ns_full(0), nf_full(0),
     ns_gamma(0), nf_gamma(0) {}
 
   OverallFitTimes& operator+=(const OverallFitTimes& rhs)
@@ -63,18 +63,18 @@ struct OverallFitTimes {
     tf_mu_mu += rhs.tf_mu_mu;
     tf_mu_fixflux += rhs.tf_mu_fixflux;
     tf_mu_final += rhs.tf_mu_final;
-    ts_full_integ += rhs.ts_full_integ;
-    ts_full_centroid += rhs.ts_full_centroid;
-    ts_full_gamma += rhs.ts_full_gamma;
-    ts_full_mu += rhs.ts_full_mu;
-    ts_full_fixflux += rhs.ts_full_fixflux;
-    ts_full_final += rhs.ts_full_final;
-    tf_full_integ += rhs.tf_full_integ;
-    tf_full_centroid += rhs.tf_full_centroid;
-    tf_full_gamma += rhs.tf_full_gamma;
-    tf_full_mu += rhs.tf_full_mu;
-    tf_full_fixflux += rhs.tf_full_fixflux;
-    tf_full_final += rhs.tf_full_final;
+    //ts_full_integ += rhs.ts_full_integ;
+    //ts_full_centroid += rhs.ts_full_centroid;
+    //ts_full_gamma += rhs.ts_full_gamma;
+    //ts_full_mu += rhs.ts_full_mu;
+    //ts_full_fixflux += rhs.ts_full_fixflux;
+    //ts_full_final += rhs.ts_full_final;
+    //tf_full_integ += rhs.tf_full_integ;
+    //tf_full_centroid += rhs.tf_full_centroid;
+    //tf_full_gamma += rhs.tf_full_gamma;
+    //tf_full_mu += rhs.tf_full_mu;
+    //tf_full_fixflux += rhs.tf_full_fixflux;
+    //tf_full_final += rhs.tf_full_final;
     ts_gamma_integ += rhs.ts_gamma_integ;
     ts_gamma_centroid += rhs.ts_gamma_centroid;
     ts_gamma_gamma += rhs.ts_gamma_gamma;
@@ -98,8 +98,8 @@ struct OverallFitTimes {
     nf_native += rhs.nf_native;
     ns_mu += rhs.ns_mu;
     nf_mu += rhs.nf_mu;
-    ns_full += rhs.ns_full;
-    nf_full += rhs.nf_full;
+    //ns_full += rhs.ns_full;
+    //nf_full += rhs.nf_full;
     ns_gamma += rhs.ns_gamma;
     nf_gamma += rhs.nf_gamma;
     return *this;
@@ -136,6 +136,7 @@ struct OverallFitTimes {
       tf_mu_gamma<<"  "<<tf_mu_mu<<"  "<<
       tf_mu_fixflux<<"  "<<tf_mu_final<<std::endl;
 
+    /*
     os<<"Full fits:\n";
     os<<"  N_Success = "<<ns_full<<std::endl;
     os<<"  Times = "<<ts_full_integ<<"  "<<ts_full_centroid<<"  "<<
@@ -145,6 +146,7 @@ struct OverallFitTimes {
     os<<"  Times = "<<tf_full_integ<<"  "<<tf_full_centroid<<"  "<<
       tf_full_gamma<<"  "<<tf_full_mu<<"  "<<
       tf_full_fixflux<<"  "<<tf_full_final<<std::endl;
+      */
 
     os<<"Gamma fits:\n";
     os<<"  N_Success = "<<ns_gamma<<std::endl;
@@ -181,18 +183,18 @@ struct OverallFitTimes {
   double tf_mu_mu;
   double tf_mu_fixflux;
   double tf_mu_final;
-  double ts_full_integ;
-  double ts_full_centroid;
-  double ts_full_gamma;
-  double ts_full_mu;
-  double ts_full_fixflux;
-  double ts_full_final;
-  double tf_full_integ;
-  double tf_full_centroid;
-  double tf_full_gamma;
-  double tf_full_mu;
-  double tf_full_fixflux;
-  double tf_full_final;
+  //double ts_full_integ;
+  //double ts_full_centroid;
+  //double ts_full_gamma;
+  //double ts_full_mu;
+  //double ts_full_fixflux;
+  //double ts_full_final;
+  //double tf_full_integ;
+  //double tf_full_centroid;
+  //double tf_full_gamma;
+  //double tf_full_mu;
+  //double tf_full_fixflux;
+  //double tf_full_final;
   double ts_gamma_integ;
   double ts_gamma_centroid;
   double ts_gamma_gamma;
@@ -216,8 +218,8 @@ struct OverallFitTimes {
   int nf_native;
   int ns_mu;
   int nf_mu;
-  int ns_full;
-  int nf_full;
+  //int ns_full;
+  //int nf_full;
   int ns_gamma;
   int nf_gamma;
 };

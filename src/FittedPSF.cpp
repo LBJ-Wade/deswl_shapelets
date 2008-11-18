@@ -36,7 +36,8 @@ void SetPRow(size_t fitorder, Position pos, const Bounds& bounds,
   Assert(pq == Prow.size());
 }
 
-FittedPSF::FittedPSF(std::vector<BVec*>& psf,
+FittedPSF::FittedPSF(const std::vector<BVec>& psf,
+    const std::vector<int32>& flagvec,
     const std::vector<Position>& pos,
     const std::vector<double>& nu,
     double _sigma, ConfigFile& params) :
@@ -53,9 +54,9 @@ FittedPSF::FittedPSF(std::vector<BVec*>& psf,
   avepsf->Zero();
   size_t psfsize = avepsf->size();
   size_t ngoodpsf=0;
-  for(size_t n=0;n<psf.size();n++) if (psf[n]) {
-    xxdbg<<"n = "<<n<<", psf[n] = "<<*psf[n]<<std::endl;
-    *avepsf += *psf[n];
+  for(size_t n=0;n<psf.size();n++) if (!flagvec[n]) {
+    xxdbg<<"n = "<<n<<", psf[n] = "<<psf[n]<<std::endl;
+    *avepsf += psf[n];
     ngoodpsf++;
   }
   *avepsf /= double(ngoodpsf);
@@ -64,10 +65,10 @@ FittedPSF::FittedPSF(std::vector<BVec*>& psf,
   tmv::Matrix<double> M(ngoodpsf,psfsize);
   tmv::DiagMatrix<double> invsig(ngoodpsf);
   size_t i=0;
-  for(size_t n=0;n<psf.size();n++) if (psf[n]) {
-    Assert(psf[n]->size() == psfsize);
+  for(size_t n=0;n<psf.size();n++) if (!flagvec[n]) {
+    Assert(psf[n].size() == psfsize);
     Assert(i < ngoodpsf);
-    M.row(i) = *psf[n] - *avepsf;
+    M.row(i) = psf[n] - *avepsf;
     invsig(i) = nu[n];
     bounds += pos[n];
     i++;
@@ -112,7 +113,7 @@ FittedPSF::FittedPSF(std::vector<BVec*>& psf,
   xxdbg<<"V.Rows(0,npca) = "<<V->Rows(0,npca)<<std::endl;
   tmv::Matrix<double> P(ngoodpsf,fitsize,0.);
   i=0;
-  for(size_t n=0;n<psf.size();n++) if (psf[n]) {
+  for(size_t n=0;n<psf.size();n++) if (!flagvec[n]) {
     SetPRow(fitorder,pos[n],bounds,P.row(i));
     i++;
   }

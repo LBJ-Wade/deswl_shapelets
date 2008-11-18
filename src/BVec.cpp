@@ -10,7 +10,8 @@ const double sqrtpi = sqrt(PI);
 BVec& BVec::operator=(const BVec& rhs)
 { 
   Assert(order >= rhs.order);
-  Assert(sigma == rhs.sigma);
+  //Assert(sigma == rhs.sigma);
+  sigma = rhs.sigma;
   SubVector(0,rhs.size()) = rhs;
   SubVector(rhs.size(),size()).Zero();
   return *this;

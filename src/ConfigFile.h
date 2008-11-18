@@ -117,7 +117,7 @@ class ConvertibleString : public std::string
 #ifndef NOTHROW
       { std::cerr<<err<<std::endl; exit(1); }
 #else
-	throw err;
+	throw std::runtime_error(err);
 #endif
       return temp;
     }
@@ -140,7 +140,7 @@ class ConvertibleString : public std::string
 #ifdef NOTHROW
 	{ std::cerr<<err<<std::endl; exit(1); return std::vector<T>(); }
 #else
-	  throw err;
+	throw std::runtime_error(err);
 #endif
 	else if ((*this)[i1] == '}') {
 	  // Then "{  }"
@@ -156,14 +156,14 @@ class ConvertibleString : public std::string
 #ifdef NOTHROW
 	  { std::cerr<<err<<std::endl; exit(1); }
 #else
-	    throw err;
+	  throw std::runtime_error(err);
 #endif
 	  ss >> temp[0];
 	  if (!ss) 
 #ifdef NOTHROW
 	  { std::cerr<<err<<std::endl; exit(1); }
 #else
-	    throw err;
+	  throw std::runtime_error(err);
 #endif
 	  for(size_t i=1;i<temp.size();++i) {
 	    ss >> ch;
@@ -171,14 +171,14 @@ class ConvertibleString : public std::string
 #ifdef NOTHROW
 	    { std::cerr<<err<<std::endl; exit(1); }
 #else
-	      throw err;
+	    throw std::runtime_error(err);
 #endif
 	    ss >> temp[i];
 	    if (!ss) 
 #ifdef NOTHROW
 	    { std::cerr<<err<<std::endl; exit(1); }
 #else
-  	      throw err;
+	    throw std::runtime_error(err);
 #endif
 	  }
 	  ss >> ch;
@@ -186,7 +186,7 @@ class ConvertibleString : public std::string
 #ifdef NOTHROW
 	    { std::cerr<<err<<std::endl; exit(1); }
 #else
-  	      throw err;
+	    throw std::runtime_error(err);
 #endif
 	  return temp;
 	}
@@ -226,7 +226,7 @@ template <> inline ConvertibleString::operator bool() const
     std::cerr<<err<<std::endl; exit(1);
     return false;
 #else
-    throw err;
+    throw std::runtime_error(err);
 #endif
   }
 }

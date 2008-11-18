@@ -13,6 +13,7 @@
 #include "DoMeasure.h"
 #include "PsiHelper.h"
 #include "Name.h"
+#include "Log.h"
 
 #include <fstream>
 #include <iostream>
@@ -24,12 +25,15 @@
 //#define SINGLESTAR 18
 //#define NSTARS 10
 
-int DoMeasurePSF(ConfigFile& params) 
+int DoMeasurePSF(ConfigFile& params, PSFLog& log) 
 {
+  xdbg<<"Start DoMeasurePSF\n";
+
   // Load image:
   int image_hdu = 1;
   if (params.keyExists("image_hdu")) image_hdu = params["image_hdu"];
-  Image<double> im(Name(params,"image"),image_hdu);
+  Image<double> im(Name(params,"image",true),image_hdu);
+  xdbg<<"Opened image "<<Name(params,"image",true)<<std::endl;
 
   // Read catalog info
   // (Also calculates the noise or opens the noise image as appropriate)
@@ -39,14 +43,16 @@ int DoMeasurePSF(ConfigFile& params)
   double gain;
   Image<double>* weight_im = 0;
   ReadCatalog(params,"starcat",all_pos,all_sky,all_noise,gain,weight_im);
+  xdbg<<"Done read catalog "<<Name(params,"starcat",true)<<std::endl;
 
   // Read distortion function
   Transformation trans;
   if (params.keyExists("dist_ext") || params.keyExists("dist_file")) {
-    std::string distfile = Name(params,"dist");
+    std::string distfile = Name(params,"dist",true);
     std::ifstream distin(distfile.c_str());
     Assert(distin);
     distin >> trans;
+    xdbg<<"Done read distortion "<<Name(params,"dist",true)<<std::endl;
   } // else stay with identity transformation.
 
 
@@ -70,23 +76,32 @@ int DoMeasurePSF(ConfigFile& params)
   dbg<<"psfap => "<<psfap<<std::endl;
 
   // Setup output vectors
-  std::vector<BVec*> psf(nstars,(BVec*)(0));
+  std::vector<BVec> psf(nstars,BVec(psforder,sigma_p));
   std::vector<double> nu(nstars,0.);
 
   // Set up a default psf vector for output when an object measurement
   // fails
-  BVec* psf_default = new BVec(psforder,sigma_p);
-  for (int i=0; i<(*psf_default).size(); i++) {
-    (*psf_default)[i] = DEFVALNEG;
+  BVec psf_default(psforder,sigma_p);
+  for (int i=0; i<psf_default.size(); i++) {
+    psf_default[i] = DEFVALNEG;
   }
   double nu_default = DEFVALNEG;
 
   // Array of flag values
   vector<int32> flagvec(nstars,0);
 
-#ifdef NSTARS
-  nstars = NSTARS;
+#ifdef ENDAT
+  nstars = ENDAT;
 #endif
+
+  log.nstars = nstars;
+#ifdef STARTAT
+  log.nstars -= STARTAT;
+#endif
+#ifdef SINGLESTAR
+  log.nstars = 1;
+#endif
+
   // Main loop to measure psf shapelets:
 #ifdef _OPENMP
 #pragma omp parallel 
@@ -95,6 +110,9 @@ int DoMeasurePSF(ConfigFile& params)
 #pragma omp for schedule(guided)
 #endif
       for(int i=0;i<nstars;i++) {
+#ifdef STARTAT
+	if (i < STARTAT) continue;
+#endif
 #ifdef SINGLESTAR
 	if (i < SINGLESTAR) continue;
 	if (i > SINGLESTAR) break;
@@ -108,9 +126,9 @@ int DoMeasurePSF(ConfigFile& params)
 	  dbg<<"star "<<i<<":\n";
 	}
 
-	BVec* psf1(0);
-	double nu1 = 0.;
-	int32 flags=0;
+	BVec psf1 = psf_default;
+	double nu1 = nu_default;
+	int32 flag1=0;
 	try {
 	  MeasureSinglePSF(
 	      // Input data:
@@ -119,25 +137,28 @@ int DoMeasurePSF(ConfigFile& params)
 	      all_noise[i], gain, weight_im,
 	      // Parameters:
 	      sigma_p, psfap, psforder,
+	      // Log information
+	      log,
 	      // Ouput value:
-	      psf1, nu1, flags);
+	      psf1, nu1, flag1);
+	} catch (tmv::Error& e) {
+	  dbg<<"TMV Error thrown in MeasureSinglePSF\n";
+	  log.nf_tmverror++;
+	  flag1 |= MPSF_TMV_EXCEPTION;
 	} catch (...) {
-	  dbg<<"unkown exception in MeasureSingleShear\n";
-	  flags |= DMPSF_MSPSF_UNKOWN_EXCEPTION;
+	  dbg<<"unkown exception in MeasureSinglePSF\n";
+	  log.nf_othererror++;
+	  flag1 |= MPSF_UNKNOWN_EXCEPTION;
 	}
 #ifdef _OPENMP
 #pragma omp critical
 #endif
 	{
-	  flagvec[i] = flags;
-	  // only copy on success
-	  if (psf1) {
-	    psf[i] = psf1;
-	    nu[i] = nu1;
-	    dbg<<"Successful measurement: "<<*psf[i]<<std::endl;
-	  } else {
-	    dbg<<"Unsuccessful measurement\n"; 
-	  }
+	  flagvec[i] = flag1;
+	  psf[i] = psf1;
+	  nu[i] = nu1;
+	  if (!flag1) dbg<<"Successful psf measurement: "<<psf1<<std::endl;
+	  else dbg<<"Unsuccessful psf measurement\n"; 
 	}
 #ifdef SINGLESTAR
 	exit(1);
@@ -152,43 +173,36 @@ int DoMeasurePSF(ConfigFile& params)
 
 
   int nsuccess = 0;
-  for(int i=0;i<nstars;i++) if (psf[i]) nsuccess++;
+  for(int i=0;i<nstars;i++) if (!flagvec[i]) nsuccess++;
   dbg<<nsuccess<<" successful star measurements, ";
   dbg<<nstars-nsuccess<<" unsuccessful\n";
 
   // Output psf information:
-  std::string outcatfile = Name(params,"psf");
-  std::ofstream catout(outcatfile.c_str());
+  std::string psffile = Name(params,"psf");
+  std::string psfdelim = "  ";
+  if (params.keyExists("psf_delim")) psfdelim = params["psf_delim"];
+  std::ofstream catout(psffile.c_str());
   Assert(catout);
-  catout << psforder <<"  "<< sigma_p <<std::endl;
-  for(int i=0;i<nstars;i++) if (psf[i]) {
-    if (flagvec[i] == 0) {
-      DoMeasurePSFPrint(
-	  catout, 
-	  all_pos[i].GetX(),
-	  all_pos[i].GetY(),
-	  flagvec[i],
-	  nu[i],
-	  psf[i]);
-    } else {
-      DoMeasurePSFPrint(
-	  catout,
-	  all_pos[i].GetX(),
-	  all_pos[i].GetY(),
-	  flagvec[i],
-	  nu_default,
-	  psf_default);
-    }
+  //catout << psforder <<"  "<< sigma_p <<std::endl;
+  for(int i=0;i<nstars;i++) {
+    DoMeasurePSFPrint(
+	catout, 
+	all_pos[i].GetX(),
+	all_pos[i].GetY(),
+	flagvec[i],
+	nu[i],
+	psforder, sigma_p, psf[i],
+	psfdelim);
   }
-  dbg<<"Done writing output catalog\n";
+  dbg<<"Done writing output psf catalog\n";
 
   // Fit the PSF with a polynomial:
-  FittedPSF fittedpsf(psf,all_pos,nu,sigma_p,params);
+  FittedPSF fittedpsf(psf,flagvec,all_pos,nu,sigma_p,params);
   dbg<<"Done fitting PSF\n";
 
   // Output fitted psf
-  std::string outfitfile = Name(params,"fitpsf");
-  std::ofstream fitout(outfitfile.c_str());
+  std::string fitpsffile = Name(params,"fitpsf");
+  std::ofstream fitout(fitpsffile.c_str());
   fitout << fittedpsf;
   fitout.close();
   dbg<<"Done writing fitted PSF file\n";
@@ -196,20 +210,25 @@ int DoMeasurePSF(ConfigFile& params)
   if (XDEBUG) {
     // Check fit:
 
-    std::ifstream readfitout(outfitfile.c_str());
+    std::ifstream readfitout(fitpsffile.c_str());
     FittedPSF readfittedpsf(readfitout);
-    for(int i=0;i<nstars;i++) if (psf[i]) {
-      xdbg<<"psf[i] = "<<*psf[i]<<std::endl;
+    for(int i=0;i<nstars;i++) if (!flagvec[i]) {
+      xdbg<<"psf[i] = "<<psf[i]<<std::endl;
       BVec checkpsf(readfittedpsf.GetOrder(),readfittedpsf.GetSigma());
       checkpsf = readfittedpsf(all_pos[i]);
       xdbg<<"fittedpsf = "<<checkpsf<<std::endl;
-      xdbg<<"Norm(diff) = "<<Norm(*psf[i]-checkpsf)<<std::endl;
+      xdbg<<"Norm(diff) = "<<Norm(psf[i]-checkpsf)<<std::endl;
     }
   }
 
-  // Cleanup memory
-  for(int i=0;i<nstars;i++) if (psf[i]) delete psf[i];
-  delete psf_default;
+  dbg<<log<<std::endl;
+
+  if (output_dots) { 
+	  std::cout
+		  <<std::endl
+		  <<"Success rate: "<<nsuccess<<"/"<<nstars
+		  <<std::endl; 
+  }
 
   return nsuccess;
 }
@@ -220,15 +239,18 @@ void DoMeasurePSFPrint(
     double x, double y, 
     int32 flags, 
     double nu, 
-    BVec* psf)
+    int psforder, double sigma_p, const BVec& psf,
+    const std::string& delim)
 {
   ostream
-    << x       <<"  "
-    << y       <<"  "
-    << flags   <<"  "
-    << nu      <<"  "
-    << *psf
-    << std::endl;
+    << x        << delim
+    << y        << delim
+    << flags    << delim
+    << nu       << delim
+    << psforder << delim
+    << sigma_p  << delim;
+  for(size_t i=0;i<psf.size();i++) ostream << psf[i] << delim;
+  ostream << std::endl;
 }
 
 

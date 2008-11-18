@@ -8,20 +8,24 @@
 #include "BVec.h"
 #include "TMV_Small.h"
 #include "Transformation.h"
+#include "Log.h"
 
 // Returns how many successful measurements
-int DoMeasurePSF(ConfigFile& params);
-int DoMeasureShear(ConfigFile& params);
+int DoMeasurePSF(ConfigFile& params, PSFLog& log);
+int DoMeasureShear(ConfigFile& params, ShearLog& log);
 
 void DoMeasurePSFPrint(
     std::ofstream& ostream,
-    double x, double y, int32 flags, double nu, BVec* psf);
+    double x, double y, int32 flags, double nu, 
+    int psforder, double sigma_p, const BVec& psf,
+    const std::string& delim);
 void DoMeasureShearPrint(
     std::ofstream& ostream,
     double x, double y, 
     int32 flags, 
-    std::complex<double>& shear, 
-    tmv::Matrix<double>& shearcov);
+    const std::complex<double>& shear, 
+    const tmv::Matrix<double>& shearcov,
+    const std::string& delim);
 
 void ReadCatalog(ConfigFile& params, std::string incat,
     std::vector<Position>& all_pos, std::vector<double>& all_sky,
@@ -35,9 +39,9 @@ void MeasureSingleShear(
     double gal_aperture, double max_aperture,
     int gal_order, int gal_order2,
     double f_psf, double min_gal_size,
-    OverallFitTimes* times,
+    OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
-    tmv::Matrix<double>& varshear, BVec*& shapelet,
+    tmv::Matrix<double>& varshear, BVec& shapelet,
     int32& flags);
 
 double EstimateSigma(
@@ -50,7 +54,7 @@ void MeasureSinglePSF(
     Position cen, const Image<double>& im, double sky,
     const Transformation& trans,
     double noise, double gain, const Image<double>* weight_im,
-    double sigma_p, double psf_aperture, int psf_order,
-    BVec*& psf, double& nu, int32& flags);
+    double sigma_p, double psf_aperture, int psf_order, PSFLog& log,
+    BVec& psf, double& nu, int32& flags);
 
 #endif

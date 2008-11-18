@@ -1,4 +1,18 @@
-measurepsf data/wl.config root=data/decam--27--9-i-3_20 debug_file=psf.debug
-measureshear data/wl.config root=data/decam--27--9-i-3_20 debug_file=shear.debug
-echo Successfully ran weak lensing executables.
-wc data/decam--27--9-i-3_20_star.csv data/decam--27--9-i-3_20.psf data/decam--27--9-i-3_20_all.csv data/decam--27--9-i-3_20.shear
+echo MeasurePSF:
+measurepsf ../example_config/wl.config root=data/decam--27--9-i-3_20 debug_file=psf.debug verbose=2 output_dots=1
+echo Logfile output:
+tail -1 measurepsf.log
+echo MeasureShear:
+measureshear ../example_config/wl.config root=data/decam--27--9-i-3_20 debug_file=shear.debug output_dots=1
+echo Logfile output:
+tail -1 measureshear.log
+echo Input file sizes:
+wc data/decam--27--9-i-3_20-star.csv data/decam--27--9-i-3_20-all.csv 
+echo Output files sizes
+wc data/decam--27--9-i-3_20-psf.dat data/decam--27--9-i-3_20-shear.dat
+echo Try execution with bad configfile:
+measurepsf foo root=data/decam--27--9-i-3_20 debug_file=psf_badconfig.debug verbose=2
+measureshear foo root=data/decam--27--9-i-3_20 debug_file=shear_badconfig.debug
+echo Try execution with bad imagename:
+measurepsf ../example_config/wl.config root=foo debug_file=psf_badimage.debug verbose=2
+measureshear ../example_config/wl.config root=foo debug_file=shear_badimage.debug
