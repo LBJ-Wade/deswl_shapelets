@@ -10,7 +10,7 @@ libwl_files='Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp Ellipse.cpp BVec.c
 # Library file containing generic code
 libwl = env.Library('#lib/wl',libwl_files)
 
-sblibs=['tmv','tmv_symband','cfitsio'] + env['_extralibs']
+sblibs=['tmv_symband','tmv','cfitsio'] + env['_extralibs']
 measurepsf = env.Program('measurepsf', 'MeasurePSF.cpp', 
                          LIBS=['wl'] + sblibs)
 measureshear = env.Program('measureshear', 'MeasureShear.cpp', 
