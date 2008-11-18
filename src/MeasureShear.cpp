@@ -39,7 +39,9 @@ int main(int argc, char **argv)
   if (params.keyExists("log_file") || params.keyExists("log_ext")) 
     logfile = Name(params,"log");
 
-  ShearLog log(logfile); 
+  std::string logdelim = "  ";
+  if (params.keyExists("log_delim")) logdelim = params["log_delim"];
+  ShearLog log(logfile,logdelim); 
   // This automatically writes its output when it goes out of scope
   // whether that is naturally in after an exception is caught.
   // Log output is:  (all on one line)

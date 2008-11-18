@@ -15,4 +15,8 @@ measurepsf foo root=data/decam--27--9-i-3_20 debug_file=psf_badconfig.debug verb
 measureshear foo root=data/decam--27--9-i-3_20 debug_file=shear_badconfig.debug
 echo Try execution with bad imagename:
 measurepsf ../example_config/wl.config root=foo debug_file=psf_badimage.debug verbose=2
+echo Logfile output:
+tail -1 measurepsf.log
 measureshear ../example_config/wl.config root=foo debug_file=shear_badimage.debug
+echo Logfile output:
+tail -1 measureshear.log
