@@ -147,19 +147,27 @@ int ReadFitsCat(ConfigFile& params, SXCAT_STRUCT& cat)
   // Allocate memory for the columns we will read
   ResizeSXCat(cat, nrows);
 
+  std::string id_name=params["sx_id_name"];
+  std::string x_name=params["sx_x_name"];
+  std::string y_name=params["sx_y_name"];
+  std::string mag_name=params["sx_mag_name"];
+  std::string mag_err_name=params["sx_mag_err_name"];
+  std::string flags_name=params["sx_flags_name"];
+
+
   // Number = id
   int res;
-  res=ReadFitsCol(fptr, (char *) "NUMBER", TLONG, (char *)&cat.id[0], nrows);
+  res=ReadFitsCol(fptr, (char *) id_name.c_str(), TLONG, (char *)&cat.id[0], nrows);
   if (res != 0) return res;
-  res=ReadFitsCol(fptr, (char *) "x_image", TFLOAT, (char *)&cat.x[0], nrows);
+  res=ReadFitsCol(fptr, (char *) x_name.c_str(), TFLOAT, (char *)&cat.x[0], nrows);
   if (res != 0) return res;
-  res=ReadFitsCol(fptr, (char *) "y_image", TFLOAT, (char *)&cat.y[0], nrows);
+  res=ReadFitsCol(fptr, (char *) y_name.c_str(), TFLOAT, (char *)&cat.y[0], nrows);
   if (res != 0) return res;
-  res=ReadFitsCol(fptr, (char *) "mag_auto", TFLOAT, (char *)&cat.mag[0], nrows);
+  res=ReadFitsCol(fptr, (char *) mag_name.c_str(), TFLOAT, (char *)&cat.mag[0], nrows);
   if (res != 0) return res;
-  res=ReadFitsCol(fptr, (char *) "magerr_auto", TFLOAT, (char *)&cat.mag_err[0], nrows);
+  res=ReadFitsCol(fptr, (char *) mag_err_name.c_str(), TFLOAT, (char *)&cat.mag_err[0], nrows);
   if (res != 0) return res;
-  res=ReadFitsCol(fptr, (char *) "flags", TSHORT, (char *)&cat.flags[0], nrows);
+  res=ReadFitsCol(fptr, (char *) flags_name.c_str(), TSHORT, (char *)&cat.flags[0], nrows);
   if (res != 0) return res;
 
   for (long i=0; i< nrows; i++) {
