@@ -4,6 +4,71 @@
 #include "Ellipse.h"
 #include "Params.h"
 
+double SingleSigma(
+    const Image<double>& im,
+    const Position& pos,
+    double sky,
+    double noise,
+    double gain,
+    const Image<double>& weight_im, 
+    const Transformation& trans, 
+    double psfap)
+{
+  double sigma = DEFVALNEG;
+
+  std::vector<Pixel> pix;
+  int flag = 0;
+  try {
+    GetPixList(im, pix, pos, sky, noise, gain, &weight_im, trans, psfap, flag);
+  } catch (Range_error& e) {
+    xxdbg<<"transformation range error: \n";
+    xxdbg<<"p = "<<pos<<", b = "<<e.b<<std::endl;
+    return sigma;
+  }
+  if (flag) {
+    xxdbg<<"Error flag == "<<flag<<std::endl;
+    return sigma;
+  }
+  xxdbg<<"npix = "<<pix.size()<<std::endl;
+
+  Ellipse ell;
+  ell.PeakCentroid(pix,psfap/3.);
+  ell.CrudeMeasure(pix,1.); // sigma here = 1.
+  xdbg<<"Crude Measure: centroid = "<<ell.GetCen();
+  xdbg<<", mu = "<<ell.GetMu()<<std::endl;
+  double mu = ell.GetMu();
+
+  sigma = exp(mu);
+  return sigma;
+}
+
+// estimate many sizes
+void MeasureSigmas(
+    const Image<double>& im,
+    const std::vector<Position>& all_pos,
+    const std::vector<double>& all_sky,
+    const std::vector<double>& all_noise,
+    double gain,
+    const Image<double>& weight_im, 
+    const Transformation& trans, 
+    double psfap,
+    vector<double>& sigmas)
+{
+  if (sigmas.size() != all_pos.size()) {
+    sigmas.clear();
+    sigmas.resize(all_pos.size());
+  }
+
+  for (int i=0; i< all_pos.size(); i++) {
+    sigmas[i] = 
+      SingleSigma(
+	im, 
+	all_pos[i], 
+	all_sky[i], all_noise[i], gain, weight_im, 
+	trans, psfap);
+  }
+}
+
 double EstimateSigma(
     const Image<double>& im,
     const std::vector<Position>& all_pos, const std::vector<double>& all_sky,

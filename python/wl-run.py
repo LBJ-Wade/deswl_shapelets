@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 Run a single image through either measure_stars, measurepsf or measureshear
 """
@@ -135,7 +136,7 @@ def ExecuteCommand(command):
 
 
 if len(sys.argv) < 3:
-    print 'usage: '+sys.argv[0]+' image_file executable'
+    print 'usage: '+os.path.basename(sys.argv[0])+' image_file executable'
     sys.exit(45)
 
 image_file = sys.argv[1]

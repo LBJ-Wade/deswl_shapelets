@@ -38,6 +38,8 @@
 #define MSH_SHEAR_FAILED            0x800
 #define MSH_SHAPELET_FAILED         0x1000
 
+
+
 //
 // Exit codes
 //
@@ -47,7 +49,9 @@ enum ExitCode {
   FAILURE_FILE_NOT_FOUND	= 2,
   FAILURE_TMV_ERROR		= 3,
   FAILURE_CONFIGFILE_ERROR	= 4,
-  FAILURE_STD_EXCEPTION		= 5
+  FAILURE_STD_EXCEPTION		= 5,
+  FAILURE_READ_ERROR            = 6,
+  FAILURE_FORMAT_ERROR          = 7
 };
 
 

@@ -44,6 +44,28 @@ void MeasureSingleShear(
     tmv::Matrix<double>& varshear, BVec& shapelet,
     int32& flags);
 
+double SingleSigma(
+    const Image<double>& im,
+    const Position& pos,
+    double sky,
+    double noise,
+    double gain,
+    const Image<double>& weight_im, 
+    const Transformation& trans, 
+    double psfap);
+
+void MeasureSigmas(
+    const Image<double>& im,
+    const std::vector<Position>& all_pos,
+    const std::vector<double>& all_sky,
+    const std::vector<double>& all_noise,
+    double gain,
+    const Image<double>& weight_im, 
+    const Transformation& trans, 
+    double psfap,
+    vector<double>& sigmas);
+
+
 double EstimateSigma(
     const Image<double>& im,
     const std::vector<Position>& all_pos, const std::vector<double>& all_sky,

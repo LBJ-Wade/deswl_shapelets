@@ -88,7 +88,6 @@ def RunUninstall(env, targets, subdir):
     for t in targets:
         ifile = os.path.join(install_dir, os.path.basename(str(t))) 
         files.append(ifile)
-    #files = [os.path.join(install_dir, os.path.basename(str(f[0]))) for f in targets]
 
     for f in files:
         env.Alias('uninstall', env.Command(f, None, deltarget))
