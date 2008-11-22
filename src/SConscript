@@ -20,7 +20,7 @@ measurepsf = env.Program('measurepsf', 'MeasurePSF.cpp',
 measureshear = env.Program('measureshear', 'MeasureShear.cpp', 
                            LIBS=['wl'] + sblibs)
 
-measure_sizes = env.Program('measure_sizes', 'MeasureSizes.cpp', 
+find_stars = env.Program('find_stars', 'FindStars.cpp', 
                             LIBS=['wl'] + sblibs)
 
 #testwl = env.Program('testwl', 'TestWL.cpp', LIBS=['wl'] + sblibs )
@@ -28,7 +28,7 @@ measure_sizes = env.Program('measure_sizes', 'MeasureSizes.cpp',
 
 bin_install_dir = os.path.join(env['PREFIX'], 'bin')
 
-bin_targets = [measurepsf, measureshear, measure_sizes]
+bin_targets = [measurepsf, measureshear, find_stars]
 
 if 'install' in COMMAND_LINE_TARGETS:
     env.Alias(target='install',
