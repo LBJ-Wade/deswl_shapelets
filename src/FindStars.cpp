@@ -131,7 +131,7 @@ int ReadFitsCat(ConfigFile& params, SXCAT_STRUCT& cat)
 
 
 
-int DoMeasureSizes(ConfigFile& params)
+int DoFindStars(ConfigFile& params)
 {
   // Load image:
   int image_hdu = 1;
@@ -226,7 +226,7 @@ int main(int argc, char **argv)
   ConfigFile params(argv[1]);
   for(int k=2;k<argc;k++) params.Append(argv[k]);
 
-  std::string logfile = "measure_sizes.log";
+  std::string logfile = "findstars.log";
   if (params.keyExists("log_file") || params.keyExists("log_ext")) {
     logfile = Name(params,"log");
   }
@@ -266,7 +266,7 @@ int main(int argc, char **argv)
 
     dbg<<"Config params = \n"<<params<<std::endl;
 
-    DoMeasureSizes(params);
+    DoFindStars(params);
 
     if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}
     return EXIT_SUCCESS;
