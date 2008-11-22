@@ -23,11 +23,11 @@ double SingleSigma(
   } catch (Range_error& e) {
     xxdbg<<"transformation range error: \n";
     xxdbg<<"p = "<<pos<<", b = "<<e.b<<std::endl;
-    return sigma;
+    throw std::runtime_error("Failed to get pixel list");
   }
   if (flag) {
     xxdbg<<"Error flag == "<<flag<<std::endl;
-    return sigma;
+    throw std::runtime_error("Failed to get pixel list");
   }
   xxdbg<<"npix = "<<pix.size()<<std::endl;
 
@@ -52,20 +52,26 @@ void MeasureSigmas(
     const Image<double>& weight_im, 
     const Transformation& trans, 
     double psfap,
-    vector<double>& sigmas)
+    vector<double>& sigmas,
+    vector<int>& flags)
 {
-  if (sigmas.size() != all_pos.size()) {
-    sigmas.clear();
-    sigmas.resize(all_pos.size());
-  }
+  sigmas.clear();
+  sigmas.resize(all_pos.size(),0);
+  flags.clear();
+  flags.resize(all_pos.size(),0);
 
   for (int i=0; i< all_pos.size(); i++) {
-    sigmas[i] = 
-      SingleSigma(
-	im, 
-	all_pos[i], 
-	all_sky[i], all_noise[i], gain, weight_im, 
-	trans, psfap);
+    try {
+      sigmas[i] = 
+	SingleSigma(
+	    im, 
+	    all_pos[i], 
+	    all_sky[i], all_noise[i], gain, weight_im, 
+	    trans, psfap);
+    } catch (...) {
+      sigmas[i] = DEFVALNEG;
+      flags[i] = 1;
+    }
   }
 }
 

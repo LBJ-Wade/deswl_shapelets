@@ -63,7 +63,8 @@ void MeasureSigmas(
     const Image<double>& weight_im, 
     const Transformation& trans, 
     double psfap,
-    vector<double>& sigmas);
+    vector<double>& sigmas,
+    vector<int>& flags);
 
 
 double EstimateSigma(

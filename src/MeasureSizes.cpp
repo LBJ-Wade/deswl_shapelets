@@ -6,6 +6,8 @@
 #include "Name.h"
 
 #include "fitsio.h"
+#include "FitsFile.h"
+#include "StarFinder.h"
 
 #include <iostream>
 
@@ -30,7 +32,11 @@ typedef struct {
   vector<float> mag;
   vector<float> mag_err;
   vector<int> flags;
+
+  // calculated here
   vector<double> sigma;
+  vector<int> size_flags;
+  vector<int> star_flag;
 
   // These unused
   vector<double> sky;
@@ -46,51 +52,18 @@ void ResizeSXCat(SXCAT_STRUCT& cat, long n)
   cat.mag.resize(n,0);
   cat.mag_err.resize(n,0);
   cat.flags.resize(n,0);
-  cat.sigma.resize(n,0);
 
+  cat.sigma.resize(n,0);
+  cat.size_flags.resize(n,0);
+  cat.star_flag.resize(n,0);
+
+  // Not used
   cat.sky.resize(n,0);
   cat.noise.resize(n,0);
-}
-int ReadFitsCol(
-    fitsfile* fptr, 
-    char* colname, 
-    int coltype, 
-    char* dptr,
-    long nrows)
-{
-  int fitserr=0;
-
-  int anynull=0;
-  long longnull=0;
-  float floatnull=0;
-  long frow=1, felem=1;
-  double dblnull;
-
-  int colnum;
-  fits_get_colnum(fptr, CASEINSEN, colname, &colnum, &fitserr);
-  if (!fitserr==0) {
-    std::cerr<<"Error reading colnum for \""<<colname<<"\""<<std::endl;
-    return FAILURE_READ_ERROR;
-  }
-
-  // using same dblnull everywhere probably OK.  Just needs to be big
-  // enough to take the var I think.
-
-  fits_read_col(fptr, coltype, colnum, frow, felem, nrows, &dblnull, 
-      dptr,
-      &anynull, &fitserr);
-  if (!fitserr==0) {
-    std::cerr<<"Error reading column \""<<colname<<"\""<<std::endl;
-    return FAILURE_READ_ERROR;
-  }
-  return 0;
-
 }
 
 int ReadFitsCat(ConfigFile& params, SXCAT_STRUCT& cat)
 {
-  fitsfile *fptr;
-  int fitserr=0;
 
   int cat_hdu = 1;
   if (params.keyExists("cat_hdu")) cat_hdu = params["cat_hdu"];
@@ -100,39 +73,19 @@ int ReadFitsCat(ConfigFile& params, SXCAT_STRUCT& cat)
 
   cout<< "Reading cat from file: " << file << endl;
 
-  fits_open_file(&fptr,file.c_str(),READONLY,&fitserr);
-  if (!fitserr==0) {
-    std::cerr<<"Error opening fits file"<<std::endl;
-    return FAILURE_READ_ERROR;
-  }
+  FitsFile fits(file);
 
   int hdutype;
 
   dbg<<"Moving to HDU #"<<cat_hdu<<endl;
-  fits_movabs_hdu(fptr, cat_hdu, &hdutype, &fitserr);
-  if (!fitserr==0)
-  {
-    fits_report_error(stderr, fitserr); 
-    std::cerr << "Error moving to extension #" << cat_hdu<<std::endl;
-    return FAILURE_READ_ERROR;
-  }
+  fits.GotoHDU(cat_hdu);
 
   // These are not very portable.
   int nfound;
-  long naxescat[2];
-  long nrows;
+  long nrows=0;
+  fits.ReadKey("NAXIS2", TLONG, (char *)&nrows);
 
-  fits_read_keys_lng(fptr, "NAXIS", 1, 2, naxescat, &nfound, &fitserr);
-  if (!fitserr==0)
-  {
-    fits_report_error(stderr, fitserr); 
-    std::cerr<<"Error reading NAXIS card"<<std::endl;
-    return FAILURE_READ_ERROR;
-  }
-  nrows = naxescat[1];     
-  dbg<<"naxes cat = "<<naxescat[0]<<" "<<naxescat[1]<<endl;
   cout<<"  nrows = "<<nrows<<endl;
-
   if (nrows <= 0) {
     std::cerr<<"nrows must be >= 0"<<std::endl;
     return FAILURE_FORMAT_ERROR;
@@ -154,32 +107,25 @@ int ReadFitsCat(ConfigFile& params, SXCAT_STRUCT& cat)
   std::string mag_err_name=params["sx_mag_err_name"];
   std::string flags_name=params["sx_flags_name"];
 
-
-  // Number = id
-  int res;
-  res=ReadFitsCol(fptr, (char *) id_name.c_str(), TLONG, (char *)&cat.id[0], nrows);
-  if (res != 0) return res;
-  res=ReadFitsCol(fptr, (char *) x_name.c_str(), TFLOAT, (char *)&cat.x[0], nrows);
-  if (res != 0) return res;
-  res=ReadFitsCol(fptr, (char *) y_name.c_str(), TFLOAT, (char *)&cat.y[0], nrows);
-  if (res != 0) return res;
-  res=ReadFitsCol(fptr, (char *) mag_name.c_str(), TFLOAT, (char *)&cat.mag[0], nrows);
-  if (res != 0) return res;
-  res=ReadFitsCol(fptr, (char *) mag_err_name.c_str(), TFLOAT, (char *)&cat.mag_err[0], nrows);
-  if (res != 0) return res;
-  res=ReadFitsCol(fptr, (char *) flags_name.c_str(), TSHORT, (char *)&cat.flags[0], nrows);
-  if (res != 0) return res;
+  std::cout<<"Reading columns"<<std::endl;
+  fits.ReadScalarCol((char *)id_name.c_str(),TLONG,(char *)&cat.id[0], nrows);
+  std::cout<<"  "<<id_name<<std::endl;
+  fits.ReadScalarCol((char *)x_name.c_str(),TFLOAT,(char *)&cat.x[0], nrows);
+  std::cout<<"  "<<x_name<<std::endl;
+  fits.ReadScalarCol((char *)y_name.c_str(),TFLOAT,(char *)&cat.y[0], nrows);
+  std::cout<<"  "<<y_name<<std::endl;
+  fits.ReadScalarCol((char *)mag_name.c_str(),TFLOAT,(char *)&cat.mag[0], nrows);
+  std::cout<<"  "<<mag_name<<std::endl;
+  fits.ReadScalarCol((char *)mag_err_name.c_str(),TFLOAT,(char *)&cat.mag_err[0], nrows);
+  std::cout<<"  "<<mag_err_name<<std::endl;
+  fits.ReadScalarCol((char *)flags_name.c_str(),TSHORT,(char *)&cat.flags[0], nrows);
+  std::cout<<"  "<<flags_name<<std::endl;
 
   for (long i=0; i< nrows; i++) {
     cat.pos[i] = Position(cat.x[i], cat.y[i]);
   }
 
-  fits_close_file(fptr, &fitserr);
-  if (!fitserr==0) {
-    std::cerr<<"Error closing file"<<std::endl;
-    return FAILURE_FORMAT_ERROR;
-  }
-
+  fits.Close();
 
 }
 
@@ -219,7 +165,24 @@ int DoMeasureSizes(ConfigFile& params)
       weight_im, 
       trans, 
       psfap, 
-      sxcat.sigma);
+      sxcat.sigma,
+      sxcat.size_flags);
+
+  // Eventually separate this out
+  std::cout<<"Loading Star Finder"<<std::endl;
+  StarFinder sf(params);
+
+  
+  vector<int> starflags; 
+  sf.RunFindStars(
+      sxcat.flags,
+      sxcat.size_flags,
+      sxcat.x,
+      sxcat.y,
+      sxcat.sigma,
+      sxcat.mag,
+      sxcat.star_flag);
+
 
   std::string output_file = Name(params, "allcat");
 
@@ -228,8 +191,18 @@ int DoMeasureSizes(ConfigFile& params)
 
   std::string delim = params["allcat_delim"];
   for (long i=0; i<sxcat.pos.size(); i++) {
-    output<<sxcat.id[i]<<delim<<sxcat.sigma[i]<<delim<<sxcat.mag[i]<<endl;
+    output
+      <<sxcat.id[i]<<delim
+      <<sxcat.x[i]<<delim
+      <<sxcat.y[i]<<delim
+      <<sxcat.sigma[i]<<delim
+      <<sxcat.mag[i]<<delim
+      <<sxcat.size_flags[i]<<delim
+      <<sxcat.star_flag[i]
+      <<endl;
   }
+
+
 }
 
 
