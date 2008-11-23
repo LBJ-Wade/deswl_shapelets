@@ -19,11 +19,14 @@
 #include <iostream>
 
 #ifdef _OPENMP
+#undef _OPENMP
 //#include <omp.h>
 #endif
 
-//#define SINGLESTAR 18
+//#define SINGLESTAR 91
 //#define NSTARS 10
+//#define STARTAT 85
+//#define ENDAT 95
 
 int DoMeasurePSF(ConfigFile& params, PSFLog& log) 
 {
@@ -43,18 +46,20 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
   double gain;
   Image<double>* weight_im = 0;
   ReadCatalog(params,"starcat",all_pos,all_sky,all_noise,gain,weight_im);
-  xdbg<<"Done read catalog "<<Name(params,"starcat",true)<<std::endl;
+  xdbg<<"Done read catalog "<<Name(params,"starcat",false,true)<<std::endl;
+
+  // Fix sky if necessary
+  if (all_sky.size() == 0) {
+    size_t glob_sky = 0.;
+    if (params.keyExists("sky")) glob_sky = params["sky"];
+    else glob_sky = im.Median();
+    dbg<<"Set global value of sky to "<<glob_sky<<std::endl;
+    all_sky.resize(all_pos.size());
+    fill(all_sky.begin(),all_sky.end(),glob_sky);
+  }
 
   // Read distortion function
-  Transformation trans;
-  if (params.keyExists("dist_ext") || params.keyExists("dist_file")) {
-    std::string distfile = Name(params,"dist",true);
-    std::ifstream distin(distfile.c_str());
-    Assert(distin);
-    distin >> trans;
-    xdbg<<"Done read distortion "<<Name(params,"dist",true)<<std::endl;
-  } // else stay with identity transformation.
-
+  Transformation trans(params);
 
   // Read some needed parameters
   int nstars = all_pos.size();
@@ -67,9 +72,19 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
   bool output_dots=false;
   if (params.keyExists("output_dots")) output_dots=true;
 
+  // Initial sigma_p for shapelet measurements
+  double sigma_p = 1.;
+  if (params.keyExists("seeing_est")) {
+    double seeing = params["seeing_est"];
+    // seeing is given as FWHM
+    // for a gaussian 0.5 = exp(-((FWHM/2)/sigma)^2/2)
+    // FWHM/sigma = 2.*sqrt(2 ln(2)) = 2.35
+    sigma_p = seeing / 2.35;
+  }
+
   // Calculate a good value of sigma to use:
   // (For this calculation, psfap is psf_aperture * 1 arcsec.)
-  double sigma_p = EstimateSigma(
+  EstimateSigma(sigma_p,
       im,all_pos,all_sky,all_noise,gain,weight_im,trans,psfap);
   dbg<<"sigma_p = "<<sigma_p<<std::endl;
   psfap *= sigma_p;  // arcsec
@@ -82,13 +97,13 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
   // Set up a default psf vector for output when an object measurement
   // fails
   BVec psf_default(psforder,sigma_p);
-  for (int i=0; i<psf_default.size(); i++) {
+  for (size_t i=0; i<psf_default.size(); i++) {
     psf_default[i] = DEFVALNEG;
   }
   double nu_default = DEFVALNEG;
 
   // Array of flag values
-  vector<int32> flagvec(nstars,0);
+  std::vector<int32> flagvec(nstars,0);
 
 #ifdef ENDAT
   nstars = ENDAT;
@@ -122,7 +137,7 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
 #pragma omp critical
 #endif
 	{
-	  if (output_dots) { std::cout<<"."; std::cout.flush(); }
+	  if (output_dots) { std::cerr<<"."; std::cerr.flush(); }
 	  dbg<<"star "<<i<<":\n";
 	}
 
@@ -157,8 +172,12 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
 	  flagvec[i] = flag1;
 	  psf[i] = psf1;
 	  nu[i] = nu1;
-	  if (!flag1) dbg<<"Successful psf measurement: "<<psf1<<std::endl;
-	  else dbg<<"Unsuccessful psf measurement\n"; 
+	  if (!flag1) {
+	    dbg<<"Successful psf measurement: "<<psf1<<std::endl;
+	  }
+	  else {
+	    dbg<<"Unsuccessful psf measurement\n"; 
+	  }
 	}
 #ifdef SINGLESTAR
 	exit(1);
@@ -172,8 +191,9 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
 #endif
 
 
-  int nsuccess = 0;
-  for(int i=0;i<nstars;i++) if (!flagvec[i]) nsuccess++;
+  int nsuccess = log.ns_psf;
+  //for(int i=0;i<nstars;i++) if (!flagvec[i]) nsuccess++;
+
   dbg<<nsuccess<<" successful star measurements, ";
   dbg<<nstars-nsuccess<<" unsuccessful\n";
 
@@ -224,7 +244,7 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
   dbg<<log<<std::endl;
 
   if (output_dots) { 
-	  std::cout
+	  std::cerr
 		  <<std::endl
 		  <<"Success rate: "<<nsuccess<<"/"<<nstars
 		  <<std::endl; 

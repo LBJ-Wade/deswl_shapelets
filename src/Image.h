@@ -68,6 +68,8 @@ template <class T> class Image {
     double Interpolate(double x, double y) const;
     double QuadInterpolate(double x, double y) const;
 
+    double Median() const;
+
   private:
 
     int xmin,xmax,ymin,ymax;

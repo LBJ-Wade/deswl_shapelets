@@ -33,8 +33,8 @@ struct ShearLog {
 
   private :
 
-  mutable std::ofstream logout;
   std::string delim;
+  std::ostream* logout;
 
 };
 
@@ -59,8 +59,28 @@ struct PSFLog {
 
   private :
 
-  mutable std::ofstream logout;
   std::string delim;
+  std::ostream* logout;
+
+};
+
+struct FindStarsLog {
+
+  FindStarsLog(std::string logfile, std::string _delim="  ");
+  ~FindStarsLog();
+
+  void WriteLog() const;
+  void Write(std::ostream& os) const;
+
+  ExitCode exitcode;
+
+  int nobj;
+  int nstars;
+
+  private :
+
+  std::string delim;
+  std::ostream* logout;
 
 };
 
@@ -68,6 +88,9 @@ inline std::ostream& operator<<(std::ostream& os, const ShearLog& log)
 { log.Write(os); return os; }
 
 inline std::ostream& operator<<(std::ostream& os, const PSFLog& log)
+{ log.Write(os); return os; }
+
+inline std::ostream& operator<<(std::ostream& os, const FindStarsLog& log)
 { log.Write(os); return os; }
 
 #endif

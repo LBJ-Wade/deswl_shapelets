@@ -234,10 +234,7 @@ class Rosen : public NLSolver
     double lambda;
 };
 
-int main() 
-#ifndef NOTHROW
-  try 
-#endif
+int main() try 
 {
 #ifdef DOLINEAR
   {
@@ -370,7 +367,6 @@ int main()
 #endif
   return 0;
 } 
-#ifndef NOTHROW
 catch (tmv::Error& e)
 {
   std::cout<<"Caught "<<e<<std::endl;
@@ -386,4 +382,3 @@ catch (...)
   std::cout<<"Caught unknown error\n";
   return 1;
 }
-#endif

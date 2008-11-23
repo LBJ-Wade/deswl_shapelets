@@ -2,8 +2,6 @@
 #include <algorithm>
 #include "Form.h"
 #include "dbg.h"
-using std::endl;
-using std::vector;
 
 #define EPSILON 1.e-6
 
@@ -18,16 +16,16 @@ Histogram<T>::Histogram(double binsize, double minvalue, double maxvalue) :
   size_t nbins = (size_t) ceil((maxvalue-minvalue)/itsbinsize)+1;
   itsminvalue = minvalue - binsize/2.;
   itsmaxvalue = maxvalue + binsize/2.;
-  itsrefs = vector<vector<T> >(nbins);
-  itsvalues = vector<vector<double> >(nbins);
+  itsrefs = std::vector<std::vector<T> >(nbins);
+  itsvalues = std::vector<std::vector<double> >(nbins);
   if (value(nbins-1) > itsmaxvalue) itsmaxvalue = value(nbins-1)+binsize/4.;
 
   dbg<<"made histogram:\n";
-  dbg<<"minvalue="<<itsminvalue<<" index(minvalue)="<<index(itsminvalue)<<endl;
-  dbg<<"maxvalue="<<itsmaxvalue<<" index(maxvalue)="<<index(itsmaxvalue)<<endl;
-  dbg<<"mini=0  value(mini)="<<value(0)<<endl;
+  dbg<<"minvalue="<<itsminvalue<<" index(minvalue)="<<index(itsminvalue)<<std::endl;
+  dbg<<"maxvalue="<<itsmaxvalue<<" index(maxvalue)="<<index(itsmaxvalue)<<std::endl;
+  dbg<<"mini=0  value(mini)="<<value(0)<<std::endl;
   dbg<<"maxi="<<itsrefs.size()-1;
-  dbg<<" value(maxi)="<<value(itsrefs.size()-1)<<endl;
+  dbg<<" value(maxi)="<<value(itsrefs.size()-1)<<std::endl;
 }
 
 template <class T>
@@ -112,7 +110,7 @@ double Histogram<T>::FindValley(double val1, double val2) const
 template <class T>
 double Histogram<T>::FindFirstValleyAfter(double val1,bool poissonnoise) const
 {
-  dbg<<"Start FindFirstValleyAfter "<<val1<<endl;
+  dbg<<"Start FindFirstValleyAfter "<<val1<<std::endl;
   if (val1<itsminvalue) val1 = itsminvalue;
   size_t i1=index(val1);
   Assert(i1<itsrefs.size());
@@ -131,7 +129,7 @@ double Histogram<T>::FindFirstValleyAfter(double val1,bool poissonnoise) const
     }
     if (++icheck == itsrefs.size()) break;
   }
-  dbg<<"valley = "<<value(ivalley)<<endl;
+  dbg<<"valley = "<<value(ivalley)<<std::endl;
   return value(ivalley);
 }
 
@@ -243,7 +241,7 @@ size_t Histogram<T>::GetRefinedPeakCount(double* peak) const
 // It does this by sliding a window of width binsize along a sorted list
 // of values and counting how many objects fit into the window. 
 {
-  vector<double> vals = GetValuesInRange(*peak-1.5*itsbinsize,
+  std::vector<double> vals = GetValuesInRange(*peak-1.5*itsbinsize,
     *peak+1.5*itsbinsize);
   Assert(vals.size()>=1);
   std::sort(vals.begin(),vals.end());
@@ -259,8 +257,8 @@ size_t Histogram<T>::GetRefinedPeakCount(double* peak) const
     if (j-i > bestcount) {
       bestcount = j-i;
       bestval = (vals[i]+vals[j-1])/2.;
-      //dbg<<"bestcount = "<<bestcount<<", bestval = "<<bestval<<endl;
-      //dbg<<"i,j = "<<i<<','<<j<<endl;
+      //dbg<<"bestcount = "<<bestcount<<", bestval = "<<bestval<<std::endl;
+      //dbg<<"i,j = "<<i<<','<<j<<std::endl;
     }
   }
   *peak = bestval;
@@ -276,7 +274,7 @@ size_t Histogram<T>::GetRefinedValleyCount(double* valley) const
 // to the left of the start of the bin.  So the count is j-i-1 rather
 // than j-i.
 {
-  vector<double> vals = GetValuesInRange(*valley-1.5*itsbinsize,
+  std::vector<double> vals = GetValuesInRange(*valley-1.5*itsbinsize,
     *valley+1.5*itsbinsize);
   if (vals.size() == 0) return 0;
   std::sort(vals.begin(),vals.end());
@@ -296,8 +294,8 @@ size_t Histogram<T>::GetRefinedValleyCount(double* valley) const
     if (j-i-1 < bestcount) {
       bestcount = j-i-1;
       bestval = vals[i]+itsbinsize/2.;
-      //dbg<<"bestcount = "<<bestcount<<", bestval = "<<bestval<<endl;
-      //dbg<<"i,j = "<<i<<','<<j<<endl;
+      //dbg<<"bestcount = "<<bestcount<<", bestval = "<<bestval<<std::endl;
+      //dbg<<"i,j = "<<i<<','<<j<<std::endl;
     }
   }
   *valley = bestval;
@@ -369,7 +367,7 @@ double Histogram<T>::FindThresh(double minval, double maxval) const
   }
   meantot /= ntot;
   meansqtot /= ntot;
-  dbg<<"ntot="<<ntot<<", meantot="<<meantot<<", meansqtot="<<meansqtot<<endl;
+  dbg<<"ntot="<<ntot<<", meantot="<<meantot<<", meansqtot="<<meansqtot<<std::endl;
 
   double sumn=0.,sumni=0.,sumnii=0.,bestnbgv=-1.;
   int besti=-1;
@@ -401,40 +399,40 @@ double Histogram<T>::FindThresh(double minval, double maxval) const
     }
   }
 
-  dbg<<"besti = "<<besti<<", bestnbgv = "<<bestnbgv<<endl;
+  dbg<<"besti = "<<besti<<", bestnbgv = "<<bestnbgv<<std::endl;
   Assert(besti >= 0);
   Assert(bestnbgv > 0.);
   // +1 below forces thresh to be at least 1 bin away from first peak.
   // otherwise if peak is only 1 bin, can get besti = that bin.
-  dbg<<"returning thresh = "<<value(besti)<<endl;
+  dbg<<"returning thresh = "<<value(besti)<<std::endl;
   return value(besti);
 }
  
 template <class T>
-vector<T> Histogram<T>::GetRefsInRange(double min, double max) const
+std::vector<T> Histogram<T>::GetRefsInRange(double min, double max) const
 {
   if (min < itsminvalue) min = itsminvalue;
   if (max > itsmaxvalue) max = itsmaxvalue;
   size_t i1=index(min);
   size_t i2=index(max);
 
-  dbg<<"in getrefs: min,max = "<<min<<','<<max<<endl;
+  dbg<<"in getrefs: min,max = "<<min<<','<<max<<std::endl;
 
-  vector<T> temp;
+  std::vector<T> temp;
   for(size_t k=0;k<itsrefs[i1].size();k++) {
     if(itsvalues[i1][k]>=min) {
-      dbg<<"i1 - add ref @ "<<itsvalues[i1][k]<<endl;
+      dbg<<"i1 - add ref @ "<<itsvalues[i1][k]<<std::endl;
       temp.push_back(itsrefs[i1][k]);
     }
   }
   for(size_t i=i1+1;i<i2;i++) {
     if (itsrefs[i].size() > 0) 
-      dbg<<"i - add all ("<<itsrefs[i].size()<<") refs near "<<itsvalues[i].front()<<endl;
+      dbg<<"i - add all ("<<itsrefs[i].size()<<") refs near "<<itsvalues[i].front()<<std::endl;
     temp.insert(temp.end(),itsrefs[i].begin(),itsrefs[i].end());
   }
   for(size_t k=0;k<itsrefs[i2].size();k++) {
     if(itsvalues[i2][k]<=max) {
-      dbg<<"i2 - add ref @ "<<itsvalues[i2][k]<<endl;
+      dbg<<"i2 - add ref @ "<<itsvalues[i2][k]<<std::endl;
       temp.push_back(itsrefs[i2][k]);
     }
   }
@@ -442,14 +440,14 @@ vector<T> Histogram<T>::GetRefsInRange(double min, double max) const
 }
 
 template <class T>
-vector<double> Histogram<T>::GetValuesInRange(double min, double max) const
+std::vector<double> Histogram<T>::GetValuesInRange(double min, double max) const
 {
   if (min < itsminvalue) min = itsminvalue;
   if (max > itsmaxvalue) max = itsmaxvalue;
   size_t i1=index(min);
   size_t i2=index(max);
 
-  vector<double> temp;
+  std::vector<double> temp;
   for(size_t k=0;k<itsvalues[i1].size();k++)
     if(itsvalues[i1][k]>=min) temp.push_back(itsvalues[i1][k]);
   for(size_t i=i1+1;i<i2;i++)
@@ -489,7 +487,7 @@ void Histogram<T>::Print(std::ostream& fout,double val1,double val2) const
     fout << sci2(value(i));
     //else fout << "           ";
     for(size_t j=0;j<GetCount(i);j++) fout<<'*';
-    fout<<endl;
+    fout<<std::endl;
   }
 }
 

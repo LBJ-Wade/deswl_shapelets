@@ -63,11 +63,12 @@ void MeasureSigmas(
     const Image<double>& weight_im, 
     const Transformation& trans, 
     double psfap,
-    vector<double>& sigmas,
-    vector<int>& flags);
+    std::vector<double>& sigmas,
+    std::vector<int>& flags);
 
 
-double EstimateSigma(
+void EstimateSigma(
+    double& sigma_p,
     const Image<double>& im,
     const std::vector<Position>& all_pos, const std::vector<double>& all_sky,
     const std::vector<double>& all_noise, double gain,

@@ -33,9 +33,11 @@ struct file_not_found : public std::runtime_error {
 	+ " not found") {} 
 };
 
-inline std::string Name(ConfigFile& params, const std::string& what,
-    bool mustexist=false)
+inline std::string Name(const ConfigFile& params, const std::string& what,
+    bool input_prefix=false, bool mustexist=false)
 {
+  if (input_prefix) mustexist = true;
+
   xdbg<<"Making name for "<<what<<std::endl;
   std::string name;
   if (params.keyExists((what+"_file"))) {
@@ -46,9 +48,20 @@ inline std::string Name(ConfigFile& params, const std::string& what,
   } else {
     Assert(params.keyExists("root"));
     Assert(params.keyExists(what+"_ext"));
+    std::string root = params["root"];
     std::vector<std::string> ext = params[what+"_ext"];
+    std::string pre = "";
+    if (params.keyExists((what+"_prefix"))) pre=params[what+"_prefix"];
+    else {
+      if (input_prefix) {
+	if (params.keyExists("input_prefix")) pre=params["input_prefix"];
+      } else {
+	if (params.keyExists("output_prefix")) pre=params["output_prefix"];
+      }
+    }
+
     for(size_t i=0;i<ext.size();i++) {
-      name = params["root"] + ext[i];
+      name = pre + root + ext[i];
       if (mustexist) {
 	if (FileExists(name)) break;
 	if (i == ext.size()-1) throw file_not_found(name);

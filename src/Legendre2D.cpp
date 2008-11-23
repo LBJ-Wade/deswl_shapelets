@@ -4,15 +4,15 @@
 
 template <class T>
 void Legendre2D<T>::SetFunction(int _xorder, int _yorder, 
-	const Vector<T>& fvect)
+	const tmv::Vector<T>& fvect)
 {
   if (xorder != _xorder || yorder != _yorder) {
     xorder = _xorder; yorder = _yorder;
-    coeffs.reset(new Matrix<T>(xorder+1,yorder+1,0.));
+    coeffs.reset(new tmv::Matrix<T>(xorder+1,yorder+1,0.));
   }
   int k=0;
-  for(int m=0; m <= max(xorder,yorder); m++)
-    for(int i=min(m,xorder);m-i<=min(m,yorder);i--) { 
+  for(int m=0; m <= std::max(xorder,yorder); m++)
+    for(int i=std::min(m,xorder);m-i<=std::min(m,yorder);i--) { 
       (*coeffs)(i,m-i) = fvect(k++);
     }
   Assert(k==(int)fvect.size());
@@ -25,10 +25,10 @@ Legendre2D<T>::Legendre2D(std::istream& fin) : Function2D<T>()
 {
   fin >> xorder >> yorder >> bounds;
   if (!fin) f2d_error("reading order, bounds");
-  coeffs.reset(new Matrix<T>(xorder+1,yorder+1,0.));
-  int maxorder = max(xorder,yorder);
+  coeffs.reset(new tmv::Matrix<T>(xorder+1,yorder+1,0.));
+  int maxorder = std::max(xorder,yorder);
   for(int m = 0; m <= maxorder; m++) {
-    for(int i=min(m,xorder);m-i<=min(m,yorder);i--) {
+    for(int i=std::min(m,xorder);m-i<=std::min(m,yorder);i--) {
       fin >> (*coeffs)(i,m-i);
     }
   }
@@ -40,12 +40,12 @@ void Legendre2D<T>::Write(std::ostream& fout) const
 {
   int oldprec = fout.precision(6);
   std::ios::fmtflags oldf = fout.setf(std::ios::scientific,std::ios::floatfield);
-  int maxorder = max(xorder,yorder);
+  int maxorder = std::max(xorder,yorder);
   if (maxorder == 0) fout << "C " << (*coeffs)(0,0) << std::endl;
   else {
     fout << "L " << xorder << ' ' << yorder << ' ' << bounds << ' ';
     for(int m = 0; m <= maxorder; m++) {
-      for(int i=min(m,xorder);m-i<=min(m,yorder);i--) {
+      for(int i=std::min(m,xorder);m-i<=std::min(m,yorder);i--) {
 	fout << (*coeffs)(i,m-i) << ' ';
       }
     }
@@ -85,9 +85,9 @@ void Legendre2D<T>::operator+=(const Function2D<T>& rhs)
   if (xorder == lrhs->xorder && yorder == lrhs->yorder) {
     *coeffs += *lrhs->coeffs;
   } else {
-    int newxorder = max(xorder,lrhs->xorder);
-    int newyorder = max(yorder,lrhs->yorder);
-    std::auto_ptr<Matrix<T> > newc(new Matrix<T>(newxorder+1,newyorder+1,0.));
+    int newxorder = std::max(xorder,lrhs->xorder);
+    int newyorder = std::max(yorder,lrhs->yorder);
+    std::auto_ptr<tmv::Matrix<T> > newc(new tmv::Matrix<T>(newxorder+1,newyorder+1,0.));
     newc->SubMatrix(0,xorder+1,0,yorder+1) = *coeffs;
     newc->SubMatrix(0,lrhs->xorder+1,0,lrhs->yorder+1) += *lrhs->coeffs;
     coeffs = newc;
@@ -114,16 +114,16 @@ std::auto_ptr<Function2D<T> > Legendre2D<T>::DFDX() const
     new Legendre2D<T>(newxorder,newyorder,bounds));
   // initialized to 0's
 
-  int maxorder = max(xorder,yorder);
+  int maxorder = std::max(xorder,yorder);
   for(int i=xorder;i>=1;i--) 
-    for(int j=min(maxorder-i,yorder);j>=0;j--) {
+    for(int j=std::min(maxorder-i,yorder);j>=0;j--) {
       if (i%2 == 0) for(int k=0;k<=i/2-1;k++) 
         (*temp->coeffs)(2*k+1,j) += (4.*k+3.)*(*coeffs)(i,j);
       else for(int k=0;k<=(i-1)/2;k++) 
         (*temp->coeffs)(2*k,j) += (4.*k+1.)*(*coeffs)(i,j);
     }
-  maxorder = max(newxorder,newyorder);
-  for(int i=newxorder;i>=0;i--) for(int j=min(maxorder-i,newyorder);j>=0;j--) {
+  maxorder = std::max(newxorder,newyorder);
+  for(int i=newxorder;i>=0;i--) for(int j=std::min(maxorder-i,newyorder);j>=0;j--) {
     (*temp->coeffs)(i,j) *= 2./(GetXMax()-GetXMin());
   }
   return std::auto_ptr<Function2D<T> >(temp);
@@ -147,20 +147,20 @@ std::auto_ptr<Function2D<T> > Legendre2D<T>::DFDY() const
     new Legendre2D<T>(newxorder,newyorder,bounds));
   // initialized to 0's
 
-  int maxorder = max(xorder,yorder);
+  int maxorder = std::max(xorder,yorder);
   for(int j=yorder;j>=1;j--) 
-    for(int i=min(maxorder-j,xorder);i>=0;i--) {
+    for(int i=std::min(maxorder-j,xorder);i>=0;i--) {
       if (j%2 == 0) for(int k=0;k<=(j-2)/2;k++) 
         (*temp->coeffs)(i,2*k+1) += (4.*k+3.)*(*coeffs)(i,j);
       else for(int k=0;k<=(j-1)/2;k++) 
         (*temp->coeffs)(i,2*k) += (4.*k+1.)*(*coeffs)(i,j);
     }
-  maxorder = max(newxorder,newyorder);
-  for(int j=newyorder;j>=0;j--) for(int i=min(maxorder-j,newxorder);i>=0;i--) {
+  maxorder = std::max(newxorder,newyorder);
+  for(int j=newyorder;j>=0;j--) for(int i=std::min(maxorder-j,newxorder);i>=0;i--) {
     (*temp->coeffs)(i,j) *= 2./(GetYMax()-GetYMin());
   }
   return std::auto_ptr<Function2D<T> >(temp);
 }
 
-template class Legendre2D<complex<double> >;
+template class Legendre2D<std::complex<double> >;
 template class Legendre2D<double>;

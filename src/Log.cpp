@@ -12,21 +12,31 @@ ShearLog::ShearLog(std::string logfile, std::string _delim) :
   ns_native(0), nf_native(0),
   ns_mu(0), nf_mu(0),
   ns_gamma(0), nf_gamma(0),
-  logout(logfile.c_str(),std::ios_base::app),
   delim(_delim)
 {
-  if (!logout) {
-    throw std::runtime_error(
-	std::string("Error: Unable to open logfile ") + logfile
-	+ " for append output");
+  if (logfile == "") {
+    logout = &std::cout;
+  } else {
+    logout = new std::ofstream(logfile.c_str(),std::ios_base::app);
+    if (!logout) {
+      throw std::runtime_error(
+	  std::string("Error: Unable to open logfile ") + logfile
+	  + " for append output");
+    }
   }
 }
 
-ShearLog::~ShearLog() { WriteLog(); logout.close(); }
+ShearLog::~ShearLog() 
+{
+  WriteLog();
+  if (logout != &std::cout) {
+    delete logout;
+  }
+}
 
 void ShearLog::WriteLog() const
 {
-  logout << 
+  *logout << 
     exitcode <<delim<<
     ngals <<delim<<
     ns_gamma <<delim<<
@@ -77,21 +87,31 @@ PSFLog::PSFLog(std::string logfile, std::string _delim) :
   nf_range(0), nf_edge(0), nf_npix(0),
   nf_tmverror(0), nf_othererror(0),
   ns_psf(0), nf_psf(0),
-  logout(logfile.c_str(),std::ios_base::app),
   delim(_delim)
 {
-  if (!logout) {
-    throw std::runtime_error(
-	std::string("Error: Unable to open logfile ") + logfile
-	+ " for append output");
+  if (logfile == "") {
+    logout = &std::cout;
+  } else {
+    logout = new std::ofstream(logfile.c_str(),std::ios_base::app);
+    if (!logout) {
+      throw std::runtime_error(
+	  std::string("Error: Unable to open logfile ") + logfile
+	  + " for append output");
+    }
   }
 }
 
-PSFLog::~PSFLog() { WriteLog(); logout.close(); }
+PSFLog::~PSFLog() 
+{ 
+  WriteLog();
+  if (logout != &std::cout) {
+    delete logout;
+  }
+}
 
 void PSFLog::WriteLog() const
 {
-  logout << 
+  *logout << 
     exitcode <<delim<<
     nstars <<delim<<
     ns_psf <<delim<<
@@ -115,4 +135,42 @@ void PSFLog::Write(std::ostream& os) const
 
   os<<"N_Error: TMV Error caught = "<<nf_tmverror<<std::endl;
   os<<"N_Error: Other caught = "<<nf_othererror<<std::endl;
+}
+
+FindStarsLog::FindStarsLog(std::string logfile, std::string _delim) :
+  exitcode(SUCCESS), nobj(0), nstars(0),
+  delim(_delim)
+{
+  if (logfile == "") {
+    logout = &std::cout;
+  } else {
+    logout = new std::ofstream(logfile.c_str(),std::ios_base::app);
+    if (!logout) {
+      throw std::runtime_error(
+	  std::string("Error: Unable to open logfile ") + logfile
+	  + " for append output");
+    }
+  }
+}
+
+FindStarsLog::~FindStarsLog() 
+{ 
+  WriteLog();
+  if (logout != &std::cout) {
+    delete logout;
+  }
+}
+
+void FindStarsLog::WriteLog() const
+{
+  *logout << 
+    exitcode <<delim<<
+    nobj <<delim<<
+    nstars <<std::endl;
+}
+
+void FindStarsLog::Write(std::ostream& os) const
+{
+  os<<"N_Input objects = "<<nobj<<std::endl;
+  os<<"N_Stars = "<<nstars<<std::endl;
 }

@@ -5,6 +5,7 @@
 #include "Bounds.h"
 #include "TMV.h"
 #include "TMV_Small.h"
+#include "ConfigFile.h"
 
 class Transformation {
 
@@ -14,15 +15,16 @@ class Transformation {
     // u(x,y) = x, v(x,y) = y
     Transformation();
 
-    // I/O
-    void Read(std::istream& is);
-    void Write(std::ostream& os) const;
+    // Read parameter file and load specified transformation function
+    Transformation(const ConfigFile& params);
 
-    // Read WCS information - this is based on code I wrote back in 
-    // 2001, so I think the WCS standard has changed since them.
-    // But it might provide a guide for how to update this to the 
-    // new WCS standard.
-    void ReadWCS(std::string fitsfile);
+    // I/O
+    void ReadFunc2D(std::istream& is);
+    void ReadWCS(std::string fitsfile, int hdu);
+    void SetToScale(double pixel_scale);
+    void SetToJacobian(
+	double dudx, double dudy, double dvdx, double dvdy);
+    void WriteFunc2D(std::ostream& os) const;
 
     // Calculate u,v = u(x,y),v(x,y)
     void Transform(Position pxy, Position& puv) const;
@@ -62,11 +64,5 @@ class Transformation {
     std::auto_ptr<Function2D<double> > dvdxp;
     std::auto_ptr<Function2D<double> > dvdyp;
 };
-
-inline std::ostream& operator<<(std::ostream& os, const Transformation& t)
-{ t.Write(os); return os; }
-
-inline std::istream& operator>>(std::istream& is, Transformation& t)
-{ t.Read(is); return is; }
 
 #endif

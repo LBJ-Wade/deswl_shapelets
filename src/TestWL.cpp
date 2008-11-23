@@ -24,7 +24,7 @@ std::ostream* dbgout = new std::ofstream("testwl.debug");
 //bool XDEBUG = true;
 bool XDEBUG = false;
 
-#if 0
+#if 1
 #define TEST1
 #define TEST2
 #define TEST3
@@ -61,7 +61,7 @@ bool XDEBUG = false;
 // The tests of the jacobians are pretty time consuming.
 // They are worth testing, but once the code is working, I usually turn
 // turn them off (by commenting out the next line) to save time.
-//#define TESTJ
+#define TESTJ
 
 inline void GetFakePixList(std::vector<Pixel>& pix,
     double xcen, double ycen,
@@ -314,7 +314,7 @@ inline void CtoR(const tmv::Vector<std::complex<double> >& bc, BVec& b)
     for(int p=ppq,q=0;p>=q;--p,++q,++kc,++kr) {
       b[kr] = std::real(bc[kc]);
       if (p>q) b[++kr] = std::imag(bc[kc]);
-      else Assert(abs(std::imag(bc[kc])) < 1.e-5);
+      else Assert(std::abs(std::imag(bc[kc])) < 1.e-5);
     }
   }
   Assert(kr == b.size());
@@ -720,10 +720,7 @@ inline void DirectConvolveB(const BVec& rbi, const BVec& rbp, BVec& rb)
 
 #define xdbgout (XDEBUG ? dbgout : 0)
 
-int main(int argc, char **argv) 
-#ifndef NOTHROW
-  try 
-#endif
+int main(int argc, char **argv) try 
 {
   // First check that the functions work very well in the limit of
   // well sampled (pixscale = 0.1), large aperture (aperture = 15.)
@@ -1010,6 +1007,7 @@ int main(int argc, char **argv)
       std::complex<double> z0 = ell.GetCen();
       std::complex<double> g0 = ell.GetGamma();
       double m0 = ell.GetMu();
+	// MJ
       for(int ib = 0; ib < NB; ib++) {
 	dbg<<"Start ib = "<<ib<<std::endl;
 	BVec bin(4,sigma_i,b_vecs[ib]);
@@ -1716,10 +1714,10 @@ int main(int argc, char **argv)
 #ifdef TEST6
   ConfigFile params;
   params["root"] = "N/fldn422_4.";
-  params["fits_ext"] = "fits";
-  params["incat_ext"] = "starE";
+  params["image_ext"] = "fits";
+  params["starcat_ext"] = "starE";
   params["dist_ext"] = "undfunc2";
-  params["outcat_ext"] = "psf";
+  params["psf_ext"] = "psf";
   params["fitpsf_ext"] = "fitpsf";
   params["noise_method"] = "GAIN_FITS";
   params["gain_key"] = "GAIN";
@@ -1733,21 +1731,23 @@ int main(int argc, char **argv)
   params["fitpsf_order"] = 2;
   params["fitpsf_pca_thresh"] = 1.e-3;
   params["output_dots"] = 1;
-  int success1 = DoMeasurePSF(params);
+  PSFLog psflog("testpsf.log");
+  int success1 = DoMeasurePSF(params,psflog);
   dbg<<"PSF sucess = "<<success1<<std::endl;
   // There are 241 stars in the file, but one has an aperture that 
   // crosses the edge, which gives an error flag.
   // The rest should all be measured successfully.
   Test(success1 == 240,"DoMeasurePSF");
   std::cout<<"Passed DoMeasurePSF test\n";
-  params["incat_ext"] = "pcatE";
-  params["outcat_ext"] = "shear";
+  params["allcat_ext"] = "pcatE";
+  params["shear_ext"] = "shear";
   params["f_psf"] = 1.0;
   params["gal_order"] = 6;
   params["gal_order2"] = 2;
   params["gal_aperture"] = 3.;
   params["min_gal_size"] = 1.0;
-  int success2 = DoMeasureShear(params);
+  ShearLog shearlog("testpsf.log");
+  int success2 = DoMeasureShear(params,shearlog);
   dbg<<"Shear sucess = "<<success2<<std::endl;
   // There are 3681 galaxies in the file without error codes.
   // Lots of these are too small and such.  But also, the fitting 
@@ -1762,7 +1762,6 @@ int main(int argc, char **argv)
   if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}
   return 0;
 }
-#ifndef NOTHROW
 #if 0
 // Change to 1 to let gdb see where the program bombed out.
 catch(int) {}
@@ -1780,5 +1779,4 @@ catch (...)
 {
   std::cerr<<"Caught Unknown error\n";
 }
-#endif
 #endif

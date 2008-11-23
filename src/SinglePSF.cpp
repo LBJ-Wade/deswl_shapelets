@@ -3,6 +3,7 @@
 #include "Pixel.h"
 #include "Ellipse.h"
 #include "Params.h"
+#include <sstream>
 
 double SingleSigma(
     const Image<double>& im,
@@ -52,15 +53,15 @@ void MeasureSigmas(
     const Image<double>& weight_im, 
     const Transformation& trans, 
     double psfap,
-    vector<double>& sigmas,
-    vector<int>& flags)
+    std::vector<double>& sigmas,
+    std::vector<int>& flags)
 {
   sigmas.clear();
   sigmas.resize(all_pos.size(),0);
   flags.clear();
   flags.resize(all_pos.size(),0);
 
-  for (int i=0; i< all_pos.size(); i++) {
+  for (size_t i=0; i< all_pos.size(); i++) {
     try {
       sigmas[i] = 
 	SingleSigma(
@@ -75,7 +76,8 @@ void MeasureSigmas(
   }
 }
 
-double EstimateSigma(
+void EstimateSigma(
+    double& sigma_p,
     const Image<double>& im,
     const std::vector<Position>& all_pos, const std::vector<double>& all_sky,
     const std::vector<double>& all_noise, double gain, 
@@ -105,17 +107,35 @@ double EstimateSigma(
 
     Ellipse ell;
     ell.PeakCentroid(pix,psfap/3.);
-    ell.CrudeMeasure(pix,1.); // sigma here = 1.
+    ell.CrudeMeasure(pix,sigma_p); // sigma here = 1.
     xdbg<<"Crude Measure: centroid = "<<ell.GetCen();
     xdbg<<", mu = "<<ell.GetMu()<<std::endl;
+    if (std::abs(ell.GetCen()) > 2.) {
+      dbg<<"Large centroid excursion from CrudeMeasure for star "<<i<<"\n";
+      dbg<<"Skipping this one for sigma_p calculation.\n";
+      continue;
+    }
+    if (std::abs(ell.GetMu()) > 2.) {
+      dbg<<"Large mu excursion from CrudeMeasure for star "<<i<<"\n";
+      dbg<<"Skipping this one for sigma_p calculation.\n";
+      continue;
+    }
     meanmu += ell.GetMu();
     count++;
   }
+  if (count < nstars/3) {
+    std::ostringstream msgout;
+    msgout<<"Too many objects were rejected. \n";
+    msgout<<"nstars = "<<nstars<<", but only "<<count<<" successful measurements.\n";
+    std::string msg = msgout.str();
+    dbg<<msg<<std::endl;
+    throw std::runtime_error(msg);
+  }
   meanmu /= count;
   xdbg<<"meanmu = "<<meanmu<<std::endl;
-  double sigma_p = exp(meanmu);
-  xdbg<<"sigma_p = "<<sigma_p<<std::endl;
-  return sigma_p;
+  xdbg<<"input sigma_p = "<<sigma_p<<std::endl;
+  sigma_p *= exp(meanmu);
+  xdbg<<"sigma_p *= exp(mu) = "<<sigma_p<<std::endl;
 }
 
 void MeasureSinglePSF(

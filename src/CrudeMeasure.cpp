@@ -69,10 +69,17 @@ void CrudeSolver::F(const tmv::Vector<double>& params,
   Z1 = m0*Z;
   Z1.AddToAll(-m0*zc);
 
+  xdbg<<"In CrudeMeasure::F\n";
+  xdbg<<"sigma = "<<sigma<<std::endl;
+  xdbg<<"mu = "<<mu<<std::endl;
+  xdbg<<"m0 = "<<m0<<std::endl;
   for(size_t i=0;i<Z.size();i++) {
     double rsq = std::norm(Z1[i]);
     Rsq[i] = rsq;
     E[i] = exp(-rsq/2.);
+    if (rsq < 2.) {
+      xdbg<<Z[i]-zc<<"  "<<Z1[i]<<"  "<<I[i]<<"  "<<I0*E[i]<<std::endl;
+    }
   }
   f1 = I - I0*E;
   ElementProd(1.,W,f1.View());
@@ -136,7 +143,7 @@ void Ellipse::CrudeMeasure(const std::vector<Pixel>& pix, double sigma)
   xdbg<<"sigma = "<<sigma<<std::endl;
 
 #if 1
-  // With a weight fo exp(-|z|^2/(2 sigma^2)),
+  // With a weight of exp(-|z|^2/(2 sigma^2)),
   // the weighted moments of this function are:
   // Iz/I = zc / (1+exp(2mu))
   // Irr/I = ( |zc|^2 + 2 exp(2mu) sigma^2 ) / (1+exp(2mu))
@@ -148,7 +155,7 @@ void Ellipse::CrudeMeasure(const std::vector<Pixel>& pix, double sigma)
     double wt = exp(-std::norm((pix[i].z-cen)/sig2)/2.);
     Iz += wt * pix[i].I * (pix[i].z-cen);
     I += wt * pix[i].I;
-    if (std::abs(pix[i].z-cen) < 4.) 
+    if (std::abs(pix[i].z-cen) < 2.) 
       xdbg<<pix[i].z<<"  "<<pix[i].I<<std::endl;
   }
   xdbg<<"Iz = "<<Iz<<", I = "<<I<<std::endl;
@@ -172,7 +179,7 @@ void Ellipse::CrudeMeasure(const std::vector<Pixel>& pix, double sigma)
     I += wt * pix[i].I;
     W += wt;
 #if 0
-    if (abs(wt * pix[i].I * std::norm(pix[i].z-zc)) > 1.) {
+    if (std::abs(wt * pix[i].I * std::norm(pix[i].z-zc)) > 1.) {
       dbg<<"pix.I = "<<pix[i].I<<std::endl;
       dbg<<"pix.z = "<<pix[i].z<<std::endl;
       dbg<<"pix.wt = "<<pix[i].wt<<std::endl;

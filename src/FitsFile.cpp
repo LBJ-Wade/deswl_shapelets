@@ -26,7 +26,7 @@ void FitsFile::Open(const char* filename)
     serr="Error opening FITS file: "+mFileName;
     throw FitsException(serr);
   } else {
-    std::cout<<"Opened fits FITS file: "<<mFileName<<std::endl;
+    std::cerr<<"Opened fits FITS file: "<<mFileName<<std::endl;
   }
 }
 

@@ -1,9 +1,9 @@
 echo MeasurePSF:
-measurepsf ../example_config/wl.config root=data/decam--27--9-i-3_20 debug_file=psf.debug verbose=2 output_dots=1
+measurepsf ../example_config/wl.config root=decam--27--9-i-3_20 debug_file=psf.debug verbose=2 output_dots=1 input_prefix=data/ output_prefix=output/ >> measurepsf.log
 echo Logfile output:
 tail -1 measurepsf.log
 echo MeasureShear:
-measureshear ../example_config/wl.config root=data/decam--27--9-i-3_20 debug_file=shear.debug output_dots=1
+measureshear ../example_config/wl.config root=decam--27--9-i-3_20 debug_file=shear.debug output_dots=1 input_prefix=data/ output_prefix=output/ >> measureshear.log
 echo Logfile output:
 tail -1 measureshear.log
 echo Input file sizes:
@@ -11,12 +11,12 @@ wc data/decam--27--9-i-3_20-star.csv data/decam--27--9-i-3_20-all.csv
 echo Output files sizes
 wc data/decam--27--9-i-3_20-psf.dat data/decam--27--9-i-3_20-shear.dat
 echo Try execution with bad configfile:
-measurepsf foo root=data/decam--27--9-i-3_20 debug_file=psf_badconfig.debug verbose=2
-measureshear foo root=data/decam--27--9-i-3_20 debug_file=shear_badconfig.debug
+measurepsf foo root=decam--27--9-i-3_20 debug_file=psf_badconfig.debug verbose=2 input_prefix=data/ output_prefix=output/
+measureshear foo root=decam--27--9-i-3_20 debug_file=shear_badconfig.debug input_prefix=data/ output_prefix=output/
 echo Try execution with bad imagename:
-measurepsf ../example_config/wl.config root=foo debug_file=psf_badimage.debug verbose=2
+measurepsf ../example_config/wl.config root=foo debug_file=psf_badimage.debug verbose=2 input_prefix=data/ output_prefix=output/ >> measurepsf.log
 echo Logfile output:
 tail -1 measurepsf.log
-measureshear ../example_config/wl.config root=foo debug_file=shear_badimage.debug
+measureshear ../example_config/wl.config root=foo debug_file=shear_badimage.debug input_prefix=data/ output_prefix=output/ >> measureshear.log
 echo Logfile output:
 tail -1 measureshear.log

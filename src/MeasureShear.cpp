@@ -15,10 +15,7 @@
 std::ostream* dbgout = 0;
 bool XDEBUG = false;
 
-int main(int argc, char **argv) 
-#ifndef NOTHROW
-  try 
-#endif
+int main(int argc, char **argv) try 
 {
   // Read parameters
   if (argc < 2) {
@@ -35,7 +32,7 @@ int main(int argc, char **argv)
   ConfigFile params(argv[1]);
   for(int k=2;k<argc;k++) params.Append(argv[k]);
 
-  std::string logfile = "measureshear.log";
+  std::string logfile = ""; // Default is to stdout
   if (params.keyExists("log_file") || params.keyExists("log_ext")) 
     logfile = Name(params,"log");
 
@@ -53,10 +50,7 @@ int main(int argc, char **argv)
   //    nfail_tmv_error  nfail_other_error
   //    nfail_size_measurement  nfail_shear_measurement
 
-#ifndef NOTHROW
-  try 
-#endif
-  {
+  try {
     // Setup debugging
     if (params.keyExists("verbose") && int(params["verbose"]) > 0) {
       if (params.keyExists("debug_file") || params.keyExists("debug_ext")) {
@@ -65,7 +59,6 @@ int main(int argc, char **argv)
       else dbgout = &std::cout;
       if (int(params["verbose"]) > 1) XDEBUG = true;
     }
-
 
 #ifdef _OPENMP
     if (params.keyExists("num_threads")) {
@@ -81,53 +74,66 @@ int main(int argc, char **argv)
 
     return EXIT_SUCCESS; // = 0 typically.  Defined in <cstdlib>
   }
-#ifndef NOTHROW
 #if 0
   // Change to 1 to let gdb see where the program bombed out.
   catch(int) {}
 #else
   catch (file_not_found& e)
   {
+    dbg<<"Caught \n"<<e.what()<<std::endl;
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_FILE_NOT_FOUND;
     return EXIT_FAILURE; // = 1 typically
   }
   catch (ConfigFile::file_not_found& e)
   {
+    dbg<<"Caught \n"<<e.what()<<std::endl;
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_CONFIGFILE_ERROR;
     return EXIT_FAILURE;
   }
   catch (ConfigFile::key_not_found& e)
   {
+    dbg<<"Caught \n"<<e.what()<<std::endl;
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_CONFIGFILE_ERROR;
     return EXIT_FAILURE;
   }
   catch (tmv::Error& e)
   {
+    dbg<<"Caught \n"<<e<<std::endl;
     std::cerr<<"Caught \n"<<e<<std::endl;
     log.exitcode = FAILURE_TMV_ERROR;
     return EXIT_FAILURE;
   }
   catch (std::exception& e)
   {
+    dbg<<"Caught \n"<<e.what()<<std::endl;
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_STD_EXCEPTION;
     return EXIT_FAILURE;
   }
+  catch (ExitCode e)
+  { 
+    dbg<<"Caught ExitCode "<<e<<std::endl;
+    std::cerr<<"Caught ExitCode "<<e<<std::endl;
+    log.exitcode = e;
+    return EXIT_FAILURE;
+  }
   catch (...)
   {
-    log.exitcode = FAILURE;
+    dbg<<"Caught Unknown error\n";
     std::cerr<<"Caught Unknown error\n";
+    log.exitcode = FAILURE;
     return EXIT_FAILURE;
   }
 #endif
-#endif
 }
-#ifndef NOTHROW
 catch (std::exception& e)
 {
+  dbg<<"Caught \n"<<e.what()<<std::endl;
+  dbg<<"outside of the normal try..catch block.";
+  dbg<<"Unable to write to the log file.\n";
   std::cerr<<"Caught \n"<<e.what()<<std::endl;
   std::cerr<<"outside of the normal try..catch block.";
   std::cerr<<"Unable to write to the log file.\n";
@@ -135,8 +141,9 @@ catch (std::exception& e)
 }
 catch (...)
 {
+  dbg<<"Cought an exception outside of the normal try..catch block.";
+  dbg<<"Unable to write to the log file.\n";
   std::cerr<<"Cought an exception outside of the normal try..catch block.";
   std::cerr<<"Unable to write to the log file.\n";
   return EXIT_FAILURE;
 }
-#endif

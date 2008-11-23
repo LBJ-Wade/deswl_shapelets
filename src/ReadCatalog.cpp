@@ -17,7 +17,7 @@ void ReadGain(const std::string& fitsname, ConfigFile& params)
   int status=0;
   float gain, rdnoise;
 
-  std::cout<<"Opening file: "<<fitsname.c_str()<<std::endl;
+  std::cerr<<"Opening file: "<<fitsname.c_str()<<std::endl;
   if (fits_open_file(&fitsptr,fitsname.c_str(),READONLY,&status))
     std::cerr<<"fits open file gave status #: "<<status<<std::endl;
   std::vector<std::string> gain_key = params["gain_key"];
@@ -53,11 +53,7 @@ void ReadGain(const std::string& fitsname, ConfigFile& params)
     std::cerr<<"fits error status "<<status<<" = "<<errmsg<<std::endl;
     while (fits_read_errmsg(errmsg))
       std::cerr<<"fits error: "<<errmsg<<std::endl;
-#ifdef NOTHROW
-    exit(1);
-#else
-    throw(std::runtime_error(("reading gain/rdnoise")));
-#endif
+    throw(std::runtime_error("reading gain/rdnoise"));
   }
 
   params["gain"] = gain;
@@ -71,13 +67,13 @@ void GetTokens(ConfigFile& params, std::string incat, std::string line,
 {
   std::istringstream linein(line);
   if (params.keyExists(incat+"_delim")) { 
-    //std::cout<<"delim exists"<<std::endl;
+    //std::cerr<<"delim exists"<<std::endl;
     char delim = params[incat+"_delim"];
     int bufsize = DEF_BUFFER_SIZE;
     if (params.keyExists("bufsize")) bufsize = params["bufsize"];
     char temp[bufsize];
     while (linein.getline(temp,bufsize,delim)) {
-      //std::cout<<"Found token: "<<temp<<std::endl;
+      //std::cerr<<"Found token: "<<temp<<std::endl;
       tokens.push_back(std::string(temp));
     }
   } else {
@@ -134,17 +130,13 @@ void ReadCatalog(ConfigFile& params, std::string incat,
     if (params.keyExists("weight_hdu")) weight_hdu = params["weight_hdu"];
   }
   else {
-#ifdef NOTHROW
-    std::cerr<<"Unknown noise method.\n"; exit(1);
-#else
     throw std::runtime_error("Unknown noise method");
-#endif
   }
   double extrasky=0.;
   if (params.keyExists("extra_sky")) extrasky = params["extra_sky"];
 
   // Read input catalog:
-  std::string incatfile = Name(params,incat,true);
+  std::string incatfile = Name(params,incat,false,true);
   std::ifstream catin(incatfile.c_str());
   Assert(catin);
   xdbg<<"Opened catalog "<<incatfile<<std::endl;
@@ -210,7 +202,9 @@ void ReadCatalog(ConfigFile& params, std::string incat,
     }
     all_pos.push_back(Position(x,y));
     all_noise.push_back(noise);
-    all_sky.push_back(sky);
+    if (i_sky) {
+      all_sky.push_back(sky);
+    }
   }
 
   // Read weight image if appropriate

@@ -2,7 +2,6 @@
 #define _types_h
 
 #include <vector>
-using std::vector;
 
 // this is not generic enough, but can stand in for now
 typedef char                    int8;

@@ -4,7 +4,6 @@
 #include <string>
 #include "unistd.h"
 #include <string>
-using std::string;
 #include "Legendre2D.h"
 #include "Bounds.h"
 #include "PotentialStar.h"
@@ -15,19 +14,10 @@ using std::string;
 
 #include <algorithm>
 #include <fstream>
-using std::ifstream;
-using std::ofstream;
 #include <iostream>
-using std::cout;
-using std::cerr;
-using std::endl;
 #include <functional>
 #include <vector>
-using std::vector;
 #include <sstream>
-using std::istringstream;
-
-using std::abs;
 
 /*
    template <class T> inline const T& MIN(const T& a, const T& b)
@@ -59,27 +49,27 @@ class StarFinder
     void CopyConfig(ConfigFile& configfile);
 
     void RunFindStars(
-	vector<int>& flags,
-	vector<int>& size_flags,
-	vector<float>& x,
-	vector<float>& y,
-	vector<double>& sigma,
-	vector<float>& mag,
-	vector<int>& starflags);
+	std::vector<int>& flags,
+	std::vector<int>& size_flags,
+	std::vector<float>& x,
+	std::vector<float>& y,
+	std::vector<double>& sigma,
+	std::vector<float>& mag,
+	std::vector<int>& starflags);
 
 
     void TestConfig();
 
-    std::vector<string> RequiredConfigFields();
+    std::vector<std::string> RequiredConfigFields();
 
 
-    vector<PotentialStar*> FindStars(vector<PotentialStar*>& allobj);
-    void FindMinMax(const vector<PotentialStar*>& list, 
+    std::vector<PotentialStar*> FindStars(std::vector<PotentialStar*>& allobj);
+    void FindMinMax(const std::vector<PotentialStar*>& list, 
 	double *min, double *max, const Function2D<double>& f);
-    void OutlierReject(vector<PotentialStar*>& list, 
+    void OutlierReject(std::vector<PotentialStar*>& list, 
 	double nsigma, double minsigma, const Function2D<double>& f);
-    vector<PotentialStar*> 
-      GetPeakList(const vector<PotentialStar*>& objlist,
+    std::vector<PotentialStar*> 
+      GetPeakList(const std::vector<PotentialStar*>& objlist,
 	  double binsize, double minsize, double maxsize,
 	  size_t startn, int miniter, double magstep, 
 	  double maxsignifratio,
@@ -87,8 +77,8 @@ class StarFinder
 	  const Function2D<double>& f);
     void FitStellarSizes(Function2D<double> *f, size_t order, 
 	double sigclip,
-	const vector<PotentialStar*>& starlist, double *outsigma);
-    void RoughlyFitBrightStars(const vector<PotentialStar*>& objlist,
+	const std::vector<PotentialStar*>& starlist, double *outsigma);
+    void RoughlyFitBrightStars(const std::vector<PotentialStar*>& objlist,
 	Function2D<double> *f,double *outsigma);
 
 

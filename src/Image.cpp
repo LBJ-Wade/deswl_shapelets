@@ -2,67 +2,54 @@
 #include "Function2D.h"
 #include <fitsio.h>
 
-using std::complex;
-using std::vector;
-using std::endl;
-using tmv::Matrix;
-using tmv::MatrixView;
-using tmv::Vector;
-using tmv::VectorView;
-using tmv::ColMajor;
-using tmv::VIt;
-using tmv::CVIt;
-using tmv::Unit;
-using tmv::NonConj;
-
 template <class T> inline T SQR(const T& x) { return x*x; }
 template <class T> inline void SWAP(T& a, T& b) { T temp = a; a = b; b = temp; }
 
 template <class T> Image<T>::Image(const std::string& filename, int hdu) 
 {
-  xxdbg<<"Start read fitsimage"<<endl;
+  xxdbg<<"Start read fitsimage"<<std::endl;
   fitsfile *fptr;
   int fitserr=0;
 
   fits_open_file(&fptr,filename.c_str(),READONLY,&fitserr);
-  xxdbg<<"Done open"<<endl;
+  xxdbg<<"Done open"<<std::endl;
   Assert(fitserr==0);
 
   fits_movabs_hdu(fptr,hdu,0,&fitserr);
-  xdbg<<"Moved to hdu "<<hdu<<endl;
+  xdbg<<"Moved to hdu "<<hdu<<std::endl;
   Assert(fitserr==0);
 
   int bitpix, naxes;
   long sizes[2];
   fits_get_img_param(fptr, int(2), &bitpix, &naxes, sizes, &fitserr);
-  xxdbg<<"done getimgparam"<<endl;
-  xxdbg<<"naxes = "<<naxes<<endl;
-  xxdbg<<"bitpix = "<<bitpix<<endl;
-  xxdbg<<"FLOAT_IMG = "<<FLOAT_IMG<<endl;
+  xxdbg<<"done getimgparam"<<std::endl;
+  xxdbg<<"naxes = "<<naxes<<std::endl;
+  xxdbg<<"bitpix = "<<bitpix<<std::endl;
+  xxdbg<<"FLOAT_IMG = "<<FLOAT_IMG<<std::endl;
   Assert(fitserr==0);
   Assert(bitpix == FLOAT_IMG);
   Assert(naxes == 2);
-  xxdbg<<"sizes = "<<sizes[0]<<"  "<<sizes[1]<<endl;
+  xxdbg<<"sizes = "<<sizes[0]<<"  "<<sizes[1]<<std::endl;
 
   xmin = 0;
   xmax = sizes[0];
   ymin = 0;
   ymax = sizes[1];
-  sourcem.reset(new Matrix<T,ColMajor>(xmax,ymax));
-  xxdbg<<"done make matrix of image"<<endl;
+  sourcem.reset(new tmv::Matrix<T,tmv::ColMajor>(xmax,ymax));
+  xxdbg<<"done make matrix of image"<<std::endl;
  
   long fpixel[2] = {1,1};
   int anynul;
   xdbg<<"Before read_pix\n";
   fits_read_pix(fptr,TDOUBLE,fpixel,long(xmax*ymax),0,sourcem->ptr(),&anynul,
       &fitserr);
-  xxdbg<<"done readpix  "<<fitserr<<endl;
-  xxdbg<<"anynul = "<<anynul<<endl;
-  xxdbg<<"fitserr = "<<fitserr<<endl;
+  xxdbg<<"done readpix  "<<fitserr<<std::endl;
+  xxdbg<<"anynul = "<<anynul<<std::endl;
+  xxdbg<<"fitserr = "<<fitserr<<std::endl;
   Assert(fitserr==0);
 
-  itsm.reset(new MatrixView<T>(sourcem->View()));
-  xxdbg<<"Done make matrixview"<<endl;
+  itsm.reset(new tmv::MatrixView<T>(sourcem->View()));
+  xxdbg<<"Done make matrixview"<<std::endl;
 
   fits_close_file(fptr, &fitserr);
   Assert(fitserr==0);
@@ -83,18 +70,18 @@ template <class T> void Image<T>::Flush(const std::string& filename)
   Assert(fitserr==0);
 }
 
-template <class T> vector<vector<Image<T>*> > Image<T>::Divide(
+template <class T> std::vector<std::vector<Image<T>*> > Image<T>::Divide(
     size_t nx, size_t ny) const
 {
-  vector<size_t> x(nx+1);
-  vector<size_t> y(ny+1);
+  std::vector<size_t> x(nx+1);
+  std::vector<size_t> y(ny+1);
   x[0] = xmin;  x[nx] = xmax;
   y[0] = ymin;  y[ny] = ymax;
   size_t xstep = (xmax-xmin)/nx;
   size_t ystep = (ymax-ymin)/ny;
   for(size_t i=1;i<nx;i++) x[i] = x[i-1]+xstep;
   for(size_t j=1;j<ny;j++) y[j] = y[j-1]+ystep;
-  vector<vector<Image*> > blockimages(nx,vector<Image*>(ny));
+  std::vector<std::vector<Image*> > blockimages(nx,std::vector<Image*>(ny));
   for(size_t i=0;i<nx;i++) for(size_t j=0;j<ny;j++) 
     blockimages[i][j] = new Image(itsm->SubMatrix(x[i],x[i+1],y[j],y[j+1]),
 	  x[i],x[i+1],y[j],y[j+1]);
@@ -151,8 +138,8 @@ template <class T> double Image<T>::QuadInterpolate(double x, double y) const
   double dy = y - (j+0.5);
   Assert(i<itsm->colsize());
   Assert(j<itsm->rowsize());
-  Assert (fabs(dx) <= 0.5);
-  Assert (fabs(dy) <= 0.5);
+  Assert (std::abs(dx) <= 0.5);
+  Assert (std::abs(dy) <= 0.5);
 
 /*
   7   4   8
@@ -206,6 +193,17 @@ template <class T> double Image<T>::QuadInterpolate(double x, double y) const
   return temp;
 }
 
+template <class T> double Image<T>::Median() const
+{
+  std::vector<T> pixels;
+  pixels.reserve(itsm->colsize()*itsm->rowsize());
+  for(size_t i=0;i<itsm->colsize();i++)
+    for(size_t j=0;j<itsm->rowsize();j++)
+      pixels.push_back((*itsm)(i,j));
+  sort(pixels.begin(),pixels.end());
+  return pixels[pixels.size()/2];
+}
+
 template <class T> inline void MultF(T f, double& x, double& y)
   // (x+iy) *= f  
   // This one is for real f
@@ -216,7 +214,7 @@ template <class T> inline void MultF2(T f, double& x, double& y)
   // This one is for real f
 { x *= f; }
 
-template <class T> inline void MultF(complex<T> f, double& x, double& y)
+template <class T> inline void MultF(std::complex<T> f, double& x, double& y)
   // (x+iy) *= f
 {
   double origy = y;
@@ -224,7 +222,7 @@ template <class T> inline void MultF(complex<T> f, double& x, double& y)
   x = x*real(f)-origy*imag(f);
 }
 
-template <class T> inline void MultF2(complex<T> f, double& x, double& y)
+template <class T> inline void MultF2(std::complex<T> f, double& x, double& y)
   // x+iy = f*x
 {
   y = x*imag(f);

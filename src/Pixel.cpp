@@ -37,7 +37,8 @@ void GetPixList(const Image<double>& im, std::vector<Pixel>& pix,
   // xcen,ycen are given on a 1-based grid.
   // ie. where the lower left corner pixel is (1,1), rather than (0,0).
   // The easiest way to do this is to just decrease xcen,ycen by 1 each:
-  --xcen; --ycen;
+  //--xcen; --ycen;
+  // === This is now handled by x_offset, y_offset in ReadCatalog
 
   int i1 = int(floor(xcen-xap-xmin));
   int i2 = int(ceil(xcen+xap-xmin));

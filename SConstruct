@@ -12,7 +12,8 @@ import sys
 # Subdirectories containing SConscript files.  We always process src but
 # there are some other optional ones
 src_dir = 'src'
-subdirs=['python','example_config']
+#subdirs=['python','example_config']
+subdirs=['python']
 
 # Configurations will be saved here so command line options don't
 # have to be sent more than once
@@ -102,7 +103,8 @@ def CCFlags(env):
     # dynamically
     compiler = os.path.basename(env['CXX'])
     if compiler[0] == 'g':
-        gflags=['-O2','-fno-strict-aliasing']
+        #gflags=['-O2','-fno-strict-aliasing']
+        gflags=['-O2','-ggdb','-Wall','-Werror','-fno-strict-aliasing']
     else:
         raise ValueError,'Need to add CCFLAGS for compilers other than gcc'
     return gflags

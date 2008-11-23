@@ -7,6 +7,7 @@
 #include  <fitsio.h>
 #include "Legendre2D.h"
 #include "NLSolver.h"
+#include "Name.h"
 
 // 
 // Constructor, and basic definition routines
@@ -16,11 +17,75 @@ Transformation::Transformation() :
   up(0), vp(0), dudxp(0), dudyp(0), dvdxp(0), dvdyp(0)
 {}
 
+Transformation::Transformation(const ConfigFile& params) : 
+  up(0), vp(0), dudxp(0), dudyp(0), dvdxp(0), dvdyp(0)
+{
+  Assert(params.keyExists("dist_method"));
+
+  if (params["dist_method"] == "SCALE") {
+    Assert(params.keyExists("pixel_scale"));
+    double pixel_scale = params["pixel_scale"];
+    SetToScale(pixel_scale);
+  } else if (params["dist_method"] == "JACOBIAN") {
+    Assert(params.keyExists("dudx"));
+    Assert(params.keyExists("dudy"));
+    Assert(params.keyExists("dvdx"));
+    Assert(params.keyExists("dvdy"));
+    double dudx = params["dudx"];
+    double dudy = params["dudy"];
+    double dvdx = params["dvdx"];
+    double dvdy = params["dvdy"];
+    SetToJacobian(dudx,dudy,dvdx,dvdy);
+  } else if (params["dist_method"] == "FUNC2D") {
+    std::string distfile = Name(params,"dist",true);
+    std::ifstream distin(distfile.c_str());
+    Assert(distin);
+    ReadFunc2D(distin);
+    xdbg<<"Done read distortion "<<distfile<<std::endl;
+  } else if (params["dist_method"] == "WCS") {
+    std::string distfile = Name(params,"dist",true);
+    int hdu = 1;
+    if (params.keyExists("dist_hdu")) hdu = params["dist_hdu"];
+    ReadWCS(distfile,hdu);
+    xdbg<<"Done read WCS distortion "<<distfile<<std::endl;
+  } else {
+    dbg<<"Unknown transformation method\n";
+    throw std::runtime_error("Unknown distortion method");
+  }
+}
+
 //
 // I/O
 //
 
-void Transformation::Read(std::istream& is) 
+void Transformation::SetToScale(double pixel_scale)
+{
+  tmv::Matrix<double> m(2,2,0.); 
+  m(1,0) = pixel_scale; m(0,1) = 0.;
+  up.reset(new Polynomial2D<double>(m));
+  m(1,0) = 0.; m(0,1) = pixel_scale;
+  vp.reset(new Polynomial2D<double>(m));
+  dudxp.reset(new Constant2D<double>(pixel_scale));
+  dudyp.reset(new Constant2D<double>(0.));
+  dvdxp.reset(new Constant2D<double>(0.));
+  dvdyp.reset(new Constant2D<double>(pixel_scale));
+}
+
+void Transformation::SetToJacobian(
+    double dudx, double dudy, double dvdx, double dvdy) 
+{
+  tmv::Matrix<double> m(2,2,0.); 
+  m(1,0) = dudx; m(0,1) = dudy;
+  up.reset(new Polynomial2D<double>(m));
+  m(1,0) = dvdx; m(0,1) = dvdy;
+  vp.reset(new Polynomial2D<double>(m));
+  dudxp.reset(new Constant2D<double>(dudx));
+  dudyp.reset(new Constant2D<double>(dudy));
+  dvdxp.reset(new Constant2D<double>(dvdx));
+  dvdyp.reset(new Constant2D<double>(dvdy));
+}
+
+void Transformation::ReadFunc2D(std::istream& is) 
 {
   is >> up >> vp;
   dudxp = up->DFDX();
@@ -29,7 +94,7 @@ void Transformation::Read(std::istream& is)
   dvdyp = vp->DFDY();
 }
 
-void Transformation::Write(std::ostream& os) const
+void Transformation::WriteFunc2D(std::ostream& os) const
 {
   os << *up << std::endl;
   os << *vp << std::endl;
@@ -59,7 +124,8 @@ void Transformation::Distort(Position pos,
   tmv::SmallMatrix<double,2,2> S;
   S(0,0) = ixx; S(0,1) = ixy;
   S(1,0) = ixy; S(1,1) = iyy;
-  tmv::SmallMatrix<double,2,2> S2 = D * S * D.Transpose();
+  tmv::SmallMatrix<double,2,2> S2 = D * S;
+  S2 *= D.Transpose();
   ixx = S2(0,0);
   ixy = S2(0,1);
   iyy = S2(1,1);
@@ -417,7 +483,7 @@ Function2D<double>* WCSConvert(const std::string& wcsstr,
   return f;
 }
 
-void Transformation::ReadWCS(std::string fitsfile)
+void Transformation::ReadWCS(std::string fitsfile, int hdu)
 {
   std::string lngstr,latstr;
   tmv::Matrix<double> cd(2,2);

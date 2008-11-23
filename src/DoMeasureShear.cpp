@@ -45,16 +45,20 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
   double gain;
   Image<double>* weight_im = 0;
   ReadCatalog(params,"allcat",all_pos,all_sky,all_noise,gain,weight_im);
-  std::cout<<"Finished Read cat\n";
+  dbg<<"Finished Read cat\n";
+
+  // Fix sky if necessary
+  if (all_sky.size() == 0) {
+    size_t glob_sky = 0.;
+    if (params.keyExists("sky")) glob_sky = params["sky"];
+    else glob_sky = im.Median();
+    dbg<<"Set global value of sky to "<<glob_sky<<std::endl;
+    all_sky.resize(all_pos.size());
+    fill(all_sky.begin(),all_sky.end(),glob_sky);
+  }
 
   // Read distortion function
-  Transformation trans;
-  if (params.keyExists("dist_ext") || params.keyExists("dist_file")) {
-    std::string distfile = Name(params,"dist",true);
-    std::ifstream distin(distfile.c_str());
-    Assert(distin);
-    distin >> trans;
-  } // else stay with identity transformation.
+  Transformation trans(params);
 
 
 #ifdef INVTRANS
@@ -66,7 +70,7 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
 #endif
 
   // Read the fitted psf file
-  std::string psffile = Name(params,"fitpsf",true);
+  std::string psffile = Name(params,"fitpsf",false,true);
   xdbg<<"Read fitted psf file "<<psffile<<std::endl;
   std::ifstream psfin(psffile.c_str());
   Assert(psfin);
@@ -101,7 +105,7 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
   std::vector<BVec> shapelet(ngals,BVec(gal_order,DEFVALPOS));
   OverallFitTimes alltimes;
   // Vector of flag values
-  vector<int32> flagvec(ngals,0);
+  std::vector<int32> flagvec(ngals,0);
 
   // Default values when we have failure
   std::complex<double> shear_default = DEFVALNEG;
@@ -111,7 +115,7 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
   shearcov_default(1,0) = 0;         shearcov_default(1,1) = DEFVALPOS;
 
   BVec shapelet_default(gal_order,DEFVALPOS);
-  for (int i=0; i<shapelet_default.size(); i++) {
+  for (size_t i=0; i<shapelet_default.size(); i++) {
     shapelet_default[i] = DEFVALNEG;
   }
 
@@ -156,7 +160,7 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
 #pragma omp critical
 #endif
 	{
-	  if (output_dots) { std::cout<<"."; std::cout.flush(); }
+	  if (output_dots) { std::cerr<<"."; std::cerr.flush(); }
 	  dbg<<"galaxy "<<i<<":\n";
 	  dbg<<"all_pos[i] = "<<all_pos[i]<<std::endl;
 	}
@@ -249,8 +253,12 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
 	  shearcov[i] = shearcov1;
 	  shapelet[i] = shapelet1;
 	  flagvec[i] = flag1;
-	  if (!flag1) dbg<<"Successful shear measurement: "<<shear1<<std::endl;
-	  else dbg<<"Unsuccessful shear measurement\n"; 
+	  if (!flag1) {
+	    dbg<<"Successful shear measurement: "<<shear1<<std::endl;
+	  }
+	  else {
+	    dbg<<"Unsuccessful shear measurement\n"; 
+	  }
 	}
 
 	if (timing) {
@@ -270,7 +278,7 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
     } 
     catch (...)
     {
-      std::cout<<"Caught some kind of exception in the parallel region.\n";
+      std::cerr<<"Caught some kind of exception in the parallel region.\n";
     }
   }
   // End openmp parallel section.
@@ -288,7 +296,7 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
     dbg<<nsuccess<<" successful shear measurements, ";
   }
   if (output_dots) { 
-	  std::cout
+	  std::cerr
 		  <<std::endl
 		  <<"Success rate: "<<nsuccess<<"/"<<ngals
 		  <<std::endl; 
@@ -311,7 +319,7 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
   dbg<<"Done writing output shear catalog\n";
   // TODO: Also output shapelets...
 
-  if (timing) std::cout<<alltimes<<std::endl;
+  if (timing) std::cerr<<alltimes<<std::endl;
   dbg<<log<<std::endl;
 
   // Cleanup memory
