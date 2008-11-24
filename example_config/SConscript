@@ -1,0 +1,18 @@
+# vim: set filetype=python :
+
+import os
+Import('env')
+
+cfile=env.File('wl.config')
+install_subdir = os.path.join('share','wl')
+targets = [cfile]
+
+if 'install' in COMMAND_LINE_TARGETS:
+    RunInstall = env['_InstallProgram']
+    RunInstall(env, targets, install_subdir)
+
+if 'uninstall' in COMMAND_LINE_TARGETS:
+    RunUninstall = env['_UninstallProgram']
+    RunUninstall(env, targets, install_subdir)
+
+
