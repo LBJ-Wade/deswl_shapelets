@@ -13,7 +13,7 @@ import sys
 # there are some other optional ones
 src_dir = 'src'
 #subdirs=['python','example_config']
-subdirs=['python']
+subdirs=['python','example_config']
 
 # Configurations will be saved here so command line options don't
 # have to be sent more than once

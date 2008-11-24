@@ -49,7 +49,7 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
 
   // Fix sky if necessary
   if (all_sky.size() == 0) {
-    size_t glob_sky = 0.;
+    double glob_sky = 0.;
     if (params.keyExists("sky")) glob_sky = params["sky"];
     else glob_sky = im.Median();
     dbg<<"Set global value of sky to "<<glob_sky<<std::endl;

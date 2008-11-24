@@ -8,7 +8,7 @@ libwl_files="""Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp Ellipse.cpp
 BVec.cpp EllipseSolver.cpp PsiHelper.cpp Pixel.cpp Transformation.cpp
 ConfigFile.cpp FittedPSF.cpp CrudeMeasure.cpp ReadCatalog.cpp DoMeasurePSF.cpp
 DoMeasureShear.cpp SingleShear.cpp SinglePSF.cpp NLSolver.cpp Log.cpp
-FitsFile.cpp Form.h PotentialStar.h Histogram.cpp StarFinder.cpp""".split()
+FitsFile.cpp Form.h PotentialStar.h Histogram.cpp StarFinder.cpp SXCat.cpp""".split()
 
 
 # Library file containing generic code
