@@ -42,14 +42,18 @@ void DoFindStars(ConfigFile& params, FindStarsLog& log)
   Transformation trans(params);
 
   // we are using weight image, so sk, noise, gain are dummy
-  MeasureSigmas(
-      im, 
-      sxcat.pos, sxcat.local_sky, sxcat.noise, 0.0, 
-      weight_im, 
-      trans, 
-      psfap, 
-      sxcat.sigma,
-      sxcat.size_flags);
+  try {
+    MeasureSigmas(
+	im, 
+	sxcat.pos, sxcat.local_sky, sxcat.noise, 0.0, 
+	weight_im, 
+	trans, 
+	psfap, 
+	sxcat.sigma,
+	sxcat.size_flags);
+  } catch(...) {
+    std::cerr<<"Caught signal from MeasureSigmas"<<std::endl;  
+  }
 
   // Eventually separate this out
   std::cerr<<"Loading Star Finder"<<std::endl;
@@ -57,20 +61,30 @@ void DoFindStars(ConfigFile& params, FindStarsLog& log)
 
   
   std::vector<int> starflags; 
-  sf.RunFindStars(
-      sxcat.flags,
-      sxcat.size_flags,
-      sxcat.x,
-      sxcat.y,
-      sxcat.sigma,
-      sxcat.mag,
-      sxcat.star_flag);
+
+  try {
+    sf.RunFindStars(
+	sxcat.flags,
+	sxcat.size_flags,
+	sxcat.x,
+	sxcat.y,
+	sxcat.sigma,
+	sxcat.mag,
+	sxcat.star_flag);
+  } catch( StarFinderException e ) {
+    std::cerr<<"Caught signal from RunFindStars: "<<e.what()<<std::endl;  
+  } catch (...) {
+    std::cerr<<"Caught unknown signal from RunFindStars"<<std::endl;  
+  }
 
 
   std::string output_file = Name(params, "allcat");
 
   std::cerr<<"Writing to allcat file: "<<output_file<<std::endl;
   std::ofstream output(output_file.c_str());
+  if (!output.is_open()) {
+    throw std::runtime_error("Error opening allcat file");
+  }
 
   std::string delim = params["allcat_delim"];
   for (size_t i=0; i<sxcat.pos.size(); i++) {
@@ -90,6 +104,9 @@ void DoFindStars(ConfigFile& params, FindStarsLog& log)
 
   std::cerr<<"Writing to starcat file: "<<output_file<<std::endl;
   std::ofstream star_output(output_file.c_str());
+  if (!output.is_open()) {
+    throw std::runtime_error("Error opening starcat file");
+  }
 
   delim = params["starcat_delim"];
   int star_count=0;

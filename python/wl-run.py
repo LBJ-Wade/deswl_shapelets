@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Run a single image through either measure_stars, measurepsf or measureshear
+Run a single image through either findstars, measurepsf or measureshear
 """
 
 import os
@@ -13,19 +13,31 @@ import signal
 timeout = 120
 
 finfo={}
+
+crap="""
+decam--24--29-i-2_52_star.csv
+decam--24--29-i-2_52_findstars_log.csv
+decam--24--29-i-2_52_all.csv
+decam--24--29-i-2_52_psf.csv
+decam--24--29-i-2_52_measurepsf_log.csv
+decam--24--29-i-2_52_fitpsf.dat
+decam--24--29-i-2_52_shear.csv
+decam--24--29-i-2_52_measureshear_log.csv
+"""
+
 finfo['cat'] = {'suffix':'_cat','ext':'fits'}
 
-finfo['allcat'] = {'suffix':'-all','ext':'csv'}
-finfo['starcat'] = {'suffix':'-star','ext':'csv'}
+finfo['allcat'] = {'suffix':'_all','ext':'csv'}
+finfo['starcat'] = {'suffix':'_star','ext':'csv'}
 
-finfo['psf'] = {'suffix':'-psf','ext':'csv'}
-finfo['psf-log'] = {'suffix':'-psf-log','ext':'csv'}
-finfo['psf-debug'] = {'suffix':'-psf-debug','ext':'txt'}
-finfo['fitpsf'] = {'suffix':'-fitpsf','ext':'csv'}
+finfo['psf'] = {'suffix':'_psf','ext':'csv'}
+finfo['psf_log'] = {'suffix':'_psf_log','ext':'csv'}
+finfo['psf_debug'] = {'suffix':'_psf_debug','ext':'txt'}
+finfo['fitpsf'] = {'suffix':'_fitpsf','ext':'csv'}
 
-finfo['shear'] = {'suffix':'-shear','ext':'csv'}
-finfo['shear-log'] = {'suffix':'-shear-log','ext':'csv'}
-finfo['shear-debug'] = {'suffix':'-shear-debug','ext':'txt'}
+finfo['shear'] = {'suffix':'_shear','ext':'csv'}
+finfo['shear_log'] = {'suffix':'_shear_log','ext':'csv'}
+finfo['shear_debug'] = {'suffix':'_shear_debug','ext':'txt'}
 
 # these should be configurable
 prefix="/home/esheldon/local"
@@ -85,11 +97,8 @@ def GetExecutableArgs(executable, fnames):
         raise ValueError,'Unkown executable: '+str(executable)
     return cmd
 
-def GetConf():
-    wlconf=prefix+"/share/wl/wl.config"
-    return wlconf
 
-def MakeCommand(image_file, executable):
+def MakeCommandOld(image_file, executable):
 
     fnames = MakeAllFileNames(image_file)
 
@@ -107,6 +116,48 @@ def MakeCommand(image_file, executable):
     cmd += extra_cmd
 
     return cmd
+
+
+
+def GetConf():
+    wlconf=prefix+"/share/wl/wl.config"
+    return wlconf
+
+def MakeNamePieces(image_file):
+    base=os.path.basename(image_file)
+
+    # root of file name without various extensions
+    froot = base.replace('.fz','')
+    froot = froot.replace('.fits','')
+
+    input_prefix = os.path.dirname(image_file)
+    output_prefix = input_prefix.replace(data_root, output_root)
+
+    return froot, input_prefix, output_prefix
+
+
+def MakeCommand(executable, image_file):
+    root, input_prefix, output_prefix = MakeNamePieces(image_file)
+
+    cmd = []
+
+    cmd.append(executable)
+    cmd.append(GetConf())
+    cmd.append('root='+root)
+    cmd.append('log_ext=_'+executable+'_log.csv')
+
+    if input_prefix != '':
+        input_prefix+=os.sep
+        cmd.append('input_prefix='+input_prefix)
+
+    if output_prefix != '':
+        if not os.path.exists(output_prefix):
+            # create all intermediate components of path
+            os.makedirs(output_prefix)
+        output_prefix+=os.sep
+        cmd.append('output_prefix='+output_prefix)
+    return cmd
+
 
 def ExecuteCommand(command):
     pobj = subprocess.Popen(command, shell=True)
@@ -136,13 +187,13 @@ def ExecuteCommand(command):
 
 
 if len(sys.argv) < 3:
-    print 'usage: '+os.path.basename(sys.argv[0])+' image_file executable'
+    print 'usage: '+os.path.basename(sys.argv[0])+' executable image_file'
     sys.exit(45)
 
-image_file = sys.argv[1]
-executable = sys.argv[2]
+executable = sys.argv[1]
+image_file = sys.argv[2]
 
-cmd = MakeCommand(image_file, executable)
+cmd = MakeCommand(executable, image_file)
 
 print cmd[0]
 for c in cmd[1:]:
