@@ -268,8 +268,10 @@ void DoMeasurePSFPrint(
     << flags    << delim
     << nu       << delim
     << psforder << delim
-    << sigma_p  << delim;
-  for(size_t i=0;i<psf.size();i++) ostream << psf[i] << delim;
+    << sigma_p;
+  for(size_t i=0;i<psf.size();i++) {
+    ostream << delim << psf[i];
+  }
   ostream << std::endl;
 }
 
