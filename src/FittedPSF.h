@@ -44,7 +44,7 @@ class FittedPSF {
     // b = psf(pos);
     // Both do the same thing.  I just like the second notation better.
     friend class FittedPSFAtXY;
-    inline FittedPSFAtXY operator()(Position pos); // below...
+    inline FittedPSFAtXY operator()(Position pos) const; // below...
 
   private :
 
@@ -86,7 +86,7 @@ class FittedPSFAtXY : public tmv::AssignableToVector<double> {
     Position pos;
 };
 
-inline FittedPSFAtXY FittedPSF::operator()(Position pos)
+inline FittedPSFAtXY FittedPSF::operator()(Position pos) const
 { return FittedPSFAtXY(*this,pos); }
 
 #endif

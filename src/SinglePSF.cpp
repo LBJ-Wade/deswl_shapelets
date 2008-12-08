@@ -145,7 +145,6 @@ void MeasureSinglePSF(
     double sigma_p, double psfap, int psforder, PSFLog& log,
     BVec& psf, double& nu, int& flags)
 {
-  flags = 0;
   std::vector<std::vector<Pixel> > pix(1);
   int getpix_flag = 0;
   try {
@@ -160,15 +159,14 @@ void MeasureSinglePSF(
   }
   if (getpix_flag) {
     xdbg<<"skip: getpix flag == "<<getpix_flag<<std::endl;
-    if (flags & EDGE) {
+    if (getpix_flag & EDGE) {
       flags |= MPSF_EDGE1;
       log.nf_edge++;
     }
-    if (flags & LT10PIX) {
+    if (getpix_flag & LT10PIX) {
       flags |= MPSF_LT10PIX1;
       log.nf_npix++;
     }
-    return;
   }
   int npix = pix[0].size();
   xdbg<<"npix = "<<npix<<std::endl;

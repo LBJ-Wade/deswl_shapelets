@@ -16,11 +16,6 @@
 #include <fstream>
 #include <iostream>
 
-//#define GAMMAOUT
-
-// Define this to do the shapelet measurement.
-//#define SHAPELET
-
 void MeasureSingleShear(
     Position cen, const Image<double>& im, double sky,
     const Transformation& trans, const std::vector<BVec>& psf,
@@ -33,12 +28,6 @@ void MeasureSingleShear(
     tmv::Matrix<double>& shearcov, BVec& shapelet,
     int32& flags)
 {
-#ifdef GAMMAOUT
-  static std::ofstream gammaout("gamma.out");
-#endif
-
-  flags=0;
-
   // Find harmonic mean of psf sizes:
   // MJ: Is it correct to use the harmonic mean of sigma^2?
   double sigma_p = 0.;
@@ -62,7 +51,7 @@ void MeasureSingleShear(
   if (getpix_flag) {
     dbg<<"skip: flag == "<<getpix_flag<<std::endl;
     if (times) times->nf_pixflag1++;
-    if (flags & EDGE) {
+    if (getpix_flag & EDGE) {
       log.nf_edge1++;
       flags |= MSH_EDGE1;
     }
@@ -70,7 +59,6 @@ void MeasureSingleShear(
       log.nf_npix1++;
       flags |= MSH_LT10PIX1;
     }
-    return;
   }
   int npix = pix[0].size();
   xdbg<<"npix = "<<npix<<std::endl;
@@ -273,22 +261,81 @@ void MeasureSingleShear(
   }
   //dbg<<"Stats: Mu: "<<mu_1<<"  "<<mu_2<<"  "<<mu_3<<std::endl;
   //dbg<<"       sigma = "<<sigma<<std::endl;
-//#ifdef SHAPELET
-  //dbg<<"       b_20 = "<<gale<<"  gamma = "<<shear<<std::endl;
-//#else
   //dbg<<"       gamma = "<<shear<<std::endl;
-//#endif
-#ifdef GAMMAOUT
-#ifdef _OPENMP
-#pragma omp critical
-#endif
-  {
-    gammaout<<real(gale)<<"  "<<imag(gale)<<"  "<<real(shear)<<"  "<<imag(shear)<<std::endl;
-  }
-#endif
 
   // Finally measure the variance of the shear
   // TODO
   // (I'm not convinced that the above covariance matrix is a good estiamte.)
+}
+
+void MeasureSingleShear1(
+    Position cen, const Image<double>& im, double sky,
+    const Transformation& trans, const FittedPSF& fittedpsf,
+    double noise, double gain, const Image<double>* weight_im, 
+    double gal_aperture, double max_aperture,
+    int gal_order, int gal_order2,
+    double f_psf, double min_gal_size,
+    OverallFitTimes* times, ShearLog& log,
+    Position& skypos,
+    std::complex<double>& shear, 
+    tmv::Matrix<double>& shearcov, BVec& shapelet,
+    int32& flags)
+{
+  // Get coordinates of the galaxy, and convert to sky coordinates
+  try {
+    trans.Transform(cen,skypos);
+    dbg<<"skypos = "<<skypos<<std::endl;
+  } catch (Range_error& e) {
+    dbg<<"distortion range error: \n";
+    xdbg<<"p = "<<cen<<", b = "<<e.b<<std::endl;
+    if (times) times->nf_range1++;
+    log.nf_range1++;
+    flags |= MSH_TRANSFORM_EXCEPTION;
+    return;
+  }
+
+  // Calculate the psf from the fitted-psf formula:
+  std::vector<BVec> psf(1,
+      BVec(fittedpsf.GetOrder(), fittedpsf.GetSigma()));
+  try {
+    dbg<<"for fittedpsf cen = "<<cen<<std::endl;
+    psf[0] = fittedpsf(cen);
+  } catch (Range_error& e) {
+    dbg<<"fittedpsf range error: \n";
+    xdbg<<"p = "<<cen<<", b = "<<e.b<<std::endl;
+    if (times) times->nf_range2++;
+    log.nf_range2++;
+    flags |= MSH_FITTEDPSF_EXCEPTION;
+    return;
+  }
+
+  // Do the real meat of the calculation:
+  dbg<<"measure single shear cen = "<<cen<<std::endl;
+  try { 
+    MeasureSingleShear(
+	// Input data:
+	cen, im, sky, trans, psf,
+	// Noise variables:
+	noise, gain, weight_im, 
+	// Parameters:
+	gal_aperture, max_aperture, gal_order, gal_order2, 
+	f_psf, min_gal_size, 
+	// Time stats if desired:
+	times,
+	// Log information
+	log,
+	// Ouput values:
+	shear, shearcov, shapelet, flags);
+  } catch (tmv::Error& e) { 
+    dbg<<"TMV Error thrown in MeasureSingleShear\n";
+    dbg<<e<<std::endl;
+    log.nf_tmverror++;
+    flags |= MSH_TMV_EXCEPTION;
+  } catch (...) {
+    dbg<<"unkown exception in MeasureSingleShear\n";
+    log.nf_othererror++;
+    flags |= MSH_UNKNOWN_EXCEPTION;
+  } 
+
 }
 

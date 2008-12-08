@@ -18,12 +18,8 @@
 #include <iostream>
 
 #ifdef _OPENMP
-#include <omp.h>
+//#include <omp.h>
 #endif
-
-// The INVTRANS sections aren't needed for anything.  They just
-// test the inverse transformation routines.
-//#define INVTRANS
 
 //#define SINGLEGAL 8146
 //#define STARTAT 8000
@@ -59,15 +55,6 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
 
   // Read distortion function
   Transformation trans(params);
-
-
-#ifdef INVTRANS
-  Transformation invtrans;
-  Bounds b;
-  for(size_t i=0;i<all_pos.size();i++) b += all_pos[i];
-  int invtrans_order = 3;
-  invtrans.MakeInverseOf(trans,b,invtrans_order);
-#endif
 
   // Read the fitted psf file
   std::string psffile = Name(params,"fitpsf",false,true);
@@ -110,6 +97,7 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
   // Default values when we have failure
   std::complex<double> shear_default = DEFVALNEG;
 
+  Position skypos_default(DEFVALNEG,DEFVALNEG);
   tmv::Matrix<double> shearcov_default(2,2);
   shearcov_default(0,0) = DEFVALPOS; shearcov_default(0,1) = 0;
   shearcov_default(1,0) = 0;         shearcov_default(1,1) = DEFVALPOS;
@@ -133,18 +121,12 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
 
   // Main loop to measure shears
 #ifdef _OPENMP
-  //omp_set_num_threads(2);
 #pragma omp parallel 
   {
-#if 0
-#pragma omp critical 
-    {
-      dbg<<"start parallel region: thread "<<omp_get_thread_num()<<" of  "<<omp_get_num_threads()<<" threads  (max = "<<omp_get_max_threads()<<")"<<std::endl;
-    }
-#endif
     try {
 #endif
       OverallFitTimes times; // just for this thread
+      ShearLog log1; // just for this thread
 #ifdef _OPENMP
 #pragma omp for schedule(dynamic)
 #endif
@@ -166,89 +148,39 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
 	}
 
 	// Inputs to shear measurement code
+	Position skypos1 = skypos_default;
 	std::complex<double> shear1 = shear_default;
 	tmv::Matrix<double> shearcov1 = shearcov_default;
 	BVec shapelet1 = shapelet_default;
 	int32 flag1 = 0;
 
-	do {
+	MeasureSingleShear1(
+	    // Input data:
+	    all_pos[i], im, all_sky[i], trans, 
+	    // Fitted PSF
+	    fittedpsf,
+	    // Noise variables:
+	    all_noise[i], gain, weight_im, 
+	    // Parameters:
+	    gal_aperture, max_aperture, gal_order, gal_order2, 
+	    f_psf, min_gal_size, 
+	    // Time stats if desired:
+	    timing ? &times : 0, 
+	    // Log information
+	    log1,
+	    // Ouput values:
+	    skypos1, shear1, shearcov1, shapelet1, flag1);
 
-	  // Get coordinates of the galaxy, and convert to sky coordinates
-	  try {
-	    trans.Transform(all_pos[i],skypos[i]);
-	    dbg<<"skypos = "<<skypos[i]<<std::endl;
-#ifdef INVTRANS
-	    Position p2;
-	    invtrans.Transform(skypos[i],p2);
-	    dbg<<"p2 = "<<p2<<std::endl;
-	    Assert(std::abs(p2-all_pos[i]) < 1.);
-	    trans.InverseTransform(skypos[i],p2);
-	    dbg<<"p2 = "<<p2<<std::endl;
-	    Assert(std::abs(p2-all_pos[i]) < 1.e-5);
-#endif
-	  } catch (Range_error& e) {
-	    dbg<<"distortion range error: \n";
-	    xdbg<<"p = "<<all_pos[i]<<", b = "<<e.b<<std::endl;
-	    times.nf_range1++;
-	    log.nf_range1++;
-	    flag1 |= MSH_TRANSFORM_EXCEPTION;
-	    break; // From do loop, not main for loop
-	  }
-
-	  // Calculate the psf from the fitted-psf formula:
-	  std::vector<BVec> psf(1, 
-	      BVec(fittedpsf.GetOrder(), fittedpsf.GetSigma()));
-	  try {
-	    dbg<<"for fittedpsf all_pos[i] = "<<all_pos[i]<<std::endl;
-	    psf[0] = fittedpsf(all_pos[i]);
-	  } catch (Range_error& e) {
-	    dbg<<"fittedpsf range error: \n";
-	    xdbg<<"p = "<<all_pos[i]<<", b = "<<e.b<<std::endl;
-	    times.nf_range2++;
-	    log.nf_range2++;
-	    flag1 |= MSH_FITTEDPSF_EXCEPTION;
-	    break; // From do loop, not main for loop
-	  }
-
-	  // Do the real meat of the calculation:
-	  dbg<<"measure single shear all_pos[i] = "<<all_pos[i]<<std::endl;
-	  try {
-	    MeasureSingleShear(
-		// Input data:
-		all_pos[i], im, all_sky[i], trans, psf,
-		// Noise variables:
-		all_noise[i], gain, weight_im, 
-		// Parameters:
-		gal_aperture, max_aperture, gal_order, gal_order2, 
-		f_psf, min_gal_size, 
-		// Time stats if desired:
-		timing ? &times : 0, 
-		// Log information
-		log,
-		// Ouput values:
-		shear1, shearcov1, shapelet1, flag1);
-	  } catch (tmv::Error& e) {
-	    dbg<<"TMV Error thrown in MeasureSingleShear\n";
-	    dbg<<e<<std::endl;
-	    log.nf_tmverror++;
-	    flag1 |= MSH_TMV_EXCEPTION;
-	  } catch (...) {
-	    dbg<<"unkown exception in MeasureSingleShear\n";
-	    log.nf_othererror++;
-	    flag1 |= MSH_UNKNOWN_EXCEPTION;
-	  }
-
-	} while (false); // Gives a place to break to.
-
-	// We always write out the answer for each object
-	// These are the default values if a catastrophic error occurred.
-	// Otherwise they are the best estimate up to the point of 
-	// any error.
-	// If there is no error, these are the correct estimates.
 #ifdef _OPENMP
 #pragma omp critical
 #endif
 	{
+	  // We always write out the answer for each object
+	  // These are the default values if a catastrophic error occurred.
+	  // Otherwise they are the best estimate up to the point of 
+	  // any error.
+	  // If there is no error, these are the correct estimates.
+	  skypos[i] = skypos1;
 	  shear[i] = shear1;
 	  shearcov[i] = shearcov1;
 	  shapelet[i] = shapelet1;
@@ -267,12 +199,12 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
 	}
 
       }
-      if (timing)
 #ifdef _OPENMP
 #pragma omp critical
 #endif
       { 
-	alltimes += times;
+	if (timing) alltimes += times;
+	log += log1;
       }
 #ifdef _OPENMP
     } 

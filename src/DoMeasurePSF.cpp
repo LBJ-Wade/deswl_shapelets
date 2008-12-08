@@ -23,13 +23,15 @@
 //#include <omp.h>
 #endif
 
-//#define SINGLESTAR 91
+//#define SINGLESTAR 18
 //#define NSTARS 10
 //#define STARTAT 85
 //#define ENDAT 95
 
 int DoMeasurePSF(ConfigFile& params, PSFLog& log) 
 {
+  XDEBUG = true;
+
   xdbg<<"Start DoMeasurePSF\n";
 
   // Load image:
@@ -122,6 +124,9 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
 #pragma omp parallel 
   { 
     try {
+#endif
+      PSFLog log1;  // Just for this thread
+#ifdef _OPENMP
 #pragma omp for schedule(guided)
 #endif
       for(int i=0;i<nstars;i++) {
@@ -153,16 +158,16 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
 	      // Parameters:
 	      sigma_p, psfap, psforder,
 	      // Log information
-	      log,
+	      log1,
 	      // Ouput value:
 	      psf1, nu1, flag1);
 	} catch (tmv::Error& e) {
 	  dbg<<"TMV Error thrown in MeasureSinglePSF\n";
-	  log.nf_tmverror++;
+	  log1.nf_tmverror++;
 	  flag1 |= MPSF_TMV_EXCEPTION;
 	} catch (...) {
 	  dbg<<"unkown exception in MeasureSinglePSF\n";
-	  log.nf_othererror++;
+	  log1.nf_othererror++;
 	  flag1 |= MPSF_UNKNOWN_EXCEPTION;
 	}
 #ifdef _OPENMP
@@ -180,8 +185,14 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
 	  }
 	}
 #ifdef SINGLESTAR
-	exit(1);
+	break;
 #endif
+      }
+#ifdef _OPENMP
+#pragma omp critical
+#endif
+      {
+	log += log1;
       }
 #ifdef _OPENMP
     }

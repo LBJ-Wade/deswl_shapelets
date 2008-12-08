@@ -6,8 +6,29 @@
 
 struct ShearLog {
 
-  ShearLog(std::string logfile, std::string _delim="  ");
+  ShearLog(std::string logfile="", std::string _delim="  ");
   ~ShearLog();
+
+  ShearLog& operator+=(const ShearLog& rhs)
+  {
+    nf_range1 += rhs.nf_range1;
+    nf_range2 += rhs.nf_range2;
+    nf_edge1 += rhs.nf_edge1;
+    nf_npix1 += rhs.nf_npix1;
+    nf_small += rhs.nf_small;
+    nf_edge2 += rhs.nf_edge2;
+    nf_npix2 += rhs.nf_npix2;
+    nf_tmverror += rhs.nf_tmverror;
+    nf_othererror += rhs.nf_othererror;
+    ns_native += rhs.ns_native;
+    nf_native += rhs.nf_native;
+    ns_mu += rhs.ns_mu;
+    nf_mu += rhs.nf_mu;
+    ns_gamma += rhs.ns_gamma;
+    nf_gamma += rhs.nf_gamma;
+    
+    return *this;
+  }
 
   void WriteLog() const;
   void Write(std::ostream& os) const;
@@ -40,8 +61,21 @@ struct ShearLog {
 
 struct PSFLog {
 
-  PSFLog(std::string logfile, std::string _delim="  ");
+  PSFLog(std::string logfile="", std::string _delim="  ");
   ~PSFLog();
+
+  PSFLog& operator+=(const PSFLog& rhs)
+  {
+    nf_range += rhs.nf_range;
+    nf_edge += rhs.nf_edge;
+    nf_npix += rhs.nf_npix;
+    nf_tmverror += rhs.nf_tmverror;
+    nf_othererror += rhs.nf_othererror;
+    ns_psf += rhs.ns_psf;
+    nf_psf += rhs.nf_psf;
+
+    return *this;
+  }
 
   void WriteLog() const;
   void Write(std::ostream& os) const;
@@ -66,7 +100,7 @@ struct PSFLog {
 
 struct FindStarsLog {
 
-  FindStarsLog(std::string logfile, std::string _delim="  ");
+  FindStarsLog(std::string logfile="", std::string _delim="  ");
   ~FindStarsLog();
 
   void WriteLog() const;

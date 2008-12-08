@@ -132,6 +132,11 @@ def AddOpenMPFlag(config):
         #if config.CheckLib('gomp'):
         if version < openmp_mingcc_vers: 
             return
+        if version == openmp_mingcc_vers:
+            print 'Warning: '
+            print '      g++ 4.2.3 works, but 4.2.1 does not.'
+            print '      Currently, we only check for the first decimal, so if you have 4.2.1,'
+            print '      this may not compile.  (The status of 4.2.2 is unknown.)'
         flag = '-fopenmp'
         ldflag = '-fopenmp'
     elif compiler[0] == 'i':
@@ -146,6 +151,7 @@ def AddOpenMPFlag(config):
     print '\tAdding openmp flag:',flag
     config.env.Append(CXXFLAGS=[flag])
     config.env.Append(LINKFLAGS=[ldflag])
+    config.env['_extralibs'] += ['pthread']
 
 def NDebugFlag(compiler):
     """
