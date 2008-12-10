@@ -25,18 +25,18 @@ decam--24--29-i-2_52_shear.csv
 decam--24--29-i-2_52_measureshear_log.csv
 """
 
-finfo['cat'] = {'suffix':'_cat','ext':'fits'}
+finfo['cat']         = {'suffix':'_cat','ext':'fits'}
 
-finfo['allcat'] = {'suffix':'_all','ext':'csv'}
-finfo['starcat'] = {'suffix':'_star','ext':'csv'}
+finfo['allcat']      = {'suffix':'_all','ext':'csv'}
+finfo['starcat']     = {'suffix':'_star','ext':'csv'}
 
-finfo['psf'] = {'suffix':'_psf','ext':'csv'}
-finfo['psf_log'] = {'suffix':'_psf_log','ext':'csv'}
-finfo['psf_debug'] = {'suffix':'_psf_debug','ext':'txt'}
-finfo['fitpsf'] = {'suffix':'_fitpsf','ext':'csv'}
+finfo['psf']         = {'suffix':'_psf','ext':'csv'}
+finfo['psf_log']     = {'suffix':'_psf_log','ext':'csv'}
+finfo['psf_debug']   = {'suffix':'_psf_debug','ext':'txt'}
+finfo['fitpsf']      = {'suffix':'_fitpsf','ext':'dat'}
 
-finfo['shear'] = {'suffix':'_shear','ext':'csv'}
-finfo['shear_log'] = {'suffix':'_shear_log','ext':'csv'}
+finfo['shear']       = {'suffix':'_shear','ext':'csv'}
+finfo['shear_log']   = {'suffix':'_shear_log','ext':'csv'}
 finfo['shear_debug'] = {'suffix':'_shear_debug','ext':'txt'}
 
 # these should be configurable

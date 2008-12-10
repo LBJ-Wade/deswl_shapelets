@@ -4,7 +4,8 @@ import os
 Import('env')
 
 cfile=env.File('wl.config')
-install_subdir = os.path.join('share','wl')
+#install_subdir = os.path.join('share','wl')
+install_subdir = 'etc'
 targets = [cfile]
 
 if 'install' in COMMAND_LINE_TARGETS:
