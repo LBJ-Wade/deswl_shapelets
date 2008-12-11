@@ -51,15 +51,21 @@ opts.Add(PathOption('PREFIX',
                     default_prefix,
                     PathOption.PathAccept))
 opts.Add('CXX','Name of c++ compiler',None)
-opts.Add(BoolOption('DBG','Turn on debugging output',False))
-opts.Add(BoolOption('WITH_ATLAS',
-                    'Look for atlas libraries and link if found.',
+opts.Add(BoolOption('DBG','Turn on debugging',True))
+opts.Add(BoolOption('WITH_LAPACK',
+                    'Look for lapack libraries and link if found.',
+                    True))
+opts.Add(BoolOption('WITH_BLAS',
+                    'Look for blas libraries and link if found.',
                     True))
 opts.Add(BoolOption('WITH_OPENMP',
                     'Look for openmp and use if found.',
                     True))
 opts.Add(BoolOption('IMPORT_PATHS',
-                    'Import PATH, C_INCLUDE_PATH and LIBRARY_PATH/LD_INCLUDE_PATH environment variables',
+                    'Import PATH, C_INCLUDE_PATH and LIBRARY_PATH/LD_LIBRARY_PATH environment variables',
+                    False))
+opts.Add(BoolOption('IMPORT_ENV',
+                    'Import full environment from calling shell',
                     False))
 
 opts.Update(initial_env)
@@ -72,7 +78,8 @@ initial_env['_extralibs'] = []
 
 # This helps us determine of openmp is available
 openmp_mingcc_vers = 4.2
-openmp_minicc_vers = 8.0
+openmp_minicc_vers = 9.0
+openmp_minpgcc_vers = 6.0
 
 def RunInstall(env, targets, subdir):
     install_dir = os.path.join(env['PREFIX'], subdir)
@@ -96,18 +103,25 @@ def RunUninstall(env, targets, subdir):
 
 def CCFlags(env):
     """
-    Make this check for icc or other compilers in addition to these gcc
-    specific settings
     """
     # making this a list makes it easier to extend
     # dynamically
     compiler = os.path.basename(env['CXX'])
+    version = env['CXXVERSION_NUMERICAL']
     if compiler[0] == 'g':
-        #gflags=['-O2','-fno-strict-aliasing']
-        gflags=['-O2','-ggdb','-Wall','-Werror','-fno-strict-aliasing']
+        cflags=['-O2','-Wall','-Werror','-ggdb']
+        if version <= 4.2:
+            cflags += ['-fno-strict-aliasing']
+    elif compiler[0] == 'i':
+        cflags=['-O2','-Wall','-Werror','-g','-wd383,810,981']
+        if version >= 10:
+            cflags += ['-wd1572']
+    elif compiler[0] == 'p':
+        cflags=['-O2','-fast','-Mcache_align','-g']
+        #env.Append(CPPDEFINES=['USE_STEDC'])
     else:
-        raise ValueError,'Need to add CCFLAGS for compilers other than gcc'
-    return gflags
+        raise ValueError,'Need to add CCFLAGS for compilers other than g++, icpc, pgCC'
+    return cflags
 
 def AddOpenMPFlag(config):
     """
@@ -115,13 +129,11 @@ def AddOpenMPFlag(config):
     the compiler.
 
     gcc uses -fopemnp and an extra library
-    icc uses -openmp, library for linking?  
+    icc uses -openmp
+    pgCC uses -mp
     
     Other compilers?
     """
-
-
-    print 'Checking for openmp support'
     compiler = os.path.basename(config.env['CXX'])
     version = config.env['CXXVERSION_NUMERICAL']
     if compiler[0] == 'g':
@@ -132,42 +144,52 @@ def AddOpenMPFlag(config):
         #if config.CheckLib('gomp'):
         if version < openmp_mingcc_vers: 
             return
-        if version == openmp_mingcc_vers:
-            print 'Warning: '
-            print '      g++ 4.2.3 works, but 4.2.1 does not.'
-            print '      Currently, we only check for the first decimal, so if you have 4.2.1,'
-            print '      this may not compile.  (The status of 4.2.2 is unknown.)'
+	if version == openmp_mingcc_vers:
+	    print 'Warning: OpenMP works with g++ 4.2.3, but not with 4.2.1.'
+	    print 'Currently, we only check for the first decimal, so if you'
+	    print 'have 4.2.1, this might not compile.'
+	    print '(The status of 4.2.2 is unknown.)'
         flag = '-fopenmp'
         ldflag = '-fopenmp'
     elif compiler[0] == 'i':
-        # icc
+        # icpc
         if version < openmp_minicc_vers:
             return
         flag = '-openmp'
-        # library?
+        ldflag = '-openmp'
+    elif compiler[0] == 'p':
+        # pgCC
+        if version < openmp_minicc_vers:
+            return
+        flag = '-mp'
+        ldflag = '-mp'
     else:
-        raise ValueError,'compiler must be gnu or intel'
+        print 'No OpenMP support for compiler ',compiler
 
-    print '\tAdding openmp flag:',flag
+    #print '\tAdding openmp flag:',flag
+    print 'Using OpenMP'
     config.env.Append(CXXFLAGS=[flag])
     config.env.Append(LINKFLAGS=[ldflag])
     config.env['_extralibs'] += ['pthread']
 
 def NDebugFlag(compiler):
     """
-    need to make work with other compilers
     """
-    return '-DNDEBUG'
+    return 'NDEBUG'
 
 def GetCompilerVersion(compiler):
     """
-    I think this should work for both gcc and icc, but need to check icc
     """
     import re
-    line = os.popen(compiler + ' --version').readline()
+    lines = os.popen(compiler + ' --version').readlines()
+    # pgCC puts the version number on the second line of output.
+    if compiler[0] == 'p':
+        line = lines[1]
+    else:
+        line = lines[0]
     match = re.search(r'[0-9]+(\.[0-9]+)+', line)
     if match:
-        return match.group(0) 
+        return match.group(0)
 
 def GetNumericalVersion(version):
     # Get the version up to the first decimal, e.g. for 4.3.1 we only keep 4.3
@@ -272,34 +294,88 @@ def DoLibraryAndHeaderChecks(config):
     """
 
     # Mike Jarvis' matrix libraries
-    if not config.CheckLibWithHeader('tmv','TMV.h','C++'):
+    if not config.CheckLibWithHeader('tmv','TMV.h',language='C++'):
         print 'tmv library or TMV.h not found'
         Exit(1)
-    if not config.CheckLibWithHeader('tmv_symband','TMV.h','C++'):
+    if not config.CheckLibWithHeader('tmv_symband','TMV.h',language='C++'):
         print 'tmv_symband library not found'
         Exit(1)
 
     # We need cfitsio in the search path
-    if not config.CheckLibWithHeader('cfitsio','fitsio.h','C'):
+    if not config.CheckLibWithHeader('cfitsio','fitsio.h',language='C'):
         print 'cfitsio not found'
         Exit(1)
 
-    # Use atlas if we can find it
-    if config.env['WITH_ATLAS'] and config.CheckLib('atlas'):
-        if config.CheckLibWithHeader('cblas','cblas.h','C'):
-            config.env.Append(CXXFLAGS=['-DATLAS'])
-            # I've had lots of issues trying to get lapack support to work.
-            # MJ says his routines are nearly as fast, so let's just skip it
-            config.env.Append(CXXFLAGS=['-DNOLAP'])
-            # The order is important here
-            #config.env.Append(LINKFLAGS='-lcblas -latlas')
-            #config.env.Append(LINKFLAGS='/sw.unstable/lib/libcblas.a /sw.unstable/lib/libatlas.a')
+    # This bit needs to be the same as in the TMV SConstruct file
+    # to make sure the correct libraries are linked
+    # We don't need the CPPDEFINES here though.
+    compiler = os.path.basename(config.env['CXX'])
+    if config.env['WITH_BLAS']:
+        # Look for ACML, MKL before more generic (and probably less
+        # optimized) ATLAS library.
+        if (compiler[0] == 'i' and 
+                (config.CheckLib('mkl',language='C++') or
+                 config.CheckLib('mkl_ia32',language='C++') or 
+                 config.CheckLib('mkl_intel_lp64',language='C++')  or
+                 config.CheckLib('mkl',language='C') or
+                 config.CheckLib('mkl_ia32',language='C') or 
+                 config.CheckLib('mkl_intel_lp64',language='C') ) ):
+            if config.env['WITH_LAPACK']:
+                print 'Using MKL LAPACK'
+                config.env['_extralibs'] += ['mkl_lapack']
+            else:
+	        pass
+                #config.env.Append(CPPDEFINES=['NOLAP'])
+            print 'Using MKL BLAS'
+            #config.env.Append(CPPDEFINES=['MKL'])
+            config.env['_extralibs'] += ['mkl']
+
+        elif (compiler[0] == 'p' and 
+                (config.CheckLibWithHeader('acml','acml.h',language='C++') or
+                 config.CheckLibWithHeader('acml','acml.h',language='C')) ):
+            if config.env['WITH_LAPACK']:
+                print 'Using ACML LAPACK'
+            else:
+	        pass
+                #config.env.Append(CPPDEFINES=['NOLAP'])
+            print 'Using ACML BLAS'
+            #config.env.Append(CPPDEFINES=['ACML'])
+            config.env['_extralibs'] += ['acml','pgftnrtl']
+
+        elif ( (config.CheckLib('atlas',language='C++') or
+	        config.CheckLib('atlas',language='C')) and
+	       (config.CheckLibWithHeader('cblas','cblas.h',language='C++') or
+		config.CheckLibWithHeader('cblas','cblas.h',language='C'))) :
+            if config.env['WITH_LAPACK']:
+                print 'No LAPACK support for non MKL, ACML option.'
+                    #config.env.Append(CPPDEFINES=['NOLAP'])
+            #config.env.Append(CPPDEFINES=['NOLAP'])
+            print 'Using ATLAS BLAS'
+            #config.env.Append(CPPDEFINES=['ATLAS'])
             config.env['_extralibs'] += ['cblas','atlas']
+        else:
+            print 'No BLAS libraries found'
+            #config.env.Append(CPPDEFINES=['NOBLAS'])
+    else:
+	pass
+        #config.env.Append(CPPDEFINES=['NOBLAS'])
+
 
 def DoConfig(env):
     """
     Configure the system
     """
+    if env['IMPORT_ENV']:
+        # I couldn't figure out how to get this option before the 
+        # initial constructor.  So this seems a bit inefficient to me.
+        # But I think it works, so good enough for now.
+        env = Environment(ENV=os.environ)
+        # Now repeat the stuff that has already been done to env
+        opts.Update(env)
+        opts.Save(config_file,env)
+        Help(opts.GenerateHelpText(env))
+        env['_extralibs'] = []
+
     config = env.Configure()
 
     # local includes and lib paths
@@ -336,7 +412,7 @@ def DoConfig(env):
     if not env['DBG']:
         print 'Debugging turned off'
         flag = NDebugFlag(cxx)
-        config.env.Append(CXXFLAGS=[flag])
+        config.env.Append(CPPDEFINES=[flag])
 
     print
 
