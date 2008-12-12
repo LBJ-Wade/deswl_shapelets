@@ -743,6 +743,7 @@ void WriteFittedPSF(ConfigFile& params, FittedPSF& fpsf)
 
 
   double* interp_matrix = fpsf.GetInterpMatrixPtr();
+  /*
   std::vector<double> interp_matrix_fix(n_interp_matrix_max);
   for (int i=0; i<n_shapelet_coeff; i++) {
     for (int j=0; j<n_shapelet_coeff; j++) {
@@ -754,6 +755,7 @@ void WriteFittedPSF(ConfigFile& params, FittedPSF& fpsf)
      //	<<*(rot_matrix +j*n_shapelet_coeff + i)<<std::endl;
     }
   }
+  */
 
 
   colnum = 11;  
