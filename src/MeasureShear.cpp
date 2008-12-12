@@ -69,7 +69,7 @@ int main(int argc, char **argv) try
 
     dbg<<"Config params = \n"<<params<<std::endl;
 
-    DoMeasureShear(params,log);
+    DoMeasureShear_DES(params,log);
     if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}
 
     return EXIT_SUCCESS; // = 0 typically.  Defined in <cstdlib>

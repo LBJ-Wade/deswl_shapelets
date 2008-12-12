@@ -85,4 +85,21 @@ void ReadPSFCat(ConfigFile& params, PSF_STRUCT& cat);
 void WriteFittedPSF(ConfigFile& params, FittedPSF& fpsf);
 void ReadFittedPSF(ConfigFile& params, FittedPSF& fpsf);
 
+
+typedef struct {
+
+  std::vector<long> id;
+  std::vector<int> shear_flags;
+  std::vector<double> shear1;
+  std::vector<double> shear2;
+  std::vector<double> shear_cov00;
+  std::vector<double> shear_cov01;
+  std::vector<double> shear_cov11;
+
+} SHEAR_STRUCT;
+
+void ResizeShearCat(SHEAR_STRUCT& cat, size_t n);
+void WriteShearCat(ConfigFile& params, SHEAR_STRUCT& cat);
+void ReadShearCat(ConfigFile& params, SHEAR_STRUCT& cat);
+
 #endif

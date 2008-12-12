@@ -15,6 +15,7 @@
 int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log);
 int DoMeasurePSF(ConfigFile& params, PSFLog& log);
 int DoMeasureShear(ConfigFile& params, ShearLog& log);
+int DoMeasureShear_DES(ConfigFile& params, ShearLog& log);
 
 void DoMeasurePSFPrint(
     std::ofstream& ostream,

@@ -145,7 +145,7 @@ void DoFindStars(ConfigFile& params, FindStarsLog& log)
   }
 
   // Eventually separate this out
-  std::cerr<<"Loading Star Finder"<<std::endl;
+  std::cout<<"Loading Star Finder"<<std::endl;
   StarFinder sf(params);
 
   
@@ -176,7 +176,7 @@ void DoFindStars(ConfigFile& params, FindStarsLog& log)
   log.nstars = star_count;
 
   std::string output_file = Name(params, "allcat");
-  std::cerr<<"Writing to allcat file: "<<output_file<<std::endl;
+  std::cout<<"Writing to allcat file: "<<output_file<<std::endl;
 
   /*
   std::ofstream output(output_file.c_str());

@@ -52,6 +52,7 @@ void FitsFile::Close()
  * this reads the entire column.  Must already be pointed to the correct
  * hdu
  */
+
 void 
 FitsFile::ReadScalarCol(
     char* colname, 
@@ -90,6 +91,8 @@ FitsFile::ReadScalarCol(
   }
 
 }
+
+
 
 void 
 FitsFile::ReadCell(

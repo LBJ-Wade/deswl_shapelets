@@ -145,6 +145,64 @@ void ExtractStars(
   }
 }
 
+void TestFITSOutput(ConfigFile& params, FittedPSF& fittedpsf) {
+  FittedPSF fittedpsf_test;
+  ReadFittedPSF(params, fittedpsf_test);
+
+  // Compare
+  std::cout<<"   orig psf_order: "<<fittedpsf.GetOrder()<<" new: "<<fittedpsf_test.GetOrder()<<std::endl;
+  std::cout<<"   orig fit_order: "<<fittedpsf.GetFitOrder()<<" new: "<<fittedpsf_test.GetFitOrder()<<std::endl;
+  std::cout<<"   orig npca: "<<fittedpsf.GetNpca()<<" new: "<<fittedpsf_test.GetNpca()<<std::endl;
+  std::cout<<"   orig sigma: "<<fittedpsf.GetSigma()<<" new: "<<fittedpsf_test.GetSigma()<<std::endl;
+
+  std::cout<<"   orig xmin: "<<fittedpsf.GetXMin()<<" new: "<<fittedpsf_test.GetXMin()<<std::endl;
+  std::cout<<"   orig xmax: "<<fittedpsf.GetXMax()<<" new: "<<fittedpsf_test.GetXMax()<<std::endl;
+  std::cout<<"   orig ymin: "<<fittedpsf.GetYMin()<<" new: "<<fittedpsf_test.GetYMin()<<std::endl;
+  std::cout<<"   orig ymax: "<<fittedpsf.GetYMax()<<" new: "<<fittedpsf_test.GetYMax()<<std::endl;
+
+  double* ave_psf_orig = fittedpsf.GetAvePSFPtr();
+  double* ave_psf_new = fittedpsf_test.GetAvePSFPtr();
+  int psf_order = fittedpsf.GetOrder();
+  size_t ncoeff = (psf_order+1)*(psf_order+2)/2;
+  std::cout<<"\n";
+  for (size_t i=0; i<ncoeff; i++) {
+    std::cout<<"   orig ave_psf["<<i<<"]: "<<ave_psf_orig[i]<<" new: "<<ave_psf_new[i]<<" diff: "<<ave_psf_orig[i]-ave_psf_new[i]<<std::endl;
+
+  }
+
+  double* rot_matrix_orig = fittedpsf.GetRotMatrixPtr();
+  double* rot_matrix_new = fittedpsf_test.GetRotMatrixPtr();
+  size_t n_rot_matrix = ncoeff*ncoeff;
+
+  std::cout<<"\n";
+  for (size_t i=0; i<n_rot_matrix; i++) {
+    std::cout<<"   orig rot_matrix["<<i<<"]: "<<rot_matrix_orig[i]<<" new: "<<rot_matrix_new[i]<<" diff: "<<rot_matrix_orig[i]-rot_matrix_new[i]<<std::endl;
+
+  }
+
+  int fit_order = fittedpsf.GetFitOrder();
+  size_t nfit_coeff = (fit_order+1)*(fit_order+2)/2;
+  size_t n_interp_matrix = ncoeff*nfit_coeff;
+
+  double* interp_matrix_orig = fittedpsf.GetInterpMatrixPtr();
+  double* interp_matrix_new = fittedpsf_test.GetInterpMatrixPtr();
+
+  std::cout<<"\n";
+  for (size_t i=0; i<n_interp_matrix; i++) {
+    std::cout<<"   orig interp_matrix["<<i<<"]: "<<interp_matrix_orig[i]<<" new: "<<interp_matrix_new[i]<<" diff: "<<interp_matrix_orig[i]-interp_matrix_new[i]<<std::endl;
+
+  }
+
+
+
+
+
+
+  dbg<<"Done testing fitted PSF file IO\n";
+
+
+}
+
 // This is now very DES specific in order to quickly meet Joe's demands
 int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log) 
 {
@@ -181,9 +239,11 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
   SXCAT_STRUCT sxcat;
   ReadSXCat(params, sxcat);
 
+  // The results of findstars
   FINDSTARS_STRUCT fscat;
   ReadFindStarsCat(params, fscat);
 
+  // the subset of stars
   FINDSTARS_STRUCT starcat;
   ExtractStars(sxcat, fscat, starcat);
 
@@ -389,9 +449,9 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
   WriteFittedPSF(params, fittedpsf);
   dbg<<"Done writing fitted PSF file\n";
 
-  FittedPSF fittedpsf_test;
-  ReadFittedPSF(params, fittedpsf_test);
-  dbg<<"Done testing fitted PSF file\n";
+  if (0) {
+    TestFITSOutput(params, fittedpsf);
+  }
 
 
   /*

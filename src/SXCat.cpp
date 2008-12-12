@@ -29,7 +29,7 @@ void ReadSXCat(ConfigFile& params, SXCAT_STRUCT& cat)
   int minrows = 100;
   if (params.keyExists("sx_minrows")) minrows = params["sx_minrows"];
 
-  std::cerr<< "Reading cat from file: " << file << std::endl;
+  std::cout<< "Reading cat from file: " << file << std::endl;
 
   FitsFile fits(file);
 
@@ -43,7 +43,7 @@ void ReadSXCat(ConfigFile& params, SXCAT_STRUCT& cat)
   long nrows=0;
   fits.ReadKey("NAXIS2", TLONG, (char *)&nrows);
 
-  std::cerr<<"  nrows = "<<nrows<<std::endl;
+  std::cout<<"  nrows = "<<nrows<<std::endl;
   if (nrows <= 0) {
     std::cerr<<"nrows must be >= 0"<<std::endl;
     throw FAILURE_FORMAT_ERROR;
@@ -66,20 +66,20 @@ void ReadSXCat(ConfigFile& params, SXCAT_STRUCT& cat)
   std::string mag_err_name=params["sx_mag_err_name"];
   std::string flags_name=params["sx_flags_name"];
 
-  std::cerr<<"Reading columns"<<std::endl;
-  std::cerr<<"  "<<id_name<<std::endl;
+  std::cout<<"Reading columns"<<std::endl;
+  std::cout<<"  "<<id_name<<std::endl;
   fits.ReadScalarCol((char *)id_name.c_str(),TLONG,(char *)&cat.id[0], nrows);
-  std::cerr<<"  "<<x_name<<std::endl;
+  std::cout<<"  "<<x_name<<std::endl;
   fits.ReadScalarCol((char *)x_name.c_str(),TFLOAT,(char *)&cat.x[0], nrows);
-  std::cerr<<"  "<<y_name<<std::endl;
+  std::cout<<"  "<<y_name<<std::endl;
   fits.ReadScalarCol((char *)y_name.c_str(),TFLOAT,(char *)&cat.y[0], nrows);
-  std::cerr<<"  "<<local_sky_name<<std::endl;
+  std::cout<<"  "<<local_sky_name<<std::endl;
   fits.ReadScalarCol((char *)local_sky_name.c_str(),TDOUBLE,(char *)&cat.local_sky[0], nrows);
-  std::cerr<<"  "<<mag_name<<std::endl;
+  std::cout<<"  "<<mag_name<<std::endl;
   fits.ReadScalarCol((char *)mag_name.c_str(),TFLOAT,(char *)&cat.mag[0], nrows);
-  std::cerr<<"  "<<mag_err_name<<std::endl;
+  std::cout<<"  "<<mag_err_name<<std::endl;
   fits.ReadScalarCol((char *)mag_err_name.c_str(),TFLOAT,(char *)&cat.mag_err[0], nrows);
-  std::cerr<<"  "<<flags_name<<std::endl;
+  std::cout<<"  "<<flags_name<<std::endl;
   fits.ReadScalarCol((char *)flags_name.c_str(),TSHORT,(char *)&cat.flags[0], nrows);
 
   for (long i=0; i< nrows; i++) {
@@ -103,12 +103,17 @@ void WriteFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat)
   FitsFile fits(file.c_str(), READWRITE, true);
   fitsfile* fptr = fits.get_fptr();
 
+  std::string id_name=params["fs_id_name"];
+  std::string sigma0_name=params["fs_sigma0_name"];
+  std::string size_flags_name=params["fs_size_flags_name"];
+  std::string star_flag_name=params["fs_star_flag_name"];
+
   int nfields=4;
   char *table_names[] =  
-      {(char*)"id",
-	(char*)"sigma0",
-	(char*)"size_flags",
-	(char*)"star_flag"};
+      {(char*)id_name.c_str(),
+	(char*)sigma0_name.c_str(),
+	(char*)size_flags_name.c_str(),
+	(char*)star_flag_name.c_str()};
   char *table_types[] =  
       {(char*)"1j",
 	(char*)"1d",
@@ -188,7 +193,7 @@ void ReadFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat)
   if (params.keyExists("fs_cat_hdu")) cat_hdu = params["fs_cat_hdu"];
 
   std::string file = Name(params,"allcat",true);
-  std::cerr<< "Reading FindStars cat from file: " << file << std::endl;
+  std::cout<< "Reading FindStars cat from file: " << file << std::endl;
 
   FitsFile fits(file);
 
@@ -202,7 +207,7 @@ void ReadFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat)
   long nrows=0;
   fits.ReadKey("NAXIS2", TLONG, (char *)&nrows);
 
-  std::cerr<<"  nrows = "<<nrows<<std::endl;
+  std::cout<<"  nrows = "<<nrows<<std::endl;
   if (nrows <= 0) {
     std::cerr<<"nrows must be >= 0"<<std::endl;
     throw FAILURE_FORMAT_ERROR;
@@ -216,8 +221,8 @@ void ReadFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat)
   std::string size_flags_name=params["fs_size_flags_name"];
   std::string star_flag_name=params["fs_star_flag_name"];
 
-  std::cerr<<"Reading columns"<<std::endl;
-  std::cerr<<"  "<<id_name<<std::endl;
+  std::cout<<"Reading columns"<<std::endl;
+  std::cout<<"  "<<id_name<<std::endl;
   fits.ReadScalarCol((char *)id_name.c_str(),TLONG,(char *)&cat.id[0], nrows);
 
   fits.ReadScalarCol((char *)sigma0_name.c_str(),TDOUBLE,(char *)&cat.sigma0[0], nrows);
@@ -275,14 +280,23 @@ void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat)
   std::stringstream coeff_form;
   coeff_form << ncoeff << "d";
 
+  std::string id_name=params["psf_id_name"];
+  std::string psf_flags_name=params["psf_flags_name"];
+  std::string nu_name=params["psf_nu_name"];
+  std::string psf_order_name=params["psf_order_name"];
+  std::string sigma_p_name=params["psf_sigma_p_name"];
+  std::string coeffs_name=params["psf_coeffs_name"];
+
+
+
   int nfields=6;
   char *table_names[] =  
-      {(char*)"id",
-	(char*)"psf_flags",
-	(char*)"nu",
-	(char*)"psf_order",
-	(char*)"sigma_p",
-	(char*)"coeffs"};
+      {(char*)id_name.c_str(),
+	(char*)psf_flags_name.c_str(),
+	(char*)nu_name.c_str(),
+	(char*)psf_order_name.c_str(),
+	(char*)sigma_p_name.c_str(),
+	(char*)coeffs_name.c_str()};
   char *table_types[] =  
       {(char*)"1j",
 	(char*)"1j",
@@ -472,7 +486,7 @@ void ReadPSFCat(ConfigFile& params, PSF_STRUCT& cat)
   if (params.keyExists("psf_cat_hdu")) cat_hdu = params["psf_cat_hdu"];
 
   std::string file = Name(params,"psf",true);
-  std::cerr<< "Reading PSF cat from file: " << file << std::endl;
+  std::cout<< "Reading PSF cat from file: " << file << std::endl;
 
   FitsFile fits(file);
 
@@ -489,7 +503,7 @@ void ReadPSFCat(ConfigFile& params, PSF_STRUCT& cat)
   int psforder=0;
   fits.ReadKey("PSFORDER", TINT, (char*)&psforder);
 
-  std::cerr<<"  nrows = "<<nrows<<std::endl;
+  std::cout<<"  nrows = "<<nrows<<std::endl;
   if (nrows <= 0) {
     std::cerr<<"nrows must be > 0"<<std::endl;
     throw FAILURE_FORMAT_ERROR;
@@ -505,8 +519,8 @@ void ReadPSFCat(ConfigFile& params, PSF_STRUCT& cat)
   std::string sigma_p_name=params["psf_sigma_p_name"];
   std::string coeffs_name=params["psf_coeffs_name"];
 
-  std::cerr<<"Reading columns"<<std::endl;
-  std::cerr<<"  "<<id_name<<std::endl;
+  std::cout<<"Reading columns"<<std::endl;
+  std::cout<<"  "<<id_name<<std::endl;
   fits.ReadScalarCol((char *)id_name.c_str(),TLONG,(char *)&cat.id[0], nrows);
   fits.ReadScalarCol((char *)psf_flags_name.c_str(),TINT,(char *)&cat.psf_flags[0], nrows);
   fits.ReadScalarCol((char *)nu_name.c_str(),TDOUBLE,(char *)&cat.nu[0], nrows);
@@ -577,20 +591,33 @@ void WriteFittedPSF(ConfigFile& params, FittedPSF& fpsf)
   std::stringstream interp_matrix_form;
   interp_matrix_form << n_interp_matrix_max << "d";
 
+  std::string psf_order_name=params["fitpsf_psf_order_name"];
+  std::string sigma_name=params["fitpsf_sigma_name"];
+  std::string fit_order_name=params["fitpsf_fit_order_name"];
+  std::string npca_name=params["fitpsf_npca_name"];
+
+  std::string xmin_name=params["fitpsf_xmin_name"];
+  std::string xmax_name=params["fitpsf_xmax_name"];
+  std::string ymin_name=params["fitpsf_ymin_name"];
+  std::string ymax_name=params["fitpsf_ymax_name"];
+
+  std::string ave_psf_name=params["fitpsf_ave_psf_name"];
+  std::string rot_matrix_name=params["fitpsf_rot_matrix_name"];
+  std::string interp_matrix_name=params["fitpsf_interp_matrix_name"];
 
   int nfields=11;
   char *table_names[] =  
-      {(char*)"psf_order",
-	(char*)"sigma",
-	(char*)"fit_order",
-	(char*)"npca",
-	(char*)"xmin",
-	(char*)"xmax",
-	(char*)"ymin",
-	(char*)"ymax",
-	(char*)"ave_psf",
-	(char*)"rot_matrix",
-	(char*)"interp_matrix"};
+      {(char*)psf_order_name.c_str(),
+	(char*)sigma_name.c_str(),
+	(char*)fit_order_name.c_str(),
+	(char*)npca_name.c_str(),
+	(char*)xmin_name.c_str(),
+	(char*)xmax_name.c_str(),
+	(char*)ymin_name.c_str(),
+	(char*)ymax_name.c_str(),
+	(char*)ave_psf_name.c_str(),
+	(char*)rot_matrix_name.c_str(),
+	(char*)interp_matrix_name.c_str()};
   char *table_types[] =  
       {(char*)"1j",   // psf_order
 	(char*)"1d",  // sigma
@@ -762,7 +789,7 @@ void ReadFittedPSF(ConfigFile& params, FittedPSF& fpsf)
   if (params.keyExists("fitpsf_cat_hdu")) cat_hdu = params["fitpsf_cat_hdu"];
 
   std::string file = Name(params,"fitpsf",true);
-  std::cerr<< "Reading FittedPSF from file: " << file << std::endl;
+  std::cout<< "Reading FittedPSF from file: " << file << std::endl;
 
   FitsFile fits(file);
 
@@ -785,7 +812,7 @@ void ReadFittedPSF(ConfigFile& params, FittedPSF& fpsf)
   std::string ymax_name=params["fitpsf_ymax_name"];
 
   std::string ave_psf_name=params["fitpsf_ave_psf_name"];
-  std::string rot_matrix_order_name=params["fitpsf_rot_matrix_name"];
+  std::string rot_matrix_name=params["fitpsf_rot_matrix_name"];
   std::string interp_matrix_name=params["fitpsf_interp_matrix_name"];
 
   int nrows=1;
@@ -831,14 +858,228 @@ void ReadFittedPSF(ConfigFile& params, FittedPSF& fpsf)
   fpsf.SetBounds(xmin, xmax, ymin, ymax);
 
 
-/*
   double* avg_psf = fpsf.GetAvePSFPtr();
   int n_shapelet_coeff = (psf_order+1)*(psf_order+2)/2;
+  fits.ReadCell(
+      (char*)ave_psf_name.c_str(),
+      TDOUBLE, (char*)avg_psf, 
+      1, n_shapelet_coeff);
+
+  double* rot_matrix = fpsf.GetRotMatrixPtr();
   int n_rot_matrix_max = n_shapelet_coeff*n_shapelet_coeff;
-  */
+  fits.ReadCell(
+      (char*)rot_matrix_name.c_str(),
+      TDOUBLE, (char*)rot_matrix, 
+      1, n_rot_matrix_max);
+
+  double* interp_matrix = fpsf.GetInterpMatrixPtr();
+  int n_fit_coeff = (fit_order+1)*(fit_order+2)/2;
+  int n_interp_matrix_max = n_shapelet_coeff*n_fit_coeff;
+  fits.ReadCell(
+      (char*)interp_matrix_name.c_str(),
+      TDOUBLE, (char*)interp_matrix, 
+      1, n_interp_matrix_max);
+
 
 
   fits.Close();
 }
+
+
+
+
+void ResizeShearCat(SHEAR_STRUCT& cat, size_t n)
+{
+
+  cat.id.resize(n,0);
+  cat.shear_flags.resize(n,0);
+
+  cat.shear1.resize(n,0);
+  cat.shear2.resize(n,0);
+
+
+  cat.shear_cov00.resize(n,0);
+  cat.shear_cov01.resize(n,0);
+  cat.shear_cov11.resize(n,0);
+}
+
+
+// This writes to hdu=2
+void WriteShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
+{
+
+  int colnum;
+  LONGLONG firstrow;
+  LONGLONG firstel;
+  LONGLONG nel;
+
+
+
+  std::string file = Name(params,"shear");
+  FitsFile fits(file.c_str(), READWRITE, true);
+  fitsfile* fptr = fits.get_fptr();
+
+  int nfields=7;
+  char *table_names[] =  
+      {(char*)"id",
+	(char*)"shear_flags",
+	(char*)"shear1",
+	(char*)"shear2",
+	(char*)"shear_cov00",
+	(char*)"shear_cov01",
+	(char*)"shear_cov11" };
+  char *table_types[] =  
+      {(char*)"1j",        // id
+	(char*)"1j",        // shear_flags
+	(char*)"1d",        // shear1
+	(char*)"1d",        // shear1
+	(char*)"1d",        // shear_cov00
+	(char*)"1d",        // shear_cov01
+	(char*)"1d"};        // shear_cov11
+
+  char *table_units[] =  
+      {(char*)"None",        // id
+	(char*)"None",        // shear_flags
+	(char*)"None",        // shear1
+	(char*)"None",        // shear1
+	(char*)"None",        // shear_cov00
+	(char*)"None",        // shear_cov01
+	(char*)"None"};        // shear_cov11
+
+
+  // Create a binary table
+  int fits_status=0;
+  int tbl_type = BINARY_TBL;
+  fits_create_tbl(fptr, tbl_type, cat.id.size(), nfields, 
+      table_names, table_types, table_units, NULL, &fits_status);
+  if (!fits_status==0) {
+    fits_report_error(stderr, fits_status); 
+    std::string serr="Error creating FindStars FITS table: ";
+    throw FitsException(serr);
+  }
+
+
+  colnum = 1;  
+  firstrow = 1;
+  firstel = 1;
+  nel = cat.id.size();
+  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.id[0]);
+
+  colnum = 2;  
+  firstrow = 1;
+  firstel = 1;
+  nel = cat.shear_flags.size();
+  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.shear_flags[0]);
+
+
+  colnum = 3;  
+  firstrow = 1;
+  firstel = 1;
+  nel = cat.shear1.size();
+  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &cat.shear1[0]);
+
+  colnum = 4;  
+  firstrow = 1;
+  firstel = 1;
+  nel = cat.shear2.size();
+  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &cat.shear2[0]);
+
+
+  colnum = 5;  
+  firstrow = 1;
+  firstel = 1;
+  nel = cat.shear_cov00.size();
+  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &cat.shear_cov00[0]);
+
+  colnum = 6;  
+  firstrow = 1;
+  firstel = 1;
+  nel = cat.shear_cov01.size();
+  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &cat.shear_cov01[0]);
+
+  colnum = 7;  
+  firstrow = 1;
+  firstel = 1;
+  nel = cat.shear_cov11.size();
+  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &cat.shear_cov11[0]);
+
+
+
+
+
+
+
+
+  fits.Close();
+
+}
+
+
+void ReadShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
+{
+
+  int cat_hdu = 2;
+  if (params.keyExists("shear_cat_hdu")) cat_hdu = params["shear_cat_hdu"];
+
+  std::string file = Name(params,"shear",true);
+  std::cout<< "Reading Shear cat from file: " << file << std::endl;
+
+  FitsFile fits(file);
+
+  //int hdutype;
+
+  dbg<<"Moving to HDU #"<<cat_hdu<<std::endl;
+  fits.GotoHDU(cat_hdu);
+
+  // These are not very portable.
+  //int nfound;
+  long nrows=0;
+  fits.ReadKey("NAXIS2", TLONG, (char *)&nrows);
+
+  std::cout<<"  nrows = "<<nrows<<std::endl;
+  if (nrows <= 0) {
+    std::cerr<<"nrows must be >= 0"<<std::endl;
+    throw FAILURE_FORMAT_ERROR;
+  }
+
+  // Allocate memory for the columns we will read
+  ResizeShearCat(cat, nrows);
+
+  std::string id_name=params["shear_id_name"];
+  std::string shear_flags_name=params["shear_flags_name"];
+
+  std::string shear1_name=params["shear_shear1_name"];
+  std::string shear2_name=params["shear_shear2_name"];
+
+  std::string cov00_name=params["shear_cov00_name"];
+  std::string cov01_name=params["shear_cov01_name"];
+  std::string cov11_name=params["shear_cov11_name"];
+
+  /*
+  std::cerr<<
+    "'"<<id_name<<"'"
+    "'"<<shear_flags_name<<"'"
+    "'"<<shear1_name<<"'"
+    "'"<<shear2_name<<"'"
+    "'"<<cov00_name<<"'"
+    "'"<<cov01_name<<"'"
+    "'"<<cov11_name<<"'"<<std::endl;
+    */
+
+  std::cout<<"Reading columns"<<std::endl;
+  fits.ReadScalarCol((char *)id_name.c_str(),TLONG,(char *)&cat.id[0], nrows);
+  fits.ReadScalarCol((char *)shear_flags_name.c_str(),TINT,(char *)&cat.shear_flags[0], nrows);
+
+  fits.ReadScalarCol((char *)shear1_name.c_str(),TDOUBLE,(char *)&cat.shear1[0], nrows);
+  fits.ReadScalarCol((char *)shear2_name.c_str(),TDOUBLE,(char *)&cat.shear2[0], nrows);
+
+  fits.ReadScalarCol((char *)cov00_name.c_str(),TDOUBLE,(char *)&cat.shear_cov00[0], nrows);
+  fits.ReadScalarCol((char *)cov01_name.c_str(),TDOUBLE,(char *)&cat.shear_cov01[0], nrows);
+  fits.ReadScalarCol((char *)cov11_name.c_str(),TDOUBLE,(char *)&cat.shear_cov11[0], nrows);
+
+
+  fits.Close();
+}
+
 
 

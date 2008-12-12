@@ -45,7 +45,7 @@ void StarFinder::RunFindStars(
   std::vector<PotentialStar*> maybestars;
 
   // First get a list of potential stars
-  std::cerr<<"Finding stars"<<std::endl;
+  std::cout<<"Finding stars"<<std::endl;
   long count=0;
   for (unsigned long i=0; i<x.size(); i++)
   {
@@ -66,14 +66,14 @@ void StarFinder::RunFindStars(
 
   }
 
-  std::cerr<<"  Possible Stars: "<<count<<"/"<<x.size()<<"\n";
+  std::cout<<"  Possible Stars: "<<count<<"/"<<x.size()<<"\n";
 
-  std::cerr<<"  Running FindStars\n";
+  std::cout<<"  Running FindStars\n";
   std::vector<PotentialStar*> stars = FindStars(maybestars);
 
   starflags.clear();
   starflags.resize(x.size(), 0);
-  std::cerr<<"  Found "<<stars.size()<<"\n";
+  std::cout<<"  Found "<<stars.size()<<"\n";
   for (unsigned long i=0; i<stars.size();i++) {
     starflags[ stars[i]->GetIndex() ] = 1;
   }
@@ -82,7 +82,7 @@ void StarFinder::RunFindStars(
 
 void StarFinder::LoadConfig()
 {
-  std::cerr<<"Loading StarFinder config"<<mCFile<<std::endl;
+  std::cout<<"Loading StarFinder config"<<mCFile<<std::endl;
   mConfigFile.Load(mCFile);
   // copy to instance variables
   CopyConfig(mConfigFile);
