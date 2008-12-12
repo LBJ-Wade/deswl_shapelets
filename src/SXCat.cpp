@@ -545,8 +545,8 @@ void WriteFittedPSF(ConfigFile& params, FittedPSF& fpsf)
   std::stringstream err;
 
 
-  //std::string file = Name(params,"fitpsf");
-  std::string file = "test_fittedpsf.fits";
+  std::string file = Name(params,"fitpsf");
+  //std::string file = "test_fittedpsf.fits";
   FitsFile fits(file.c_str(), READWRITE, true);
   fitsfile* fptr = fits.get_fptr();
 
@@ -561,7 +561,6 @@ void WriteFittedPSF(ConfigFile& params, FittedPSF& fpsf)
   int npca=fpsf.GetNpca();
 
   int n_shapelet_coeff = (psforder+1)*(psforder+2)/2;
-
   int n_rot_matrix_max = n_shapelet_coeff*n_shapelet_coeff;
   int n_rot_matrix_actual = npca*n_shapelet_coeff;
 
@@ -630,6 +629,7 @@ void WriteFittedPSF(ConfigFile& params, FittedPSF& fpsf)
     throw FitsException(serr);
   }
 
+  // dimensions information
   std::stringstream tdim10;
   tdim10<<"("<<n_shapelet_coeff<<","<<n_shapelet_coeff<<")";
   fits_status=0;
@@ -743,19 +743,6 @@ void WriteFittedPSF(ConfigFile& params, FittedPSF& fpsf)
 
 
   double* interp_matrix = fpsf.GetInterpMatrixPtr();
-  /*
-  std::vector<double> interp_matrix_fix(n_interp_matrix_max);
-  for (int i=0; i<n_shapelet_coeff; i++) {
-    for (int j=0; j<n_shapelet_coeff; j++) {
-      if (i >= npca) {
-	*(rot_matrix +j*n_shapelet_coeff + i) = 0;
-      }
-     // std::cout
-     //	<<"rot_matrix["<<i<<"]["<<j<<"] = "
-     //	<<*(rot_matrix +j*n_shapelet_coeff + i)<<std::endl;
-    }
-  }
-  */
 
 
   colnum = 11;  
@@ -764,78 +751,94 @@ void WriteFittedPSF(ConfigFile& params, FittedPSF& fpsf)
   nel = n_interp_matrix_actual;
   fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, interp_matrix);
 
+  fits.Close();
 
-  // These may have less than the column array size in actuality
-  // we will transfer what is available
+}
+
+void ReadFittedPSF(ConfigFile& params, FittedPSF& fpsf)
+{
+
+  int cat_hdu = 2;
+  if (params.keyExists("fitpsf_cat_hdu")) cat_hdu = params["fitpsf_cat_hdu"];
+
+  std::string file = Name(params,"fitpsf",true);
+  std::cerr<< "Reading FittedPSF from file: " << file << std::endl;
+
+  FitsFile fits(file);
+
+  //int hdutype;
+
+  dbg<<"Moving to HDU #"<<cat_hdu<<std::endl;
+  fits.GotoHDU(cat_hdu);
+
+  // Allocate memory for the columns we will read
+  //ResizePSFCat(cat, nrows, psforder);
+
+  std::string psf_order_name=params["fitpsf_psf_order_name"];
+  std::string sigma_name=params["fitpsf_sigma_name"];
+  std::string fit_order_name=params["fitpsf_fit_order_name"];
+  std::string npca_name=params["fitpsf_npca_name"];
+
+  std::string xmin_name=params["fitpsf_xmin_name"];
+  std::string xmax_name=params["fitpsf_xmax_name"];
+  std::string ymin_name=params["fitpsf_ymin_name"];
+  std::string ymax_name=params["fitpsf_ymax_name"];
+
+  std::string ave_psf_name=params["fitpsf_ave_psf_name"];
+  std::string rot_matrix_order_name=params["fitpsf_rot_matrix_name"];
+  std::string interp_matrix_name=params["fitpsf_interp_matrix_name"];
+
+  int nrows=1;
+
+  int psf_order=0;
+  double sigma;
+  int fit_order;
+  int npca;
+
+  fits.ReadScalarCol(
+      (char *)psf_order_name.c_str(),
+      TINT,  (char *)&psf_order, nrows);
+  fits.ReadScalarCol(
+      (char *)sigma_name.c_str(),
+      TDOUBLE,  (char *)&sigma, nrows);
+  fits.ReadScalarCol(
+      (char *)fit_order_name.c_str(),
+      TINT,  (char *)&fit_order, nrows);
+  fits.ReadScalarCol(
+      (char *)npca_name.c_str(),
+      TINT,  (char *)&npca, nrows);
+
+  fpsf.Reset(psf_order, sigma, fit_order, npca);
+
+  float xmin;
+  float xmax;
+  float ymin;
+  float ymax;
+
+  fits.ReadScalarCol(
+      (char *)xmin_name.c_str(),
+      TFLOAT,  (char *)&xmin, nrows);
+  fits.ReadScalarCol(
+      (char *)xmax_name.c_str(),
+      TFLOAT,  (char *)&xmax, nrows);
+  fits.ReadScalarCol(
+      (char *)ymin_name.c_str(),
+      TFLOAT,  (char *)&ymin, nrows);
+  fits.ReadScalarCol(
+      (char *)ymax_name.c_str(),
+      TFLOAT,  (char *)&ymax, nrows);
+
+  fpsf.SetBounds(xmin, xmax, ymin, ymax);
+
 
 /*
-
-  fits_status=0;
-  colnum = 4;  
-  firstrow = 1;
-  firstel = 1;
-  nel = cat.psf_order.size();
-  fits_write_col(
-      fptr, TINT, 
-      colnum, firstrow, firstel, nel, 
-      &cat.psf_order[0], 
-      &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing 'psf_order' to fits column";
-    throw FitsException(serr);
-  }
-
-
-
-
-  fits_status=0;
-  colnum = 5;  
-  firstrow = 1;
-  firstel = 1;
-  nel = cat.sigma_p.size();
-  fits_write_col(
-      fptr, TDOUBLE, 
-      colnum, firstrow, firstel, nel, 
-      &cat.sigma_p[0], 
-      &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing 'sigma_p' to fits column: ";
-    throw FitsException(serr);
-  }
-
-  // Now we have to loop through each psf decomposition and write
-  // separately.  This is pretty dumb.
-  colnum = 6;  
-
-  for (size_t i=0; i<cat.id.size(); i++) {
-    fits_status=0;
-    LONGLONG row = i+1;
-    firstel = 1;
-    //nel=1;
-    nel=cat.psf[0].size();
-    //nel = cat.sigma_p.size();
-    fits_write_col(
-	fptr, TDOUBLE, 
-	colnum, row, firstel, nel, 
-	&cat.psf[i][0], 
-	&fits_status);
-    if (!fits_status==0) {
-      fits_report_error(stderr, fits_status); 
-      std::stringstream serr;
-      serr<<"Error writing row "<<row<<" for column 'coeffs'";
-      throw FitsException(serr.str());
-    }
-  }
-
-
-
-*/
+  double* avg_psf = fpsf.GetAvePSFPtr();
+  int n_shapelet_coeff = (psf_order+1)*(psf_order+2)/2;
+  int n_rot_matrix_max = n_shapelet_coeff*n_shapelet_coeff;
+  */
 
 
   fits.Close();
-
 }
 
 

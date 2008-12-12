@@ -157,6 +157,41 @@ FittedPSF::FittedPSF(std::istream& is)
   xxdbg<<"f = "<<*f<<std::endl;
 }
 
+FittedPSF::FittedPSF(
+    int psforder_in,
+    double sigma_in,
+    int fitorder_in,
+    int npca_in) {
+
+  Reset(psforder_in, sigma_in, fitorder_in, npca_in);
+}
+
+void FittedPSF::Reset(
+    int psforder_in,
+    double sigma_in,
+    int fitorder_in,
+    int npca_in) {
+
+  psforder = psforder_in;
+  sigma = sigma_in;
+  fitorder = fitorder_in;
+  fitsize = (fitorder+1)*(fitorder+2)/2;
+  npca = npca_in;
+
+  // empty
+  avepsf.reset(new BVec(psforder,sigma));
+  V.reset(new tmv::Matrix<double>(npca,avepsf->size()));
+  f.reset(new tmv::Matrix<double>(fitsize,npca));
+
+  bounds.SetXMin(0.0);
+  bounds.SetXMax(0.0);
+  bounds.SetYMin(0.0);
+  bounds.SetYMax(0.0);
+}
+
+
+
+
 void FittedPSF::InterpolateVector(
     Position pos, const tmv::VectorView<double>& b) const
 {

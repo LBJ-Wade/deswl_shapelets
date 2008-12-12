@@ -15,12 +15,26 @@ class FittedPSF {
 
   public :
 
+    FittedPSF() {};
     FittedPSF(const std::vector<BVec>& psf,
 	const std::vector<int32>& flagvec,
 	const std::vector<Position>& pos,
 	const std::vector<double>& nu,
 	double sigma_p, ConfigFile& params);
     FittedPSF(std::istream& is);
+
+    // This creates empty pieces of the puzzle, to be filled in via read
+    // from file or whatever.
+    FittedPSF(
+	int psforder_in,
+	double sigma_in,
+	int fitorder_in,
+	int npca_in);
+    void Reset(
+	int psforder_in,
+	double sigma_in,
+	int fitorder_in,
+	int npca_in);
 
     int GetOrder() const { return psforder; }
     int GetFitOrder() const { return fitorder; }
@@ -31,6 +45,13 @@ class FittedPSF {
     double GetXMax() const {return bounds.GetXMax();}
     double GetYMin() const {return bounds.GetYMin();}
     double GetYMax() const {return bounds.GetYMax();}
+
+    void SetBounds(double xmin, double xmax, double ymin, double ymax) {
+      bounds.SetXMin(xmin);
+      bounds.SetXMax(xmax);
+      bounds.SetYMin(ymin);
+      bounds.SetYMax(ymax);
+    }
 
     double* GetAvePSFPtr() const {return &(*avepsf)[0];}
     double* GetRotMatrixPtr() const {return &(*V)[0][0];}
@@ -43,7 +64,6 @@ class FittedPSF {
       Assert(avepsf.get());
       Assert(V.get());
       Assert(b.GetOrder() == psforder);
-      Assert(b.GetFitOrder() == fitorder);
       Assert(b.size() == avepsf->size());
       Assert(b.GetSigma() == sigma);
       InterpolateVector(pos,b.View());

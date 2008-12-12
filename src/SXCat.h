@@ -83,5 +83,6 @@ void ReadPSFCat(ConfigFile& params, PSF_STRUCT& cat);
 
 
 void WriteFittedPSF(ConfigFile& params, FittedPSF& fpsf);
+void ReadFittedPSF(ConfigFile& params, FittedPSF& fpsf);
 
 #endif

@@ -372,23 +372,29 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
   FittedPSF fittedpsf(psfcat.psf,psfcat.psf_flags,starcat.pos,psfcat.nu,sigma_p,params);
   dbg<<"Done fitting PSF\n";
 
-
   //PSF_STRUCT testcat;
   //ReadPSFCat(params, testcat);
 
 
 
   // Output fitted psf
+  /*
   std::string fitpsffile = Name(params,"fitpsf");
   std::ofstream fitout(fitpsffile.c_str());
   fitout << fittedpsf;
   fitout.close();
-  dbg<<"Done writing fitted PSF file\n";
+  */
 
 
   WriteFittedPSF(params, fittedpsf);
+  dbg<<"Done writing fitted PSF file\n";
+
+  FittedPSF fittedpsf_test;
+  ReadFittedPSF(params, fittedpsf_test);
+  dbg<<"Done testing fitted PSF file\n";
 
 
+  /*
   if (XDEBUG) {
     // Check fit:
 
@@ -402,7 +408,7 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
       xdbg<<"Norm(diff) = "<<Norm(psfcat.psf[i]-checkpsf)<<std::endl;
     }
   }
-
+  */
   dbg<<log<<std::endl;
 
   if (output_dots) { 
