@@ -57,7 +57,7 @@ class FitsFile
 	*/
 
     template <class T> void 
-      FitsFile::WriteColumn(
+      WriteColumn(
 	  int datatype, 
 	  int colnum, 
 	  LONGLONG firstrow, 
