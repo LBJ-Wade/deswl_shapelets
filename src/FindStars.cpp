@@ -20,6 +20,89 @@
 std::ostream* dbgout = 0;
 bool XDEBUG = false;
 
+/*
+void WriteFindStarsFits(SXCAT_STRUCT& sxcat, std::string& filename)
+{
+  FitsFile fits(filename.c_str(), READWRITE, true);
+  fitsfile* fptr = fits.get_fptr();
+
+  int nfields=4;
+  char *table_names[] =  
+      {(char*)"id",
+	(char*)"sigma0",
+	(char*)"size_flags",
+	(char*)"star_flag"};
+  char *table_types[] =  
+      {(char*)"1I",
+	(char*)"1D",
+	(char*)"1I",
+	(char*)"1I"};
+  char *table_units[] =  
+      {(char*)"None",
+	(char*)"pixels",
+	(char*)"None",
+	(char*)"None"};
+
+
+  // Create a binary table
+  int fits_status=0;
+  int tbl_type = BINARY_TBL;
+  fits_create_tbl(fptr, tbl_type, sxcat.id.size(), nfields, 
+      table_names, table_types, table_units, NULL, &fits_status);
+  if (!fits_status==0) {
+    fits_report_error(stderr, fits_status); 
+    std::string serr="Error creating fits table: ";
+    throw FitsException(serr);
+  }
+
+
+  // need a more general way to write columns
+  fits_status=0;
+  fits_write_col(
+      fptr, TLONG, 1, 1, 1, sxcat.id.size(), &sxcat.id[0], &fits_status);
+  if (!fits_status==0) {
+    fits_report_error(stderr, fits_status); 
+    std::string serr="Error writing 'id' to fits column";
+    throw FitsException(serr);
+  }
+
+  fits_status=0;
+  fits_write_col(
+      fptr, TDOUBLE, 2, 1, 1, sxcat.sigma.size(), &sxcat.sigma[0], 
+      &fits_status);
+  if (!fits_status==0) {
+    fits_report_error(stderr, fits_status); 
+    std::string serr="Error writing 'sigma' to fits column: ";
+    throw FitsException(serr);
+  }
+
+  fits_status=0;
+  fits_write_col(
+      fptr, TINT, 3, 1, 1, sxcat.id.size(), &sxcat.size_flags[0], 
+      &fits_status);
+  if (!fits_status==0) {
+    fits_report_error(stderr, fits_status); 
+    std::string serr="Error writing 'size_flags' to fits column";
+    throw FitsException(serr);
+  }
+
+  fits_status=0;
+  fits_write_col(
+      fptr, TINT, 4, 1, 1, sxcat.id.size(), &sxcat.star_flag[0], 
+      &fits_status);
+  if (!fits_status==0) {
+    fits_report_error(stderr, fits_status); 
+    std::string serr="Error writing 'star_flag' to fits column";
+    throw FitsException(serr);
+  }
+
+
+
+
+  fits.Close();
+
+}
+*/
 
 void DoFindStars(ConfigFile& params, FindStarsLog& log)
 {
@@ -35,6 +118,12 @@ void DoFindStars(ConfigFile& params, FindStarsLog& log)
 
   SXCAT_STRUCT sxcat;
   ReadSXCat(params, sxcat);
+  FINDSTARS_STRUCT fscat;
+  ResizeFindStarsCat(fscat, sxcat.id.size());
+  // copy over id information
+  for (size_t i=0; i<sxcat.id.size(); i++) {
+    fscat.id[i] = sxcat.id[i];
+  }
 
   double psfap = double(params["psf_aperture"]); 
 
@@ -49,8 +138,8 @@ void DoFindStars(ConfigFile& params, FindStarsLog& log)
 	weight_im, 
 	trans, 
 	psfap, 
-	sxcat.sigma,
-	sxcat.size_flags);
+	fscat.sigma0,
+	fscat.size_flags);
   } catch(...) {
     std::cerr<<"Caught signal from MeasureSigmas"<<std::endl;  
   }
@@ -65,22 +154,31 @@ void DoFindStars(ConfigFile& params, FindStarsLog& log)
   try {
     sf.RunFindStars(
 	sxcat.flags,
-	sxcat.size_flags,
+	fscat.size_flags,
 	sxcat.x,
 	sxcat.y,
-	sxcat.sigma,
+	fscat.sigma0,
 	sxcat.mag,
-	sxcat.star_flag);
+	fscat.star_flag);
   } catch( StarFinderException e ) {
     std::cerr<<"Caught signal from RunFindStars: "<<e.what()<<std::endl;  
   } catch (...) {
     std::cerr<<"Caught unknown signal from RunFindStars"<<std::endl;  
   }
 
+  size_t star_count=0;
+  for (size_t i=0; i<sxcat.pos.size(); i++) {
+    if (fscat.star_flag[i] == 1) {
+      star_count++;
+    }
+  }
+  log.nobj = sxcat.pos.size();
+  log.nstars = star_count;
 
   std::string output_file = Name(params, "allcat");
-
   std::cerr<<"Writing to allcat file: "<<output_file<<std::endl;
+
+  /*
   std::ofstream output(output_file.c_str());
   if (!output.is_open()) {
     throw std::runtime_error("Error opening allcat file");
@@ -125,9 +223,11 @@ void DoFindStars(ConfigFile& params, FindStarsLog& log)
 	<<std::endl;
     }
   }
+  */
 
-  log.nobj = sxcat.pos.size();
-  log.nstars = star_count;
+
+  WriteFindStarsCat(params, fscat);
+
 }
 
 

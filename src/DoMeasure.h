@@ -12,6 +12,7 @@
 #include "FittedPSF.h"
 
 // Returns how many successful measurements
+int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log);
 int DoMeasurePSF(ConfigFile& params, PSFLog& log);
 int DoMeasureShear(ConfigFile& params, ShearLog& log);
 

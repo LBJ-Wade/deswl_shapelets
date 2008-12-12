@@ -67,7 +67,7 @@ int main(int argc, char **argv) try
 
     dbg<<"Config params = \n"<<params<<std::endl;
 
-    DoMeasurePSF(params,log);
+    DoMeasurePSF_DES(params,log);
 
     if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}
     return EXIT_SUCCESS;

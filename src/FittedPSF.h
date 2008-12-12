@@ -23,8 +23,18 @@ class FittedPSF {
     FittedPSF(std::istream& is);
 
     int GetOrder() const { return psforder; }
+    int GetFitOrder() const { return fitorder; }
+    int GetNpca() const { return npca; }
     double GetSigma() const { return sigma; }
 
+    double GetXMin() const {return bounds.GetXMin();}
+    double GetXMax() const {return bounds.GetXMax();}
+    double GetYMin() const {return bounds.GetYMin();}
+    double GetYMax() const {return bounds.GetYMax();}
+
+    double* GetAvePSFPtr() const {return &(*avepsf)[0];}
+    double* GetRotMatrixPtr() const {return &(*V)[0][0];}
+    double* GetInterpMatrixPtr() const {return &(*f)[0][0];}
 
     void Write(std::ostream& os) const;
 
@@ -33,6 +43,7 @@ class FittedPSF {
       Assert(avepsf.get());
       Assert(V.get());
       Assert(b.GetOrder() == psforder);
+      Assert(b.GetFitOrder() == fitorder);
       Assert(b.size() == avepsf->size());
       Assert(b.GetSigma() == sigma);
       InterpolateVector(pos,b.View());

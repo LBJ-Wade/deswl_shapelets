@@ -1,32 +1,40 @@
 #include "FitsFile.h"
 
 
-FitsFile::FitsFile(const char* filename)
+FitsFile::FitsFile(const char* filename, int mode, bool create)
 {
-  Open(filename);
+  Open(filename, mode, create);
 }
-FitsFile::FitsFile(std::string filename)
+FitsFile::FitsFile(std::string filename, int mode, bool create)
 {
-  Open(filename);
+  Open(filename, mode, create);
 }
 
-void FitsFile::Open(std::string filename)
+void FitsFile::Open(std::string filename, int mode, bool create)
 {
-  Open(filename.c_str());
+  Open(filename.c_str(), mode, create);
 }
-void FitsFile::Open(const char* filename)
+void FitsFile::Open(const char* filename, int mode, bool create)
 {
   std::string serr;
   int fitserr=0;
 
   mFileName=filename;
-  fits_open_file(&mFptr, filename, READONLY, &fitserr);
+  if (create && READWRITE == mode) {
+    //std::cout<<"Creating file: "<<filename<<std::endl;
+    std::string f = filename;
+    f = "!"+f;
+    fits_create_file(&mFptr, f.c_str(), &fitserr);
+  } else {
+    //std::cout<<"Not Creating file: "<<filename<<" mode,create="<<mode<<","<<create<<std::endl;
+    fits_open_file(&mFptr, filename, mode, &fitserr);
+  }
   if (!fitserr==0) {
     fits_report_error(stderr, fitserr); 
     serr="Error opening FITS file: "+mFileName;
     throw FitsException(serr);
   } else {
-    std::cerr<<"Opened fits FITS file: "<<mFileName<<std::endl;
+    //std::cerr<<"Opened fits FITS file: "<<mFileName<<std::endl;
   }
 }
 
@@ -83,6 +91,47 @@ FitsFile::ReadScalarCol(
 
 }
 
+void 
+FitsFile::ReadCell(
+    char* colname, 
+    int coltype, 
+    char* dptr,
+    LONGLONG row,
+    LONGLONG nel)
+{
+  std::ostringstream err;
+  int fitserr=0;
+
+  // Start at the first element and read nel
+  LONGLONG felem=1;
+
+  int colnum;
+  fits_get_colnum(mFptr, CASEINSEN, colname, &colnum, &fitserr);
+  if (!fitserr==0) {
+    fits_report_error(stderr, fitserr); 
+    err<<"Error reading colnum for \""<<colname<<"\""<<std::endl;
+    throw FitsException(err.str());
+  }
+
+  // using same dblnull everywhere probably OK.  Just needs to be big
+  // enough to take the var I think.
+
+  double dblnull;
+  int anynull=0;
+  fits_read_col(mFptr, coltype, colnum, row, felem, nel, &dblnull, 
+      dptr,
+      &anynull, &fitserr);
+  if (!fitserr==0) {
+    fits_report_error(stderr, fitserr); 
+    err<<"Error reading column \""<<colname<<"\""<<std::endl;
+    throw FitsException(err.str());
+  }
+
+}
+
+
+
+
 void FitsFile::ReadKey(char const* name,int dtype,char* dptr)
 {
   int fitserr=0;
@@ -134,3 +183,18 @@ void FitsFile::GotoHDU(int hdu)
   }
 
 }
+
+
+
+/*
+void CreateBinaryTable(
+    LONGLONG nrows, 
+    vector<string>& names, 
+    vector<string>& types,
+    vector<string>& units, 
+    const char* extension_name)
+{
+  //BINARY_TBL
+
+}
+*/

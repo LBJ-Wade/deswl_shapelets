@@ -2,10 +2,13 @@
 #define _SXCAT_H
 
 #include <vector>
-#include "fitsio.h"
+#include "BVec.h"
+#include "FittedPSF.h"
 #include "FitsFile.h"
 
 #include "dbg.h"
+
+
 // for Position
 #include "Bounds.h"
 
@@ -15,6 +18,9 @@
 // for error codes
 #include "Params.h"
 
+#include <sstream>
+
+// Dealing with the SExtractor catalog
 // This is all tags we think we might need
 typedef struct {
   std::vector<long> id;
@@ -28,9 +34,9 @@ typedef struct {
   std::vector<int> flags;
 
   // not read from file
-  std::vector<double> sigma;
-  std::vector<int> size_flags;
-  std::vector<int> star_flag;
+  //std::vector<double> sigma;
+  //std::vector<int> size_flags;
+  //std::vector<int> star_flag;
 
   // These unused
   std::vector<double> noise;
@@ -38,5 +44,44 @@ typedef struct {
 
 void ResizeSXCat(SXCAT_STRUCT& cat, long n);
 void ReadSXCat(ConfigFile& params, SXCAT_STRUCT& cat);
+
+
+// FindStars 
+typedef struct {
+  std::vector<long> id;
+  std::vector<double> sigma0;
+  std::vector<int> size_flags;
+  std::vector<int> star_flag;
+
+  // These not output/input, just for convenience
+  std::vector<double> local_sky;
+  std::vector<Position> pos;
+  std::vector<double> noise;
+} FINDSTARS_STRUCT;
+
+void ReadFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat);
+void WriteFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat);
+void ResizeFindStarsCat(FINDSTARS_STRUCT& cat, size_t n);
+
+
+//MeasurePSF
+
+typedef struct {
+
+  std::vector<long> id;
+  std::vector<int> psf_flags;
+  std::vector<double> nu;
+  std::vector<int> psf_order;
+  std::vector<double> sigma_p;
+  std::vector<BVec> psf;
+
+} PSF_STRUCT;
+
+void ResizePSFCat(PSF_STRUCT& cat, size_t n, int psf_order, double sigma=0.0);
+void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat);
+void ReadPSFCat(ConfigFile& params, PSF_STRUCT& cat);
+
+
+void WriteFittedPSF(ConfigFile& params, FittedPSF& fpsf);
 
 #endif
