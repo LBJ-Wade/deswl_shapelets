@@ -47,7 +47,7 @@ void ConfigFile::Load( std::string filename, std::string delimiter,
 }
 
 
-ConvertibleString& ConfigFile::get( const std::string& key )
+ConvertibleString& ConfigFile::getnocheck( const std::string& key )
 {
   std::string key2 = key;
   trim(key2);

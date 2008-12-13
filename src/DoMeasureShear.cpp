@@ -33,9 +33,18 @@ void TestReadShearCat(ConfigFile& params, SHEAR_STRUCT& shcat)
   SHEAR_STRUCT shcat_test;
   ReadShearCat(params, shcat_test);
 
+  int gal_order = shcat.gal_order[0];
+  int ncoeff = (gal_order+1)*(gal_order+2)/2;
   for (size_t i=0; i<shcat.id.size(); i++) {
     std::cout<<i<<"diffs:"
       <<"\tid: "<<shcat.id[i]-shcat_test.id[i]
+
+#ifdef SHEXTRA_PARS
+      <<"\tsize_flags: "<<shcat.size_flags[i]-shcat_test.size_flags[i]
+      <<"\tstar_flag: "<<shcat.star_flag[i]-shcat_test.star_flag[i]
+      <<"\tsigma0: "<<shcat.sigma0[i]-shcat_test.sigma0[i]
+#endif
+
       <<"\tflags: "<<shcat.shear_flags[i]-shcat_test.shear_flags[i]
       <<"\tshear1: "<<shcat.shear1[i]-shcat_test.shear1[i]
       <<"\tshear2: "<<shcat.shear2[i]-shcat_test.shear2[i]
@@ -43,6 +52,16 @@ void TestReadShearCat(ConfigFile& params, SHEAR_STRUCT& shcat)
       <<"\tcov00: "<<shcat.shear_cov00[i]-shcat_test.shear_cov00[i]
       <<"\tcov01: "<<shcat.shear_cov01[i]-shcat_test.shear_cov01[i]
       <<"\tcov11: "<<shcat.shear_cov11[i]-shcat_test.shear_cov11[i]
+
+      <<"\torder: "<<shcat.gal_order[i]-shcat_test.gal_order[i]
+
+      <<"\tshapelet[0]: "
+      <<shcat.shapelets_prepsf[i][0]-shcat_test.shapelets_prepsf[i][0]
+
+      <<"\tshapelet["<<ncoeff-1<<"]: "
+      <<shcat.shapelets_prepsf[i][ncoeff-1]-
+         shcat_test.shapelets_prepsf[i][ncoeff-1]
+
       <<std::endl;
   }
 }
@@ -78,6 +97,7 @@ int DoMeasureShear_DES(ConfigFile& params, ShearLog& log)
   // Read the fitted psf file
   FittedPSF fittedpsf;
   ReadFittedPSF(params, fittedpsf);
+
 
 
   // Read some needed parameters
@@ -260,8 +280,16 @@ int DoMeasureShear_DES(ConfigFile& params, ShearLog& log)
   std::string shearfile = Name(params,"shear");
 
 
+
+
+
+  // Get some info from the findstars run to make up for Joe's stupidity
+  FINDSTARS_STRUCT fscat;
+  ReadFindStarsCat(params, fscat);
+
   SHEAR_STRUCT shcat;
-  ResizeShearCat(shcat, ngals);
+  ResizeShearCat(shcat, ngals, gal_order);
+
   for (int i=0; i<ngals; i++) {
     shcat.id[i] = sxcat.id[i];
     shcat.shear_flags[i] = flagvec[i];
@@ -272,6 +300,16 @@ int DoMeasureShear_DES(ConfigFile& params, ShearLog& log)
     shcat.shear_cov00[i] = shearcov[i](0,0);
     shcat.shear_cov01[i] = shearcov[i](0,1);
     shcat.shear_cov11[i] = shearcov[i](1,1);
+
+    shcat.shapelets_prepsf[i] = shapelet[i];
+
+    // copy in
+#ifdef SHEXTRA_PARS
+    shcat.sigma0[i] = fscat.sigma0[i];
+    shcat.size_flags[i] = fscat.size_flags[i];
+    shcat.star_flag[i] = fscat.star_flag[i];
+#endif
+
 
   }
 

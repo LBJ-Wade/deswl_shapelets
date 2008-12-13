@@ -96,9 +96,19 @@ typedef struct {
   std::vector<double> shear_cov01;
   std::vector<double> shear_cov11;
 
+  std::vector<int> gal_order;
+  std::vector<BVec> shapelets_prepsf;
+
+  // These are extra in order to get around Joe's stupidity
+#ifdef SHEXTRA_PARS
+  std::vector<double> sigma0;
+  std::vector<int> size_flags;
+  std::vector<int> star_flag;
+#endif
 } SHEAR_STRUCT;
 
-void ResizeShearCat(SHEAR_STRUCT& cat, size_t n);
+void ResizeShearCat(SHEAR_STRUCT& cat, size_t n, int psf_order, 
+    double sigma=0.0);
 void WriteShearCat(ConfigFile& params, SHEAR_STRUCT& cat);
 void ReadShearCat(ConfigFile& params, SHEAR_STRUCT& cat);
 

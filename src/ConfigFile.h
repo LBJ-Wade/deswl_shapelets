@@ -258,10 +258,12 @@ class ConfigFile
 	std::string sentry = "" );
 
     // Search for key and read value or optional default value
-    ConvertibleString& get( const std::string& key );
+    ConvertibleString& getnocheck( const std::string& key );
     ConvertibleString get( const std::string& key ) const;
+
+
     inline ConvertibleString& operator[]( const std::string& key )
-    { return get(key); }
+    { return getnocheck(key); }
     inline ConvertibleString operator[]( const std::string& key ) const
     { return get(key); }
 

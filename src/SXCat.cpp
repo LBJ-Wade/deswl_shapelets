@@ -58,13 +58,14 @@ void ReadSXCat(ConfigFile& params, SXCAT_STRUCT& cat)
   // Allocate memory for the columns we will read
   ResizeSXCat(cat, nrows);
 
-  std::string id_name=params["sx_id_name"];
-  std::string x_name=params["sx_x_name"];
-  std::string y_name=params["sx_y_name"];
-  std::string local_sky_name=params["sx_local_sky_name"];
-  std::string mag_name=params["sx_mag_name"];
-  std::string mag_err_name=params["sx_mag_err_name"];
-  std::string flags_name=params["sx_flags_name"];
+  // use get() since it checks for existence
+  std::string id_name=params.get("sx_id_name");
+  std::string x_name=params.get("sx_x_name");
+  std::string y_name=params.get("sx_y_name");
+  std::string local_sky_name=params.get("sx_local_sky_name");
+  std::string mag_name=params.get("sx_mag_name");
+  std::string mag_err_name=params.get("sx_mag_err_name");
+  std::string flags_name=params.get("sx_flags_name");
 
   std::cout<<"Reading columns"<<std::endl;
   std::cout<<"  "<<id_name<<std::endl;
@@ -103,10 +104,10 @@ void WriteFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat)
   FitsFile fits(file.c_str(), READWRITE, true);
   fitsfile* fptr = fits.get_fptr();
 
-  std::string id_name=params["fs_id_name"];
-  std::string sigma0_name=params["fs_sigma0_name"];
-  std::string size_flags_name=params["fs_size_flags_name"];
-  std::string star_flag_name=params["fs_star_flag_name"];
+  std::string id_name=params.get("fs_id_name");
+  std::string sigma0_name=params.get("fs_sigma0_name");
+  std::string size_flags_name=params.get("fs_size_flags_name");
+  std::string star_flag_name=params.get("fs_star_flag_name");
 
   int nfields=4;
   char *table_names[] =  
@@ -216,10 +217,10 @@ void ReadFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat)
   // Allocate memory for the columns we will read
   ResizeFindStarsCat(cat, nrows);
 
-  std::string id_name=params["fs_id_name"];
-  std::string sigma0_name=params["fs_sigma0_name"];
-  std::string size_flags_name=params["fs_size_flags_name"];
-  std::string star_flag_name=params["fs_star_flag_name"];
+  std::string id_name=params.get("fs_id_name");
+  std::string sigma0_name=params.get("fs_sigma0_name");
+  std::string size_flags_name=params.get("fs_size_flags_name");
+  std::string star_flag_name=params.get("fs_star_flag_name");
 
   std::cout<<"Reading columns"<<std::endl;
   std::cout<<"  "<<id_name<<std::endl;
@@ -254,7 +255,10 @@ void ResizePSFCat(PSF_STRUCT& cat, size_t n, int psf_order, double sigma)
   cat.id.resize(n,0);
   cat.psf_flags.resize(n,0);
   cat.nu.resize(n,0);
+
+  cat.psf_order.clear();
   cat.psf_order.resize(n,psf_order);
+
   cat.sigma_p.resize(n,sigma);
   cat.psf.resize(n, BVec(psf_order,sigma));
 }
@@ -280,12 +284,12 @@ void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat)
   std::stringstream coeff_form;
   coeff_form << ncoeff << "d";
 
-  std::string id_name=params["psf_id_name"];
-  std::string psf_flags_name=params["psf_flags_name"];
-  std::string nu_name=params["psf_nu_name"];
-  std::string psf_order_name=params["psf_order_name"];
-  std::string sigma_p_name=params["psf_sigma_p_name"];
-  std::string coeffs_name=params["psf_coeffs_name"];
+  std::string id_name=params.get("psf_id_name");
+  std::string psf_flags_name=params.get("psf_flags_name");
+  std::string nu_name=params.get("psf_nu_name");
+  std::string psf_order_name=params.get("psf_order_name");
+  std::string sigma_p_name=params.get("psf_sigma_p_name");
+  std::string coeffs_name=params.get("psf_coeffs_name");
 
 
 
@@ -334,15 +338,15 @@ void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat)
   fits_write_key(fptr, TINT, "PSFORDER", &cat.psf_order[0], "Order of shapelets expansion for PSF stars", &fits_status);
   if (!fits_status==0) {
     fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing keyword PSF_ORDER";
+    std::string serr="Error writing keyword PSFORDER";
     throw FitsException(serr);
   }
 
   fits_status=0;
-  fits_write_key(fptr, TINT, "NCOEFF", &ncoeff, "Number of coeffs (psforder+1)*(psforder+2)/2", &fits_status);
+  fits_write_key(fptr, TINT, "NCOEFFP", &ncoeff, "Number of coeffs (psforder+1)*(psforder+2)/2", &fits_status);
   if (!fits_status==0) {
     fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing keyword NCOEFF";
+    std::string serr="Error writing keyword NCOEFFP";
     throw FitsException(serr);
   }
 
@@ -512,12 +516,12 @@ void ReadPSFCat(ConfigFile& params, PSF_STRUCT& cat)
   // Allocate memory for the columns we will read
   ResizePSFCat(cat, nrows, psforder);
 
-  std::string id_name=params["psf_id_name"];
-  std::string psf_flags_name=params["psf_flags_name"];
-  std::string nu_name=params["psf_nu_name"];
-  std::string psf_order_name=params["psf_order_name"];
-  std::string sigma_p_name=params["psf_sigma_p_name"];
-  std::string coeffs_name=params["psf_coeffs_name"];
+  std::string id_name=params.get("psf_id_name");
+  std::string psf_flags_name=params.get("psf_flags_name");
+  std::string nu_name=params.get("psf_nu_name");
+  std::string psf_order_name=params.get("psf_order_name");
+  std::string sigma_p_name=params.get("psf_sigma_p_name");
+  std::string coeffs_name=params.get("psf_coeffs_name");
 
   std::cout<<"Reading columns"<<std::endl;
   std::cout<<"  "<<id_name<<std::endl;
@@ -591,19 +595,19 @@ void WriteFittedPSF(ConfigFile& params, FittedPSF& fpsf)
   std::stringstream interp_matrix_form;
   interp_matrix_form << n_interp_matrix_max << "d";
 
-  std::string psf_order_name=params["fitpsf_psf_order_name"];
-  std::string sigma_name=params["fitpsf_sigma_name"];
-  std::string fit_order_name=params["fitpsf_fit_order_name"];
-  std::string npca_name=params["fitpsf_npca_name"];
+  std::string psf_order_name=params.get("fitpsf_psf_order_name");
+  std::string sigma_name=params.get("fitpsf_sigma_name");
+  std::string fit_order_name=params.get("fitpsf_fit_order_name");
+  std::string npca_name=params.get("fitpsf_npca_name");
 
-  std::string xmin_name=params["fitpsf_xmin_name"];
-  std::string xmax_name=params["fitpsf_xmax_name"];
-  std::string ymin_name=params["fitpsf_ymin_name"];
-  std::string ymax_name=params["fitpsf_ymax_name"];
+  std::string xmin_name=params.get("fitpsf_xmin_name");
+  std::string xmax_name=params.get("fitpsf_xmax_name");
+  std::string ymin_name=params.get("fitpsf_ymin_name");
+  std::string ymax_name=params.get("fitpsf_ymax_name");
 
-  std::string ave_psf_name=params["fitpsf_ave_psf_name"];
-  std::string rot_matrix_name=params["fitpsf_rot_matrix_name"];
-  std::string interp_matrix_name=params["fitpsf_interp_matrix_name"];
+  std::string ave_psf_name=params.get("fitpsf_ave_psf_name");
+  std::string rot_matrix_name=params.get("fitpsf_rot_matrix_name");
+  std::string interp_matrix_name=params.get("fitpsf_interp_matrix_name");
 
   int nfields=11;
   char *table_names[] =  
@@ -801,19 +805,19 @@ void ReadFittedPSF(ConfigFile& params, FittedPSF& fpsf)
   // Allocate memory for the columns we will read
   //ResizePSFCat(cat, nrows, psforder);
 
-  std::string psf_order_name=params["fitpsf_psf_order_name"];
-  std::string sigma_name=params["fitpsf_sigma_name"];
-  std::string fit_order_name=params["fitpsf_fit_order_name"];
-  std::string npca_name=params["fitpsf_npca_name"];
+  std::string psf_order_name=params.get("fitpsf_psf_order_name");
+  std::string sigma_name=params.get("fitpsf_sigma_name");
+  std::string fit_order_name=params.get("fitpsf_fit_order_name");
+  std::string npca_name=params.get("fitpsf_npca_name");
 
-  std::string xmin_name=params["fitpsf_xmin_name"];
-  std::string xmax_name=params["fitpsf_xmax_name"];
-  std::string ymin_name=params["fitpsf_ymin_name"];
-  std::string ymax_name=params["fitpsf_ymax_name"];
+  std::string xmin_name=params.get("fitpsf_xmin_name");
+  std::string xmax_name=params.get("fitpsf_xmax_name");
+  std::string ymin_name=params.get("fitpsf_ymin_name");
+  std::string ymax_name=params.get("fitpsf_ymax_name");
 
-  std::string ave_psf_name=params["fitpsf_ave_psf_name"];
-  std::string rot_matrix_name=params["fitpsf_rot_matrix_name"];
-  std::string interp_matrix_name=params["fitpsf_interp_matrix_name"];
+  std::string ave_psf_name=params.get("fitpsf_ave_psf_name");
+  std::string rot_matrix_name=params.get("fitpsf_rot_matrix_name");
+  std::string interp_matrix_name=params.get("fitpsf_interp_matrix_name");
 
   int nrows=1;
 
@@ -888,7 +892,7 @@ void ReadFittedPSF(ConfigFile& params, FittedPSF& fpsf)
 
 
 
-void ResizeShearCat(SHEAR_STRUCT& cat, size_t n)
+void ResizeShearCat(SHEAR_STRUCT& cat, size_t n, int gal_order, double sigma)
 {
 
   cat.id.resize(n,0);
@@ -901,6 +905,19 @@ void ResizeShearCat(SHEAR_STRUCT& cat, size_t n)
   cat.shear_cov00.resize(n,0);
   cat.shear_cov01.resize(n,0);
   cat.shear_cov11.resize(n,0);
+
+  cat.gal_order.clear();
+  cat.gal_order.resize(n,gal_order);
+
+  cat.shapelets_prepsf.resize(n, BVec(gal_order,sigma));
+
+  // These are extra in order to get around Joe's stupidity
+#ifdef SHEXTRA_PARS
+  cat.sigma0.resize(n,0);
+  cat.size_flags.resize(n,0);
+  cat.star_flag.resize(n,0);
+#endif
+
 }
 
 
@@ -919,32 +936,86 @@ void WriteShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
   FitsFile fits(file.c_str(), READWRITE, true);
   fitsfile* fptr = fits.get_fptr();
 
-  int nfields=7;
+
+  std::string id_name=params.get("shear_id_name");
+
+  std::string size_flags_name=params.get("shear_size_flags_name");
+  std::string star_flag_name=params.get("shear_star_flag_name");
+  std::string sigma0_name=params.get("shear_sigma0_name");
+
+  std::string shear_flags_name=params.get("shear_flags_name");
+
+  std::string shear1_name=params.get("shear_shear1_name");
+  std::string shear2_name=params.get("shear_shear2_name");
+
+  std::string cov00_name=params.get("shear_cov00_name");
+  std::string cov01_name=params.get("shear_cov01_name");
+  std::string cov11_name=params.get("shear_cov11_name");
+
+  std::string gal_order_name=params.get("shear_gal_order_name");
+  std::string coeffs_name=params.get("shear_coeffs_name");
+
+  int ncoeff = cat.shapelets_prepsf[0].size();
+  std::stringstream coeff_form;
+  coeff_form << ncoeff << "d";
+
+
+#ifdef SHEXTRA_PARS
+  int nfields=12;
+#else
+  int nfields=9;
+#endif
   char *table_names[] =  
-      {(char*)"id",
-	(char*)"shear_flags",
-	(char*)"shear1",
-	(char*)"shear2",
-	(char*)"shear_cov00",
-	(char*)"shear_cov01",
-	(char*)"shear_cov11" };
+      {(char*)id_name.c_str(),
+
+#ifdef SHEXTRA_PARS
+	(char*)size_flags_name.c_str(),
+	(char*)star_flag_name.c_str(),
+	(char*)sigma0_name.c_str(),
+#endif
+	(char*)shear_flags_name.c_str(),
+	(char*)shear1_name.c_str(),
+	(char*)shear2_name.c_str(),
+	(char*)cov00_name.c_str(),
+	(char*)cov01_name.c_str(),
+	(char*)cov11_name.c_str(),
+	(char*)gal_order_name.c_str(),
+	(char*)coeffs_name.c_str()};
   char *table_types[] =  
       {(char*)"1j",        // id
+
+#ifdef SHEXTRA_PARS
+	(char*)"1j",        // size_flags
+	(char*)"1j",        // star_flag
+	(char*)"1d",        // sigma0
+#endif
+
 	(char*)"1j",        // shear_flags
 	(char*)"1d",        // shear1
 	(char*)"1d",        // shear1
 	(char*)"1d",        // shear_cov00
 	(char*)"1d",        // shear_cov01
-	(char*)"1d"};        // shear_cov11
+	(char*)"1d",        // shear_cov11
+	(char*)"1i",        // gal_order
+	(char*)coeff_form.str().c_str()};
 
   char *table_units[] =  
       {(char*)"None",        // id
+
+#ifdef SHEXTRA_PARS
+	(char*)"None",        // size_flags
+	(char*)"None",        // star_flag
+	(char*)"pixels",        // sigma0
+#endif
+
 	(char*)"None",        // shear_flags
 	(char*)"None",        // shear1
 	(char*)"None",        // shear1
 	(char*)"None",        // shear_cov00
 	(char*)"None",        // shear_cov01
-	(char*)"None"};        // shear_cov11
+	(char*)"None",        // shear_cov11
+	(char*)"None",        // gal_order
+	(char*)"None"};       // coeffs
 
 
   // Create a binary table
@@ -958,6 +1029,23 @@ void WriteShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
     throw FitsException(serr);
   }
 
+  fits_status=0;
+  fits_write_key(fptr, TINT, "GALORDER", &cat.gal_order[0], "Order of pre-psf shapelets expansion", &fits_status);
+  if (!fits_status==0) {
+    fits_report_error(stderr, fits_status); 
+    std::string serr="Error writing keyword GALORDER";
+    throw FitsException(serr);
+  }
+
+  fits_status=0;
+  fits_write_key(fptr, TINT, "NCOEFFG", &ncoeff, "Number of coeffs (galorder+1)*(galorder+2)/2", &fits_status);
+  if (!fits_status==0) {
+    fits_report_error(stderr, fits_status); 
+    std::string serr="Error writing keyword NCOEFFP";
+    throw FitsException(serr);
+  }
+
+
 
   colnum = 1;  
   firstrow = 1;
@@ -965,45 +1053,94 @@ void WriteShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
   nel = cat.id.size();
   fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.id[0]);
 
-  colnum = 2;  
+#ifdef SHEXTRA_PARS
+  colnum++;  
+  firstrow = 1;
+  firstel = 1;
+  nel = cat.size_flags.size();
+  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.size_flags[0]);
+
+  colnum++;  
+  firstrow = 1;
+  firstel = 1;
+  nel = cat.star_flag.size();
+  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.star_flag[0]);
+
+  colnum++;  
+  firstrow = 1;
+  firstel = 1;
+  nel = cat.sigma0.size();
+  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &cat.sigma0[0]);
+#endif
+
+  colnum++;  
   firstrow = 1;
   firstel = 1;
   nel = cat.shear_flags.size();
   fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.shear_flags[0]);
 
 
-  colnum = 3;  
+  colnum++;  
   firstrow = 1;
   firstel = 1;
   nel = cat.shear1.size();
   fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &cat.shear1[0]);
 
-  colnum = 4;  
+  colnum++;  
   firstrow = 1;
   firstel = 1;
   nel = cat.shear2.size();
   fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &cat.shear2[0]);
 
 
-  colnum = 5;  
+  colnum++;  
   firstrow = 1;
   firstel = 1;
   nel = cat.shear_cov00.size();
   fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &cat.shear_cov00[0]);
 
-  colnum = 6;  
+  colnum++;  
   firstrow = 1;
   firstel = 1;
   nel = cat.shear_cov01.size();
   fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &cat.shear_cov01[0]);
 
-  colnum = 7;  
+  colnum++;  
   firstrow = 1;
   firstel = 1;
   nel = cat.shear_cov11.size();
   fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &cat.shear_cov11[0]);
 
+  colnum++;  
+  firstrow = 1;
+  firstel = 1;
+  nel = cat.gal_order.size();
+  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.gal_order[0]);
 
+
+
+  // Now we have to loop through each decomposition and write
+  // separately.  This is pretty dumb.
+  colnum++;  
+
+  for (size_t i=0; i<cat.id.size(); i++) {
+    fits_status=0;
+    LONGLONG row = i+1;
+    firstel = 1;
+    //nel=1;
+    nel=cat.shapelets_prepsf[0].size();
+    fits_write_col(
+	fptr, TDOUBLE, 
+	colnum, row, firstel, nel, 
+	&cat.shapelets_prepsf[i][0], 
+	&fits_status);
+    if (!fits_status==0) {
+      fits_report_error(stderr, fits_status); 
+      std::stringstream serr;
+      serr<<"Error writing row "<<row<<" for column 'shapelets_prepsf'";
+      throw FitsException(serr.str());
+    }
+  }
 
 
 
@@ -1042,18 +1179,31 @@ void ReadShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
     throw FAILURE_FORMAT_ERROR;
   }
 
+  int gal_order=0;
+  fits.ReadKey("GALORDER", TINT, (char*)&gal_order);
+
   // Allocate memory for the columns we will read
-  ResizeShearCat(cat, nrows);
+  ResizeShearCat(cat, nrows, gal_order);
 
-  std::string id_name=params["shear_id_name"];
-  std::string shear_flags_name=params["shear_flags_name"];
+  std::string id_name=params.get("shear_id_name");
 
-  std::string shear1_name=params["shear_shear1_name"];
-  std::string shear2_name=params["shear_shear2_name"];
+#ifdef SHEXTRA_PARS
+  std::string size_flags_name=params.get("shear_size_flags_name");
+  std::string star_flag_name=params.get("shear_star_flag_name");
+  std::string sigma0_name=params.get("shear_sigma0_name");
+#endif
 
-  std::string cov00_name=params["shear_cov00_name"];
-  std::string cov01_name=params["shear_cov01_name"];
-  std::string cov11_name=params["shear_cov11_name"];
+  std::string shear_flags_name=params.get("shear_flags_name");
+
+  std::string shear1_name=params.get("shear_shear1_name");
+  std::string shear2_name=params.get("shear_shear2_name");
+
+  std::string cov00_name=params.get("shear_cov00_name");
+  std::string cov01_name=params.get("shear_cov01_name");
+  std::string cov11_name=params.get("shear_cov11_name");
+
+  std::string gal_order_name=params.get("shear_gal_order_name");
+  std::string coeffs_name=params.get("shear_coeffs_name");
 
   /*
   std::cerr<<
@@ -1068,6 +1218,14 @@ void ReadShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
 
   std::cout<<"Reading columns"<<std::endl;
   fits.ReadScalarCol((char *)id_name.c_str(),TLONG,(char *)&cat.id[0], nrows);
+
+
+#ifdef SHEXTRA_PARS
+  fits.ReadScalarCol((char *)size_flags_name.c_str(),TINT,(char *)&cat.size_flags[0], nrows);
+  fits.ReadScalarCol((char *)star_flag_name.c_str(),TINT,(char *)&cat.star_flag[0], nrows);
+  fits.ReadScalarCol((char *)sigma0_name.c_str(),TDOUBLE,(char *)&cat.sigma0[0], nrows);
+#endif
+
   fits.ReadScalarCol((char *)shear_flags_name.c_str(),TINT,(char *)&cat.shear_flags[0], nrows);
 
   fits.ReadScalarCol((char *)shear1_name.c_str(),TDOUBLE,(char *)&cat.shear1[0], nrows);
@@ -1076,6 +1234,22 @@ void ReadShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
   fits.ReadScalarCol((char *)cov00_name.c_str(),TDOUBLE,(char *)&cat.shear_cov00[0], nrows);
   fits.ReadScalarCol((char *)cov01_name.c_str(),TDOUBLE,(char *)&cat.shear_cov01[0], nrows);
   fits.ReadScalarCol((char *)cov11_name.c_str(),TDOUBLE,(char *)&cat.shear_cov11[0], nrows);
+
+  fits.ReadScalarCol((char *)gal_order_name.c_str(),TINT,(char *)&cat.gal_order[0], nrows);
+
+  // gotta loop for this one
+  int ncoeff=(gal_order+1)*(gal_order+2)/2;
+  for (size_t i=0; i<cat.id.size(); i++) { 
+
+    size_t row=i+1;
+    fits.ReadCell(
+	(char*)coeffs_name.c_str(),
+	TDOUBLE,
+	(char*)&cat.shapelets_prepsf[i][0],
+	row,
+	ncoeff);
+  }
+
 
 
   fits.Close();
