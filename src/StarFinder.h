@@ -49,13 +49,13 @@ class StarFinder
     void CopyConfig(ConfigFile& configfile);
 
     void RunFindStars(
-	std::vector<int>& flags,
-	std::vector<int>& size_flags,
+	std::vector<long>& flags,
+	std::vector<long>& size_flags,
 	std::vector<float>& x,
 	std::vector<float>& y,
 	std::vector<double>& sigma,
 	std::vector<float>& mag,
-	std::vector<int>& starflags);
+	std::vector<long>& starflags);
 
 
     void TestConfig();

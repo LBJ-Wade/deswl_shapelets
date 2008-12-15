@@ -53,6 +53,24 @@
 #include <algorithm>
 #include <stdexcept>
 
+#ifdef __ICC
+#pragma warning (disable : 444)
+// Disable "destructor for base class ... is not virtual"
+// Technically, it is bad form to inherit from a class that doesn't have
+// a virtual destructor.  The reason is that an object that is only
+// known as a reference or pointer to the base class won't call the 
+// derived class's destructor when it is deleted.
+// A) This isn't a problem here, since ConvertibleString has no
+//    data elements that need to be cleaned up by a destructor.
+// B) I can't find a way to avoid inheriting from std::string.  When I
+//    instead keep a string variable, then I can't find a way to 
+//    make string = ConvertibleString work correctly.
+//    The operator T() technique that we use for all other types
+//    fails, since the compiler can't disambiguate which string
+//    assignment operator to use this with.
+//    Specializing an operator string() case doesn't help.
+// So the easiest solution is to leave this as is and just disable the warning.
+#endif
 class ConvertibleString : public std::string
 {
 
@@ -201,6 +219,9 @@ class ConvertibleString : public std::string
     }
 
 };
+#ifdef __ICC
+#pragma warning (default : 444)
+#endif
 
 template <> inline ConvertibleString::operator bool() const
 {

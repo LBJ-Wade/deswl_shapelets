@@ -1,4 +1,3 @@
-#include "types.h"
 #include "Params.h"
 
 #include "BVec.h"
@@ -26,7 +25,7 @@ void MeasureSingleShear(
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     tmv::Matrix<double>& shearcov, BVec& shapelet,
-    int32& flags)
+    long& flags)
 {
   // Find harmonic mean of psf sizes:
   // MJ: Is it correct to use the harmonic mean of sigma^2?
@@ -46,7 +45,7 @@ void MeasureSingleShear(
   xdbg<<"sigma_obs = "<<sigma_obs<<", sigma_p = "<<sigma_p<<std::endl;
 
   std::vector<std::vector<Pixel> > pix(1);
-  int getpix_flag = 0;
+  long getpix_flag = 0;
   GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,galap,getpix_flag);
   if (getpix_flag) {
     dbg<<"skip: flag == "<<getpix_flag<<std::endl;
@@ -276,13 +275,15 @@ void MeasureSingleShear1(
     int gal_order, int gal_order2,
     double f_psf, double min_gal_size,
     OverallFitTimes* times, ShearLog& log,
-    Position& skypos,
     std::complex<double>& shear, 
     tmv::Matrix<double>& shearcov, BVec& shapelet,
-    int32& flags)
+    long& flags)
 {
   // Get coordinates of the galaxy, and convert to sky coordinates
   try {
+    // We don't need to save skypos.  We just want to catch the range
+    // error here, so we don't need to worry about it for dudx, etc.
+    Position skypos;
     trans.Transform(cen,skypos);
     dbg<<"skypos = "<<skypos<<std::endl;
   } catch (Range_error& e) {

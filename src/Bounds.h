@@ -25,6 +25,10 @@ class Position
     operator std::complex<double>() { return z; }
     std::complex<double> operator-(const Position& p2) const 
     { return z - p2.z; }
+    Position& operator*=(double x) 
+    { z *= x; return *this; }
+    Position& operator/=(double x) 
+    { z /= x; return *this; }
 
     double GetX() const {return(z.real());}
     double GetY() const {return(z.imag());}

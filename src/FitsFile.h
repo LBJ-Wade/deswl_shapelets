@@ -63,13 +63,13 @@ class FitsFile
 	  LONGLONG firstrow, 
 	  LONGLONG firstel,
 	  LONGLONG nel,
-	  T* data)
+	  const T* data)
       {
 	int fits_status=0;
 	fits_write_col(
 	    mFptr, datatype, 
 	    colnum, firstrow, firstel, nel, 
-	    data, 
+	    (void*)data, 
 	    &fits_status);
 	if (!fits_status==0) {
 	  fits_report_error(stderr, fits_status); 

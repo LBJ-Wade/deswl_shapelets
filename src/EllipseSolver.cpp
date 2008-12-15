@@ -168,7 +168,7 @@ ESImpl::ESImpl(const std::vector<std::vector<Pixel> >& _pix,
   SetupGmu(_Gmu,_order+2,_order);
 }
 
-int CalcMaxPSFOrder(const std::vector<BVec>& psf)
+static int CalcMaxPSFOrder(const std::vector<BVec>& psf)
 {
   int maxpsforder = 0;
   for(size_t k=0;k<psf.size();k++) 
@@ -282,6 +282,10 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
   xxdbg<<"x = "<<x<<std::endl;
   if (NormInf(x-xinit) > 4.) 
   {
+    xdbg<<"ES::F large diversion:\n";
+    xdbg<<"xinit = "<<xinit<<std::endl;
+    xdbg<<"x = "<<x<<std::endl;
+    xdbg<<"Norm(x-xinit) = "<<Norm(x-xinit)<<std::endl;
     f = b.SubVector(0,6);
     if (flux == 0.) flux = b(0);;
     f /= flux;
@@ -296,8 +300,13 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
   double mu = x[4];
   // Also guard against gsq > 1, since it leads to nan's with the sqrt(1-gsq)
   // factor below.
-  if (gsq > 0.99 || mu < -2.) 
+  if (gsq > 0.99 || (mu < -2. && Norm(x-xinit) > 0.3))
   {
+    xdbg<<"ES::F bad gsq or mu value:\n";
+    xdbg<<"gsq = "<<gsq<<std::endl;
+    xdbg<<"mu = "<<mu<<std::endl;
+    xdbg<<"xinit = "<<xinit<<std::endl;
+    xdbg<<"x = "<<x<<std::endl;
     f = b.SubVector(0,6);
     if (flux == 0.) flux = b(0);;
     f /= flux;
@@ -335,17 +344,17 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
     xxdbg<<"after psf correction"<<std::endl;
     AC.ReSetDiv();
     if (AC.Singular()) {
-      dbg<<"Singular AC:\n";
-      dbg<<"AC = "<<AC<<std::endl;
-      dbg<<"AC.R = "<<AC.QRD().GetR()<<std::endl;
+      xdbg<<"Warning -- Singular AC:\n";
+      xxdbg<<"AC = "<<AC<<std::endl;
+      xxdbg<<"AC.R = "<<AC.QRD().GetR()<<std::endl;
     }
     b = I/AC;
   } else {
     A.ReSetDiv();
     if (A.Singular()) {
-      dbg<<"Singular A:\n";
-      dbg<<"A = "<<A<<std::endl;
-      dbg<<"A.R = "<<A.QRD().GetR()<<std::endl;
+      xdbg<<"Warning -- Singular A:\n";
+      xxdbg<<"A = "<<A<<std::endl;
+      xxdbg<<"A.R = "<<A.QRD().GetR()<<std::endl;
     }
     b = I/A;
   }
@@ -1306,6 +1315,10 @@ void ESImpl2::F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
 
   if (NormInf(xx-xinit) > 4.) 
   {
+    xdbg<<"ES2::F large diversion:\n";
+    xdbg<<"xinit = "<<xinit<<std::endl;
+    xdbg<<"xx = "<<xx<<std::endl;
+    xdbg<<"Norm(xx-xinit) = "<<Norm(xx-xinit)<<std::endl;
     if (flux == 0.) flux = b(0);
     if (useflux) {
       f(0) = 2.*(b(0)/flux-1.);
@@ -1320,9 +1333,15 @@ void ESImpl2::F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
   double mu = xx[4];
   double gsq = std::norm(g);
 
-  if (gsq > 0.99 || mu < -2.) 
+  if (gsq > 0.99 || (mu < -2. && Norm(xx-xinit) > 0.3))
   {
-    if (flux == 0.) flux = b(0);;
+    xdbg<<"ES2::F bad gsq or mu value:\n";
+    xdbg<<"gsq = "<<gsq<<std::endl;
+    xdbg<<"mu = "<<mu<<std::endl;
+    xdbg<<"xinit = "<<xinit<<std::endl;
+    xdbg<<"xx = "<<xx<<std::endl;
+    if (flux == 0.) flux = b(0);
+    if (flux == 0.) flux = 1.;
     if (useflux) {
       f(0) = 2.*(b(0)/flux-1.);
       f.SubVector(1,f.size()) = 2.*U*b.SubVector(1,6)/flux; 
@@ -1554,5 +1573,5 @@ void EllipseSolver2::UseNumericJ() { pimpl->numeric_j = true; }
 
 const BVec& EllipseSolver2::GetB() const { return pimpl->b; }
 
-void EllipseSolver2::GetBCov(tmv::Matrix<double>& bcov) const 
+void EllipseSolver2::GetBCov(tmv::Matrix<double>&) const 
 { Assert(false); }

@@ -61,12 +61,25 @@ opts.Add(BoolOption('WITH_BLAS',
 opts.Add(BoolOption('WITH_OPENMP',
                     'Look for openmp and use if found.',
                     True))
+opts.Add(BoolOption('STATIC',
+                    'Use static linkage',
+                    False))
 opts.Add(BoolOption('IMPORT_PATHS',
                     'Import PATH, C_INCLUDE_PATH and LIBRARY_PATH/LD_LIBRARY_PATH environment variables',
                     False))
 opts.Add(BoolOption('IMPORT_ENV',
                     'Import full environment from calling shell',
                     False))
+opts.Add(PathOption('EXTRA_PATH',
+                    'Extra paths for executables (separated by : if more than 1)',
+                    '',PathOption.PathAccept))
+opts.Add(PathOption('EXTRA_LIB_PATH',
+                    'Extra paths for linking (separated by : if more than 1)',
+                    '',PathOption.PathAccept))
+opts.Add(PathOption('EXTRA_INCLUDE_PATH',
+                    'Extra paths for header files (separated by : if more than 1)',
+                    '',PathOption.PathAccept))
+
 
 opts.Update(initial_env)
 opts.Save(config_file,initial_env)
@@ -227,11 +240,10 @@ def AddExtraPaths(env):
 
     Only paths that actually exists are kept.
     """
-    bin_paths = []
-    cpp_paths = []
-    lib_paths = []
+    bin_paths = env['EXTRA_PATH'].split(':')
+    lib_paths = env['EXTRA_LIB_PATH'].split(':')
+    cpp_paths = env['EXTRA_INCLUDE_PATH'].split(':')
 
-    # These come first
     if env['IMPORT_PATHS'] and os.environ.has_key('PATH'):
         paths=os.environ['PATH']
         paths=paths.split(os.pathsep)
@@ -252,6 +264,9 @@ def AddExtraPaths(env):
         paths=paths.split(os.pathsep)
         AddPath(lib_paths, paths)
 
+    AddPath(lib_paths, os.path.join(env['PREFIX'], 'lib'))
+    AddPath(cpp_paths, os.path.join(env['PREFIX'], 'include'))
+
     for p in extra_include_paths:
         AddPath(cpp_paths, p)
     for p in extra_library_paths:
@@ -270,6 +285,9 @@ def AddExtraPaths(env):
     env.PrependENVPath('PATH', bin_paths)
     env.Prepend(LIBPATH= lib_paths)
     env.Prepend(CPPPATH= cpp_paths)
+
+    #print 'LIBPATH = ',env['LIBPATH']
+    #print 'CPPPATH = ',env['CPPPATH']
 
 def ReadFileList(fname):
     """
@@ -313,13 +331,9 @@ def DoLibraryAndHeaderChecks(config):
     if config.env['WITH_BLAS']:
         # Look for ACML, MKL before more generic (and probably less
         # optimized) ATLAS library.
-        if (compiler[0] == 'i' and 
+        if (compiler[0] == 'i' and not config.env['STATIC'] and
                 (config.CheckLib('mkl',language='C++') or
-                 config.CheckLib('mkl_ia32',language='C++') or 
-                 config.CheckLib('mkl_intel_lp64',language='C++')  or
-                 config.CheckLib('mkl',language='C') or
-                 config.CheckLib('mkl_ia32',language='C') or 
-                 config.CheckLib('mkl_intel_lp64',language='C') ) ):
+                 config.CheckLib('mkl',language='C') )) :
             if config.env['WITH_LAPACK']:
                 print 'Using MKL LAPACK'
                 config.env['_extralibs'] += ['mkl_lapack']
@@ -329,6 +343,36 @@ def DoLibraryAndHeaderChecks(config):
             print 'Using MKL BLAS'
             #config.env.Append(CPPDEFINES=['MKL'])
             config.env['_extralibs'] += ['mkl']
+
+        elif (compiler[0] == 'i' and 
+                 (config.CheckLib('mkl_ia32',language='C++') or 
+                  config.CheckLib('mkl_ia32',language='C') )) :
+            if config.env['WITH_LAPACK']:
+                print 'Using MKL LAPACK'
+                config.env['_extralibs'] += ['mkl_lapack']
+            else:
+	        pass
+                #config.env.Append(CPPDEFINES=['NOLAP'])
+            print 'Using MKL BLAS'
+            #config.env.Append(CPPDEFINES=['MKL'])
+            config.env['_extralibs'] += ['mkl_ia32','mkl_sequential',
+	        'mkl_core','guide','pthread']
+
+        elif (compiler[0] == 'i' and 
+                 (config.CheckLib('mkl_intel_lp64',language='C++')  or
+                  config.CheckLib('mkl_intel_lp64',language='C') )):
+            if config.env['WITH_LAPACK']:
+                print 'Using MKL LAPACK'
+                config.env['_extralibs'] += ['mkl_lapack']
+            else:
+	        pass
+                #config.env.Append(CPPDEFINES=['NOLAP'])
+            print 'Using MKL BLAS'
+            #config.env.Append(CPPDEFINES=['MKL'])
+	    # MJ -- This is untested.  I don't have a 64 bit machine with
+	    #       icpc to test this on.
+            config.env['_extralibs'] += ['mkl_intel_lp64','mkl_sequential',
+	        'mkl_core','guide','pthread']
 
         elif (compiler[0] == 'p' and 
                 (config.CheckLibWithHeader('acml','acml.h',language='C++') or
@@ -359,6 +403,10 @@ def DoLibraryAndHeaderChecks(config):
     else:
 	pass
         #config.env.Append(CPPDEFINES=['NOBLAS'])
+
+    if config.env['STATIC']:
+        config.env.Append(LINKFLAGS=['-static'])
+
 
 
 def DoConfig(env):

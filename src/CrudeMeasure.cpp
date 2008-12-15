@@ -45,7 +45,7 @@ CrudeSolver::CrudeSolver(const std::vector<Pixel>& pix,
 void CrudeSolver::F(const tmv::Vector<double>& params,
     tmv::Vector<double>& f) const
 {
-  xxdbg<<"Start F\n";
+  xdbg<<"Start F\n";
   xxdbg<<"params = "<<params<<std::endl;
   xxdbg<<"sigma = "<<sigma<<std::endl;
   xxdbg<<"I1 = "<<I1<<std::endl;
@@ -69,30 +69,33 @@ void CrudeSolver::F(const tmv::Vector<double>& params,
   Z1 = m0*Z;
   Z1.AddToAll(-m0*zc);
 
-  xdbg<<"In CrudeMeasure::F\n";
-  xdbg<<"sigma = "<<sigma<<std::endl;
-  xdbg<<"mu = "<<mu<<std::endl;
+  xxdbg<<"In CrudeMeasure::F\n";
+  xxdbg<<"sigma = "<<sigma<<std::endl;
+  xxdbg<<"mu = "<<mu<<std::endl;
   xdbg<<"m0 = "<<m0<<std::endl;
   for(size_t i=0;i<Z.size();i++) {
     double rsq = std::norm(Z1[i]);
     Rsq[i] = rsq;
     E[i] = exp(-rsq/2.);
     if (rsq < 2.) {
-      xdbg<<Z[i]-zc<<"  "<<Z1[i]<<"  "<<I[i]<<"  "<<I0*E[i]<<std::endl;
+      xxdbg<<Z[i]-zc<<"  "<<Z1[i]<<"  "<<I[i]<<"  "<<I0*E[i]<<std::endl;
     }
   }
+  xdbg<<"After Set elements\n";
   f1 = I - I0*E;
+  xdbg<<"After f1 = I-I0*E\n";
   ElementProd(1.,W,f1.View());
+  xdbg<<"After ElementProd\n";
   f = f1;
 
-  xxdbg<<"Done F\n";
-  xxdbg<<"norm(f) = "<<Norm(f)<<std::endl;
+  xdbg<<"Done F\n";
+  xdbg<<"norm(f) = "<<Norm(f)<<std::endl;
 }
 
 void CrudeSolver::J(const tmv::Vector<double>& params, const tmv::Vector<double>& f,
     tmv::Matrix<double>& df) const
 {
-  xxdbg<<"Start J\n";
+  xdbg<<"Start J\n";
   xxdbg<<"params = "<<params<<std::endl;
   Assert(params.size() == 4);
   Assert(f.size() == Z.size());
@@ -122,7 +125,7 @@ void CrudeSolver::J(const tmv::Vector<double>& params, const tmv::Vector<double>
   df.col(3) = -I1 * E;
   df = DiagMatrixViewOf(W) * df;
 
-  xxdbg<<"Done J\n";
+  xdbg<<"Done J\n";
   xxdbg<<"J = "<<df<<std::endl;
 }
 
@@ -261,17 +264,16 @@ void Ellipse::CrudeMeasure(const std::vector<Pixel>& pix, double sigma)
 #endif
   if (XDEBUG) s.nlout = dbgout;
   //s.verbose = true;
-  xxdbg<<"Before CrudeSolver: x = "<<x<<std::endl;
+  xdbg<<"Before CrudeSolver: x = "<<x<<std::endl;
   //s.TestJ(x,f,dbgout);
   //if (!s.TestJ(x,f,dbgout,1.e-5)) exit(1);
-  xxdbg<<"Before Solve: x = "<<x<<std::endl;
   s.Solve(x,f);
   //s.TestJ(x,f,dbgout);
   //if (!s.TestJ(x,f,dbgout,1.e-5)) exit(1);
-  xxdbg<<"After CrudeSolver: x = "<<x<<std::endl;
+  xdbg<<"After CrudeSolver: x = "<<x<<std::endl;
   s.ftol = 1.e-4 * (1.e-4 + std::abs(x[3]));
   s.Solve(x,f);
-  xxdbg<<"After 2nd CrudeSolver: x = "<<x<<std::endl;
+  xdbg<<"After 2nd CrudeSolver: x = "<<x<<std::endl;
 
   if (!fixcen) cen = std::complex<double>(x[0],x[1]);
   if (!fixmu) mu = x[2];

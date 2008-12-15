@@ -1713,9 +1713,10 @@ int main(int argc, char **argv) try
 
 #ifdef TEST6
   ConfigFile params;
+  // MJ: This is now out of date.
   params["root"] = "N/fldn422_4.";
   params["image_ext"] = "fits";
-  params["starcat_ext"] = "starE";
+  params["cat_ext"] = "starE";
   params["dist_ext"] = "undfunc2";
   params["psf_ext"] = "psf";
   params["fitpsf_ext"] = "fitpsf";
@@ -1740,7 +1741,7 @@ int main(int argc, char **argv) try
   // The rest should all be measured successfully.
   Test(success1 >= 239,"DoMeasurePSF");
   std::cout<<"Passed DoMeasurePSF test\n";
-  params["allcat_ext"] = "pcatE";
+  params["cat_ext"] = "pcatE";
   params["shear_ext"] = "shear";
   params["f_psf"] = 1.0;
   params["gal_order"] = 6;

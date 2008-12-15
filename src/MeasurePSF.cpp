@@ -59,8 +59,8 @@ int main(int argc, char **argv) try
     }
 
 #ifdef _OPENMP
-    if (params.keyExists("num_threads")) {
-      int num_threads = params["num_threads"];
+    if (params.keyExists("omp_num_threads")) {
+      int num_threads = params["omp_num_threads"];
       omp_set_num_threads(num_threads);
     }
 #endif

@@ -3,7 +3,7 @@
 
 #include <vector>
 #include "BVec.h"
-#include "FittedPSF.h"
+//#include "FittedPSF.h"
 #include "FitsFile.h"
 
 #include "dbg.h"
@@ -31,12 +31,14 @@ typedef struct {
   std::vector<double> local_sky;
   std::vector<float> mag;
   std::vector<float> mag_err;
-  std::vector<int> flags;
+  std::vector<long> flags;
+  std::vector<float> ra;
+  std::vector<float> dec;
 
   // not read from file
   //std::vector<double> sigma;
-  //std::vector<int> size_flags;
-  //std::vector<int> star_flag;
+  //std::vector<long> size_flags;
+  //std::vector<long> star_flag;
 
   // These unused
   std::vector<double> noise;
@@ -50,8 +52,8 @@ void ReadSXCat(ConfigFile& params, SXCAT_STRUCT& cat);
 typedef struct {
   std::vector<long> id;
   std::vector<double> sigma0;
-  std::vector<int> size_flags;
-  std::vector<int> star_flag;
+  std::vector<long> size_flags;
+  std::vector<long> star_flag;
 
   // These not output/input, just for convenience
   std::vector<double> local_sky;
@@ -69,7 +71,7 @@ void ResizeFindStarsCat(FINDSTARS_STRUCT& cat, size_t n);
 typedef struct {
 
   std::vector<long> id;
-  std::vector<int> psf_flags;
+  std::vector<long> psf_flags;
   std::vector<double> nu;
   std::vector<int> psf_order;
   std::vector<double> sigma_p;
@@ -82,14 +84,16 @@ void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat);
 void ReadPSFCat(ConfigFile& params, PSF_STRUCT& cat);
 
 
+#if 0
 void WriteFittedPSF(ConfigFile& params, FittedPSF& fpsf);
 void ReadFittedPSF(ConfigFile& params, FittedPSF& fpsf);
+#endif
 
 
 typedef struct {
 
   std::vector<long> id;
-  std::vector<int> shear_flags;
+  std::vector<long> shear_flags;
   std::vector<double> shear1;
   std::vector<double> shear2;
   std::vector<double> shear_cov00;
@@ -102,7 +106,7 @@ typedef struct {
   // These are extra in order to get around Joe's stupidity
 #ifdef SHEXTRA_PARS
   std::vector<double> sigma0;
-  std::vector<int> size_flags;
+  std::vector<long> size_flags;
   std::vector<int> star_flag;
 #endif
 } SHEAR_STRUCT;

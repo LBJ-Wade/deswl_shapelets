@@ -435,6 +435,7 @@ void ApplyG(std::complex<double> g, BVec& b)
   }
 }
 
+#if 0
 void OldPSFConvolve(const BVec& bpsf, int order, double sigma,
     const tmv::MatrixView<double>& C)
 {
@@ -625,6 +626,7 @@ void OldPSFConvolve(const BVec& bpsf, int order, double sigma,
   Assert(pq == int(C.rowsize()));
   C *= twosqrtpi;
 }
+#endif
 
 void PSFConvolve(const BVec& bpsf, int order, double sigma,
     const tmv::MatrixView<double>& C)
@@ -739,7 +741,6 @@ void PSFConvolve(const BVec& bpsf, int order, double sigma,
 	      if (umv >= 0 && umv <= upv) {
 		// First do terms with p>=q, u>=v  (always keep s>=t)
 		// s-t = p-q + u-v
-		int umv = smt-pmq;
 		int u = (upv+umv)/2;
 		int v = (upv-umv)/2;
 		//std::cout<<"u,v = "<<u<<','<<v<<std::endl;

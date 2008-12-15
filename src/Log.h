@@ -30,6 +30,7 @@ struct ShearLog {
     return *this;
   }
 
+  void NoWriteLog(); // Don't write the log on deletion.
   void WriteLog() const;
   void Write(std::ostream& os) const;
 
@@ -77,6 +78,7 @@ struct PSFLog {
     return *this;
   }
 
+  void NoWriteLog(); // Don't write the log on deletion.
   void WriteLog() const;
   void Write(std::ostream& os) const;
 
@@ -103,6 +105,7 @@ struct FindStarsLog {
   FindStarsLog(std::string logfile="", std::string _delim="  ");
   ~FindStarsLog();
 
+  void NoWriteLog(); // Don't write the log on deletion.
   void WriteLog() const;
   void Write(std::ostream& os) const;
 

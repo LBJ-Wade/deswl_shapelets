@@ -1,6 +1,5 @@
 
 #include "Params.h"
-#include "types.h"
 
 #include "BVec.h"
 #include "Ellipse.h"
@@ -124,10 +123,11 @@ void WritePSFFits(
 
 */
 
-void ExtractStars(
+static void ExtractStars(
     SXCAT_STRUCT& sxcat, 
     FINDSTARS_STRUCT& fscat, 
-    FINDSTARS_STRUCT& starcat) {
+    FINDSTARS_STRUCT& starcat) 
+{
 
   ResizeFindStarsCat(starcat, 0);
 
@@ -145,63 +145,6 @@ void ExtractStars(
   }
 }
 
-void TestFITSOutput(ConfigFile& params, FittedPSF& fittedpsf) {
-  FittedPSF fittedpsf_test;
-  ReadFittedPSF(params, fittedpsf_test);
-
-  // Compare
-  std::cout<<"   orig psf_order: "<<fittedpsf.GetOrder()<<" new: "<<fittedpsf_test.GetOrder()<<std::endl;
-  std::cout<<"   orig fit_order: "<<fittedpsf.GetFitOrder()<<" new: "<<fittedpsf_test.GetFitOrder()<<std::endl;
-  std::cout<<"   orig npca: "<<fittedpsf.GetNpca()<<" new: "<<fittedpsf_test.GetNpca()<<std::endl;
-  std::cout<<"   orig sigma: "<<fittedpsf.GetSigma()<<" new: "<<fittedpsf_test.GetSigma()<<std::endl;
-
-  std::cout<<"   orig xmin: "<<fittedpsf.GetXMin()<<" new: "<<fittedpsf_test.GetXMin()<<std::endl;
-  std::cout<<"   orig xmax: "<<fittedpsf.GetXMax()<<" new: "<<fittedpsf_test.GetXMax()<<std::endl;
-  std::cout<<"   orig ymin: "<<fittedpsf.GetYMin()<<" new: "<<fittedpsf_test.GetYMin()<<std::endl;
-  std::cout<<"   orig ymax: "<<fittedpsf.GetYMax()<<" new: "<<fittedpsf_test.GetYMax()<<std::endl;
-
-  double* ave_psf_orig = fittedpsf.GetAvePSFPtr();
-  double* ave_psf_new = fittedpsf_test.GetAvePSFPtr();
-  int psf_order = fittedpsf.GetOrder();
-  size_t ncoeff = (psf_order+1)*(psf_order+2)/2;
-  std::cout<<"\n";
-  for (size_t i=0; i<ncoeff; i++) {
-    std::cout<<"   orig ave_psf["<<i<<"]: "<<ave_psf_orig[i]<<" new: "<<ave_psf_new[i]<<" diff: "<<ave_psf_orig[i]-ave_psf_new[i]<<std::endl;
-
-  }
-
-  double* rot_matrix_orig = fittedpsf.GetRotMatrixPtr();
-  double* rot_matrix_new = fittedpsf_test.GetRotMatrixPtr();
-  size_t n_rot_matrix = ncoeff*ncoeff;
-
-  std::cout<<"\n";
-  for (size_t i=0; i<n_rot_matrix; i++) {
-    std::cout<<"   orig rot_matrix["<<i<<"]: "<<rot_matrix_orig[i]<<" new: "<<rot_matrix_new[i]<<" diff: "<<rot_matrix_orig[i]-rot_matrix_new[i]<<std::endl;
-
-  }
-
-  int fit_order = fittedpsf.GetFitOrder();
-  size_t nfit_coeff = (fit_order+1)*(fit_order+2)/2;
-  size_t n_interp_matrix = ncoeff*nfit_coeff;
-
-  double* interp_matrix_orig = fittedpsf.GetInterpMatrixPtr();
-  double* interp_matrix_new = fittedpsf_test.GetInterpMatrixPtr();
-
-  std::cout<<"\n";
-  for (size_t i=0; i<n_interp_matrix; i++) {
-    std::cout<<"   orig interp_matrix["<<i<<"]: "<<interp_matrix_orig[i]<<" new: "<<interp_matrix_new[i]<<" diff: "<<interp_matrix_orig[i]-interp_matrix_new[i]<<std::endl;
-
-  }
-
-
-
-
-
-
-  dbg<<"Done testing fitted PSF file IO\n";
-
-
-}
 
 // This is now very DES specific in order to quickly meet Joe's demands
 int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log) 
@@ -261,8 +204,8 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
 
   // Initial sigma_p for shapelet measurements
   double sigma_p = 1.;
-  if (params.keyExists("seeing_est")) {
-    double seeing = params["seeing_est"];
+  if (params.keyExists("psf_seeing_est")) {
+    double seeing = params["psf_seeing_est"];
     // seeing is given as FWHM
     // for a gaussian 0.5 = exp(-((FWHM/2)/sigma)^2/2)
     // FWHM/sigma = 2.*sqrt(2 ln(2)) = 2.35
@@ -325,6 +268,7 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
     try {
 #endif
       PSFLog log1;  // Just for this thread
+      log1.NoWriteLog();
 #ifdef _OPENMP
 #pragma omp for schedule(guided)
 #endif
@@ -347,7 +291,7 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
 
 	BVec psf1 = psf_default;
 	double nu1 = nu_default;
-	int32 flag1=0;
+	long flag1=0;
 	try {
 	  MeasureSinglePSF(
 	      // Input data:
@@ -362,6 +306,7 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
 	      psf1, nu1, flag1);
 	} catch (tmv::Error& e) {
 	  dbg<<"TMV Error thrown in MeasureSinglePSF\n";
+	  dbg<<e<<std::endl;
 	  log1.nf_tmverror++;
 	  flag1 |= MPSF_TMV_EXCEPTION;
 	} catch (...) {
@@ -446,20 +391,14 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
   */
 
 
-  WriteFittedPSF(params, fittedpsf);
+  fittedpsf.Write(params);
   dbg<<"Done writing fitted PSF file\n";
 
-  if (0) {
-    TestFITSOutput(params, fittedpsf);
-  }
-
-
-  /*
   if (XDEBUG) {
     // Check fit:
 
-    std::ifstream readfitout(fitpsffile.c_str());
-    FittedPSF readfittedpsf(readfitout);
+    FittedPSF readfittedpsf;
+    readfittedpsf.Read(params);
     for(int i=0;i<nstars;i++) if (!psfcat.psf_flags[i]) {
       xdbg<<"psf[i] = "<<psfcat.psf[i]<<std::endl;
       BVec checkpsf(readfittedpsf.GetOrder(),readfittedpsf.GetSigma());
@@ -468,39 +407,17 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
       xdbg<<"Norm(diff) = "<<Norm(psfcat.psf[i]-checkpsf)<<std::endl;
     }
   }
-  */
   dbg<<log<<std::endl;
 
   if (output_dots) { 
-	  std::cerr
-		  <<std::endl
-		  <<"Success rate: "<<nsuccess<<"/"<<nstars
-		  <<std::endl; 
+    std::cerr
+      <<std::endl
+      <<"Success rate: "<<nsuccess<<"/"<<nstars
+      <<std::endl; 
   }
 
   return nsuccess;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 int DoMeasurePSF(ConfigFile& params, PSFLog& log) 
 {
@@ -519,15 +436,17 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
   std::vector<Position> all_pos;
   std::vector<double> all_sky;
   std::vector<double> all_noise;
+  std::vector<Position> all_skypos;
   double gain;
   Image<double>* weight_im = 0;
-  ReadCatalog(params,"starcat",all_pos,all_sky,all_noise,gain,weight_im);
+  ReadCatalog(params,"starcat",all_pos,all_sky,all_noise,gain,weight_im,
+      all_skypos);
   xdbg<<"Done read catalog "<<Name(params,"starcat",false,true)<<std::endl;
 
   // Fix sky if necessary
   if (all_sky.size() == 0) {
     double glob_sky = 0.;
-    if (params.keyExists("sky")) glob_sky = params["sky"];
+    if (params.keyExists("image_sky")) glob_sky = params["image_sky"];
     else glob_sky = im.Median();
     dbg<<"Set global value of sky to "<<glob_sky<<std::endl;
     all_sky.resize(all_pos.size());
@@ -550,8 +469,8 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
 
   // Initial sigma_p for shapelet measurements
   double sigma_p = 1.;
-  if (params.keyExists("seeing_est")) {
-    double seeing = params["seeing_est"];
+  if (params.keyExists("psf_seeing_est")) {
+    double seeing = params["psf_seeing_est"];
     // seeing is given as FWHM
     // for a gaussian 0.5 = exp(-((FWHM/2)/sigma)^2/2)
     // FWHM/sigma = 2.*sqrt(2 ln(2)) = 2.35
@@ -579,7 +498,7 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
   double nu_default = DEFVALNEG;
 
   // Array of flag values
-  std::vector<int32> flagvec(nstars,0);
+  std::vector<long> flagvec(nstars,0);
 
 #ifdef ENDAT
   nstars = ENDAT;
@@ -600,6 +519,7 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
     try {
 #endif
       PSFLog log1;  // Just for this thread
+      log1.NoWriteLog();
 #ifdef _OPENMP
 #pragma omp for schedule(guided)
 #endif
@@ -622,7 +542,7 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
 
 	BVec psf1 = psf_default;
 	double nu1 = nu_default;
-	int32 flag1=0;
+	long flag1=0;
 	try {
 	  MeasureSinglePSF(
 	      // Input data:
@@ -637,6 +557,7 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
 	      psf1, nu1, flag1);
 	} catch (tmv::Error& e) {
 	  dbg<<"TMV Error thrown in MeasureSinglePSF\n";
+	  dbg<<e<<std::endl;
 	  log1.nf_tmverror++;
 	  flag1 |= MPSF_TMV_EXCEPTION;
 	} catch (...) {
@@ -706,17 +627,14 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
   dbg<<"Done fitting PSF\n";
 
   // Output fitted psf
-  std::string fitpsffile = Name(params,"fitpsf");
-  std::ofstream fitout(fitpsffile.c_str());
-  fitout << fittedpsf;
-  fitout.close();
+  fittedpsf.Write(params);
   dbg<<"Done writing fitted PSF file\n";
 
   if (XDEBUG) {
     // Check fit:
 
-    std::ifstream readfitout(fitpsffile.c_str());
-    FittedPSF readfittedpsf(readfitout);
+    FittedPSF readfittedpsf;
+    readfittedpsf.Read(params);
     for(int i=0;i<nstars;i++) if (!flagvec[i]) {
       xdbg<<"psf[i] = "<<psf[i]<<std::endl;
       BVec checkpsf(readfittedpsf.GetOrder(),readfittedpsf.GetSigma());
@@ -729,10 +647,10 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
   dbg<<log<<std::endl;
 
   if (output_dots) { 
-	  std::cerr
-		  <<std::endl
-		  <<"Success rate: "<<nsuccess<<"/"<<nstars
-		  <<std::endl; 
+    std::cerr
+      <<std::endl
+      <<"Success rate: "<<nsuccess<<"/"<<nstars
+      <<std::endl; 
   }
 
   return nsuccess;
@@ -742,7 +660,7 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
 void DoMeasurePSFPrint(
     std::ofstream& ostream,
     double x, double y, 
-    int32 flags, 
+    long flags, 
     double nu, 
     int psforder, double sigma_p, const BVec& psf,
     const std::string& delim)

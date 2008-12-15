@@ -7,7 +7,6 @@
 #include "dbg.h"
 #include <vector>
 #include <iostream>
-#include "types.h"
 
 class FittedPSFAtXY;
 
@@ -17,24 +16,10 @@ class FittedPSF {
 
     FittedPSF() {};
     FittedPSF(const std::vector<BVec>& psf,
-	const std::vector<int32>& flagvec,
+	const std::vector<long>& flagvec,
 	const std::vector<Position>& pos,
 	const std::vector<double>& nu,
-	double sigma_p, ConfigFile& params);
-    FittedPSF(std::istream& is);
-
-    // This creates empty pieces of the puzzle, to be filled in via read
-    // from file or whatever.
-    FittedPSF(
-	int psforder_in,
-	double sigma_in,
-	int fitorder_in,
-	int npca_in);
-    void Reset(
-	int psforder_in,
-	double sigma_in,
-	int fitorder_in,
-	int npca_in);
+	double sigma_p, const ConfigFile& params);
 
     int GetOrder() const { return psforder; }
     int GetFitOrder() const { return fitorder; }
@@ -46,18 +31,13 @@ class FittedPSF {
     double GetYMin() const {return bounds.GetYMin();}
     double GetYMax() const {return bounds.GetYMax();}
 
-    void SetBounds(double xmin, double xmax, double ymin, double ymax) {
-      bounds.SetXMin(xmin);
-      bounds.SetXMax(xmax);
-      bounds.SetYMin(ymin);
-      bounds.SetYMax(ymax);
-    }
-
-    double* GetAvePSFPtr() const {return &(*avepsf)[0];}
-    double* GetRotMatrixPtr() const {return &(*V)[0][0];}
-    double* GetInterpMatrixPtr() const {return &(*f)[0][0];}
-
+    void Write(const ConfigFile& params) const;
     void Write(std::ostream& os) const;
+    void WriteFits(std::string file, const ConfigFile& params) const;
+
+    void Read(const ConfigFile& params);
+    void Read(std::istream& os);
+    void ReadFits(std::string file, int hdu, const ConfigFile& params);
 
     void Interpolate(Position pos, BVec& b) const
     {
@@ -89,7 +69,7 @@ class FittedPSF {
     int npca;
     Bounds bounds;
     std::auto_ptr<tmv::Vector<double> > avepsf;
-    std::auto_ptr<tmv::Matrix<double> > V;
+    std::auto_ptr<tmv::Matrix<double,tmv::RowMajor> > V;
     std::auto_ptr<tmv::Matrix<double> > f;
 };
 
@@ -108,7 +88,7 @@ class FittedPSFAtXY : public tmv::AssignableToVector<double> {
     void AssignToV(const tmv::VectorView<double>& b) const
     { psf.InterpolateVector(pos,b); }
 
-    void AssignToV(const tmv::VectorView<std::complex<double> >& b) const
+    void AssignToV(const tmv::VectorView<std::complex<double> >& ) const
     { Assert(false); }
 
   private :

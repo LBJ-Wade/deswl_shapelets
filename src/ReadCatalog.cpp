@@ -10,7 +10,7 @@
 enum NOISE_METHOD {VALUE, CATALOG, CATALOG_SIGMA, GAIN_VALUE, GAIN_FITS,
     WEIGHT_IMAGE};
 
-void ReadGain(const std::string& fitsname, ConfigFile& params)
+static void ReadGain(const std::string& fitsname, ConfigFile& params)
 {
   xdbg<<"stars ReadGain: "<<fitsname<<std::endl;
   fitsfile *fitsptr;
@@ -20,8 +20,8 @@ void ReadGain(const std::string& fitsname, ConfigFile& params)
   std::cerr<<"Opening file: "<<fitsname.c_str()<<std::endl;
   if (fits_open_file(&fitsptr,fitsname.c_str(),READONLY,&status))
     std::cerr<<"fits open file gave status #: "<<status<<std::endl;
-  std::vector<std::string> gain_key = params["gain_key"];
-  std::vector<std::string> rdn_key = params["readnoise_key"];
+  std::vector<std::string> gain_key = params["image_gain_key"];
+  std::vector<std::string> rdn_key = params["image_readnoise_key"];
 
   for(size_t k=0;k<gain_key.size();k++) {
     xdbg<<"try "<<gain_key[k]<<std::endl;
@@ -56,13 +56,13 @@ void ReadGain(const std::string& fitsname, ConfigFile& params)
     throw(std::runtime_error("reading gain/rdnoise"));
   }
 
-  params["gain"] = gain;
-  params["readnoise"] = rdnoise;
+  params["image_gain"] = gain;
+  params["image_readnoise"] = rdnoise;
 }
 
 #define DEF_BUFFER_SIZE 500
 
-void GetTokens(ConfigFile& params, std::string incat, std::string line,
+static void GetTokens(ConfigFile& params, std::string incat, std::string line,
     std::vector<ConvertibleString>& tokens)
 {
   std::istringstream linein(line);
@@ -70,7 +70,7 @@ void GetTokens(ConfigFile& params, std::string incat, std::string line,
     //std::cerr<<"delim exists"<<std::endl;
     char delim = params[incat+"_delim"];
     int bufsize = DEF_BUFFER_SIZE;
-    if (params.keyExists("bufsize")) bufsize = params["bufsize"];
+    if (params.keyExists("csv_bufsize")) bufsize = params["csv_bufsize"];
     char temp[bufsize];
     while (linein.getline(temp,bufsize,delim)) {
       //std::cerr<<"Found token: "<<temp<<std::endl;
@@ -84,7 +84,8 @@ void GetTokens(ConfigFile& params, std::string incat, std::string line,
 
 void ReadCatalog(ConfigFile& params, std::string incat,
     std::vector<Position>& all_pos, std::vector<double>& all_sky,
-    std::vector<double>& all_noise, double& gain, Image<double>*& weight_im)
+    std::vector<double>& all_noise, double& gain, Image<double>*& weight_im,
+    std::vector<Position>& all_skypos)
 {
   // Setup noise calculation:
   Assert(params.keyExists("noise_method"));
@@ -102,38 +103,40 @@ void ReadCatalog(ConfigFile& params, std::string incat,
   } 
   else if (params["noise_method"] == "CATALOG") {
     nm = CATALOG;
-    Assert(params.keyExists("i_noise"));
-    i_noise = params["i_noise"];
+    Assert(params.keyExists("cat_noise_num"));
+    i_noise = params["cat_noise_num"];
   }
   else if (params["noise_method"] == "CATALOG_SIGMA") {
     nm = CATALOG_SIGMA;
-    Assert(params.keyExists("i_noise"));
-    i_noise = params["i_noise"];
+    Assert(params.keyExists("cat_noise_num"));
+    i_noise = params["cat_noise_num"];
   }
   else if (params["noise_method"] == "GAIN_VALUE") {
     nm = GAIN_VALUE;
-    Assert(params.keyExists("gain"));
-    Assert(params.keyExists("readnoise"));
-    gain = params["gain"];
-    readnoise = params["readnoise"];
+    Assert(params.keyExists("image_gain"));
+    Assert(params.keyExists("image_readnoise"));
+    gain = params["image_gain"];
+    readnoise = params["image_readnoise"];
   } 
   else if (params["noise_method"] == "GAIN_FITS") {
     ReadGain(Name(params,"image",true),params);
-    xdbg<<"Read gain = "<<params["gain"]<<", rdn = "<<params["readnoise"]<<std::endl;
+    xdbg<<"Read gain = "<<params["image_gain"]<<
+      ", rdn = "<<params["image_readnoise"]<<std::endl;
     nm = GAIN_VALUE;
-    gain = params["gain"];
-    readnoise = params["readnoise"];
+    gain = params["image_gain"];
+    readnoise = params["image_readnoise"];
   } 
   else if (params["noise_method"] == "WEIGHT_IMAGE") {
     nm = WEIGHT_IMAGE;
-    Assert(params.keyExists("weight_ext") || params.keyExists("weight_name"));
+    Assert(params.keyExists("weight_ext") || params.keyExists("weight_file"));
     if (params.keyExists("weight_hdu")) weight_hdu = params["weight_hdu"];
   }
   else {
     throw std::runtime_error("Unknown noise method");
   }
   double extrasky=0.;
-  if (params.keyExists("extra_sky")) extrasky = params["extra_sky"];
+  if (params.keyExists("image_extra_sky")) 
+    extrasky = params["image_extra_sky"];
 
   // Read input catalog:
   std::string incatfile = Name(params,incat,false,true);
@@ -141,22 +144,36 @@ void ReadCatalog(ConfigFile& params, std::string incat,
   Assert(catin);
   xdbg<<"Opened catalog "<<incatfile<<std::endl;
   std::string line;
-  Assert(params.keyExists("i_x"));
-  Assert(params.keyExists("i_y"));
-  size_t i_x = params["i_x"];
-  size_t i_y = params["i_y"];
-  size_t i_errcode = 0;
-  if (params.keyExists("i_errcode")) i_errcode = params["i_errcode"];
+  Assert(params.keyExists("cat_x_num"));
+  Assert(params.keyExists("cat_y_num"));
+  size_t i_x = params["cat_x_num"];
+  size_t i_y = params["cat_y_num"];
+  size_t i_flags = 0;
+  if (params.keyExists("cat_flags_num")) 
+    i_flags = params["cat_flags_num"];
+  long ignore_flags = -1;
+  if (params.keyExists("cat_ignore_flags"))
+    ignore_flags = params["cat_ignore_flags"];
+  else if (params.keyExists("cat_ok_flags")) {
+    ignore_flags = params["cat_ok_flags"];
+    ignore_flags = ~ignore_flags;
+  }
+
   std::vector<std::string> comment_marker;
-  if (params.keyExists("comment_marker")) 
-    comment_marker = params["comment_marker"];
+  if (params.keyExists("cat_comment_marker")) 
+    comment_marker = params["cat_comment_marker"];
   else comment_marker.push_back("#");
   size_t i_sky = 0;
-  if (params.keyExists("i_sky")) i_sky = params["i_sky"];
+  if (params.keyExists("cat_local_sky_num")) 
+    i_sky = params["cat_local_sky_num"];
+  size_t i_ra = 0;
+  if (params.keyExists("cat_ra_num")) i_ra = params["cat_ra_num"];
+  size_t i_dec = 0;
+  if (params.keyExists("cat_dec_num")) i_dec = params["cat_dec_num"];
   double x_offset = 0.;
   double y_offset = 0.;
-  if (params.keyExists("x_offset")) x_offset = params["x_offset"];
-  if (params.keyExists("y_offset")) y_offset = params["y_offset"];
+  if (params.keyExists("cat_x_offset")) x_offset = params["cat_x_offset"];
+  if (params.keyExists("cat_y_offset")) y_offset = params["cat_y_offset"];
   while (getline(catin,line)) {
     bool skip = false;
     for(size_t k=0;k<comment_marker.size();++k) 
@@ -174,17 +191,25 @@ void ReadCatalog(ConfigFile& params, std::string incat,
     y -= y_offset;
     xdbg<<"x,y = "<<x<<','<<y<<std::endl;
 
-    if (i_errcode) {
-      int errcode = 0;
-      Assert(i_errcode <= tokens.size());
-      errcode = tokens[i_errcode-1];
-      if (errcode != 0) continue;
+    if (i_flags) {
+      long flags = 0;
+      Assert(i_flags <= tokens.size());
+      flags = tokens[i_flags-1];
+      if (flags & ignore_flags) continue;
     } 
 
     double sky = 0.;
     if (i_sky) {
       Assert(i_sky <= tokens.size());
       sky = tokens[i_sky-1];
+    } 
+    double ra = 0.;
+    double dec = 0.;
+    if (i_ra && i_dec) {
+      Assert(i_ra <= tokens.size());
+      Assert(i_dec <= tokens.size());
+      ra = tokens[i_ra-1];
+      dec = tokens[i_dec-1];
     } 
 
     double noise = 0.;
@@ -204,6 +229,9 @@ void ReadCatalog(ConfigFile& params, std::string incat,
     all_noise.push_back(noise);
     if (i_sky) {
       all_sky.push_back(sky);
+    }
+    if (i_ra && i_dec) {
+      all_skypos.push_back(Position(ra,dec));
     }
   }
 

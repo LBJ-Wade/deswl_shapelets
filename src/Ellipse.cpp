@@ -12,7 +12,7 @@
 #define N_FLUX_ATTEMPTS 0
 #define MAXITER 3
 
-std::complex<double> GammaAdd(const std::complex<double> g1,
+static std::complex<double> GammaAdd(const std::complex<double> g1,
     const std::complex<double> g2)
 {
   double absg1 = std::abs(g1);

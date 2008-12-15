@@ -8,6 +8,9 @@
 #include "Legendre2D.h"
 #include "NLSolver.h"
 #include "Name.h"
+#include <stdexcept>
+
+const double PI = 4.*atan(1.);
 
 // 
 // Constructor, and basic definition routines
@@ -271,18 +274,19 @@ void Transformation::MakeInverseOf(const Transformation& t2,
 // ReadWCS, with accompanying helper functions
 //
 
-enum TNXFUNC {TNX_LEGENDRE=1,TNX_CHEBYSHEV,TNX_POLYNOMIAL};
-enum TNXCROSS {TNX_XNONE,TNX_XFULL,TNX_XHALF};
+enum WCSType { TNX , TAN };
+enum TNXFUNC { TNX_LEGENDRE=1 , TNX_CHEBYSHEV , TNX_POLYNOMIAL};
+enum TNXCROSS { TNX_XNONE , TNX_XFULL , TNX_XHALF};
 
-void ReadWCSFits(const std::string& filename, 
-    std::string* lng, std::string* lat, 
-    tmv::Matrix<double>* cd, tmv::Vector<double>* crpix, 
-    tmv::Vector<double>* crval)
+static void ReadWCSFits(const std::string& filename, int hdu,
+    WCSType& wcstype,
+    tmv::Matrix<double>& cd, tmv::Vector<double>& crpix, 
+    tmv::Vector<double>& crval)
 {
-  Assert(crpix->size() == 2);
-  Assert(crval->size() == 2);
-  Assert(cd->rowsize() == 2);
-  Assert(cd->colsize() == 2);
+  Assert(crpix.size() == 2);
+  Assert(crval.size() == 2);
+  Assert(cd.rowsize() == 2);
+  Assert(cd.colsize() == 2);
 
   dbg<<"starting read fits\n";
 
@@ -292,42 +296,219 @@ void ReadWCSFits(const std::string& filename,
 
   if (fits_open_file(&fitsptr,filename.c_str(),READONLY,&status))
     dbg<<"fits open file: "<<status<<std::endl;
-  if (status) myerror("opening fits file: ",filename.c_str());
+  if (status) throw std::runtime_error(
+      std::string("opening fits file: ") + filename);
+
+  if (fits_movabs_hdu(fitsptr,hdu,0,&status))
+    dbg<<"fits moveabs hdu: "<<status<<std::endl;
+  if (status) throw std::runtime_error("Changing hdu");
+  dbg<<"Moved to hdu "<<hdu<<std::endl;
 
   if (fits_read_key(fitsptr,TSTRING,(char*)"CTYPE1",temp,NULL,&status))
     dbg<<"fits read ctype1: "<<status<<std::endl;
-  if (std::string(temp) != "RA---TNX") {
+  if (std::string(temp) == "RA---TAN") {
+    wcstype = TAN;
+  } else if (std::string(temp) == "RA---TNX") {
+    wcstype = TNX;
+  } else {
     dbg << "ctype = "<<temp<<std::endl;
-    myerror("ctype1 is not as expected");
+    throw std::runtime_error("ctype1 is not as expected");
   }
 
   if (fits_read_key(fitsptr,TSTRING,(char*)"CTYPE2",temp,NULL,&status))
     dbg<<"fits read ctype2: "<<status<<std::endl;
-  if (std::string(temp) != "DEC--TNX") {
+  if ((wcstype == TAN && std::string(temp) != "DEC--TAN") ||
+      (wcstype == TNX && std::string(temp) != "DEC--TNX")) {
     dbg << "ctype = "<<temp<<std::endl;
-    myerror("ctype2 is not as expected");
+    throw std::runtime_error("ctype2 is not as expected");
   }
  
-  if (fits_read_key(fitsptr,TDOUBLE,(char*)"CRVAL1",&(*crval)[0],NULL,&status))
+  if (fits_read_key(fitsptr,TDOUBLE,(char*)"CRVAL1",&crval[0],NULL,&status))
     dbg<<"fits read crval1: "<<status<<std::endl;
-  if (fits_read_key(fitsptr,TDOUBLE,(char*)"CRVAL2",&(*crval)[1],NULL,&status))
+  if (fits_read_key(fitsptr,TDOUBLE,(char*)"CRVAL2",&crval[1],NULL,&status))
     dbg<<"fits read crval2: "<<status<<std::endl;
 
-  if (fits_read_key(fitsptr,TDOUBLE,(char*)"CRPIX1",&(*crpix)[0],NULL,&status))
+  if (fits_read_key(fitsptr,TDOUBLE,(char*)"CRPIX1",&crpix[0],NULL,&status))
     dbg<<"fits read crpixl1: "<<status<<std::endl;
-  if (fits_read_key(fitsptr,TDOUBLE,(char*)"CRPIX2",&(*crpix)[1],NULL,&status))
+  if (fits_read_key(fitsptr,TDOUBLE,(char*)"CRPIX2",&crpix[1],NULL,&status))
     dbg<<"fits read crpixl2: "<<status<<std::endl;
   
-  if (fits_read_key(fitsptr,TDOUBLE,(char*)"CD1_1",&(*cd)(0,0),NULL,&status))
+  if (fits_read_key(fitsptr,TDOUBLE,(char*)"CD1_1",&cd(0,0),NULL,&status))
     dbg<<"fits read cd1_1: "<<status<<std::endl;
-  if (fits_read_key(fitsptr,TDOUBLE,(char*)"CD2_1",&(*cd)(1,0),NULL,&status))
+  if (fits_read_key(fitsptr,TDOUBLE,(char*)"CD2_1",&cd(1,0),NULL,&status))
     dbg<<"fits read cd2_1: "<<status<<std::endl;
-  if (fits_read_key(fitsptr,TDOUBLE,(char*)"CD1_2",&(*cd)(0,1),NULL,&status))
+  if (fits_read_key(fitsptr,TDOUBLE,(char*)"CD1_2",&cd(0,1),NULL,&status))
     dbg<<"fits read cd1_2: "<<status<<std::endl;
-  if (fits_read_key(fitsptr,TDOUBLE,(char*)"CD2_2",&(*cd)(1,1),NULL,&status))
+  if (fits_read_key(fitsptr,TDOUBLE,(char*)"CD2_2",&cd(1,1),NULL,&status))
     dbg<<"fits read cd2_2: "<<status<<std::endl;
 
-  if (status) myerror("reading wcs info");
+  if (status) {
+    char errmsg[80];
+    fits_get_errstatus(status,errmsg);
+    std::cerr << "fits error status "<<status<<" = "<<errmsg<<std::endl;
+    while (fits_read_errmsg(errmsg))
+      std::cerr << "fits error: "<<errmsg<<std::endl;
+    throw std::runtime_error("fits errors");
+  }
+}
+
+static void ReCenterDistortion(tmv::Matrix<double>& a, 
+    const tmv::Matrix<double>& cd, const tmv::Vector<double>& crpix)
+{
+  // The function here is actually a function of 
+  // z' = [CD](z-z0), 
+  // so we need to convert the function to that.
+
+  //  x' = (-cd00 x0 - cd01 y0) + cd00 x + cd01 y = xc + cd00 x + cd01 y
+  //  y' = (-cd10 x0 - cd11 y0) + cd10 x + cd11 y = yc + cd10 x + cd11 y
+
+  // (x')^p (y')^q = (c00 x + c01 y + x0)^i (c10 x + c11 y + y0)^j
+  // = Sum_i=0..p Sum_m=0..p-i Sum_j=0..q Sum_n=0..q-j
+  //     (pCi)(p-iCm)(qCj)(q-jCn) c00^i c01^m c10^j c11^n
+  //     xc^(p-i-m) yc^(q-j-n) x^(i+j) y^(m+n)
+
+  dbg<<"Start recenter distortion:\n";
+  dbg<<"a = "<<a<<std::endl;
+  dbg<<"cd = "<<cd<<std::endl;
+  dbg<<"crpix = "<<crpix<<std::endl;
+
+  int xorder = a.colsize();
+  int yorder = a.rowsize();
+  int maxorder = std::max(xorder,yorder);
+
+  tmv::Matrix<double> newar(xorder,yorder,0.);
+
+  double xconst = -cd(0,0)*crpix[0] - cd(0,1)*crpix[1];
+  double yconst = -cd(1,0)*crpix[0] - cd(1,1)*crpix[1];
+
+  std::vector<double> cd00tothe(maxorder,1.);
+  std::vector<double> cd01tothe(maxorder,1.);
+  std::vector<double> cd10tothe(maxorder,1.);
+  std::vector<double> cd11tothe(maxorder,1.);
+  std::vector<double> xctothe(maxorder,1.);
+  std::vector<double> yctothe(maxorder,1.);
+  for(int i=1;i<maxorder;i++) {
+    cd00tothe[i] = cd00tothe[i-1]*cd(0,0);
+    cd01tothe[i] = cd01tothe[i-1]*cd(0,1);
+    cd10tothe[i] = cd10tothe[i-1]*cd(1,0);
+    cd11tothe[i] = cd11tothe[i-1]*cd(1,1);
+    xctothe[i] = xctothe[i-1]*xconst;
+    yctothe[i] = yctothe[i-1]*yconst;
+  }
+
+  tmv::LowerTriMatrix<double,tmv::NonUnitDiag> binom(maxorder+1);
+  binom(0,0) = 1.;
+  for(int n=1;n<=maxorder;++n) {
+    binom(n,0) = 1.; binom(n,n) = 1.;
+    for(int m=1;m<n;++m) {
+      binom(n,m) = binom(n-1,m-1) + binom(n-1,m);
+    }
+  }
+  dbg<<"binom = "<<binom<<std::endl;
+
+  for(int p=0;p<xorder;p++) for(int q=0;q<std::min(maxorder-p,yorder);q++) {
+    // (x')^p (y')^q = (c00 x + c01 y + x0)^i (c10 x + c11 y + y0)^j
+    // = Sum_i=0..p Sum_m=0..p-i Sum_j=0..q Sum_n=0..q-j
+    //     (pCi)(p-iCm)(qCj)(q-jCn) c00^i c01^m c10^j c11^n
+    //     xc^(p-i-m) yc^(q-j-n) x^(i+j) y^(m+n)
+    for(int i=0;i<=p;i++) for(int m=0;m<=p-i;m++)
+      for(int j=0;j<=q;j++) for(int n=0;n<=q-j;n++) {
+	newar(i+j,m+n) += 
+	  binom(p,i)*binom(p-i,m)*binom(q,j)*binom(q-j,n)*
+	  cd00tothe[i]*cd01tothe[m]*cd10tothe[j]*cd11tothe[n]*
+	  xctothe[p-i-m]*yctothe[q-j-n]*
+	  a(p,q);
+      }
+  }
+  dbg<<"new ar = "<<newar<<std::endl;
+  a = newar;
+}
+
+static void ReadTANFits(const std::string& filename, int hdu,
+    std::vector<tmv::Matrix<double> >& pv)
+{
+  int status=0;
+  fitsfile *fitsptr;
+
+  if (fits_open_file(&fitsptr,filename.c_str(),READONLY,&status))
+    dbg<<"fits open file: "<<status<<std::endl;
+  if (status) throw std::runtime_error(
+      std::string("opening fits file: ") + filename);
+
+  if (fits_movabs_hdu(fitsptr,hdu,0,&status))
+    dbg<<"fits moveabs hdu: "<<status<<std::endl;
+  if (status) throw std::runtime_error("Changing hdu");
+  xdbg<<"Moved to hdu "<<hdu<<std::endl;
+
+  char pvstr[10] = "PV1_1";
+  for(int pvnum=0; pvnum<=1; pvnum++) {
+    pv[pvnum].Zero();
+
+    //pvstr[2]='1'+pvnum;
+    pvstr[2]='2'-pvnum;
+    // MJ -- This is backwards from what Erin told me for the 
+    //       definitions of the PV1 and PV2 parameters.
+    //       The current code makes the WCS output match the alpha
+    //       and delta values given in the sextractor catalog.
+    //       So there are three possibilities:
+    //       1) Erin just mixed up the definitions, although it seems
+    //          odd that 1 would be dec and 2 would be ra when the 
+    //          opposite is true for every other parameter.
+    //       2) Sextractor has a bug where it calculates the wrong ra/dec.
+    //          Also odd, since I would have thought other people would be
+    //          testing this.
+    //       3) I have a bug somewhere else that switches the two matrices.
+    //          This is the most plausible explanation, but I can't find it.
+
+    int k = 0;
+    pvstr[5] = '\0';
+    for(int n=0;n<4;++n) {
+      for(int i=n,j=0;j<=n;--i,++j,++k) {
+	if (k == 3) ++k; // I don't know why they skip 3.
+	if (k < 10) { pvstr[4] = '0'+k; pvstr[5] = '\0'; }
+	else { pvstr[4] = '0'+(k/10); pvstr[5] = '0'+(k%10); pvstr[6] = '\0'; }
+	xdbg<<"Try reading pv key |"<<pvstr<<"|\n";
+	float temp;
+	if (fits_read_key(fitsptr,TFLOAT,pvstr,&temp,NULL,&status))
+	  dbg<<"Problem reading key: "<<pvstr<<" for n,i,j,k = "<<n<<','<<i<<','<<j<<','<<k<<std::endl;
+	if (status) break;
+	pv[pvnum](i,j) = temp;
+      }
+      if (status) break;
+    }
+    if (status) break;
+  }
+  pv[1].TransposeSelf(); // The x,y terms are opposite for pv[1]
+
+  if (fits_close_file(fitsptr,&status))
+    dbg<<"fits close file: "<<status<<std::endl;
+
+  if (status) {
+    char errmsg[80];
+    fits_get_errstatus(status,errmsg);
+    std::cerr << "fits error status "<<status<<" = "<<errmsg<<std::endl;
+    while (fits_read_errmsg(errmsg))
+      std::cerr << "fits error: "<<errmsg<<std::endl;
+    throw std::runtime_error("fits errors");
+  }
+}
+
+static void ReadTNXFits(const std::string& filename, int hdu,
+    std::string& lng, std::string& lat)
+{
+  int status=0;
+  fitsfile *fitsptr;
+  char temp[80];
+
+  if (fits_open_file(&fitsptr,filename.c_str(),READONLY,&status))
+    dbg<<"fits open file: "<<status<<std::endl;
+  if (status) throw std::runtime_error(
+      std::string("opening fits file: ") + filename);
+
+  if (fits_movabs_hdu(fitsptr,hdu,0,&status))
+    dbg<<"fits moveabs hdu: "<<status<<std::endl;
+  if (status) throw std::runtime_error("Changing hdu");
+  xdbg<<"Moved to hdu "<<hdu<<std::endl;
 
   char wat[10] = "WAT0_001";
   std::string lnglat[2];
@@ -345,8 +526,11 @@ void ReadWCSFits(const std::string& filename,
       ", status = "<<status<<std::endl;
   }
 
-  *lng = lnglat[0];
-  *lat = lnglat[1];
+  lng = lnglat[0];
+  lat = lnglat[1];
+
+  if (fits_close_file(fitsptr,&status))
+    dbg<<"fits close file: "<<status<<std::endl;
 
   if (status) {
     char errmsg[80];
@@ -354,11 +538,11 @@ void ReadWCSFits(const std::string& filename,
     std::cerr << "fits error status "<<status<<" = "<<errmsg<<std::endl;
     while (fits_read_errmsg(errmsg))
       std::cerr << "fits error: "<<errmsg<<std::endl;
-    myerror("fits errors");
+    throw std::runtime_error("fits errors");
   }
 }
 
-Function2D<double>* WCSConvert(const std::string& wcsstr,
+static Function2D<double>* TNXConvert(const std::string& wcsstr,
     const tmv::Matrix<double>& cd, const tmv::Vector<double>& crpix)
 {
   std::istringstream wcsin(wcsstr);
@@ -399,65 +583,12 @@ Function2D<double>* WCSConvert(const std::string& wcsstr,
     else if (crossterms == TNX_XHALF) 
       if (j+1+xorder > maxorder) xorder1--;
   }
-  if (!wcsin) myerror("reading wat line");
+  if (!wcsin) throw std::runtime_error("reading wat line");
   
   // This next bit is only right if we have a polynomial function
   Assert(functype == TNX_POLYNOMIAL);
 
-  // The function here is actually a function of 
-  // z' = [CD](z-z0), 
-  // so we need to convert the function to that.
-
-  //  x' = (-cd00 x0 - cd01 y0) + cd00 x + cd01 y = xc + cd00 x + cd01 y
-  //  y' = (-cd10 x0 - cd11 y0) + cd10 x + cd11 y = yc + cd10 x + cd11 y
-
-  // (x')^p (y')^q = (c00 x + c01 y + x0)^i (c10 x + c11 y + y0)^j
-  // = Sum_i=0..p Sum_m=0..p-i Sum_j=0..q Sum_n=0..q-j
-  //     (pCi)(p-iCm)(qCj)(q-jCn) c00^i c01^m c10^j c11^n
-  //     xc^(p-i-m) yc^(q-j-n) x^(i+j) y^(m+n)
-
-  tmv::Matrix<double> newar(xorder,yorder,0.);
-
-  double xconst = -cd(0,0)*crpix[0] - cd(0,1)*crpix[1];
-  double yconst = -cd(1,0)*crpix[0] - cd(1,1)*crpix[1];
-
-  std::vector<double> cd00tothe(maxorder,1.);
-  std::vector<double> cd01tothe(maxorder,1.);
-  std::vector<double> cd10tothe(maxorder,1.);
-  std::vector<double> cd11tothe(maxorder,1.);
-  std::vector<double> xctothe(maxorder,1.);
-  std::vector<double> yctothe(maxorder,1.);
-  for(int i=1;i<maxorder;i++) {
-    cd00tothe[i] = cd00tothe[i-1]*cd(0,0);
-    cd01tothe[i] = cd01tothe[i-1]*cd(0,1);
-    cd10tothe[i] = cd10tothe[i-1]*cd(1,0);
-    cd11tothe[i] = cd11tothe[i-1]*cd(1,1);
-    xctothe[i] = xctothe[i-1]*xconst;
-    yctothe[i] = yctothe[i-1]*yconst;
-  }
-
-  tmv::LowerTriMatrix<double,tmv::UnitDiag> binom(maxorder+1);
-  for(int n=1;n<=maxorder;++n) {
-    binom(n,0) = 1.;
-    for(int m=1;m<n;++m) {
-      binom(n,m) = binom(n-1,m-1) + binom(n-1,m);
-    }
-  }
-
-  for(int p=0;p<xorder;p++) for(int q=0;q<std::min(maxorder-p,yorder);q++) {
-    // This is the term for (x')^i(y')^j 
-    // = (cd00 x + cd01 y)^i (cd10 x + cd11 y)^j
-    // = Sum_k=0..i (iCk) cd00^k x^k cd01^(i-k) y^(i-k)
-    // * Sum_m=0..j (jCm) cd10^m x^m cd11^(j-m) y^(j-m)
-    for(int i=0;i<=p;i++) for(int m=0;m<=p-i;m++)
-      for(int j=0;j<=q;j++) for(int n=0;n<=q-j;n++) {
-        newar[i+j][m+n] += 
-          binom(p,i)*binom(p-i,m)*binom(q,j)*binom(q-j,n)*
-          cd00tothe[i]*cd01tothe[m]*cd10tothe[j]*cd11tothe[n]*
-          xctothe[p-i-m]*yctothe[q-j-n]*
-          a[p][q];
-    }
-  }
+  ReCenterDistortion(a,cd,crpix);
 
   Function2D<double>* f=0;
 
@@ -465,59 +596,141 @@ Function2D<double>* WCSConvert(const std::string& wcsstr,
   switch(functype) {
     case TNX_CHEBYSHEV:
       dbg<<"cheby\n";
-      myerror("No Chebyshev functions");
-      //f = new Cheby2D<double>(b,newar);
+      throw std::runtime_error("No Chebyshev functions");
+      //f = new Cheby2D<double>(b,a);
       break;
     case TNX_LEGENDRE:
       dbg<<"legendre\n";
-      f = new Legendre2D<double>(b,newar);
+      f = new Legendre2D<double>(b,a);
       break;
     case TNX_POLYNOMIAL:
       dbg<<"poly\n";
-      f = new Polynomial2D<double>(newar);
+      f = new Polynomial2D<double>(a);
       break;
     default:
-      myerror("Unknown TNX surface type");
+      throw std::runtime_error("Unknown TNX surface type");
   }
   dbg<<"done WCSConvert\n";
+
   return f;
 }
 
 void Transformation::ReadWCS(std::string fitsfile, int hdu)
 {
-  std::string lngstr,latstr;
   tmv::Matrix<double> cd(2,2);
   tmv::Vector<double> crpix(2), crval(2);
+  WCSType wcstype;
 
-  ReadWCSFits(fitsfile,&lngstr,&latstr,&cd,&crpix,&crval);
-  dbg<<"done read fits: \n";
-  dbg<<"lngstr = \n"<<lngstr<<std::endl;
-  dbg<<"latstr = \n"<<latstr<<std::endl;
-  dbg<<"cd = \n"<<cd<<std::endl;
-  dbg<<"crpix = \n"<<crpix<<std::endl;
-  dbg<<"crval = \n"<<crval<<std::endl;
-  
-  up.reset(WCSConvert(lngstr,cd,crpix));
-  vp.reset(WCSConvert(latstr,cd,crpix));
+  ReadWCSFits(fitsfile,hdu,wcstype,cd,crpix,crval);
+
+  if (wcstype == TAN) {
+    std::vector<tmv::Matrix<double> > pv(2,tmv::Matrix<double>(4,4,0.));
+    ReadTANFits(fitsfile,hdu,pv);
+
+    if (XDEBUG) {
+      // Do the direct calculation here:
+      double x = 951.104;
+      double y = 39.3815; 
+      double ra = 334.154;
+      double dec = -10.2984;
+
+      dbg<<"x,y = "<<x<<','<<y<<std::endl;
+      tmv::Vector<double> xy(2); xy(0) = x; xy(1) = y;
+      xy = cd * (xy - crpix);
+      double x2 = xy(0);
+      double y2 = xy(1);
+      dbg<<"x2,y2 = "<<x2<<','<<y2<<std::endl;
+      tmv::Vector<double> xv(4);
+      tmv::Vector<double> yv(4);
+      xv(0) = 1.; xv(1) = x2; xv(2) = xv(1)*x2; xv(3) = xv(2)*x2;
+      yv(0) = 1.; yv(1) = y2; yv(2) = yv(1)*y2; yv(3) = yv(2)*y2;
+      double x3 = xv * pv[0] * yv;
+      double y3 = xv * pv[1] * yv;
+      dbg<<"x3,y3 = "<<x3<<','<<y3<<std::endl;
+      x3 *= PI/180.;
+      y3 *= PI/180.;
+      double cenr = crval[0] * PI/180.;
+      double cend = crval[1] * PI/180.;
+      double sd = cos(y3)*cos(x3)*sin(cend) + sin(y3)*cos(cend);
+      double cdcr = cos(y3)*cos(x3)*cos(cend) - sin(y3)*sin(cend);
+      double cdsr = cos(y3)*sin(x3);
+      double d = asin(sd);
+      double sr = cdsr/cos(d);
+      double cr = cdcr/cos(d);
+      double r = atan2(sr,cr);
+      r += cenr;
+      d *= 180./PI;
+      r *= 180./PI;
+      dbg<<"r,d = "<<r<<','<<d<<std::endl;
+      dbg<<"Should be "<<ra<<','<<dec<<std::endl;
+    }
+
+    ReCenterDistortion(pv[0],cd,crpix);
+    ReCenterDistortion(pv[1],cd,crpix);
+    up.reset(new Polynomial2D<double>(pv[0]));
+    vp.reset(new Polynomial2D<double>(pv[1]));
+  }
+  else if (wcstype == TNX) {
+    std::string lngstr,latstr;
+    ReadTNXFits(fitsfile,hdu,lngstr,latstr);
+    dbg<<"done read fits: \n";
+    dbg<<"lngstr = \n"<<lngstr<<std::endl;
+    dbg<<"latstr = \n"<<latstr<<std::endl;
+    dbg<<"cd = \n"<<cd<<std::endl;
+    dbg<<"crpix = \n"<<crpix<<std::endl;
+    dbg<<"crval = \n"<<crval<<std::endl;
+
+    up.reset(TNXConvert(lngstr,cd,crpix));
+    vp.reset(TNXConvert(latstr,cd,crpix));
+  }
+  else {
+    throw std::runtime_error("Unknown wcs type");
+  }
   
   // These are just the distortion terms so far. 
-  // There is also a rotation and vector shift.
-  // z' = [CD](z-z0) + dist
-  // Linear adjustments are:
-  //   X:  (-cd[0,0]x0 - cd[0,1]y0) + cd[0,0]x + cd[0,1]y
-  //   Y:  (-cd[1,0]x0 - cd[1,1]y0) + cd[1,0]x + cd[1,1]y
+  // Next we have to convert from the tangent plane back to 
+  // spherical coordinates.  
+  // The zeroth order approximation to this step is to simply recenter
+  // the result by adding a constant offset.
 
-  // First though, the cd terms give units of degrees.
-  // We want units of arcsec, so multiply each by 3600.
+  // The exact formulae are:
+  //
+  //             sin(dec) = cos(v) cos(u) sin(dec0) + sin(v) cos(dec0)
+  // cos(dec) cos(ra-ra0) = cos(v) cos(u) cos(dec0) - sin(v) sin(dec0)
+  // cos(dec) sin(ra-ra0) = cos(v) sin(u)
+#if 0
+  double sd = cos(y)*cos(x)*sin(cend) + sin(y)*cos(cend);
+  double cdcr = cos(y)*cos(x)*cos(cend) - sin(y)*sin(cend);
+  double cdsr = cos(y)*sin(x);
+  double d = asin(sd);
+  double sr = cdsr/cos(d);
+  double cr = cdcr/cos(d);
+  double r = atan2(sr,cr);
+  r += cenr;
+#endif
+  // But it is probably sufficient to do a Taylor expansion of these
+  // equations around the tangent point.  
+  //
+  // Expanding to 2nd order, and letting dec = dec0 + d, ra = ra0 + r:
+  //
+  // sin(dec) = sin(dec0 + d) = sin(dec0) + d cos(dec0)
+  // d cos(dec0) = (-1/2 v^2 - 1/2 u^2) sin(dec0) + v cos(dec0)
+  // d = v - 1/2 (u^2+v^2) tan(dec0)
+  //
+  // (cos(dec0) - d sin(dec0)) r = (1-1/2 v^2) u
+  // r = u/cos(dec0) - 1/2 v^2 u/cos(dec0) + d u tan(dec0)
+  // r = u/cos(dec0) + u v tan(dec0)
+  // 
+  // We should eventually include the second order terms.  But for now,
+  // We just do the first order terms which are pretty simple to apply:
+  (*up) *= 1./cos(crval(1) * PI/180.);
+  up->AddLinear(crval(0),0.,0.);
+  vp->AddLinear(crval(1),0.,0.);
 
-  cd(0,0) *= 3600.; cd(0,1) *= 3600.;
-  cd(1,0) *= 3600.; cd(1,1) *= 3600.;
-
-  double xconst = -cd(0,0)*crpix[0] - cd(0,1)*crpix[1];
-  double yconst = -cd(1,0)*crpix[0] - cd(1,1)*crpix[1];
-
-  up->AddLinear(xconst,cd(0,0),cd(0,1));
-  vp->AddLinear(yconst,cd(1,0),cd(1,1));
+  // The u and v functions give the result in degrees. 
+  // We need it to be arcsec.  So convert it here:
+  (*up) *= 3600.;
+  (*vp) *= 3600.;
 
   dudxp = up->DFDX();
   dudyp = up->DFDY();

@@ -34,18 +34,18 @@ void StarFinder::Init(ConfigFile& configfile)
 // the indices that are stars
 // Note: If used in construction no copy is made
 void StarFinder::RunFindStars(
-    std::vector<int>& flags,
-    std::vector<int>& size_flags,
+    std::vector<long>& flags,
+    std::vector<long>& size_flags,
     std::vector<float>& x,
     std::vector<float>& y,
     std::vector<double>& sigma,
     std::vector<float>& mag,
-    std::vector<int>& starflags)
+    std::vector<long>& starflags)
 {
   std::vector<PotentialStar*> maybestars;
 
   // First get a list of potential stars
-  std::cout<<"Finding stars"<<std::endl;
+  dbg<<"Finding stars"<<std::endl;
   long count=0;
   for (unsigned long i=0; i<x.size(); i++)
   {
@@ -66,14 +66,14 @@ void StarFinder::RunFindStars(
 
   }
 
-  std::cout<<"  Possible Stars: "<<count<<"/"<<x.size()<<"\n";
+  dbg<<"  Possible Stars: "<<count<<"/"<<x.size()<<"\n";
 
-  std::cout<<"  Running FindStars\n";
+  dbg<<"  Running FindStars\n";
   std::vector<PotentialStar*> stars = FindStars(maybestars);
 
   starflags.clear();
   starflags.resize(x.size(), 0);
-  std::cout<<"  Found "<<stars.size()<<"\n";
+  dbg<<"  Found "<<stars.size()<<"\n";
   for (unsigned long i=0; i<stars.size();i++) {
     starflags[ stars[i]->GetIndex() ] = 1;
   }
@@ -82,7 +82,7 @@ void StarFinder::RunFindStars(
 
 void StarFinder::LoadConfig()
 {
-  std::cout<<"Loading StarFinder config"<<mCFile<<std::endl;
+  dbg<<"Loading StarFinder config"<<mCFile<<std::endl;
   mConfigFile.Load(mCFile);
   // copy to instance variables
   CopyConfig(mConfigFile);
@@ -108,39 +108,39 @@ void StarFinder::CopyConfig(ConfigFile& conf)
 
   try
   {
-    mMinsize = conf["minsize"];
-    mMaxsize = conf["maxsize"];
-    mMinmag = conf["minmag"];
-    mMaxmag = conf["maxmag"];
-    mMaxoutmag = conf["maxoutmag"];
+    mMinsize = conf["stars_minsize"];
+    mMaxsize = conf["stars_maxsize"];
+    mMinmag = conf["stars_minmag"];
+    mMaxmag = conf["stars_maxmag"];
+    mMaxoutmag = conf["stars_maxoutmag"];
 
 
-    mNdivx = conf["ndivx"];
-    mNdivy = conf["ndivy"];
+    mNdivx = conf["stars_ndivx"];
+    mNdivy = conf["stars_ndivy"];
 
-    mStartn1 = conf["startn1"];
-    mStarfrac = conf["starfrac"];
-    mMagstep1 = conf["magstep1"];
-    mReject1 = conf["reject1"];
-    mMaxratio1 = conf["maxratio1"];
-    mBinsize1 = conf["binsize1"];
+    mStartn1 = conf["stars_startn1"];
+    mStarfrac = conf["stars_starfrac"];
+    mMagstep1 = conf["stars_magstep1"];
+    mReject1 = conf["stars_reject1"];
+    mMaxratio1 = conf["stars_maxratio1"];
+    mBinsize1 = conf["stars_binsize1"];
 
-    mMiniter1 = conf["miniter1"];
-    mMaxrms = conf["maxrms"];
+    mMiniter1 = conf["stars_miniter1"];
+    mMaxrms = conf["stars_maxrms"];
 
-    mStartn2 = conf["startn2"];
-    mMagstep2 = conf["magstep2"];
-    mMinbinsize = conf["minbinsize"];
-    mReject2 = conf["reject2"];
-    mPurityratio = conf["purityratio"];
-    mMiniter2 = conf["miniter2"];
+    mStartn2 = conf["stars_startn2"];
+    mMagstep2 = conf["stars_magstep2"];
+    mMinbinsize = conf["stars_minbinsize"];
+    mReject2 = conf["stars_reject2"];
+    mPurityratio = conf["stars_purityratio"];
+    mMiniter2 = conf["stars_miniter2"];
 
-    mStarsperbin = conf["starsperbin"];
-    mFitorder = conf["fitorder"];
-    mFitsigclip = conf["fitsigclip"];
-    mOkvalcount = conf["okvalcount"];
+    mStarsperbin = conf["stars_starsperbin"];
+    mFitorder = conf["stars_fitorder"];
+    mFitsigclip = conf["stars_fitsigclip"];
+    mOkvalcount = conf["stars_okvalcount"];
 
-    mMaxrefititer = conf["maxrefititer"];
+    mMaxrefititer = conf["stars_maxrefititer"];
   }
   catch (std::string s)
   {
@@ -163,41 +163,39 @@ std::vector<std::string> StarFinder::RequiredConfigFields()
 {
   std::vector<std::string> reqfields;
 
-  reqfields.push_back("minsize");
-  reqfields.push_back("maxsize");
-  reqfields.push_back("minmag");
-  reqfields.push_back("maxmag");
-  reqfields.push_back("maxoutmag");
+  reqfields.push_back("stars_minsize");
+  reqfields.push_back("stars_maxsize");
+  reqfields.push_back("stars_minmag");
+  reqfields.push_back("stars_maxmag");
+  reqfields.push_back("stars_maxoutmag");
 
-  reqfields.push_back("ndivx");
-  reqfields.push_back("ndivy");
+  reqfields.push_back("stars_ndivx");
+  reqfields.push_back("stars_ndivy");
 
-  reqfields.push_back("ndivy");
+  reqfields.push_back("stars_startn1");
+  reqfields.push_back("stars_starfrac");
+  reqfields.push_back("stars_magstep1");
+  reqfields.push_back("stars_reject1");
 
-  reqfields.push_back("startn1");
-  reqfields.push_back("starfrac");
-  reqfields.push_back("magstep1");
-  reqfields.push_back("reject1");
+  reqfields.push_back("stars_maxratio1");
+  reqfields.push_back("stars_binsize1");
 
-  reqfields.push_back("maxratio1");
-  reqfields.push_back("binsize1");
-
-  reqfields.push_back("miniter1");
-  reqfields.push_back("maxrms");
+  reqfields.push_back("stars_miniter1");
+  reqfields.push_back("stars_maxrms");
 
 
-  reqfields.push_back("startn2");
-  reqfields.push_back("magstep2");
-  reqfields.push_back("minbinsize");
-  reqfields.push_back("reject2");
-  reqfields.push_back("purityratio");
-  reqfields.push_back("miniter2");
+  reqfields.push_back("stars_startn2");
+  reqfields.push_back("stars_magstep2");
+  reqfields.push_back("stars_minbinsize");
+  reqfields.push_back("stars_reject2");
+  reqfields.push_back("stars_purityratio");
+  reqfields.push_back("stars_miniter2");
 
-  reqfields.push_back("fitorder");
-  reqfields.push_back("fitsigclip");
-  reqfields.push_back("okvalcount");
+  reqfields.push_back("stars_fitorder");
+  reqfields.push_back("stars_fitsigclip");
+  reqfields.push_back("stars_okvalcount");
 
-  reqfields.push_back("maxrefititer");
+  reqfields.push_back("stars_maxrefititer");
   return(reqfields);  
 }
 
@@ -612,7 +610,7 @@ std::vector<PotentialStar*> StarFinder::GetPeakList(
     // Check for the horned pattern and use the next valley if it is there.
     // But only if the new valley is at least as good as the first one.
     //double nbinsforhorn = firstpass ? 1.5 : 3.5;
-    double nbinsforhorn = 1.5;
+    nbinsforhorn = 1.5;
     if ((valley-peak < nbinsforhorn*binsize) && 
       (hist.FindFirstPeakAfter(valley) - valley) < nbinsforhorn*binsize) {
       double newvalley = hist.FindFirstValleyAfter(
@@ -750,22 +748,21 @@ void StarFinder::RoughlyFitBrightStars(const std::vector<PotentialStar*>& objlis
   xdbg<<"brightlist is:\n";
   for(size_t i=0; i<std::min(size_t(20),brightlist.size()); i++)
     xdbg<<brightlist[i]->GetMag()<<" , "<<brightlist[i]->GetSize()<<std::endl;
-  // Of the smallest 10, find the 5 that form the tightest peak
-  // Originally I hardcoded this number as 5, but for smaller catalogs
-  // or ones without very many stars, it needs to be lower.
+  // Of the smallest 15, find the 5 that form the tightest peak
+  // Originally I hardcoded this number as 5, but now it is calculated
+  // from starfrac.
   size_t five = size_t(0.5*mStarfrac*brightlist.size());
   if (five < 5) five = 5;
-  //if (five > 5) five = 5;
   xdbg<<"'five' = "<<five<<std::endl;
-  if (2*five-1 >= brightlist.size()) {
+  if (3*five-1 >= brightlist.size()) {
     std::ostringstream err;
     err<<"Too few objects in brightlist.  Increase mStartn1.\n";
     throw StarFinderException(err.str());
   }
-  Assert(2*five-1<brightlist.size());
+  Assert(3*five-1<brightlist.size());
   size_t peakstart = 0;
   double peakwidth = brightlist[five-1]->GetSize()-brightlist[0]->GetSize();
-  for(size_t k=1;k<=five;k++) {
+  for(size_t k=1;k<=2*five;k++) {
     Assert(k+five-1<brightlist.size());
     if (brightlist[k+five-1]->GetSize()-brightlist[k]->GetSize() < peakwidth) {
       peakwidth = brightlist[k+five-1]->GetSize()-brightlist[k]->GetSize();

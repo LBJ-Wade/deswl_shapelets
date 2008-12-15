@@ -1,4 +1,3 @@
-#include "types.h"
 #include "Params.h"
 
 #include "BVec.h"
@@ -28,7 +27,7 @@
 //#define ENDAT 200
 
 
-void TestReadShearCat(ConfigFile& params, SHEAR_STRUCT& shcat)
+static void TestReadShearCat(ConfigFile& params, SHEAR_STRUCT& shcat)
 {
   SHEAR_STRUCT shcat_test;
   ReadShearCat(params, shcat_test);
@@ -36,7 +35,7 @@ void TestReadShearCat(ConfigFile& params, SHEAR_STRUCT& shcat)
   int gal_order = shcat.gal_order[0];
   int ncoeff = (gal_order+1)*(gal_order+2)/2;
   for (size_t i=0; i<shcat.id.size(); i++) {
-    std::cout<<i<<"diffs:"
+    dbg<<i<<"diffs:"
       <<"\tid: "<<shcat.id[i]-shcat_test.id[i]
 
 #ifdef SHEXTRA_PARS
@@ -96,30 +95,31 @@ int DoMeasureShear_DES(ConfigFile& params, ShearLog& log)
 
   // Read the fitted psf file
   FittedPSF fittedpsf;
-  ReadFittedPSF(params, fittedpsf);
-
+  fittedpsf.Read(params);
+  xdbg<<"Done reading fittedpsf\n";
 
 
   // Read some needed parameters
   int ngals = sxcat.pos.size();
   dbg<<"ngals = "<<ngals<<std::endl;
 
-  Assert(params.keyExists("gal_aperture"));
-  double gal_aperture = params["gal_aperture"];
+  Assert(params.keyExists("shear_aperture"));
+  double gal_aperture = params["shear_aperture"];
   double max_aperture = 0.;
-  if (params.keyExists("max_aperture")) 
-    max_aperture = params["max_aperture"];
+  if (params.keyExists("shear_max_aperture")) 
+    max_aperture = params["shear_max_aperture"];
 
-  Assert(params.keyExists("gal_order"));
-  int gal_order = params["gal_order"];
+  Assert(params.keyExists("shear_gal_order"));
+  int gal_order = params["shear_gal_order"];
   int gal_order2 = gal_order;
-  if (params.keyExists("gal_order2")) gal_order2 = params["gal_order2"];
+  if (params.keyExists("shear_gal_order2")) 
+    gal_order2 = params["shear_gal_order2"];
 
-  Assert(params.keyExists("f_psf"));
-  double f_psf = params["f_psf"];
+  Assert(params.keyExists("shear_f_psf"));
+  double f_psf = params["shear_f_psf"];
 
-  Assert(params.keyExists("min_gal_size"));
-  double min_gal_size = params["min_gal_size"];
+  Assert(params.keyExists("shear_min_gal_size"));
+  double min_gal_size = params["shear_min_gal_size"];
 
   bool output_dots=false;
   if (params.keyExists("output_dots")) output_dots=true;
@@ -127,19 +127,16 @@ int DoMeasureShear_DES(ConfigFile& params, ShearLog& log)
   if (params.keyExists("timing")) timing=true;
 
   // Setup output vectors
-  std::vector<Position> skypos(ngals);
-
   std::vector<std::complex<double> > shear(ngals,0.);
   std::vector<tmv::Matrix<double> > shearcov(ngals,tmv::Matrix<double>(2,2));
   std::vector<BVec> shapelet(ngals,BVec(gal_order,DEFVALPOS));
   OverallFitTimes alltimes;
   // Vector of flag values
-  std::vector<int32> flagvec(ngals,0);
+  std::vector<long> flagvec(ngals,0);
 
   // Default values when we have failure
   std::complex<double> shear_default = DEFVALNEG;
 
-  Position skypos_default(DEFVALNEG,DEFVALNEG);
   tmv::Matrix<double> shearcov_default(2,2);
   shearcov_default(0,0) = DEFVALPOS; shearcov_default(0,1) = 0;
   shearcov_default(1,0) = 0;         shearcov_default(1,1) = DEFVALPOS;
@@ -169,6 +166,7 @@ int DoMeasureShear_DES(ConfigFile& params, ShearLog& log)
 #endif
       OverallFitTimes times; // just for this thread
       ShearLog log1; // just for this thread
+      log1.NoWriteLog();
 #ifdef _OPENMP
 #pragma omp for schedule(dynamic)
 #endif
@@ -190,11 +188,10 @@ int DoMeasureShear_DES(ConfigFile& params, ShearLog& log)
 	}
 
 	// Inputs to shear measurement code
-	Position skypos1 = skypos_default;
 	std::complex<double> shear1 = shear_default;
 	tmv::Matrix<double> shearcov1 = shearcov_default;
 	BVec shapelet1 = shapelet_default;
-	int32 flag1 = 0;
+	long flag1 = 0;
 
 	MeasureSingleShear1(
 	    // Input data:
@@ -211,7 +208,7 @@ int DoMeasureShear_DES(ConfigFile& params, ShearLog& log)
 	    // Log information
 	    log1,
 	    // Ouput values:
-	    skypos1, shear1, shearcov1, shapelet1, flag1);
+	    shear1, shearcov1, shapelet1, flag1);
 
 #ifdef _OPENMP
 #pragma omp critical
@@ -222,7 +219,6 @@ int DoMeasureShear_DES(ConfigFile& params, ShearLog& log)
 	  // Otherwise they are the best estimate up to the point of 
 	  // any error.
 	  // If there is no error, these are the correct estimates.
-	  skypos[i] = skypos1;
 	  shear[i] = shear1;
 	  shearcov[i] = shearcov1;
 	  shapelet[i] = shapelet1;
@@ -319,19 +315,19 @@ int DoMeasureShear_DES(ConfigFile& params, ShearLog& log)
       TestReadShearCat(params, shcat);
     }
   } else {
-      std::string sheardelim = "  ";
-      if (params.keyExists("shear_delim")) sheardelim = params["shear_delim"];
-      std::ofstream catout(shearfile.c_str());
-      Assert(catout);
-      for(int i=0;i<ngals;i++) {
-	DoMeasureShearPrint(
-	    catout,
-	    skypos[i].GetX(), skypos[i].GetY(),
-	    flagvec[i],
-	    shear[i], shearcov[i],
-	    sheardelim);
-      }
+    std::string sheardelim = "  ";
+    if (params.keyExists("shear_delim")) sheardelim = params["shear_delim"];
+    std::ofstream catout(shearfile.c_str());
+    Assert(catout);
+    for(int i=0;i<ngals;i++) {
+      DoMeasureShearPrint(
+	  catout,
+	  sxcat.ra[i], sxcat.dec[i],
+	  flagvec[i],
+	  shear[i], shearcov[i],
+	  sheardelim);
     }
+  }
   dbg<<"Done writing output shear catalog\n";
   // TODO: Also output shapelets...
 
@@ -358,9 +354,11 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
   std::vector<Position> all_pos;
   std::vector<double> all_sky;
   std::vector<double> all_noise;
+  std::vector<Position> all_skypos;
   double gain;
   Image<double>* weight_im = 0;
-  ReadCatalog(params,"allcat",all_pos,all_sky,all_noise,gain,weight_im);
+  ReadCatalog(params,"stars",all_pos,all_sky,all_noise,gain,weight_im,
+      all_skypos);
   dbg<<"Finished Read cat\n";
 
   // Fix sky if necessary
@@ -375,49 +373,79 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
 
   // Read distortion function
   Transformation trans(params);
+  Position skypos_default(DEFVALNEG,DEFVALNEG);
+  if (all_skypos.size() == 0) {
+    all_skypos.resize(all_pos.size(),skypos_default);
+    for(size_t i=0;i<all_pos.size();i++) {
+      try {
+	trans.Transform(all_pos[i],all_skypos[i]);
+	all_skypos[i] /= 3600.; // arcsec -> degrees
+      } catch (Range_error& e) {
+	xdbg<<"distortion range error\n";
+	xdbg<<"p = "<<all_pos[i]<<", b = "<<e.b<<std::endl;
+      }                       
+    }
+  } else if (XDEBUG) {
+    xdbg<<"Check transformation:\n";
+    double rmserror = 0.;
+    int count = 0;
+    for(size_t i=0;i<all_pos.size();i++) {
+      try {
+	Position temp;
+	trans.Transform(all_pos[i],temp);
+	temp /= 3600.; // arcsec -> degrees
+	xdbg<<all_pos[i]<<"  "<<all_skypos[i]<<"  "<<temp;
+	xdbg<<"  "<<temp-all_skypos[i]<<std::endl;
+	rmserror += std::norm(temp-all_skypos[i]);
+	count++;
+      } catch (Range_error& e) {
+	xdbg<<"distortion range error\n";
+	xdbg<<"p = "<<all_pos[i]<<", b = "<<e.b<<std::endl;
+      }
+    }
+    rmserror /= count;
+    rmserror = std::sqrt(rmserror);
+    xdbg<<"rms error = "<<rmserror*3600.<<" arcsec\n";
+  }
 
   // Read the fitted psf file
-  std::string psffile = Name(params,"fitpsf",false,true);
-  xdbg<<"Read fitted psf file "<<psffile<<std::endl;
-  std::ifstream psfin(psffile.c_str());
-  Assert(psfin);
-  FittedPSF fittedpsf(psfin);
+  FittedPSF fittedpsf;
+  fittedpsf.Read(params);
   xdbg<<"Done reading fittedpsf\n";
 
   // Read some needed parameters
   int ngals = all_pos.size();
   dbg<<"ngals = "<<ngals<<std::endl;
-  Assert(params.keyExists("gal_aperture"));
-  double gal_aperture = params["gal_aperture"];
+  Assert(params.keyExists("shear_aperture"));
+  double gal_aperture = params["shear_aperture"];
   double max_aperture = 0.;
-  if (params.keyExists("max_aperture")) 
-    max_aperture = params["max_aperture"];
-  Assert(params.keyExists("gal_order"));
-  int gal_order = params["gal_order"];
+  if (params.keyExists("shear_max_aperture")) 
+    max_aperture = params["shear_max_aperture"];
+  Assert(params.keyExists("shear_gal_order"));
+  int gal_order = params["shear_gal_order"];
   int gal_order2 = gal_order;
-  if (params.keyExists("gal_order2")) gal_order2 = params["gal_order2"];
-  Assert(params.keyExists("f_psf"));
-  double f_psf = params["f_psf"];
-  Assert(params.keyExists("min_gal_size"));
-  double min_gal_size = params["min_gal_size"];
+  if (params.keyExists("shear_gal_order2")) 
+    gal_order2 = params["shear_gal_order2"];
+  Assert(params.keyExists("shear_f_psf"));
+  double f_psf = params["shear_f_psf"];
+  Assert(params.keyExists("shear_min_gal_size"));
+  double min_gal_size = params["shear_min_gal_size"];
   bool output_dots=false;
   if (params.keyExists("output_dots")) output_dots=true;
   bool timing=false;
   if (params.keyExists("timing")) timing=true;
 
   // Setup output vectors
-  std::vector<Position> skypos(ngals);
   std::vector<std::complex<double> > shear(ngals,0.);
   std::vector<tmv::Matrix<double> > shearcov(ngals,tmv::Matrix<double>(2,2));
   std::vector<BVec> shapelet(ngals,BVec(gal_order,DEFVALPOS));
   OverallFitTimes alltimes;
   // Vector of flag values
-  std::vector<int32> flagvec(ngals,0);
+  std::vector<long> flagvec(ngals,0);
 
   // Default values when we have failure
   std::complex<double> shear_default = DEFVALNEG;
 
-  Position skypos_default(DEFVALNEG,DEFVALNEG);
   tmv::Matrix<double> shearcov_default(2,2);
   shearcov_default(0,0) = DEFVALPOS; shearcov_default(0,1) = 0;
   shearcov_default(1,0) = 0;         shearcov_default(1,1) = DEFVALPOS;
@@ -447,6 +475,7 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
 #endif
       OverallFitTimes times; // just for this thread
       ShearLog log1; // just for this thread
+      log1.NoWriteLog();
 #ifdef _OPENMP
 #pragma omp for schedule(dynamic)
 #endif
@@ -468,11 +497,10 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
 	}
 
 	// Inputs to shear measurement code
-	Position skypos1 = skypos_default;
 	std::complex<double> shear1 = shear_default;
 	tmv::Matrix<double> shearcov1 = shearcov_default;
 	BVec shapelet1 = shapelet_default;
-	int32 flag1 = 0;
+	long flag1 = 0;
 
 	MeasureSingleShear1(
 	    // Input data:
@@ -489,7 +517,7 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
 	    // Log information
 	    log1,
 	    // Ouput values:
-	    skypos1, shear1, shearcov1, shapelet1, flag1);
+	    shear1, shearcov1, shapelet1, flag1);
 
 #ifdef _OPENMP
 #pragma omp critical
@@ -500,7 +528,6 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
 	  // Otherwise they are the best estimate up to the point of 
 	  // any error.
 	  // If there is no error, these are the correct estimates.
-	  skypos[i] = skypos1;
 	  shear[i] = shear1;
 	  shearcov[i] = shearcov1;
 	  shapelet[i] = shapelet1;
@@ -563,7 +590,7 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
   for(int i=0;i<ngals;i++) {
     DoMeasureShearPrint(
 	catout,
-	skypos[i].GetX(), skypos[i].GetY(),
+	all_skypos[i].GetX(), all_skypos[i].GetY(),
 	flagvec[i],
 	shear[i], shearcov[i],
 	sheardelim);
@@ -583,7 +610,7 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
 void DoMeasureShearPrint(
     std::ofstream& ostream,
     double x, double y, 
-    int32 flags, 
+    long flags, 
     const std::complex<double>& shear, 
     const tmv::Matrix<double>& shearcov,
     const std::string& delim)

@@ -29,30 +29,37 @@ ShearLog::ShearLog(std::string logfile, std::string _delim) :
 ShearLog::~ShearLog() 
 {
   WriteLog();
-  if (logout != &std::cout) {
+  NoWriteLog(); // deletes logout
+}
+
+void ShearLog::NoWriteLog() 
+{ 
+  if (logout && logout != &std::cout) {
     delete logout;
   }
 }
 
 void ShearLog::WriteLog() const
 {
-  *logout << 
-    exitcode <<delim<<
-    ngals <<delim<<
-    ns_gamma <<delim<<
-    ns_native <<delim<<
-    nf_range1 <<delim<<
-    nf_range2 <<delim<<
-    nf_edge1 <<delim<<
-    nf_npix1 <<delim<<
-    nf_native <<delim<<
-    nf_small <<delim<<
-    nf_edge2 <<delim<<
-    nf_npix2 <<delim<<
-    nf_tmverror <<delim<<
-    nf_othererror <<delim<<
-    nf_mu <<delim<<
-    nf_gamma <<std::endl;
+  if (logout) {
+    *logout << 
+      exitcode <<delim<<
+      ngals <<delim<<
+      ns_gamma <<delim<<
+      ns_native <<delim<<
+      nf_range1 <<delim<<
+      nf_range2 <<delim<<
+      nf_edge1 <<delim<<
+      nf_npix1 <<delim<<
+      nf_native <<delim<<
+      nf_small <<delim<<
+      nf_edge2 <<delim<<
+      nf_npix2 <<delim<<
+      nf_tmverror <<delim<<
+      nf_othererror <<delim<<
+      nf_mu <<delim<<
+      nf_gamma <<std::endl;
+  }
 }
 
 void ShearLog::Write(std::ostream& os) const
@@ -104,23 +111,30 @@ PSFLog::PSFLog(std::string logfile, std::string _delim) :
 PSFLog::~PSFLog() 
 { 
   WriteLog();
-  if (logout != &std::cout) {
+  NoWriteLog();
+}
+
+void PSFLog::NoWriteLog()
+{
+  if (logout && logout != &std::cout) {
     delete logout;
   }
 }
 
 void PSFLog::WriteLog() const
 {
-  *logout << 
-    exitcode <<delim<<
-    nstars <<delim<<
-    ns_psf <<delim<<
-    nf_range <<delim<<
-    nf_edge <<delim<<
-    nf_npix <<delim<<
-    nf_tmverror <<delim<<
-    nf_othererror <<delim<<
-    nf_psf <<std::endl;
+  if (logout) {
+    *logout << 
+      exitcode <<delim<<
+      nstars <<delim<<
+      ns_psf <<delim<<
+      nf_range <<delim<<
+      nf_edge <<delim<<
+      nf_npix <<delim<<
+      nf_tmverror <<delim<<
+      nf_othererror <<delim<<
+      nf_psf <<std::endl;
+  }
 }
 
 void PSFLog::Write(std::ostream& os) const
@@ -156,17 +170,23 @@ FindStarsLog::FindStarsLog(std::string logfile, std::string _delim) :
 FindStarsLog::~FindStarsLog() 
 { 
   WriteLog();
+  NoWriteLog();
+}
+
+void FindStarsLog::NoWriteLog()
+{
   if (logout != &std::cout) {
     delete logout;
   }
 }
-
 void FindStarsLog::WriteLog() const
 {
-  *logout << 
-    exitcode <<delim<<
-    nobj <<delim<<
-    nstars <<std::endl;
+  if (logout) {
+    *logout << 
+      exitcode <<delim<<
+      nobj <<delim<<
+      nstars <<std::endl;
+  }
 }
 
 void FindStarsLog::Write(std::ostream& os) const

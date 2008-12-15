@@ -165,14 +165,13 @@ void MakePsi(const tmv::MatrixView<double>& psi,
   const double invsqrtpi = 1./sqrtpi;
 
   // Setup rsq, z vectors and set psi_00
-  const int N = z.size();
   tmv::Vector<double> rsq(z.size());
   double* rsqit = rsq.ptr();
   double* psi00it = psi.ptr();
   const std::complex<double>* zit = z.cptr();
   //dbg<<"Before loop1"<<std::endl;
   //dbg<<"psi.col(0) = "<<psi.col(0)<<std::endl;
-  for(int i=0;i<N;++i) {
+  for(size_t i=0;i<z.size();++i) {
     //dbg<<"i = "<<i<<std::endl;
     rsqit[i] = std::norm(zit[i]);
     //dbg<<"rsq = "<<rsqit[i]<<std::endl;
@@ -244,11 +243,10 @@ void AugmentPsi(tmv::Matrix<double>& psi,
   Assert(psi.iscm());
   Assert(!psi.isconj());
 
-  const int N = z.size();
-  tmv::Vector<double> rsq(N);
+  tmv::Vector<double> rsq(z.size());
   double* rsqit = rsq.ptr();
   const std::complex<double>* zit = z.cptr();
-  for(int i=0;i<N;++i) {
+  for(size_t i=0;i<z.size();++i) {
     rsqit[i] = std::norm(zit[i]);
   }
 

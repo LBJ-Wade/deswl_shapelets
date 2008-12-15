@@ -6,30 +6,28 @@
 #include <sstream>
 
 double SingleSigma(
-    const Image<double>& im,
+    const Image<double>& im, 
     const Position& pos,
     double sky,
     double noise,
     double gain,
     const Image<double>& weight_im, 
     const Transformation& trans, 
-    double psfap)
+    double psfap,
+    long& flag)
 {
   double sigma = DEFVALNEG;
 
   std::vector<Pixel> pix;
-  int flag = 0;
+  flag = 0;
   try {
     GetPixList(im, pix, pos, sky, noise, gain, &weight_im, trans, psfap, flag);
   } catch (Range_error& e) {
     xxdbg<<"transformation range error: \n";
     xxdbg<<"p = "<<pos<<", b = "<<e.b<<std::endl;
-    throw std::runtime_error("Failed to get pixel list");
+    flag = 1;
   }
-  if (flag) {
-    xxdbg<<"Error flag == "<<flag<<std::endl;
-    throw std::runtime_error("Failed to get pixel list");
-  }
+  if (flag) return DEFVALNEG;
   xxdbg<<"npix = "<<pix.size()<<std::endl;
 
   Ellipse ell;
@@ -54,25 +52,52 @@ void MeasureSigmas(
     const Transformation& trans, 
     double psfap,
     std::vector<double>& sigmas,
-    std::vector<int>& flags)
+    std::vector<long>& flags)
 {
   sigmas.clear();
   sigmas.resize(all_pos.size(),0);
   flags.clear();
   flags.resize(all_pos.size(),0);
 
-  for (size_t i=0; i< all_pos.size(); i++) {
+  int n = all_pos.size();
+#ifdef _OPENMP
+#pragma omp parallel for schedule(guided)
+#endif
+  for (int i=0; i<n; i++) {
+
     try {
-      sigmas[i] = 
-	SingleSigma(
-	    im, 
-	    all_pos[i], 
-	    all_sky[i], all_noise[i], gain, weight_im, 
-	    trans, psfap);
+      long flag1 = 0;
+      double sigma1 = SingleSigma(
+	  im, all_pos[i], all_sky[i], all_noise[i], gain, weight_im, 
+	  trans, psfap, flag1);
+#ifdef _OPENMP
+#pragma omp critical 
+#endif
+      {
+	dbg<<"sigmas[i]: "<<sigma1<<std::endl;
+	sigmas[i] = sigma1;
+	flags[i] = flag1;
+      }
+    } catch (std::exception& e) {
+#ifdef _OPENMP
+#pragma omp critical 
+#endif
+      {
+	dbg<<"Caught: "<<e.what()<<std::endl;
+	sigmas[i] = DEFVALNEG;
+	flags[i] = 1;
+      }
     } catch (...) {
-      sigmas[i] = DEFVALNEG;
-      flags[i] = 1;
+#ifdef _OPENMP
+#pragma omp critical 
+#endif
+      {
+	dbg<<"Caught unknown exception"<<std::endl;
+	sigmas[i] = DEFVALNEG;
+	flags[i] = 1;
+      }
     }
+
   }
 }
 
@@ -90,7 +115,7 @@ void EstimateSigma(
     xxdbg<<"star "<<i<<":\n";
 
     std::vector<Pixel> pix;
-    int flag = 0;
+    long flag = 0;
     try {
       GetPixList(im,pix,all_pos[i],all_sky[i],all_noise[i],gain,
 	  weight_im,trans,psfap,flag);
@@ -143,10 +168,10 @@ void MeasureSinglePSF(
     const Transformation& trans,
     double noise, double gain, const Image<double>* weight_im,
     double sigma_p, double psfap, int psforder, PSFLog& log,
-    BVec& psf, double& nu, int& flags)
+    BVec& psf, double& nu, long& flags)
 {
   std::vector<std::vector<Pixel> > pix(1);
-  int getpix_flag = 0;
+  long getpix_flag = 0;
   try {
     GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,psfap,getpix_flag);
   }

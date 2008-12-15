@@ -15,15 +15,15 @@ FitsFile.cpp Form.h PotentialStar.h Histogram.cpp StarFinder.cpp SXCat.cpp""".sp
 libwl = env.Library('#lib/wl',libwl_files)
 
 sblibs=['tmv_symband','tmv','cfitsio'] + env['_extralibs']
-measurepsf = env.Program('measurepsf', 'MeasurePSF.cpp', 
-                         LIBS=['wl'] + sblibs)
-measureshear = env.Program('measureshear', 'MeasureShear.cpp', 
-                           LIBS=['wl'] + sblibs)
 
-findstars = env.Program('findstars', 'FindStars.cpp', 
-                        LIBS=['wl'] + sblibs)
+measurepsf = env.Program('measurepsf', 'MeasurePSF.cpp', LIBS=['wl'] + sblibs)
 
-testwl = env.Program('testwl', 'TestWL.cpp', LIBS=['wl'] + sblibs )
+measureshear = env.Program('measureshear', 'MeasureShear.cpp', LIBS=['wl'] + sblibs)
+
+findstars = env.Program('findstars', 'FindStars.cpp', LIBS=['wl'] + sblibs)
+
+#testwl = env.Program('testwl', 'TestWL.cpp', LIBS=['wl'] + sblibs )
+
 #testnl = env.Program('testnl', 'TestNL.cpp', LIBS=['wl'] + sblibs)
 
 bin_install_dir = os.path.join(env['PREFIX'], 'bin')
