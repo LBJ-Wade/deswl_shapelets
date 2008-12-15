@@ -84,6 +84,34 @@ class FitsFile
 
 
     void ReadKey(char const* name, int dtype, char* dptr);
+
+
+    template <class T> void WriteKey(
+	char const* name,
+	int datatype,
+	T& val, 
+	const char* comment) {
+
+
+      int fits_status=0;
+      fits_write_key(
+	  mFptr, 
+	  datatype, 
+	  name, 
+	  &val, 
+	  comment,
+	  &fits_status);
+
+      if (!fits_status==0) {
+	fits_report_error(stderr, fits_status); 
+	std::stringstream serr;
+	serr<<"Error writing keyword "<<name;
+	throw FitsException(serr.str());
+      }
+
+
+    }
+
     long ReadLongKey(char const* name);
 
     void GotoHDU(int hdu);

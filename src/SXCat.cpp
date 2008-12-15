@@ -103,6 +103,11 @@ void ReadSXCat(ConfigFile& params, SXCAT_STRUCT& cat)
 void WriteFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat)
 {
 
+  int colnum;
+  LONGLONG firstrow;
+  LONGLONG firstel;
+  LONGLONG nel;
+
   std::string file = Name(params,"stars");
   FitsFile fits(file.c_str(), READWRITE, true);
   fitsfile* fptr = fits.get_fptr();
@@ -129,7 +134,6 @@ void WriteFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat)
 	(char*)"None",
 	(char*)"None"};
 
-
   // Create a binary table
   int fits_status=0;
   int tbl_type = BINARY_TBL;
@@ -142,48 +146,18 @@ void WriteFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat)
   }
 
 
-  // need a more general way to write columns
-  fits_status=0;
-  fits_write_col(
-      fptr, TLONG, 1, 1, 1, cat.id.size(), &cat.id[0], &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing 'id' to fits column";
-    throw FitsException(serr);
-  }
+  colnum = 1;  
+  firstrow = 1;
+  firstel = 1;
+  nel = cat.id.size();
+  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.id[0]);
 
-  fits_status=0;
-  fits_write_col(
-      fptr, TDOUBLE, 2, 1, 1, cat.sigma0.size(), &cat.sigma0[0], 
-      &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing 'sigma' to fits column: ";
-    throw FitsException(serr);
-  }
-
-  fits_status=0;
-  fits_write_col(
-      fptr, TINT, 3, 1, 1, cat.id.size(), &cat.size_flags[0], 
-      &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing 'size_flags' to fits column";
-    throw FitsException(serr);
-  }
-
-  fits_status=0;
-  fits_write_col(
-      fptr, TINT, 4, 1, 1, cat.id.size(), &cat.star_flag[0], 
-      &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing 'star_flag' to fits column";
-    throw FitsException(serr);
-  }
-
-
-
+  colnum = 2;  
+  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &cat.sigma0[0]);
+  colnum = 3;  
+  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.size_flags[0]);
+  colnum = 4;  
+  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.star_flag[0]);
 
   fits.Close();
 
@@ -334,72 +308,28 @@ void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat)
   }
 
 
+  fits.WriteKey("PSFORDER", TINT, cat.psf_order[0], 
+      "Order of shapelets expansion for PSF stars");
+  fits.WriteKey("NCOEFFP", TINT, ncoeff, 
+      "Number of coeffs (psforder+1)*(psforder+2)/2");
+  fits.WriteKey("SIGMA_P", TDOUBLE, cat.sigma_p[0], 
+      "Scale used in shapelets expansion");
 
 
-  // Write some things that are the same for the whole field into a
-  // header keyword.  These are also written as columns right now becaues
-  // we want to allow for them to be variable.
-  fits_status=0;
-  fits_write_key(fptr, TINT, "PSFORDER", &cat.psf_order[0], "Order of shapelets expansion for PSF stars", &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing keyword PSFORDER";
-    throw FitsException(serr);
-  }
-
-  fits_status=0;
-  fits_write_key(fptr, TINT, "NCOEFFP", &ncoeff, "Number of coeffs (psforder+1)*(psforder+2)/2", &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing keyword NCOEFFP";
-    throw FitsException(serr);
-  }
-
-  fits_status=0;
-  fits_write_key(fptr, TDOUBLE, "SIGMA_P", &cat.sigma_p[0], "Scale used in shapelets expansion", &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing keyword SIGMA_P";
-    throw FitsException(serr);
-  }
-
-
-
-
-
-  // need a more general way to write columns
   fits_status=0;
   colnum = 1;  
   firstrow = 1;
   firstel = 1;
   nel = cat.id.size();
-  fits_write_col(
-      fptr, TLONG, 
-      colnum, firstrow, firstel, nel, 
-      &cat.id[0], 
-      &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing 'id' to fits column";
-    throw FitsException(serr);
-  }
+  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.id[0]);
 
-
+  
   fits_status=0;
   colnum = 2;  
   firstrow = 1;
   firstel = 1;
   nel = cat.psf_flags.size();
-  fits_write_col(
-      fptr, TINT, 
-      colnum, firstrow, firstel, nel, 
-      &cat.psf_flags[0], 
-      &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing 'psf_flags' to fits column";
-    throw FitsException(serr);
-  }
+  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.psf_flags[0]);
 
 
   fits_status=0;
@@ -407,17 +337,7 @@ void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat)
   firstrow = 1;
   firstel = 1;
   nel = cat.nu.size();
-  fits_write_col(
-      fptr, TDOUBLE, 
-      colnum, firstrow, firstel, nel, 
-      &cat.nu[0], 
-      &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing 'nu' to fits column: ";
-    throw FitsException(serr);
-  }
-
+  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &cat.nu[0]);
 
 
   fits_status=0;
@@ -425,18 +345,9 @@ void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat)
   firstrow = 1;
   firstel = 1;
   nel = cat.psf_order.size();
-  fits_write_col(
-      fptr, TINT, 
-      colnum, firstrow, firstel, nel, 
-      &cat.psf_order[0], 
-      &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing 'psf_order' to fits column";
-    throw FitsException(serr);
-  }
+  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.psf_order[0]);
 
-
+  
 
 
   fits_status=0;
@@ -444,17 +355,8 @@ void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat)
   firstrow = 1;
   firstel = 1;
   nel = cat.sigma_p.size();
-  fits_write_col(
-      fptr, TDOUBLE, 
-      colnum, firstrow, firstel, nel, 
-      &cat.sigma_p[0], 
-      &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing 'sigma_p' to fits column: ";
-    throw FitsException(serr);
-  }
-
+  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &cat.sigma_p[0]);
+  
   // Now we have to loop through each psf decomposition and write
   // separately.  This is pretty dumb.
   colnum = 6;  
@@ -463,26 +365,9 @@ void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat)
     fits_status=0;
     LONGLONG row = i+1;
     firstel = 1;
-    //nel=1;
     nel=cat.psf[0].size();
-    //nel = cat.sigma_p.size();
-    fits_write_col(
-	fptr, TDOUBLE, 
-	colnum, row, firstel, nel, 
-	&cat.psf[i][0], 
-	&fits_status);
-    if (!fits_status==0) {
-      fits_report_error(stderr, fits_status); 
-      std::stringstream serr;
-      serr<<"Error writing row "<<row<<" for column 'coeffs'";
-      throw FitsException(serr.str());
-    }
+    fits.WriteColumn(TDOUBLE, colnum, row, firstel, nel, &cat.psf[i][0]);
   }
-
-
-
-
-
 
   fits.Close();
 
@@ -553,346 +438,6 @@ void ReadPSFCat(ConfigFile& params, PSF_STRUCT& cat)
 }
 
 
-
-
-#if 0
-//void WriteFittedPSF(ConfigFile& params, FittedPSF& fpsf);
-
-// This writes to hdu=2
-void WriteFittedPSF(ConfigFile& params, FittedPSF& fpsf)
-{
-
-  int colnum;
-  LONGLONG firstrow;
-  LONGLONG firstel;
-  LONGLONG nel;
-  std::stringstream err;
-
-
-  std::string file = Name(params,"fitpsf");
-  //std::string file = "test_fittedpsf.fits";
-  FitsFile fits(file.c_str(), READWRITE, true);
-  fitsfile* fptr = fits.get_fptr();
-
-
-  double sigma = fpsf.GetSigma();
-
-  // Note the actual coeffs may be less than this the way Mike does things
-  // but we will fill the extra with zeros
-  int psforder = fpsf.GetOrder();
-  int fitorder = fpsf.GetFitOrder();
-
-  int npca=fpsf.GetNpca();
-
-  int n_shapelet_coeff = (psforder+1)*(psforder+2)/2;
-  int n_rot_matrix_max = n_shapelet_coeff*n_shapelet_coeff;
-  int n_rot_matrix_actual = npca*n_shapelet_coeff;
-
-  int n_fit_coeff = (fitorder+1)*(fitorder+2)/2;
-  int n_interp_matrix_max = n_shapelet_coeff*n_fit_coeff;
-  int n_interp_matrix_actual = npca*n_fit_coeff;
-
-  std::stringstream ave_psf_form;
-  ave_psf_form << n_shapelet_coeff << "d";
-
-  std::stringstream rot_matrix_form;
-  rot_matrix_form << n_rot_matrix_max << "d";
-
-  std::stringstream interp_matrix_form;
-  interp_matrix_form << n_interp_matrix_max << "d";
-
-  std::string psf_order_name=params.get("fitpsf_psf_order_name");
-  std::string sigma_name=params.get("fitpsf_sigma_name");
-  std::string fit_order_name=params.get("fitpsf_fit_order_name");
-  std::string npca_name=params.get("fitpsf_npca_name");
-
-  std::string xmin_name=params.get("fitpsf_xmin_name");
-  std::string xmax_name=params.get("fitpsf_xmax_name");
-  std::string ymin_name=params.get("fitpsf_ymin_name");
-  std::string ymax_name=params.get("fitpsf_ymax_name");
-
-  std::string ave_psf_name=params.get("fitpsf_ave_psf_name");
-  std::string rot_matrix_name=params.get("fitpsf_rot_matrix_name");
-  std::string interp_matrix_name=params.get("fitpsf_interp_matrix_name");
-
-  int nfields=11;
-  char *table_names[] =  
-      {(char*)psf_order_name.c_str(),
-	(char*)sigma_name.c_str(),
-	(char*)fit_order_name.c_str(),
-	(char*)npca_name.c_str(),
-	(char*)xmin_name.c_str(),
-	(char*)xmax_name.c_str(),
-	(char*)ymin_name.c_str(),
-	(char*)ymax_name.c_str(),
-	(char*)ave_psf_name.c_str(),
-	(char*)rot_matrix_name.c_str(),
-	(char*)interp_matrix_name.c_str()};
-  char *table_types[] =  
-      {(char*)"1j",   // psf_order
-	(char*)"1d",  // sigma
-	(char*)"1j",  // fit_order
-	(char*)"1j",  // npca
-	(char*)"1e",  // xmin  
-	(char*)"1e",  // xmax
-	(char*)"1e",  // ymin
-	(char*)"1e",  // ymax
-	(char*)ave_psf_form.str().c_str(),  // ave_psf
-	(char*)rot_matrix_form.str().c_str(),  // rot_matrix
-	(char*)interp_matrix_form.str().c_str()};  // interp_matrix
-  char *table_units[] =  
-      {(char*)"None",    // psf_order
-	(char*)"arcsec", // sigma
-	(char*)"None",   // fit_order
-	(char*)"None",   // npca
-	(char*)"pixels",   // xmin
-	(char*)"pixels",   // xmax
-	(char*)"pixels",   // ymin
-	(char*)"pixels",   // ymax
-	(char*)"None",   // ave_psf
-	(char*)"None", // rot_matrix
-	(char*)"None"};  // interp_matrix
-
-
-  // Create a binary table
-  int fits_status=0;
-  int tbl_type = BINARY_TBL;
-  int nrows=1;
-  fits_create_tbl(fptr, tbl_type, nrows, nfields, 
-      table_names, table_types, table_units, NULL, &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error creating FittedPSF FITS table";
-    throw FitsException(serr);
-  }
-
-  // dimensions information
-  std::stringstream tdim10;
-  tdim10<<"("<<n_shapelet_coeff<<","<<n_shapelet_coeff<<")";
-  fits_status=0;
-  fits_write_key(fptr, TSTRING, "TDIM10", (void*)&tdim10.str()[0], "dimensions of rot_matrix", &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing keyword TDIM10";
-    throw FitsException(serr);
-  }
-
-  std::stringstream tdim11;
-  //tdim11<<"("<<n_fit_coeff<<","<<npca<<")";
-  tdim11<<"("<<n_fit_coeff<<","<<n_shapelet_coeff<<")";
-  fits_status=0;
-  fits_write_key(fptr, TSTRING, "TDIM11", (void*)&tdim11.str()[0], "dimensions of interp_matrix", &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing keyword TDIM11";
-    throw FitsException(serr);
-  }
-
-
-
-
-  colnum = 1;  
-  firstrow = 1;
-  firstel = 1;
-  nel = 1;
-  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &psforder);
-
-
-  colnum = 2;  
-  firstrow = 1;
-  firstel = 1;
-  nel = 1;
-  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &sigma);
-
-  colnum = 3;  
-  firstrow = 1;
-  firstel = 1;
-  nel = 1;
-  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &fitorder);
-
-  colnum = 4;  
-  firstrow = 1;
-  firstel = 1;
-  nel = 1;
-  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &npca);
-
-
-  float xmin = fpsf.GetXMin();
-  float xmax = fpsf.GetXMax();
-  float ymin = fpsf.GetYMin();
-  float ymax = fpsf.GetYMax();
-
-  colnum = 5;  
-  firstrow = 1;
-  firstel = 1;
-  nel = 1;
-  fits.WriteColumn(TFLOAT, colnum, firstrow, firstel, nel, &xmin);
-
-  colnum = 6;  
-  firstrow = 1;
-  firstel = 1;
-  nel = 1;
-  fits.WriteColumn(TFLOAT, colnum, firstrow, firstel, nel, &xmax);
-
-  colnum = 7;  
-  firstrow = 1;
-  firstel = 1;
-  nel = 1;
-  fits.WriteColumn(TFLOAT, colnum, firstrow, firstel, nel, &ymin);
-
-  colnum = 8;  
-  firstrow = 1;
-  firstel = 1;
-  nel = 1;
-  fits.WriteColumn(TFLOAT, colnum, firstrow, firstel, nel, &ymax);
-
-
-
-  double* avg_psf = fpsf.GetAvePSFPtr();
-  colnum = 9;  
-  firstrow = 1;
-  firstel = 1;
-  nel = n_shapelet_coeff;
-  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, avg_psf);
-
-
-  double* rot_matrix = fpsf.GetRotMatrixPtr();
-
-  for (int i=0; i<n_shapelet_coeff; i++) {
-    for (int j=0; j<n_shapelet_coeff; j++) {
-      if (i >= npca) {
-	*(rot_matrix +j*n_shapelet_coeff + i) = 0;
-      }
-     // dbg
-     //	<<"rot_matrix["<<i<<"]["<<j<<"] = "
-     //	<<*(rot_matrix +j*n_shapelet_coeff + i)<<std::endl;
-    }
-  }
-
-  colnum = 10;  
-  firstrow = 1;
-  firstel = 1;
-  nel = n_rot_matrix_actual;
-  nel = n_rot_matrix_max;
-  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, rot_matrix);
-
-
-  double* interp_matrix = fpsf.GetInterpMatrixPtr();
-
-
-  colnum = 11;  
-  firstrow = 1;
-  firstel = 1;
-  nel = n_interp_matrix_actual;
-  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, interp_matrix);
-
-  fits.Close();
-
-}
-
-void ReadFittedPSF(ConfigFile& params, FittedPSF& fpsf)
-{
-
-  int cat_hdu = 2;
-  if (params.keyExists("fitpsf_cat_hdu")) cat_hdu = params["fitpsf_cat_hdu"];
-
-  std::string file = Name(params,"fitpsf",false,true);
-  dbg<< "Reading FittedPSF from file: " << file << std::endl;
-
-  FitsFile fits(file);
-
-  //int hdutype;
-
-  dbg<<"Moving to HDU #"<<cat_hdu<<std::endl;
-  fits.GotoHDU(cat_hdu);
-
-  // Allocate memory for the columns we will read
-  //ResizePSFCat(cat, nrows, psforder);
-
-  std::string psf_order_name=params.get("fitpsf_psf_order_name");
-  std::string sigma_name=params.get("fitpsf_sigma_name");
-  std::string fit_order_name=params.get("fitpsf_fit_order_name");
-  std::string npca_name=params.get("fitpsf_npca_name");
-
-  std::string xmin_name=params.get("fitpsf_xmin_name");
-  std::string xmax_name=params.get("fitpsf_xmax_name");
-  std::string ymin_name=params.get("fitpsf_ymin_name");
-  std::string ymax_name=params.get("fitpsf_ymax_name");
-
-  std::string ave_psf_name=params.get("fitpsf_ave_psf_name");
-  std::string rot_matrix_name=params.get("fitpsf_rot_matrix_name");
-  std::string interp_matrix_name=params.get("fitpsf_interp_matrix_name");
-
-  int nrows=1;
-
-  int psf_order=0;
-  double sigma;
-  int fit_order;
-  int npca;
-
-  fits.ReadScalarCol(
-      (char *)psf_order_name.c_str(),
-      TINT,  (char *)&psf_order, nrows);
-  fits.ReadScalarCol(
-      (char *)sigma_name.c_str(),
-      TDOUBLE,  (char *)&sigma, nrows);
-  fits.ReadScalarCol(
-      (char *)fit_order_name.c_str(),
-      TINT,  (char *)&fit_order, nrows);
-  fits.ReadScalarCol(
-      (char *)npca_name.c_str(),
-      TINT,  (char *)&npca, nrows);
-
-  fpsf.Reset(psf_order, sigma, fit_order, npca);
-
-  float xmin;
-  float xmax;
-  float ymin;
-  float ymax;
-
-  fits.ReadScalarCol(
-      (char *)xmin_name.c_str(),
-      TFLOAT,  (char *)&xmin, nrows);
-  fits.ReadScalarCol(
-      (char *)xmax_name.c_str(),
-      TFLOAT,  (char *)&xmax, nrows);
-  fits.ReadScalarCol(
-      (char *)ymin_name.c_str(),
-      TFLOAT,  (char *)&ymin, nrows);
-  fits.ReadScalarCol(
-      (char *)ymax_name.c_str(),
-      TFLOAT,  (char *)&ymax, nrows);
-
-  fpsf.SetBounds(xmin, xmax, ymin, ymax);
-
-
-  double* avg_psf = fpsf.GetAvePSFPtr();
-  int n_shapelet_coeff = (psf_order+1)*(psf_order+2)/2;
-  fits.ReadCell(
-      (char*)ave_psf_name.c_str(),
-      TDOUBLE, (char*)avg_psf, 
-      1, n_shapelet_coeff);
-
-  double* rot_matrix = fpsf.GetRotMatrixPtr();
-  int n_rot_matrix_max = n_shapelet_coeff*n_shapelet_coeff;
-  fits.ReadCell(
-      (char*)rot_matrix_name.c_str(),
-      TDOUBLE, (char*)rot_matrix, 
-      1, n_rot_matrix_max);
-
-  double* interp_matrix = fpsf.GetInterpMatrixPtr();
-  int n_fit_coeff = (fit_order+1)*(fit_order+2)/2;
-  int n_interp_matrix_max = n_shapelet_coeff*n_fit_coeff;
-  fits.ReadCell(
-      (char*)interp_matrix_name.c_str(),
-      TDOUBLE, (char*)interp_matrix, 
-      1, n_interp_matrix_max);
-
-
-
-  fits.Close();
-}
-#endif
 
 
 
@@ -1034,23 +579,11 @@ void WriteShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
     throw FitsException(serr);
   }
 
-  fits_status=0;
-  fits_write_key(fptr, TINT, "GALORDER", &cat.gal_order[0], "Order of pre-psf shapelets expansion", &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing keyword GALORDER";
-    throw FitsException(serr);
-  }
 
-  fits_status=0;
-  fits_write_key(fptr, TINT, "NCOEFFG", &ncoeff, "Number of coeffs (galorder+1)*(galorder+2)/2", &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing keyword NCOEFFP";
-    throw FitsException(serr);
-  }
-
-
+  fits.WriteKey("GALORDER", TINT, cat.gal_order[0], 
+      "Order of pre-psf shapelets expansions");
+  fits.WriteKey("NCOEFFG", TINT, ncoeff, 
+      "Number of coeffs (galorder+1)*(galorder+2)/2");
 
   colnum = 1;  
   firstrow = 1;

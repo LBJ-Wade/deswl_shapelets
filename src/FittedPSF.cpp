@@ -398,7 +398,7 @@ void FittedPSF::WriteFits(std::string file, const ConfigFile& params) const
   fits.Close();
 
   // Test FITS I/O:
-  if (1) {
+  if (0) {
     FittedPSF test;
     test.Read(params);
     // Compare  

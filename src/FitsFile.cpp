@@ -151,6 +151,7 @@ void FitsFile::ReadKey(char const* name,int dtype,char* dptr)
 
 }
 
+
 long FitsFile::ReadLongKey(char const* name)
 {
   long val;
