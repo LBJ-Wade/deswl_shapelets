@@ -44,8 +44,12 @@ typedef struct {
   std::vector<double> noise;
 } SXCAT_STRUCT;
 
+
+
+void WriteMainKeywords(FitsFile& fits, const ConfigFile& params);
+
 void ResizeSXCat(SXCAT_STRUCT& cat, long n);
-void ReadSXCat(ConfigFile& params, SXCAT_STRUCT& cat);
+void ReadSXCat(const ConfigFile& params, SXCAT_STRUCT& cat);
 
 
 // FindStars 
@@ -61,8 +65,9 @@ typedef struct {
   std::vector<double> noise;
 } FINDSTARS_STRUCT;
 
-void ReadFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat);
-void WriteFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat);
+void ReadFindStarsCat(const ConfigFile& params, FINDSTARS_STRUCT& cat);
+void WriteFindStarsKeywords(FitsFile& fits, const ConfigFile& params);
+void WriteFindStarsCat(const ConfigFile& params, FINDSTARS_STRUCT& cat);
 void ResizeFindStarsCat(FINDSTARS_STRUCT& cat, size_t n);
 
 
@@ -73,20 +78,21 @@ typedef struct {
   std::vector<long> id;
   std::vector<long> psf_flags;
   std::vector<double> nu;
-  std::vector<int> psf_order;
+  std::vector<long> psf_order;
   std::vector<double> sigma_p;
   std::vector<BVec> psf;
 
 } PSF_STRUCT;
 
 void ResizePSFCat(PSF_STRUCT& cat, size_t n, int psf_order, double sigma=0.0);
-void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat);
-void ReadPSFCat(ConfigFile& params, PSF_STRUCT& cat);
+void WritePSFKeywords(FitsFile& fits, const ConfigFile& params);
+void WritePSFCat(const ConfigFile& params, PSF_STRUCT& cat);
+void ReadPSFCat(const ConfigFile& params, PSF_STRUCT& cat);
 
 
 #if 0
-void WriteFittedPSF(ConfigFile& params, FittedPSF& fpsf);
-void ReadFittedPSF(ConfigFile& params, FittedPSF& fpsf);
+void WriteFittedPSF(const ConfigFile& params, FittedPSF& fpsf);
+void ReadFittedPSF(const ConfigFile& params, FittedPSF& fpsf);
 #endif
 
 
@@ -100,20 +106,21 @@ typedef struct {
   std::vector<double> shear_cov01;
   std::vector<double> shear_cov11;
 
-  std::vector<int> gal_order;
+  std::vector<long> gal_order;
   std::vector<BVec> shapelets_prepsf;
 
   // These are extra in order to get around Joe's stupidity
 #ifdef SHEXTRA_PARS
   std::vector<double> sigma0;
   std::vector<long> size_flags;
-  std::vector<int> star_flag;
+  std::vector<long> star_flag;
 #endif
 } SHEAR_STRUCT;
 
 void ResizeShearCat(SHEAR_STRUCT& cat, size_t n, int psf_order, 
     double sigma=0.0);
-void WriteShearCat(ConfigFile& params, SHEAR_STRUCT& cat);
-void ReadShearCat(ConfigFile& params, SHEAR_STRUCT& cat);
+void WriteShearKeywords(FitsFile& fits, const ConfigFile& params);
+void WriteShearCat(const ConfigFile& params, SHEAR_STRUCT& cat);
+void ReadShearCat(const ConfigFile& params, SHEAR_STRUCT& cat);
 
 #endif

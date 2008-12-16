@@ -12,6 +12,16 @@
 #include <iostream>
 #include "fitsio.h"
 
+#include <vector>
+#include <cstring>
+
+// in case we don't have the ConfigFile class available
+#define HAVE_CONFIG_FILE
+
+#ifdef HAVE_CONFIG_FILE
+#include "ConfigFile.h"
+#endif
+
 class FitsException : public std::runtime_error {
   public:
     FitsException(const char* m) : std::runtime_error(m) {};
@@ -45,16 +55,9 @@ class FitsFile
 	LONGLONG row,
 	LONGLONG nel);
 
-
-    /*
-    template <class T> void WriteColumn(
-	int datatype, 
-	int colnum, 
-	LONGLONG firstrow, 
-	LONGLONG firstel,
-	LONGLONG nel,
-	T* data);
-	*/
+#ifdef HAVE_CONFIG_FILE
+    void WriteParKey(const ConfigFile& params, const char* name, int type);
+#endif
 
     template <class T> void 
       WriteColumn(
@@ -85,21 +88,43 @@ class FitsFile
 
     void ReadKey(char const* name, int dtype, char* dptr);
 
-
-    template <class T> void WriteKey(
-	char const* name,
+    void WriteKey(
+	const char* name,
 	int datatype,
-	T& val, 
+	const char* cstr, 
 	const char* comment) {
-
 
       int fits_status=0;
       fits_write_key(
 	  mFptr, 
 	  datatype, 
-	  name, 
+	  (char*)name, 
+	  (char*)cstr, 
+	  (char*)comment,
+	  &fits_status);
+
+      if (!fits_status==0) {
+	fits_report_error(stderr, fits_status); 
+	std::stringstream serr;
+	serr<<"Error writing keyword "<<name;
+	throw FitsException(serr.str());
+      }
+
+    }
+
+    template <class T> void WriteKey(
+	const char* name,
+	int datatype,
+	T& val, 
+	const char* comment) {
+
+      int fits_status=0;
+      fits_write_key(
+	  mFptr, 
+	  datatype, 
+	  (char*)name, 
 	  &val, 
-	  comment,
+	  (char*)comment,
 	  &fits_status);
 
       if (!fits_status==0) {
@@ -111,6 +136,7 @@ class FitsFile
 
 
     }
+
 
     long ReadLongKey(char const* name);
 

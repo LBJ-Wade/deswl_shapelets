@@ -1,5 +1,6 @@
 #include "SXCat.h"
 
+
 void ResizeSXCat(SXCAT_STRUCT& cat, long n)
 {
   cat.id.resize(n,0);
@@ -22,7 +23,7 @@ void ResizeSXCat(SXCAT_STRUCT& cat, long n)
   cat.noise.resize(n,0);
 }
 
-void ReadSXCat(ConfigFile& params, SXCAT_STRUCT& cat)
+void ReadSXCat(const ConfigFile& params, SXCAT_STRUCT& cat)
 {
 
   int cat_hdu = 1;
@@ -98,9 +99,48 @@ void ReadSXCat(ConfigFile& params, SXCAT_STRUCT& cat)
   fits.Close();
 }
 
+void WriteMainKeywords(FitsFile& fits, const ConfigFile& params)
+{
+  //fits.WriteParKey(params, "version", TSTRING);
+  fits.WriteParKey(params, "noise_method", TSTRING);
+  fits.WriteParKey(params, "dist_method", TSTRING);
+}
+
+void WriteFindStarsKeywords(FitsFile& fits, const ConfigFile& params)
+{
+  fits.WriteParKey(params, "stars_minsize", TDOUBLE);
+  fits.WriteParKey(params, "stars_maxsize", TDOUBLE);
+  fits.WriteParKey(params, "stars_minmag", TDOUBLE);
+  fits.WriteParKey(params, "stars_maxmag", TDOUBLE);
+  fits.WriteParKey(params, "stars_ndivx", TLONG);
+  fits.WriteParKey(params, "stars_ndivy", TLONG);
+
+  fits.WriteParKey(params, "stars_startn1", TDOUBLE);
+  fits.WriteParKey(params, "stars_starfrac", TDOUBLE);
+  fits.WriteParKey(params, "stars_magstep1", TDOUBLE);
+  fits.WriteParKey(params, "stars_miniter1", TLONG);
+  fits.WriteParKey(params, "stars_reject1", TDOUBLE);
+  fits.WriteParKey(params, "stars_binsize1", TDOUBLE);
+  fits.WriteParKey(params, "stars_maxratio1", TDOUBLE);
+  fits.WriteParKey(params, "stars_okvalcount", TLONG);
+  fits.WriteParKey(params, "stars_maxrms", TDOUBLE);
+  fits.WriteParKey(params, "stars_starsperbin", TLONG);
+
+  fits.WriteParKey(params, "stars_fitorder", TLONG);
+  fits.WriteParKey(params, "stars_fitsigclip", TDOUBLE);
+  fits.WriteParKey(params, "stars_startn2", TDOUBLE);
+  fits.WriteParKey(params, "stars_magstep2", TDOUBLE);
+  fits.WriteParKey(params, "stars_miniter2", TLONG);
+  fits.WriteParKey(params, "stars_minbinsize", TDOUBLE);
+  fits.WriteParKey(params, "stars_reject2", TDOUBLE);
+
+  fits.WriteParKey(params, "stars_purityratio", TDOUBLE);
+  fits.WriteParKey(params, "stars_maxrefititer", TLONG);
+}
+
 
 // This writes to hdu=2
-void WriteFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat)
+void WriteFindStarsCat(const ConfigFile& params, FINDSTARS_STRUCT& cat)
 {
 
   int colnum;
@@ -126,8 +166,8 @@ void WriteFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat)
   char *table_types[] =  
       {(char*)"1j",
 	(char*)"1d",
-	(char*)"1j",
-	(char*)"1j"};
+	(char*)"1i",
+	(char*)"1b"};
   char *table_units[] =  
       {(char*)"None",
 	(char*)"pixels",
@@ -146,25 +186,30 @@ void WriteFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat)
   }
 
 
-  colnum = 1;  
+  // Write the header keywords
+  WriteMainKeywords(fits, params);
+  WriteFindStarsKeywords(fits, params);
+
+
   firstrow = 1;
   firstel = 1;
   nel = cat.id.size();
-  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.id[0]);
 
+  colnum = 1;  
+  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.id[0]);
   colnum = 2;  
   fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &cat.sigma0[0]);
   colnum = 3;  
-  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.size_flags[0]);
+  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.size_flags[0]);
   colnum = 4;  
-  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.star_flag[0]);
+  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.star_flag[0]);
 
   fits.Close();
 
 }
 
 
-void ReadFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat)
+void ReadFindStarsCat(const ConfigFile& params, FINDSTARS_STRUCT& cat)
 {
 
   int cat_hdu = 2;
@@ -207,8 +252,8 @@ void ReadFindStarsCat(ConfigFile& params, FINDSTARS_STRUCT& cat)
 
   fits.ReadScalarCol((char *)sigma0_name.c_str(),TDOUBLE,(char *)&cat.sigma0[0], nrows);
 
-  fits.ReadScalarCol((char *)size_flags_name.c_str(),TINT,(char *)&cat.size_flags[0], nrows);
-  fits.ReadScalarCol((char *)star_flag_name.c_str(),TINT,(char *)&cat.star_flag[0], nrows);
+  fits.ReadScalarCol((char *)size_flags_name.c_str(),TLONG,(char *)&cat.size_flags[0], nrows);
+  fits.ReadScalarCol((char *)star_flag_name.c_str(),TLONG,(char *)&cat.star_flag[0], nrows);
 
   fits.Close();
 }
@@ -243,8 +288,15 @@ void ResizePSFCat(PSF_STRUCT& cat, size_t n, int psf_order, double sigma)
 }
 
 
+void WritePSFKeywords(FitsFile& fits, const ConfigFile& params)
+{
+  fits.WriteParKey(params, "psf_aperture", TDOUBLE);
+  fits.WriteParKey(params, "psf_order", TLONG);
+  fits.WriteParKey(params, "psf_seeing_est", TDOUBLE);
+}
+ 
 // This writes to hdu=2
-void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat)
+void WritePSFCat(const ConfigFile& params, PSF_STRUCT& cat)
 {
 
   int colnum;
@@ -281,11 +333,11 @@ void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat)
 	(char*)sigma_p_name.c_str(),
 	(char*)coeffs_name.c_str()};
   char *table_types[] =  
-      {(char*)"1j",
-	(char*)"1j",
-	(char*)"1d",
-	(char*)"1j",
-	(char*)"1d",
+      {(char*)"1j", // id
+	(char*)"1i", // flags
+	(char*)"1d", // nu
+	(char*)"1b", //order
+	(char*)"1d", //sigma_p
 	(char*)coeff_form.str().c_str()};
   char *table_units[] =  
       {(char*)"None",
@@ -307,16 +359,10 @@ void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat)
     throw FitsException(serr);
   }
 
+  // Write the header keywords
+  WriteMainKeywords(fits, params);
+  WritePSFKeywords(fits, params);
 
-  fits.WriteKey("PSFORDER", TINT, cat.psf_order[0], 
-      "Order of shapelets expansion for PSF stars");
-  fits.WriteKey("NCOEFFP", TINT, ncoeff, 
-      "Number of coeffs (psforder+1)*(psforder+2)/2");
-  fits.WriteKey("SIGMA_P", TDOUBLE, cat.sigma_p[0], 
-      "Scale used in shapelets expansion");
-
-
-  fits_status=0;
   colnum = 1;  
   firstrow = 1;
   firstel = 1;
@@ -324,15 +370,13 @@ void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat)
   fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.id[0]);
 
   
-  fits_status=0;
   colnum = 2;  
   firstrow = 1;
   firstel = 1;
   nel = cat.psf_flags.size();
-  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.psf_flags[0]);
+  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.psf_flags[0]);
 
 
-  fits_status=0;
   colnum = 3;  
   firstrow = 1;
   firstel = 1;
@@ -340,17 +384,12 @@ void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat)
   fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &cat.nu[0]);
 
 
-  fits_status=0;
   colnum = 4;  
   firstrow = 1;
   firstel = 1;
   nel = cat.psf_order.size();
-  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.psf_order[0]);
+  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.psf_order[0]);
 
-  
-
-
-  fits_status=0;
   colnum = 5;  
   firstrow = 1;
   firstel = 1;
@@ -362,7 +401,6 @@ void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat)
   colnum = 6;  
 
   for (size_t i=0; i<cat.id.size(); i++) {
-    fits_status=0;
     LONGLONG row = i+1;
     firstel = 1;
     nel=cat.psf[0].size();
@@ -373,7 +411,7 @@ void WritePSFCat(ConfigFile& params, PSF_STRUCT& cat)
 
 }
 
-void ReadPSFCat(ConfigFile& params, PSF_STRUCT& cat)
+void ReadPSFCat(const ConfigFile& params, PSF_STRUCT& cat)
 {
 
   int cat_hdu = 2;
@@ -394,8 +432,8 @@ void ReadPSFCat(ConfigFile& params, PSF_STRUCT& cat)
   long nrows=0;
   fits.ReadKey("NAXIS2", TLONG, (char *)&nrows);
 
-  int psforder=0;
-  fits.ReadKey("PSFORDER", TINT, (char*)&psforder);
+  long psforder=0;
+  fits.ReadKey("PSFORD", TLONG, (char*)&psforder);
 
   dbg<<"  nrows = "<<nrows<<std::endl;
   if (nrows <= 0) {
@@ -416,9 +454,9 @@ void ReadPSFCat(ConfigFile& params, PSF_STRUCT& cat)
   dbg<<"Reading columns"<<std::endl;
   dbg<<"  "<<id_name<<std::endl;
   fits.ReadScalarCol((char *)id_name.c_str(),TLONG,(char *)&cat.id[0], nrows);
-  fits.ReadScalarCol((char *)psf_flags_name.c_str(),TINT,(char *)&cat.psf_flags[0], nrows);
+  fits.ReadScalarCol((char *)psf_flags_name.c_str(),TLONG,(char *)&cat.psf_flags[0], nrows);
   fits.ReadScalarCol((char *)nu_name.c_str(),TDOUBLE,(char *)&cat.nu[0], nrows);
-  fits.ReadScalarCol((char *)psf_order_name.c_str(),TINT,(char *)&cat.psf_order[0], nrows);
+  fits.ReadScalarCol((char *)psf_order_name.c_str(),TLONG,(char *)&cat.psf_order[0], nrows);
   fits.ReadScalarCol((char *)sigma_p_name.c_str(),TDOUBLE,(char *)&cat.sigma_p[0], nrows);
 
   // gotta loop for this one
@@ -470,9 +508,18 @@ void ResizeShearCat(SHEAR_STRUCT& cat, size_t n, int gal_order, double sigma)
 
 }
 
-
+void WriteShearKeywords(FitsFile& fits, const ConfigFile& params)
+{
+  fits.WriteParKey(params, "shear_aperture", TDOUBLE);
+  fits.WriteParKey(params, "shear_max_aperture", TDOUBLE);
+  fits.WriteParKey(params, "shear_gal_order", TLONG);
+  fits.WriteParKey(params, "shear_gal_order2", TLONG);
+  fits.WriteParKey(params, "shear_min_gal_size", TDOUBLE);
+  fits.WriteParKey(params, "shear_f_psf", TDOUBLE);
+}
+ 
 // This writes to hdu=2
-void WriteShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
+void WriteShearCat(const ConfigFile& params, SHEAR_STRUCT& cat)
 {
 
   int colnum;
@@ -535,12 +582,12 @@ void WriteShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
       {(char*)"1j",        // id
 
 #ifdef SHEXTRA_PARS
-	(char*)"1j",        // size_flags
-	(char*)"1j",        // star_flag
+	(char*)"1i",        // size_flags
+	(char*)"1b",        // star_flag
 	(char*)"1d",        // sigma0
 #endif
 
-	(char*)"1j",        // shear_flags
+	(char*)"1i",        // shear_flags
 	(char*)"1d",        // shear1
 	(char*)"1d",        // shear1
 	(char*)"1d",        // shear_cov00
@@ -579,11 +626,7 @@ void WriteShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
     throw FitsException(serr);
   }
 
-
-  fits.WriteKey("GALORDER", TINT, cat.gal_order[0], 
-      "Order of pre-psf shapelets expansions");
-  fits.WriteKey("NCOEFFG", TINT, ncoeff, 
-      "Number of coeffs (galorder+1)*(galorder+2)/2");
+  WriteShearKeywords(fits, params);
 
   colnum = 1;  
   firstrow = 1;
@@ -596,13 +639,13 @@ void WriteShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
   firstrow = 1;
   firstel = 1;
   nel = cat.size_flags.size();
-  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.size_flags[0]);
+  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.size_flags[0]);
 
   colnum++;  
   firstrow = 1;
   firstel = 1;
   nel = cat.star_flag.size();
-  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.star_flag[0]);
+  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.star_flag[0]);
 
   colnum++;  
   firstrow = 1;
@@ -615,7 +658,7 @@ void WriteShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
   firstrow = 1;
   firstel = 1;
   nel = cat.shear_flags.size();
-  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.shear_flags[0]);
+  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.shear_flags[0]);
 
 
   colnum++;  
@@ -653,7 +696,7 @@ void WriteShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
   firstrow = 1;
   firstel = 1;
   nel = cat.gal_order.size();
-  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &cat.gal_order[0]);
+  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.gal_order[0]);
 
 
 
@@ -690,7 +733,7 @@ void WriteShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
 }
 
 
-void ReadShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
+void ReadShearCat(const ConfigFile& params, SHEAR_STRUCT& cat)
 {
 
   int cat_hdu = 2;
@@ -717,8 +760,8 @@ void ReadShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
     throw FAILURE_FORMAT_ERROR;
   }
 
-  int gal_order=0;
-  fits.ReadKey("GALORDER", TINT, (char*)&gal_order);
+  long gal_order=0;
+  fits.ReadKey("GALORD", TLONG, (char*)&gal_order);
 
   // Allocate memory for the columns we will read
   ResizeShearCat(cat, nrows, gal_order);
@@ -759,12 +802,12 @@ void ReadShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
 
 
 #ifdef SHEXTRA_PARS
-  fits.ReadScalarCol((char *)size_flags_name.c_str(),TINT,(char *)&cat.size_flags[0], nrows);
-  fits.ReadScalarCol((char *)star_flag_name.c_str(),TINT,(char *)&cat.star_flag[0], nrows);
+  fits.ReadScalarCol((char *)size_flags_name.c_str(),TLONG,(char *)&cat.size_flags[0], nrows);
+  fits.ReadScalarCol((char *)star_flag_name.c_str(),TLONG,(char *)&cat.star_flag[0], nrows);
   fits.ReadScalarCol((char *)sigma0_name.c_str(),TDOUBLE,(char *)&cat.sigma0[0], nrows);
 #endif
 
-  fits.ReadScalarCol((char *)shear_flags_name.c_str(),TINT,(char *)&cat.shear_flags[0], nrows);
+  fits.ReadScalarCol((char *)shear_flags_name.c_str(),TLONG,(char *)&cat.shear_flags[0], nrows);
 
   fits.ReadScalarCol((char *)shear1_name.c_str(),TDOUBLE,(char *)&cat.shear1[0], nrows);
   fits.ReadScalarCol((char *)shear2_name.c_str(),TDOUBLE,(char *)&cat.shear2[0], nrows);
@@ -773,7 +816,7 @@ void ReadShearCat(ConfigFile& params, SHEAR_STRUCT& cat)
   fits.ReadScalarCol((char *)cov01_name.c_str(),TDOUBLE,(char *)&cat.shear_cov01[0], nrows);
   fits.ReadScalarCol((char *)cov11_name.c_str(),TDOUBLE,(char *)&cat.shear_cov11[0], nrows);
 
-  fits.ReadScalarCol((char *)gal_order_name.c_str(),TINT,(char *)&cat.gal_order[0], nrows);
+  fits.ReadScalarCol((char *)gal_order_name.c_str(),TLONG,(char *)&cat.gal_order[0], nrows);
 
   // gotta loop for this one
   int ncoeff=(gal_order+1)*(gal_order+2)/2;

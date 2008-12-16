@@ -5,7 +5,6 @@
 #include "Function2D.h"
 #include "Legendre2D.h"
 #include "Name.h"
-#include "FitsFile.h"
 #include <fstream>
 
 static tmv::Vector<double> DefinePXY(size_t order, double x,
@@ -190,6 +189,12 @@ void FittedPSF::Read(const ConfigFile& params)
   }
 }
 
+
+void FittedPSF::WriteFitsKeywords(FitsFile& fits, const ConfigFile& params) const
+{
+  fits.WriteParKey(params, "fitpsf_order", TLONG);
+  fits.WriteParKey(params, "fitpsf_pca_thresh", TDOUBLE);
+} 
 void FittedPSF::WriteFits(std::string file, const ConfigFile& params) const
 {
   int colnum;
@@ -287,27 +292,20 @@ void FittedPSF::WriteFits(std::string file, const ConfigFile& params) const
     throw FitsException(serr);
   }
 
+
   // dimensions information
   std::stringstream tdim10;
   tdim10<<"("<<n_shapelet_coeff<<","<<n_shapelet_coeff<<")";
-  fits_status=0;
-  fits_write_key(fptr, TSTRING, "TDIM10", (void*)&tdim10.str()[0], "dimensions of rot_matrix", &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing keyword TDIM10";
-    throw FitsException(serr);
-  }
+  fits.WriteKey("TDIM10",TSTRING,tdim10.str().c_str(),
+      "dimensions of rot_matrix");
+
 
   std::stringstream tdim11;
-  //tdim11<<"("<<n_fit_coeff<<","<<npca<<")";
   tdim11<<"("<<n_fit_coeff<<","<<n_shapelet_coeff<<")";
-  fits_status=0;
-  fits_write_key(fptr, TSTRING, "TDIM11", (void*)&tdim11.str()[0], "dimensions of interp_matrix", &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error writing keyword TDIM11";
-    throw FitsException(serr);
-  }
+  fits.WriteKey("TDIM11",TSTRING,tdim11.str().c_str(),
+      "dimensions of interp_matrix");
+
+  WriteFitsKeywords(fits, params);
 
   float xmin = bounds.GetXMin();
   float xmax = bounds.GetXMax();
@@ -318,7 +316,7 @@ void FittedPSF::WriteFits(std::string file, const ConfigFile& params) const
   firstrow = 1;
   firstel = 1;
   nel = 1;
-  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &psforder);
+  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &psforder);
 
 
   colnum = 2;  
@@ -331,13 +329,13 @@ void FittedPSF::WriteFits(std::string file, const ConfigFile& params) const
   firstrow = 1;
   firstel = 1;
   nel = 1;
-  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &fitorder);
+  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &fitorder);
 
   colnum = 4;  
   firstrow = 1;
   firstel = 1;
   nel = 1;
-  fits.WriteColumn(TINT, colnum, firstrow, firstel, nel, &npca);
+  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &npca);
 
 
   colnum = 5;  
@@ -467,7 +465,7 @@ void FittedPSF::ReadFits(std::string file, int hdu, const ConfigFile& params)
 
   fits.ReadScalarCol(
       (char *)psf_order_name.c_str(),
-      TINT,  (char *)&psforder, nrows);
+      TLONG,  (char *)&psforder, nrows);
   dbg<<"psforder = "<<psforder<<std::endl;
   fits.ReadScalarCol(
       (char *)sigma_name.c_str(),
@@ -475,11 +473,11 @@ void FittedPSF::ReadFits(std::string file, int hdu, const ConfigFile& params)
   dbg<<"sigma = "<<sigma<<std::endl;
   fits.ReadScalarCol(
       (char *)fit_order_name.c_str(),
-      TINT,  (char *)&fitorder, nrows);
+      TLONG,  (char *)&fitorder, nrows);
   dbg<<"fitorder = "<<fitorder<<std::endl;
   fits.ReadScalarCol(
       (char *)npca_name.c_str(),
-      TINT,  (char *)&npca, nrows);
+      TLONG,  (char *)&npca, nrows);
   dbg<<"npca = "<<npca<<std::endl;
 
   float xmin;

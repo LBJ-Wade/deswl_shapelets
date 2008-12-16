@@ -48,6 +48,54 @@ void FitsFile::Close()
   fits_close_file(mFptr, &fitserr);
 }
 
+
+// only if we have config file available
+#ifdef HAVE_CONFIG_FILE
+void FitsFile::WriteParKey(const ConfigFile& params, const char* cname, int type)
+{
+
+  std::string key = cname;
+  std::string hname_key = key + "_hname";
+  std::string comment_key = key + "_comment";
+
+  std::string hname=params.get(hname_key.c_str());
+  std::string comment=params.get(comment_key.c_str());
+
+  switch (type) {
+    case TSTRING:
+      {
+	std::string val=params.get(key.c_str());
+	WriteKey(hname.c_str(), type, val.c_str(), comment.c_str());
+      }
+      break;
+    case TDOUBLE:
+      {
+	double val=params.get(key.c_str());
+	WriteKey(hname.c_str(), type, val, comment.c_str());
+      }
+      break;
+    case TINT:
+      {
+	int val=params.get(key.c_str());
+	WriteKey(hname.c_str(), type, val, comment.c_str());
+      }
+    case TLONG:
+      {
+	long val=params.get(key.c_str());
+	WriteKey(hname.c_str(), type, val, comment.c_str());
+      }
+      break;
+    default:
+      std::stringstream err;
+      err<<"WriteParKey Unsupported type: "<<type;
+      throw std::runtime_error(err.str());
+  }
+
+}
+#endif
+
+
+
 /* 
  * this reads the entire column.  Must already be pointed to the correct
  * hdu
@@ -92,6 +140,27 @@ FitsFile::ReadScalarCol(
 
 }
 
+/*
+void FitsFile::CreateBinaryTbl(
+    std::vector<std::string> names,
+    std::vector<std::string> types,
+    std::vector<std::string> units) {
+
+
+  // Create a binary table
+  int fits_status=0;
+  int tbl_type = BINARY_TBL;
+  fits_create_tbl(mFptr, tbl_type, cat.id.size(), nfields, 
+      table_names, table_types, table_units, NULL, &fits_status);
+  if (!fits_status==0) {
+    fits_report_error(stderr, fits_status); 
+    std::string serr="Error creating FindStars FITS table: ";
+    throw FitsException(serr);
+  }
+
+
+}
+*/
 
 
 void 

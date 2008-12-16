@@ -125,6 +125,20 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
   */
 
   WriteFindStarsCat(params, fscat);
+#if 0
+  FINDSTARS_STRUCT testcat;
+  ReadFindStarsCat(params, testcat);
+  for (size_t i=0; i<fscat.id.size(); i++) {
+    if ( (fscat.star_flag[i] != testcat.star_flag[i]) ||
+	(fscat.size_flags[i] != testcat.size_flags[i]) ) {
+      std::cout
+	<<i
+	<<" star_flag: "<<fscat.star_flag[i]<<"  "<<testcat.star_flag[i]
+	<<" size_flags: "<<fscat.size_flags[i]<<"  "<<testcat.size_flags[i]
+	<<std::endl;
+    }
+  }
+#endif
   dbg<<"Done Write\n";
 }
 

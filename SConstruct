@@ -123,6 +123,7 @@ def CCFlags(env):
     version = env['CXXVERSION_NUMERICAL']
     if compiler[0] == 'g':
         cflags=['-O2','-Wall','-Werror','-ggdb']
+        #cflags=['-O2','-ggdb']
         if version <= 4.2:
             cflags += ['-fno-strict-aliasing']
     elif compiler[0] == 'i':

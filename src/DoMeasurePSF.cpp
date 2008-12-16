@@ -373,13 +373,11 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
   WritePSFCat(params, psfcat);
   dbg<<"Done writing output psf catalog\n";
 
+
+
   // Fit the PSF with a polynomial:
   FittedPSF fittedpsf(psfcat.psf,psfcat.psf_flags,starcat.pos,psfcat.nu,sigma_p,params);
   dbg<<"Done fitting PSF\n";
-
-  //PSF_STRUCT testcat;
-  //ReadPSFCat(params, testcat);
-
 
 
   // Output fitted psf
@@ -393,6 +391,8 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
 
   fittedpsf.Write(params);
   dbg<<"Done writing fitted PSF file\n";
+
+
 
   if (XDEBUG) {
     // Check fit:
@@ -415,6 +415,25 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
       <<"Success rate: "<<nsuccess<<"/"<<nstars
       <<std::endl; 
   }
+
+  // testing
+#if 0
+  PSF_STRUCT testcat;
+  ReadPSFCat(params, testcat);
+  for (size_t i=0; i<psfcat.id.size(); i++) {
+    if ( (psfcat.psf_flags[i] != testcat.psf_flags[i]) ||
+	(psfcat.psf_order[i] != testcat.psf_order[i]) ) {
+      std::cout
+	<<i
+	<<" psf_flags: "<<psfcat.psf_flags[i]<<"  "<<testcat.psf_flags[i]
+	<<" psf_order: "<<psfcat.psf_order[i]<<"  "<<testcat.psf_order[i]
+	<<std::endl;
+    }
+  }
+#endif
+
+
+
 
   return nsuccess;
 }

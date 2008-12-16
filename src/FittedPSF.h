@@ -5,6 +5,7 @@
 #include "Bounds.h"
 #include "ConfigFile.h"
 #include "dbg.h"
+#include "FitsFile.h"
 #include <vector>
 #include <iostream>
 
@@ -33,6 +34,7 @@ class FittedPSF {
 
     void Write(const ConfigFile& params) const;
     void Write(std::ostream& os) const;
+    void WriteFitsKeywords(FitsFile& fits, const ConfigFile& params) const;
     void WriteFits(std::string file, const ConfigFile& params) const;
 
     void Read(const ConfigFile& params);
