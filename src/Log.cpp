@@ -2,9 +2,11 @@
 #include "Log.h"
 #include <iostream>
 #include <stdexcept>
-#include "FitsFile.h"
 
-ShearLog::ShearLog(std::string _logfile, std::string _fitsfile) :
+#include "Params.h"
+
+
+ShearLog::ShearLog(std::string _logfile) :
   exitcode(SUCCESS), ngals(0),
   nf_range1(0), nf_range2(0),
   nf_edge1(0), nf_npix1(0), nf_small(0),
@@ -12,8 +14,7 @@ ShearLog::ShearLog(std::string _logfile, std::string _fitsfile) :
   nf_tmverror(0), nf_othererror(0),
   ns_native(0), nf_native(0),
   ns_mu(0), nf_mu(0),
-  ns_gamma(0), nf_gamma(0),
-  fitsfile(_fitsfile)
+  ns_gamma(0), nf_gamma(0)
 {
   if (_logfile == "") {
     logout = &std::cout;
@@ -30,7 +31,6 @@ ShearLog::ShearLog(std::string _logfile, std::string _fitsfile) :
 ShearLog::~ShearLog() 
 {
   WriteLog();
-  WriteLogToFitsHeader();
   NoWriteLog(); // deletes logout
 }
 
@@ -41,9 +41,8 @@ void ShearLog::NoWriteLog()
   }
 }
 
-void ShearLog::WriteLogToFitsHeader() const
+void ShearLog::WriteLogToFitsHeader(FitsFile& fits) const
 {
-  FitsFile fits(fitsfile.c_str(), READWRITE, true);
 
   // Write to Header:
   // exitcode
@@ -68,25 +67,33 @@ void ShearLog::WriteLog() const
 {
   if (logout) {
     // Emit logging information
-#if 0
-    *logout << 
-      exitcode <<delim<<
-      ngals <<delim<<
-      ns_gamma <<delim<<
-      ns_native <<delim<<
-      nf_range1 <<delim<<
-      nf_range2 <<delim<<
-      nf_edge1 <<delim<<
-      nf_npix1 <<delim<<
-      nf_native <<delim<<
-      nf_small <<delim<<
-      nf_edge2 <<delim<<
-      nf_npix2 <<delim<<
-      nf_tmverror <<delim<<
-      nf_othererror <<delim<<
-      nf_mu <<delim<<
-      nf_gamma <<std::endl;
-#endif
+    if (exitcode) {
+      *logout << 
+	"STATUS5BEG "<<
+	Text(exitcode)<<" "<<
+	extraexitinfo<<" "<<
+	"STATUS5END"<<std::endl;
+    } else {
+      *logout << 
+	"STATUS2BEG "<<
+	"Name=measureshear & "<<
+	"ngals="<<ngals<<" & "<<
+	"ns_gamma="<<ns_gamma <<" & "<<
+	"ns_native="<<ns_native <<" & "<<
+	"nf_range1="<<nf_range1 <<" & "<<
+	"nf_range2="<<nf_range2 <<" & "<<
+	"nf_edge1="<<nf_edge1 <<" & "<<
+	"nf_npix1="<<nf_npix1 <<" & "<<
+	"nf_native="<<nf_native <<" & "<<
+	"nf_small="<<nf_small <<" & "<<
+	"nf_edge2="<<nf_edge2 <<" & "<<
+	"nf_npix2="<<nf_npix2 <<" & "<<
+	"nf_tmverror="<<nf_tmverror <<" & "<<
+	"nf_othererror="<<nf_othererror <<" & "<<
+	"nf_mu="<<nf_mu <<" & "<<
+	"nf_gamma="<<nf_gamma <<" & "<<
+	"STATUS2END"<<std::endl;
+    }
   }
 }
 
@@ -117,12 +124,11 @@ void ShearLog::Write(std::ostream& os) const
   os<<"N_Error: Other caught = "<<nf_othererror<<std::endl;
 }
 
-PSFLog::PSFLog(std::string _logfile, std::string _fitsfile) :
+PSFLog::PSFLog(std::string _logfile) :
   exitcode(SUCCESS), nstars(0),
   nf_range(0), nf_edge(0), nf_npix(0),
   nf_tmverror(0), nf_othererror(0),
-  ns_psf(0), nf_psf(0),
-  fitsfile(_fitsfile)
+  ns_psf(0), nf_psf(0)
 {
   if (_logfile == "") {
     logout = &std::cout;
@@ -139,7 +145,6 @@ PSFLog::PSFLog(std::string _logfile, std::string _fitsfile) :
 PSFLog::~PSFLog() 
 { 
   WriteLog();
-  WriteLogToFitsHeader();
   NoWriteLog();
 }
 
@@ -150,9 +155,8 @@ void PSFLog::NoWriteLog()
   }
 }
 
-void PSFLog::WriteLogToFitsHeader() const
+void PSFLog::WriteLogToFitsHeader(FitsFile& fits) const
 {
-  FitsFile fits(fitsfile.c_str(), READWRITE, true);
 
   // Write to Header:
   // exitcode
@@ -170,18 +174,26 @@ void PSFLog::WriteLog() const
 {
   if (logout) {
     // Emit logging information
-#if 0
-    *logout << 
-      exitcode <<delim<<
-      nstars <<delim<<
-      ns_psf <<delim<<
-      nf_range <<delim<<
-      nf_edge <<delim<<
-      nf_npix <<delim<<
-      nf_tmverror <<delim<<
-      nf_othererror <<delim<<
-      nf_psf <<std::endl;
-#endif
+    if (exitcode) {
+      *logout << 
+	"STATUS5BEG "<<
+	Text(exitcode)<<" "<<
+	extraexitinfo<<" "<<
+	"STATUS5END"<<std::endl;
+    } else {
+      *logout << 
+	"STATUS2BEG "<<
+	"Name=measurepsf & "<<
+	"nstars="<<nstars <<" & "<<
+	"ns_psf="<<ns_psf <<" & "<<
+	"nf_range="<<nf_range <<" & "<<
+	"nf_edge="<<nf_edge <<" & "<<
+	"nf_npix="<<nf_npix <<" & "<<
+	"nf_tmverror="<<nf_tmverror <<" & "<<
+	"nf_othererror="<<nf_othererror <<" & "<<
+	"nf_psf="<<nf_psf <<" & "<<
+	"STATUS2END"<<std::endl;
+    }
   }
 }
 
@@ -199,9 +211,8 @@ void PSFLog::Write(std::ostream& os) const
   os<<"N_Error: Other caught = "<<nf_othererror<<std::endl;
 }
 
-FindStarsLog::FindStarsLog(std::string _logfile, std::string _fitsfile) :
-  exitcode(SUCCESS), nobj(0), nstars(0),
-  fitsfile(_fitsfile)
+FindStarsLog::FindStarsLog(std::string _logfile) :
+  exitcode(SUCCESS), nobj(0), nstars(0)
 {
   if (_logfile == "") {
     logout = &std::cout;
@@ -218,7 +229,6 @@ FindStarsLog::FindStarsLog(std::string _logfile, std::string _fitsfile) :
 FindStarsLog::~FindStarsLog() 
 { 
   WriteLog();
-  WriteLogToFitsHeader();
   NoWriteLog();
 }
 
@@ -229,10 +239,8 @@ void FindStarsLog::NoWriteLog()
   }
 }
 
-void FindStarsLog::WriteLogToFitsHeader() const
+void FindStarsLog::WriteLogToFitsHeader(FitsFile& fits) const
 {
-  FitsFile fits(fitsfile.c_str(), READWRITE, true);
-
   // Write to Header:
   // exitcode
   // nobj
@@ -243,12 +251,20 @@ void FindStarsLog::WriteLog() const
 {
   if (logout) {
     // Emit logging information
-#if 0
-    *logout << 
-      exitcode <<delim<<
-      nobj <<delim<<
-      nstars <<std::endl;
-#endif
+    if (exitcode) {
+      *logout << 
+	"STATUS5BEG "<<
+	Text(exitcode)<<" "<<
+	extraexitinfo<<" "<<
+	"STATUS5END"<<std::endl;
+    } else {
+      *logout << 
+	"STATUS2BEG "<<
+	"Name=findstars & "<<
+	"nobj="<<nobj <<" & "<<
+	"nobj="<<nstars <<" & "<<
+	"STATUS2END"<<std::endl;
+    }
   }
 }
 

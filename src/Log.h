@@ -2,11 +2,12 @@
 #define LOG_H
 
 #include "Params.h"
+#include "FitsFile.h"
 #include <fstream>
 
 struct ShearLog {
 
-  ShearLog(std::string logfile="", std::string fitsfile="");
+  ShearLog(std::string logfile="");
   ~ShearLog();
 
   ShearLog& operator+=(const ShearLog& rhs)
@@ -32,10 +33,11 @@ struct ShearLog {
 
   void NoWriteLog(); // Don't write the log on deletion.
   void WriteLog() const;
-  void WriteLogToFitsHeader() const;
+  void WriteLogToFitsHeader(FitsFile& fits) const;
   void Write(std::ostream& os) const;
 
   ExitCode exitcode;
+  std::string extraexitinfo;
 
   int ngals;
   int nf_range1;
@@ -57,13 +59,12 @@ struct ShearLog {
   private :
 
   std::ostream* logout;
-  std::string fitsfile;
 
 };
 
 struct PSFLog {
 
-  PSFLog(std::string logfile="", std::string fitsfile="");
+  PSFLog(std::string logfile="");
   ~PSFLog();
 
   PSFLog& operator+=(const PSFLog& rhs)
@@ -81,10 +82,11 @@ struct PSFLog {
 
   void NoWriteLog(); // Don't write the log on deletion.
   void WriteLog() const;
-  void WriteLogToFitsHeader() const;
+  void WriteLogToFitsHeader(FitsFile& fits) const;
   void Write(std::ostream& os) const;
 
   ExitCode exitcode;
+  std::string extraexitinfo;
 
   int nstars;
   int nf_range;
@@ -98,21 +100,21 @@ struct PSFLog {
   private :
 
   std::ostream* logout;
-  std::string fitsfile;
 
 };
 
 struct FindStarsLog {
 
-  FindStarsLog(std::string _logfile="", std::string _fitsfile="");
+  FindStarsLog(std::string _logfile="");
   ~FindStarsLog();
 
   void NoWriteLog(); // Don't write the log on deletion.
   void WriteLog() const;
-  void WriteLogToFitsHeader() const;
+  void WriteLogToFitsHeader(FitsFile& fits) const;
   void Write(std::ostream& os) const;
 
   ExitCode exitcode;
+  std::string extraexitinfo;
 
   int nobj;
   int nstars;
@@ -120,7 +122,6 @@ struct FindStarsLog {
   private :
 
   std::ostream* logout;
-  std::string fitsfile;
 
 };
 

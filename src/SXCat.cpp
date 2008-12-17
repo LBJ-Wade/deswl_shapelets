@@ -141,7 +141,8 @@ void WriteFindStarsKeywords(FitsFile& fits, const ConfigFile& params)
 
 
 // This writes to hdu=2
-void WriteFindStarsCat(const ConfigFile& params, FINDSTARS_STRUCT& cat)
+void WriteFindStarsCat(const ConfigFile& params, FINDSTARS_STRUCT& cat, 
+    const FindStarsLog& log)
 {
   xdbg<<"WriteFindStarsCat\n";
   xdbg<<"cat.id.size = "<<cat.id.size()<<std::endl;
@@ -211,6 +212,7 @@ void WriteFindStarsCat(const ConfigFile& params, FINDSTARS_STRUCT& cat)
   colnum = 4;  
   fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.star_flag[0]);
 
+  log.WriteLogToFitsHeader(fits);
   fits.Close();
 
 }
@@ -315,7 +317,8 @@ void WritePSFKeywords(FitsFile& fits, const ConfigFile& params)
 }
  
 // This writes to hdu=2
-void WritePSFCat(const ConfigFile& params, PSF_STRUCT& cat)
+void WritePSFCat(const ConfigFile& params, PSF_STRUCT& cat,
+    const PSFLog& log)
 {
   dbg<<"Start WritePSFCat"<<std::endl;
   Assert(cat.id.size() == cat.psf.size());
@@ -440,6 +443,8 @@ void WritePSFCat(const ConfigFile& params, PSF_STRUCT& cat)
     fits.WriteColumn(TDOUBLE, colnum, row, firstel, nel, &cat.psf[i][0]);
   }
 
+  log.WriteLogToFitsHeader(fits);
+
   fits.Close();
 
 }
@@ -556,7 +561,8 @@ void WriteShearKeywords(FitsFile& fits, const ConfigFile& params)
 }
  
 // This writes to hdu=2
-void WriteShearCat(const ConfigFile& params, SHEAR_STRUCT& cat)
+void WriteShearCat(const ConfigFile& params, SHEAR_STRUCT& cat, 
+    const ShearLog& log)
 {
 
   int colnum;
@@ -768,13 +774,9 @@ void WriteShearCat(const ConfigFile& params, SHEAR_STRUCT& cat)
     }
   }
 
-
-
-
-
+  log.WriteLogToFitsHeader(fits);
 
   fits.Close();
-
 }
 
 

@@ -310,7 +310,7 @@ int DoMeasureShear_DES(ConfigFile& params, ShearLog& log)
   }
 
   if (1) {
-    WriteShearCat(params, shcat);
+    WriteShearCat(params, shcat,log);
     if (0) {
       TestReadShearCat(params, shcat);
     }
@@ -332,7 +332,7 @@ int DoMeasureShear_DES(ConfigFile& params, ShearLog& log)
   // TODO: Also output shapelets...
 
   if (timing) std::cerr<<alltimes<<std::endl;
-  dbg<<log<<std::endl;
+  xdbg<<log<<std::endl;
 
   // Cleanup memory
   if (weight_im) delete weight_im;

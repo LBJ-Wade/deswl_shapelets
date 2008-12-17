@@ -17,6 +17,7 @@
 
 // for error codes
 #include "Params.h"
+#include "Log.h"
 
 #include <sstream>
 
@@ -67,7 +68,8 @@ typedef struct {
 
 void ReadFindStarsCat(const ConfigFile& params, FINDSTARS_STRUCT& cat);
 void WriteFindStarsKeywords(FitsFile& fits, const ConfigFile& params);
-void WriteFindStarsCat(const ConfigFile& params, FINDSTARS_STRUCT& cat);
+void WriteFindStarsCat(const ConfigFile& params, FINDSTARS_STRUCT& cat,
+    const FindStarsLog& log);
 void ResizeFindStarsCat(FINDSTARS_STRUCT& cat, size_t n);
 
 
@@ -86,7 +88,8 @@ typedef struct {
 
 void ResizePSFCat(PSF_STRUCT& cat, size_t n, int psf_order, double sigma=0.0);
 void WritePSFKeywords(FitsFile& fits, const ConfigFile& params);
-void WritePSFCat(const ConfigFile& params, PSF_STRUCT& cat);
+void WritePSFCat(const ConfigFile& params, PSF_STRUCT& cat,
+    const PSFLog& log);
 void ReadPSFCat(const ConfigFile& params, PSF_STRUCT& cat);
 
 
@@ -120,7 +123,8 @@ typedef struct {
 void ResizeShearCat(SHEAR_STRUCT& cat, size_t n, int psf_order, 
     double sigma=0.0);
 void WriteShearKeywords(FitsFile& fits, const ConfigFile& params);
-void WriteShearCat(const ConfigFile& params, SHEAR_STRUCT& cat);
+void WriteShearCat(const ConfigFile& params, SHEAR_STRUCT& cat,
+    const ShearLog& log);
 void ReadShearCat(const ConfigFile& params, SHEAR_STRUCT& cat);
 
 #endif

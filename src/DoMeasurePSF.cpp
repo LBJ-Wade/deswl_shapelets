@@ -380,10 +380,14 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
 	psfdelim);
   }
   */
-  WritePSFCat(params, psfcat);
+  WritePSFCat(params, psfcat,log);
   dbg<<"Done writing output psf catalog\n";
 
 
+  // MJ -- Should we make a FittedPSFLog?  Are there parameters here that
+  //       we want to ingest into a DB meta-table?
+  //       If so, we would need to WritePSFCat after doing the
+  //       FittedPSF calculation, since the fittedpsf file is not ingested.
 
   // Fit the PSF with a polynomial:
   FittedPSF fittedpsf(psfcat.psf,psfcat.psf_flags,starcat.pos,psfcat.nu,sigma_p,params);
@@ -417,7 +421,7 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
       xdbg<<"Norm(diff) = "<<Norm(psfcat.psf[i]-checkpsf)<<std::endl;
     }
   }
-  dbg<<log<<std::endl;
+  xdbg<<log<<std::endl;
 
   if (output_dots) { 
     std::cerr

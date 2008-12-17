@@ -39,7 +39,6 @@
 #define MSH_SHAPELET_FAILED         0x1000
 
 
-
 //
 // Exit codes
 //
@@ -53,6 +52,21 @@ enum ExitCode {
   FAILURE_READ_ERROR            = 6,
   FAILURE_FORMAT_ERROR          = 7
 };
+
+inline const char* Text(const ExitCode& code)
+{
+  switch (code) {
+    case SUCCESS : return "SUCCESS";
+    case FAILURE : return "FAILURE";
+    case FAILURE_FILE_NOT_FOUND : return "FAILURE_FILE_NOT_FOUND";
+    case FAILURE_TMV_ERROR : return "FAILURE_TMV_ERROR";
+    case FAILURE_CONFIGFILE_ERROR : return "FAILURE_CONFIGFILE_ERROR";
+    case FAILURE_STD_EXCEPTION : return "FAILURE_STD_EXCEPTION";
+    case FAILURE_READ_ERROR : return "FAILURE_READ_ERROR";
+    case FAILURE_FORMAT_ERROR : return "FAILURE_FORMAT_ERROR";
+    default : return "UNKNOWN";
+  }
+}
 
 
 #endif
