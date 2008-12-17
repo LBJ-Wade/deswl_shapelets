@@ -130,7 +130,7 @@ def CCFlags(env):
             cflags += ['-fno-strict-aliasing']
     elif compiler[0] == 'i':
         cflags=['-O2','-Wall','-Werror','-g','-wd383,810,981']
-        if version >= 10:
+        if version >= 9:
             cflags += ['-wd1572']
     elif compiler[0] == 'p':
         cflags=['-O2','-fast','-Mcache_align','-g']
