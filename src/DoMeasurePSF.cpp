@@ -131,6 +131,15 @@ static void ExtractStars(
 
   ResizeFindStarsCat(starcat, 0);
 
+  dbg<<"Extract Stars:\n";
+  dbg<<"ntot = "<<fscat.id.size()<<std::endl;
+  Assert(fscat.star_flag.size() == fscat.id.size());
+  Assert(fscat.sigma0.size() == fscat.id.size());
+  Assert(fscat.size_flags.size() == fscat.id.size());
+  Assert(sxcat.local_sky.size() == fscat.id.size());
+  Assert(sxcat.noise.size() == fscat.id.size());
+  Assert(sxcat.pos.size() == fscat.id.size());
+  dbg<<"count stars = "<<std::count(fscat.star_flag.begin(),fscat.star_flag.end(),1)<<std::endl;
   for (size_t i=0; i<fscat.id.size(); i++) {
     if (fscat.star_flag[i] != 0) {
       starcat.id.push_back( fscat.id[i] );
@@ -143,6 +152,7 @@ static void ExtractStars(
       starcat.pos.push_back( sxcat.pos[i] );
     }
   }
+  dbg<<"nstars = "<<starcat.id.size()<<std::endl;
 }
 
 

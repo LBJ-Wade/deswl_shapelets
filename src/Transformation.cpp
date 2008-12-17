@@ -239,25 +239,25 @@ void Transformation::MakeInverseOf(const Transformation& t2,
   v_y.reserve(ntot);
   std::vector<bool> use(ntot,true);
   Bounds newbounds;
-  dbg<<"MakeInverse\n";
-  dbg<<"bounds = "<<bounds<<std::endl;
-  dbg<<"order = "<<order<<std::endl;
+  xdbg<<"MakeInverse\n";
+  xdbg<<"bounds = "<<bounds<<std::endl;
+  xdbg<<"order = "<<order<<std::endl;
   double x = bounds.GetXMin();
   for(int i=0; i<=ngrid; i++, x+=dx) {
     double y = bounds.GetYMin();
     for(int j=0; j<=ngrid; j++, y+=dy) {
-      dbg<<"i,j = "<<i<<','<<j<<std::endl;
-      dbg<<"x,y = "<<x<<','<<y<<std::endl;
+      xdbg<<"i,j = "<<i<<','<<j<<std::endl;
+      xdbg<<"x,y = "<<x<<','<<y<<std::endl;
       Position pxy(x,y);
       t2.Transform(pxy,puv);
-      dbg<<"u,v = "<<puv<<std::endl;
+      xdbg<<"u,v = "<<puv<<std::endl;
       v_pos.push_back(puv);
       v_x.push_back(x);
       v_y.push_back(y);
       newbounds += puv;
     }
   }
-  dbg<<"newbounds = "<<newbounds<<std::endl;
+  xdbg<<"newbounds = "<<newbounds<<std::endl;
   up.reset(new Legendre2D<double>(newbounds));
   up->SimpleFit(order,v_pos,v_x,use);
   vp.reset(new Legendre2D<double>(newbounds));
@@ -288,7 +288,7 @@ static void ReadWCSFits(const std::string& filename, int hdu,
   Assert(cd.rowsize() == 2);
   Assert(cd.colsize() == 2);
 
-  dbg<<"starting read fits\n";
+  xdbg<<"starting read fits\n";
 
   int status=0;
   fitsfile *fitsptr;
@@ -302,7 +302,7 @@ static void ReadWCSFits(const std::string& filename, int hdu,
   if (fits_movabs_hdu(fitsptr,hdu,0,&status))
     dbg<<"fits moveabs hdu: "<<status<<std::endl;
   if (status) throw std::runtime_error("Changing hdu");
-  dbg<<"Moved to hdu "<<hdu<<std::endl;
+  xdbg<<"Moved to hdu "<<hdu<<std::endl;
 
   if (fits_read_key(fitsptr,TSTRING,(char*)"CTYPE1",temp,NULL,&status))
     dbg<<"fits read ctype1: "<<status<<std::endl;
@@ -367,10 +367,10 @@ static void ReCenterDistortion(tmv::Matrix<double>& a,
   //     (pCi)(p-iCm)(qCj)(q-jCn) c00^i c01^m c10^j c11^n
   //     xc^(p-i-m) yc^(q-j-n) x^(i+j) y^(m+n)
 
-  dbg<<"Start recenter distortion:\n";
-  dbg<<"a = "<<a<<std::endl;
-  dbg<<"cd = "<<cd<<std::endl;
-  dbg<<"crpix = "<<crpix<<std::endl;
+  xdbg<<"Start recenter distortion:\n";
+  xdbg<<"a = "<<a<<std::endl;
+  xdbg<<"cd = "<<cd<<std::endl;
+  xdbg<<"crpix = "<<crpix<<std::endl;
 
   int xorder = a.colsize();
   int yorder = a.rowsize();
@@ -404,7 +404,7 @@ static void ReCenterDistortion(tmv::Matrix<double>& a,
       binom(n,m) = binom(n-1,m-1) + binom(n-1,m);
     }
   }
-  dbg<<"binom = "<<binom<<std::endl;
+  xdbg<<"binom = "<<binom<<std::endl;
 
   for(int p=0;p<xorder;p++) for(int q=0;q<std::min(maxorder-p,yorder);q++) {
     // (x')^p (y')^q = (c00 x + c01 y + x0)^i (c10 x + c11 y + y0)^j
@@ -420,7 +420,7 @@ static void ReCenterDistortion(tmv::Matrix<double>& a,
 	  a(p,q);
       }
   }
-  dbg<<"new ar = "<<newar<<std::endl;
+  xdbg<<"new ar = "<<newar<<std::endl;
   a = newar;
 }
 
@@ -555,21 +555,21 @@ static Function2D<double>* TNXConvert(const std::string& wcsstr,
 
   wcsin >> x;
   functype = TNXFUNC(int(x+0.5));
-  dbg<<"functype: "<<x<<' '<<functype<<std::endl;
+  xdbg<<"functype: "<<x<<' '<<functype<<std::endl;
   wcsin >> x;
   xorder = int(x+0.5);
-  dbg<<"xorder: "<<x<<' '<<xorder<<std::endl;
+  xdbg<<"xorder: "<<x<<' '<<xorder<<std::endl;
   wcsin >> x;
   yorder = int(x+0.5);
-  dbg<<"yorder: "<<x<<' '<<yorder<<std::endl;
+  xdbg<<"yorder: "<<x<<' '<<yorder<<std::endl;
   wcsin >> x;
   crossterms = TNXCROSS(int(x+0.5));
-  dbg<<"crossterms: "<<x<<' '<<crossterms<<std::endl;
+  xdbg<<"crossterms: "<<x<<' '<<crossterms<<std::endl;
 
   double xmin,xmax,ymin,ymax;
   wcsin >> xmin >> xmax >> ymin >> ymax;
   Bounds b(xmin,xmax,ymin,ymax);
-  dbg<<"bounds = "<<b<<std::endl;
+  xdbg<<"bounds = "<<b<<std::endl;
 
   tmv::Matrix<double> a(xorder,yorder,0.);
   int xorder1 = xorder;
@@ -592,25 +592,25 @@ static Function2D<double>* TNXConvert(const std::string& wcsstr,
 
   Function2D<double>* f=0;
 
-  dbg<<"before switch\n";
+  xdbg<<"before switch\n";
   switch(functype) {
     case TNX_CHEBYSHEV:
-      dbg<<"cheby\n";
+      xdbg<<"cheby\n";
       throw std::runtime_error("No Chebyshev functions");
       //f = new Cheby2D<double>(b,a);
-      break;
+      //break;
     case TNX_LEGENDRE:
-      dbg<<"legendre\n";
+      xdbg<<"legendre\n";
       f = new Legendre2D<double>(b,a);
       break;
     case TNX_POLYNOMIAL:
-      dbg<<"poly\n";
+      xdbg<<"poly\n";
       f = new Polynomial2D<double>(a);
       break;
     default:
       throw std::runtime_error("Unknown TNX surface type");
   }
-  dbg<<"done WCSConvert\n";
+  xdbg<<"done WCSConvert\n";
 
   return f;
 }
@@ -634,19 +634,19 @@ void Transformation::ReadWCS(std::string fitsfile, int hdu)
       double ra = 334.154;
       double dec = -10.2984;
 
-      dbg<<"x,y = "<<x<<','<<y<<std::endl;
+      xdbg<<"x,y = "<<x<<','<<y<<std::endl;
       tmv::Vector<double> xy(2); xy(0) = x; xy(1) = y;
       xy = cd * (xy - crpix);
       double x2 = xy(0);
       double y2 = xy(1);
-      dbg<<"x2,y2 = "<<x2<<','<<y2<<std::endl;
+      xdbg<<"x2,y2 = "<<x2<<','<<y2<<std::endl;
       tmv::Vector<double> xv(4);
       tmv::Vector<double> yv(4);
       xv(0) = 1.; xv(1) = x2; xv(2) = xv(1)*x2; xv(3) = xv(2)*x2;
       yv(0) = 1.; yv(1) = y2; yv(2) = yv(1)*y2; yv(3) = yv(2)*y2;
       double x3 = xv * pv[0] * yv;
       double y3 = xv * pv[1] * yv;
-      dbg<<"x3,y3 = "<<x3<<','<<y3<<std::endl;
+      xdbg<<"x3,y3 = "<<x3<<','<<y3<<std::endl;
       x3 *= PI/180.;
       y3 *= PI/180.;
       double cenr = crval[0] * PI/180.;
@@ -661,8 +661,8 @@ void Transformation::ReadWCS(std::string fitsfile, int hdu)
       r += cenr;
       d *= 180./PI;
       r *= 180./PI;
-      dbg<<"r,d = "<<r<<','<<d<<std::endl;
-      dbg<<"Should be "<<ra<<','<<dec<<std::endl;
+      xdbg<<"r,d = "<<r<<','<<d<<std::endl;
+      xdbg<<"Should be "<<ra<<','<<dec<<std::endl;
     }
 
     ReCenterDistortion(pv[0],cd,crpix);
@@ -673,12 +673,12 @@ void Transformation::ReadWCS(std::string fitsfile, int hdu)
   else if (wcstype == TNX) {
     std::string lngstr,latstr;
     ReadTNXFits(fitsfile,hdu,lngstr,latstr);
-    dbg<<"done read fits: \n";
-    dbg<<"lngstr = \n"<<lngstr<<std::endl;
-    dbg<<"latstr = \n"<<latstr<<std::endl;
-    dbg<<"cd = \n"<<cd<<std::endl;
-    dbg<<"crpix = \n"<<crpix<<std::endl;
-    dbg<<"crval = \n"<<crval<<std::endl;
+    xdbg<<"done read fits: \n";
+    xdbg<<"lngstr = \n"<<lngstr<<std::endl;
+    xdbg<<"latstr = \n"<<latstr<<std::endl;
+    xdbg<<"cd = \n"<<cd<<std::endl;
+    xdbg<<"crpix = \n"<<crpix<<std::endl;
+    xdbg<<"crval = \n"<<crval<<std::endl;
 
     up.reset(TNXConvert(lngstr,cd,crpix));
     vp.reset(TNXConvert(latstr,cd,crpix));

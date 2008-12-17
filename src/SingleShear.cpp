@@ -54,7 +54,7 @@ void MeasureSingleShear(
       log.nf_edge1++;
       flags |= MSH_EDGE1;
     }
-    if (flags & LT10PIX) {
+    if (getpix_flag & LT10PIX) {
       log.nf_npix1++;
       flags |= MSH_LT10PIX1;
     }
@@ -130,11 +130,11 @@ void MeasureSingleShear(
   if (getpix_flag) {
     dbg<<"skip: flag == "<<getpix_flag<<std::endl;
     if (times) times->nf_pixflag2++;
-    if (flags & EDGE) {
+    if (getpix_flag & EDGE) {
       log.nf_edge2++;
       flags |= MSH_EDGE2;
     }
-    if (flags & LT10PIX) {
+    if (getpix_flag & LT10PIX) {
       log.nf_npix2++;
       flags |= MSH_LT10PIX2;
     }

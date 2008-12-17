@@ -1,4 +1,5 @@
 #include "SXCat.h"
+#include "types.h"
 
 
 void ResizeSXCat(SXCAT_STRUCT& cat, long n)
@@ -142,6 +143,12 @@ void WriteFindStarsKeywords(FitsFile& fits, const ConfigFile& params)
 // This writes to hdu=2
 void WriteFindStarsCat(const ConfigFile& params, FINDSTARS_STRUCT& cat)
 {
+  xdbg<<"WriteFindStarsCat\n";
+  xdbg<<"cat.id.size = "<<cat.id.size()<<std::endl;
+  xdbg<<"star_flag has "<<std::count(cat.star_flag.begin(),cat.star_flag.end(),0)<<" 0's\n";
+  xdbg<<"star_flag has "<<std::count(cat.star_flag.begin(),cat.star_flag.end(),1)<<" 1's\n";
+  //for(size_t i=0;i<cat.id.size();i++) dbg<<cat.star_flag[i];
+  //dbg<<std::endl;
 
   int colnum;
   LONGLONG firstrow;
@@ -250,10 +257,22 @@ void ReadFindStarsCat(const ConfigFile& params, FINDSTARS_STRUCT& cat)
   dbg<<"  "<<id_name<<std::endl;
   fits.ReadScalarCol((char *)id_name.c_str(),TLONG,(char *)&cat.id[0], nrows);
 
+  dbg<<"  "<<sigma0_name<<std::endl;
   fits.ReadScalarCol((char *)sigma0_name.c_str(),TDOUBLE,(char *)&cat.sigma0[0], nrows);
 
+  dbg<<"  "<<size_flags_name<<std::endl;
   fits.ReadScalarCol((char *)size_flags_name.c_str(),TLONG,(char *)&cat.size_flags[0], nrows);
+
+  //dbg<<"Reading star_flag: nrows = "<<nrows<<std::endl;
+  //dbg<<"star_flag.size = "<<cat.star_flag.size()<<std::endl;
+  dbg<<"  "<<star_flag_name<<std::endl;
   fits.ReadScalarCol((char *)star_flag_name.c_str(),TLONG,(char *)&cat.star_flag[0], nrows);
+
+
+  xdbg<<"star_flag has "<<std::count(cat.star_flag.begin(),cat.star_flag.end(),0)<<" 0's\n";
+  xdbg<<"star_flag has "<<std::count(cat.star_flag.begin(),cat.star_flag.end(),1)<<" 1's\n";
+  //for(size_t i=0;i<cat.id.size();i++) dbg<<cat.star_flag[i];
+  //dbg<<std::endl;
 
   fits.Close();
 }
@@ -298,6 +317,12 @@ void WritePSFKeywords(FitsFile& fits, const ConfigFile& params)
 // This writes to hdu=2
 void WritePSFCat(const ConfigFile& params, PSF_STRUCT& cat)
 {
+  dbg<<"Start WritePSFCat"<<std::endl;
+  Assert(cat.id.size() == cat.psf.size());
+  Assert(cat.psf_flags.size() == cat.psf.size());
+  Assert(cat.nu.size() == cat.psf.size());
+  Assert(cat.psf_order.size() == cat.psf.size());
+  Assert(cat.sigma_p.size() == cat.psf.size());
 
   int colnum;
   LONGLONG firstrow;
@@ -310,10 +335,21 @@ void WritePSFCat(const ConfigFile& params, PSF_STRUCT& cat)
   FitsFile fits(file.c_str(), READWRITE, true);
   fitsfile* fptr = fits.get_fptr();
 
+  int nstars = cat.psf.size();
   int ncoeff = cat.psf[0].size();
+  dbg<<"nstars = "<<nstars<<std::endl;
+  dbg<<"ncoeff = "<<ncoeff<<std::endl;
 
   std::stringstream coeff_form;
   coeff_form << ncoeff << "d";
+#if 0
+  // I think this should work, but it didn't on my AMD machine with pgCC.
+  char* coeff_form_cstr = (char*) coeff_form.str().c_str();
+#else
+  Assert(coeff_form.str().size() < 9); // Usually size = 3
+  char coeff_form_cstr[10];  
+  strcpy(coeff_form_cstr,coeff_form.str().c_str());
+#endif
 
   std::string id_name=params.get("psf_id_name");
   std::string psf_flags_name=params.get("psf_flags_name");
@@ -321,8 +357,6 @@ void WritePSFCat(const ConfigFile& params, PSF_STRUCT& cat)
   std::string psf_order_name=params.get("psf_order_name");
   std::string sigma_p_name=params.get("psf_sigma_p_name");
   std::string coeffs_name=params.get("psf_coeffs_name");
-
-
 
   int nfields=6;
   char *table_names[] =  
@@ -338,7 +372,7 @@ void WritePSFCat(const ConfigFile& params, PSF_STRUCT& cat)
 	(char*)"1d", // nu
 	(char*)"1b", //order
 	(char*)"1d", //sigma_p
-	(char*)coeff_form.str().c_str()};
+	(char*)coeff_form_cstr};
   char *table_units[] =  
       {(char*)"None",
 	(char*)"None",
@@ -346,7 +380,6 @@ void WritePSFCat(const ConfigFile& params, PSF_STRUCT& cat)
 	(char*)"None",
 	(char*)"arcsec",
 	(char*)"None"};
-
 
   // Create a binary table
   int fits_status=0;
@@ -454,9 +487,13 @@ void ReadPSFCat(const ConfigFile& params, PSF_STRUCT& cat)
   dbg<<"Reading columns"<<std::endl;
   dbg<<"  "<<id_name<<std::endl;
   fits.ReadScalarCol((char *)id_name.c_str(),TLONG,(char *)&cat.id[0], nrows);
+  dbg<<"  "<<psf_flags_name<<std::endl;
   fits.ReadScalarCol((char *)psf_flags_name.c_str(),TLONG,(char *)&cat.psf_flags[0], nrows);
+  dbg<<"  "<<nu_name<<std::endl;
   fits.ReadScalarCol((char *)nu_name.c_str(),TDOUBLE,(char *)&cat.nu[0], nrows);
+  dbg<<"  "<<psf_order_name<<std::endl;
   fits.ReadScalarCol((char *)psf_order_name.c_str(),TLONG,(char *)&cat.psf_order[0], nrows);
+  dbg<<"  "<<sigma_p_name<<std::endl;
   fits.ReadScalarCol((char *)sigma_p_name.c_str(),TDOUBLE,(char *)&cat.sigma_p[0], nrows);
 
   // gotta loop for this one
@@ -555,6 +592,14 @@ void WriteShearCat(const ConfigFile& params, SHEAR_STRUCT& cat)
   int ncoeff = cat.shapelets_prepsf[0].size();
   std::stringstream coeff_form;
   coeff_form << ncoeff << "d";
+#if 0
+  // I think this should work, but it didn't on my AMD machine with pgCC.
+  char* coeff_form_cstr = (char*) coeff_form.str().c_str();
+#else
+  Assert(coeff_form.str().size() < 9); // Usually size = 3
+  char coeff_form_cstr[10];  
+  strcpy(coeff_form_cstr,coeff_form.str().c_str());
+#endif
 
 
 #ifdef SHEXTRA_PARS
@@ -594,7 +639,7 @@ void WriteShearCat(const ConfigFile& params, SHEAR_STRUCT& cat)
 	(char*)"1d",        // shear_cov01
 	(char*)"1d",        // shear_cov11
 	(char*)"1i",        // gal_order
-	(char*)coeff_form.str().c_str()};
+	(char*)coeff_form_cstr};
 
   char *table_units[] =  
       {(char*)"None",        // id
@@ -798,24 +843,35 @@ void ReadShearCat(const ConfigFile& params, SHEAR_STRUCT& cat)
     */
 
   dbg<<"Reading columns"<<std::endl;
+  dbg<<"  "<<id_name<<std::endl;
   fits.ReadScalarCol((char *)id_name.c_str(),TLONG,(char *)&cat.id[0], nrows);
 
 
 #ifdef SHEXTRA_PARS
+  dbg<<"  "<<size_flags_name<<std::endl;
   fits.ReadScalarCol((char *)size_flags_name.c_str(),TLONG,(char *)&cat.size_flags[0], nrows);
+  dbg<<"  "<<star_flag_name<<std::endl;
   fits.ReadScalarCol((char *)star_flag_name.c_str(),TLONG,(char *)&cat.star_flag[0], nrows);
+  dbg<<"  "<<sigma0_name<<std::endl;
   fits.ReadScalarCol((char *)sigma0_name.c_str(),TDOUBLE,(char *)&cat.sigma0[0], nrows);
 #endif
 
+  dbg<<"  "<<shear_flags_name<<std::endl;
   fits.ReadScalarCol((char *)shear_flags_name.c_str(),TLONG,(char *)&cat.shear_flags[0], nrows);
 
+  dbg<<"  "<<shear1_name<<std::endl;
   fits.ReadScalarCol((char *)shear1_name.c_str(),TDOUBLE,(char *)&cat.shear1[0], nrows);
+  dbg<<"  "<<shear2_name<<std::endl;
   fits.ReadScalarCol((char *)shear2_name.c_str(),TDOUBLE,(char *)&cat.shear2[0], nrows);
 
+  dbg<<"  "<<cov00_name<<std::endl;
   fits.ReadScalarCol((char *)cov00_name.c_str(),TDOUBLE,(char *)&cat.shear_cov00[0], nrows);
+  dbg<<"  "<<cov01_name<<std::endl;
   fits.ReadScalarCol((char *)cov01_name.c_str(),TDOUBLE,(char *)&cat.shear_cov01[0], nrows);
+  dbg<<"  "<<cov11_name<<std::endl;
   fits.ReadScalarCol((char *)cov11_name.c_str(),TDOUBLE,(char *)&cat.shear_cov11[0], nrows);
 
+  dbg<<"  "<<gal_order_name<<std::endl;
   fits.ReadScalarCol((char *)gal_order_name.c_str(),TLONG,(char *)&cat.gal_order[0], nrows);
 
   // gotta loop for this one
@@ -823,6 +879,7 @@ void ReadShearCat(const ConfigFile& params, SHEAR_STRUCT& cat)
   for (size_t i=0; i<cat.id.size(); i++) { 
 
     size_t row=i+1;
+    dbg<<"  "<<coeffs_name<<"  row "<<row<<std::endl;
     fits.ReadCell(
 	(char*)coeffs_name.c_str(),
 	TDOUBLE,
@@ -830,8 +887,6 @@ void ReadShearCat(const ConfigFile& params, SHEAR_STRUCT& cat)
 	row,
 	ncoeff);
   }
-
-
 
   fits.Close();
 }

@@ -92,7 +92,9 @@ initial_env['_extralibs'] = []
 # This helps us determine of openmp is available
 openmp_mingcc_vers = 4.2
 openmp_minicc_vers = 9.0
-openmp_minpgcc_vers = 6.0
+openmp_minpgcc_vers = 7.0
+# MJ -- pgCC 6.1 used to work with openmp, but I'm getting seg faults now.
+#       I need to look into it a bit more.
 
 def RunInstall(env, targets, subdir):
     install_dir = os.path.join(env['PREFIX'], subdir)
@@ -163,20 +165,23 @@ def AddOpenMPFlag(config):
 	    print 'Currently, we only check for the first decimal, so if you'
 	    print 'have 4.2.1, this might not compile.'
 	    print '(The status of 4.2.2 is unknown.)'
-        flag = '-fopenmp'
-        ldflag = '-fopenmp'
+        flag = ['-fopenmp']
+        ldflag = ['-fopenmp']
+	xlib = ['pthread']
     elif compiler[0] == 'i':
         # icpc
         if version < openmp_minicc_vers:
             return
-        flag = '-openmp'
-        ldflag = '-openmp'
+        flag = ['-openmp']
+        ldflag = ['-openmp']
+	xlib = ['pthread']
     elif compiler[0] == 'p':
         # pgCC
-        if version < openmp_minicc_vers:
+        if version < openmp_minpgcc_vers:
             return
-        flag = '-mp'
-        ldflag = '-mp'
+        flag = ['-mp','--exceptions']
+        ldflag = ['-mp','-lpthread']
+	xlib = ['pthread']
     else:
         print 'No OpenMP support for compiler ',compiler
 
@@ -184,7 +189,7 @@ def AddOpenMPFlag(config):
     print 'Using OpenMP'
     config.env.Append(CXXFLAGS=[flag])
     config.env.Append(LINKFLAGS=[ldflag])
-    config.env['_extralibs'] += ['pthread']
+    config.env['_extralibs'] += xlib
 
 def NDebugFlag(compiler):
     """
@@ -321,7 +326,7 @@ def DoLibraryAndHeaderChecks(config):
         Exit(1)
 
     # We need cfitsio in the search path
-    if not config.CheckLibWithHeader('cfitsio','fitsio.h',language='C'):
+    if not config.CheckLibWithHeader('cfitsio','fitsio.h',language='C++'):
         print 'cfitsio not found'
         Exit(1)
 

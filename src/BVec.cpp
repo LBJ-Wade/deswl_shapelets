@@ -41,7 +41,7 @@ void ZTransform(std::complex<double> z, int order,
   std::complex<double> zo2 = -z/2.;
   tmv::Matrix<std::complex<double>,tmv::ColMajor> f(order+1,order+1);
   std::complex<double>* fcols = f.ptr();
-  double isqrt[order+1];
+  std::vector<double> isqrt(order+1);
 
   fcols[0] = exp(-std::norm(z)/8.); // f(0,0)
   isqrt[0] = 0.;
@@ -127,7 +127,7 @@ void MuTransform(double mu, int order,
   double tmu = tanh(mu);
   double smu = 1./cosh(mu);
 
-  double isqrt[order+1];
+  std::vector<double> isqrt(order+1);
   for(int i=0;i<=order;++i) isqrt[i] = sqrt(double(i));
 
   D.Zero();
@@ -199,7 +199,7 @@ void AugmentMuTransformRows(double mu, int order,
   mu = -mu; 
   double tmu = tanh(mu);
   double smu = 1./cosh(mu);
-  double isqrt[order+3];
+  std::vector<double> isqrt(order+3);
   for(int i=0;i<=order+2;++i) isqrt[i] = sqrt(double(i));
 
   for(int n=0,pq=0;n<=order;++n) {
@@ -281,7 +281,7 @@ void GTransform(std::complex<double> g, int order,
   }
   double* fcolsm1 = 0;
   double* fcolsp1 = fcols + f.stepj();
-  double isqrt[order+1];
+  std::vector<double> isqrt(order+1);
   for(int i=0;i<=order;i++) isqrt[i] = sqrt(double(i));
 
   for(int s=0;s<order;s++) {
@@ -371,7 +371,7 @@ void AugmentGTransformCols(std::complex<double> g, int order,
   }
   double* fcolsm1 = 0;
   double* fcolsp1 = fcols + f.stepj();
-  double isqrt[order+3];
+  std::vector<double> isqrt(order+3);
   for(int i=0;i<=order+2;i++) isqrt[i] = sqrt(double(i));
 
   for(int s=0;s<order;s++) {
@@ -672,7 +672,7 @@ void PSFConvolve(const BVec& bpsf, int order, double sigma,
   double B = sqrt(1-D);
 
   int ntot = order+bpsf.GetOrder()+1;
-  double isqrt[ntot];
+  std::vector<double> isqrt(ntot);
   for(int i=0;i<ntot;i++) isqrt[i] = sqrt(double(i));
 
   std::vector<tmv::Matrix<double,tmv::ColMajor> > H(order+1,

@@ -5,6 +5,12 @@
 #include "Params.h"
 #include <sstream>
 
+#ifdef _OPENMP
+#ifdef __PGI
+#undef _OPENMP
+#endif
+#endif
+
 double SingleSigma(
     const Image<double>& im, 
     const Position& pos,
@@ -61,7 +67,7 @@ void MeasureSigmas(
 
   int n = all_pos.size();
 #ifdef _OPENMP
-#pragma omp parallel for schedule(guided)
+#pragma omp parallel for schedule(static)
 #endif
   for (int i=0; i<n; i++) {
 
@@ -70,11 +76,12 @@ void MeasureSigmas(
       double sigma1 = SingleSigma(
 	  im, all_pos[i], all_sky[i], all_noise[i], gain, weight_im, 
 	  trans, psfap, flag1);
-#ifdef _OPENMP
-#pragma omp critical 
-#endif
+//#ifdef _OPENMP
+//#pragma omp critical 
+//#endif
       {
-	dbg<<"sigmas[i]: "<<sigma1<<std::endl;
+	//dbg<<"sigmas["<<i<<"]: "<<sigma1<<std::endl;
+	//dbg<<"flags["<<i<<"]: "<<flag1<<std::endl;
 	sigmas[i] = sigma1;
 	flags[i] = flag1;
       }

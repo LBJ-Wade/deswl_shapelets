@@ -125,20 +125,34 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
   */
 
   WriteFindStarsCat(params, fscat);
+
 #if 0
-  FINDSTARS_STRUCT testcat;
-  ReadFindStarsCat(params, testcat);
-  for (size_t i=0; i<fscat.id.size(); i++) {
-    if ( (fscat.star_flag[i] != testcat.star_flag[i]) ||
-	(fscat.size_flags[i] != testcat.size_flags[i]) ) {
-      std::cout
-	<<i
-	<<" star_flag: "<<fscat.star_flag[i]<<"  "<<testcat.star_flag[i]
-	<<" size_flags: "<<fscat.size_flags[i]<<"  "<<testcat.size_flags[i]
-	<<std::endl;
+  FINDSTARS_STRUCT test;
+  ReadFindStarsCat(params,test);
+  Assert(test.id.size() == fscat.id.size());
+  Assert(test.sigma0.size() == fscat.id.size());
+  Assert(test.size_flags.size() == fscat.id.size());
+  Assert(test.star_flag.size() == fscat.id.size());
+  for(size_t i=0;i<fscat.id.size();i++) {
+    if (fscat.id[i] != test.id[i]) {
+      dbg<<"id["<<i<<"] = "<<fscat.id[i]<<"  "<<test.id[i]<<std::endl;
+      Assert(0);
+    }
+    if (fscat.sigma0[i] != test.sigma0[i]) {
+      dbg<<"sigma0["<<i<<"] = "<<fscat.sigma0[i]<<"  "<<test.sigma0[i]<<std::endl;
+      Assert(0);
+    }
+    if (fscat.size_flags[i] != test.size_flags[i]) {
+      dbg<<"size_flags["<<i<<"] = "<<fscat.size_flags[i]<<"  "<<test.size_flags[i]<<std::endl;
+      Assert(0);
+    }
+    if (fscat.star_flag[i] != test.star_flag[i]) {
+      dbg<<"star_flag["<<i<<"] = "<<fscat.star_flag[i]<<"  "<<test.star_flag[i]<<std::endl;
+      Assert(0);
     }
   }
 #endif
+
   dbg<<"Done Write\n";
 }
 

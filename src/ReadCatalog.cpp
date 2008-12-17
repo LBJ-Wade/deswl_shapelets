@@ -71,10 +71,10 @@ static void GetTokens(ConfigFile& params, std::string incat, std::string line,
     char delim = params[incat+"_delim"];
     int bufsize = DEF_BUFFER_SIZE;
     if (params.keyExists("csv_bufsize")) bufsize = params["csv_bufsize"];
-    char temp[bufsize];
-    while (linein.getline(temp,bufsize,delim)) {
+    std::auto_ptr<char> temp(new char[bufsize]);
+    while (linein.getline(temp.get(),bufsize,delim)) {
       //std::cerr<<"Found token: "<<temp<<std::endl;
-      tokens.push_back(std::string(temp));
+      tokens.push_back(std::string(temp.get()));
     }
   } else {
     std::string temp;
