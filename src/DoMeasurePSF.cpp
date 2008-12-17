@@ -380,7 +380,7 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
 	psfdelim);
   }
   */
-  WritePSFCat(params, psfcat,log);
+  WritePSFCat(params, psfcat);
   dbg<<"Done writing output psf catalog\n";
 
 

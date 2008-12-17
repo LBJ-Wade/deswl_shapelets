@@ -102,7 +102,7 @@ void ReadSXCat(const ConfigFile& params, SXCAT_STRUCT& cat)
 
 void WriteMainKeywords(FitsFile& fits, const ConfigFile& params)
 {
-  //fits.WriteParKey(params, "version", TSTRING);
+  fits.WriteParKey(params, "version", TSTRING);
   fits.WriteParKey(params, "noise_method", TSTRING);
   fits.WriteParKey(params, "dist_method", TSTRING);
 }
@@ -141,8 +141,7 @@ void WriteFindStarsKeywords(FitsFile& fits, const ConfigFile& params)
 
 
 // This writes to hdu=2
-void WriteFindStarsCat(const ConfigFile& params, FINDSTARS_STRUCT& cat, 
-    const FindStarsLog& log)
+void WriteFindStarsCat(const ConfigFile& params, FINDSTARS_STRUCT& cat)
 {
   xdbg<<"WriteFindStarsCat\n";
   xdbg<<"cat.id.size = "<<cat.id.size()<<std::endl;
@@ -212,7 +211,7 @@ void WriteFindStarsCat(const ConfigFile& params, FINDSTARS_STRUCT& cat,
   colnum = 4;  
   fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &cat.star_flag[0]);
 
-  log.WriteLogToFitsHeader(fits);
+  //log.WriteLogToFitsHeader(fits);
   fits.Close();
 
 }
@@ -317,8 +316,7 @@ void WritePSFKeywords(FitsFile& fits, const ConfigFile& params)
 }
  
 // This writes to hdu=2
-void WritePSFCat(const ConfigFile& params, PSF_STRUCT& cat,
-    const PSFLog& log)
+void WritePSFCat(const ConfigFile& params, PSF_STRUCT& cat)
 {
   dbg<<"Start WritePSFCat"<<std::endl;
   Assert(cat.id.size() == cat.psf.size());
@@ -443,7 +441,7 @@ void WritePSFCat(const ConfigFile& params, PSF_STRUCT& cat,
     fits.WriteColumn(TDOUBLE, colnum, row, firstel, nel, &cat.psf[i][0]);
   }
 
-  log.WriteLogToFitsHeader(fits);
+  //log.WriteLogToFitsHeader(fits);
 
   fits.Close();
 
@@ -561,8 +559,7 @@ void WriteShearKeywords(FitsFile& fits, const ConfigFile& params)
 }
  
 // This writes to hdu=2
-void WriteShearCat(const ConfigFile& params, SHEAR_STRUCT& cat, 
-    const ShearLog& log)
+void WriteShearCat(const ConfigFile& params, SHEAR_STRUCT& cat)
 {
 
   int colnum;
@@ -677,6 +674,7 @@ void WriteShearCat(const ConfigFile& params, SHEAR_STRUCT& cat,
     throw FitsException(serr);
   }
 
+  WriteMainKeywords(fits, params);
   WriteShearKeywords(fits, params);
 
   colnum = 1;  
@@ -774,7 +772,7 @@ void WriteShearCat(const ConfigFile& params, SHEAR_STRUCT& cat,
     }
   }
 
-  log.WriteLogToFitsHeader(fits);
+  //log.WriteLogToFitsHeader(fits);
 
   fits.Close();
 }

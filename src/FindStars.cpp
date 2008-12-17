@@ -124,7 +124,7 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
   }
   */
 
-  WriteFindStarsCat(params, fscat, log);
+  WriteFindStarsCat(params, fscat);
 
 #if 0
   FINDSTARS_STRUCT test;
@@ -179,7 +179,11 @@ int main(int argc, char **argv) try
   if (params.keyExists("log_file") || params.keyExists("log_ext")) 
     logfile = Name(params,"log");
 
-  FindStarsLog log(logfile);
+  std::string logdelim = "  ";
+  if (params.keyExists("log_delim")) logdelim = params["log_delim"];
+
+  std::string stars_file=Name(params,"stars");
+  FindStarsLog log(logfile,stars_file); 
   // This automatically writes its output when it goes out of scope
   // whether that is naturally in after an exception is caught.
   // Log output is:  (all on one line)

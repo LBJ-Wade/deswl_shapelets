@@ -310,7 +310,7 @@ int DoMeasureShear_DES(ConfigFile& params, ShearLog& log)
   }
 
   if (1) {
-    WriteShearCat(params, shcat,log);
+    WriteShearCat(params, shcat);
     if (0) {
       TestReadShearCat(params, shcat);
     }
