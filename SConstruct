@@ -364,6 +364,34 @@ def DoLibraryAndHeaderChecks(config):
             config.env['_extralibs'] += ['mkl_ia32','mkl_sequential',
 	        'mkl_core','guide','pthread']
 
+        elif (compiler[0] == 'i' and
+                (config.CheckLib('mkl_ipf',language='C++')  or
+                 config.CheckLib('mkl_ipf',language='C') )):
+            if config.env['WITH_LAPACK']:
+                print 'Using MKL LAPACK'
+                config.env['_extralibs'] += ['mkl_lapack']
+            else:
+                config.env.Append(CPPDEFINES=['NOLAP'])
+            print 'Using MKL BLAS'
+            config.env.Append(CPPDEFINES=['MKL'])
+            # MJ -- This is untested.  I don't have a 64 bit machine with
+            #       icpc to test this on.
+            config.env['_extralibs'] += ['mkl_ipf','guide','pthread']
+ 
+        elif (compiler[0] == 'i' and
+                (config.CheckLib('mkl_em64t',language='C++')  or
+                 config.CheckLib('mkl_em64t',language='C') )):
+            if config.env['WITH_LAPACK']:
+                print 'Using MKL LAPACK'
+                config.env['_extralibs'] += ['mkl_lapack']
+            else:
+                config.env.Append(CPPDEFINES=['NOLAP'])
+            print 'Using MKL BLAS'
+            config.env.Append(CPPDEFINES=['MKL'])
+            # MJ -- This is untested.  I don't have a 64 bit machine with
+            #       icpc to test this on.
+            config.env['_extralibs'] += ['mkl_em64t','guide','pthread']
+ 
         elif (compiler[0] == 'i' and 
                  (config.CheckLib('mkl_intel_lp64',language='C++')  or
                   config.CheckLib('mkl_intel_lp64',language='C') )):
