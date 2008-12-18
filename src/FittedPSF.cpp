@@ -192,6 +192,9 @@ void FittedPSF::Read(const ConfigFile& params)
 
 void FittedPSF::WriteFitsKeywords(FitsFile& fits, const ConfigFile& params) const
 {
+  fits.WriteParKey(params, "version", TSTRING);
+  fits.WriteParKey(params, "noise_method", TSTRING);
+  fits.WriteParKey(params, "dist_method", TSTRING);
   fits.WriteParKey(params, "fitpsf_order", TLONG);
   fits.WriteParKey(params, "fitpsf_pca_thresh", TDOUBLE);
 } 
