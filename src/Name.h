@@ -64,7 +64,15 @@ inline std::string Name(const ConfigFile& params, const std::string& what,
       name = pre + root + ext[i];
       if (mustexist) {
 	if (FileExists(name)) break;
-	if (i == ext.size()-1) throw file_not_found(name);
+	if (i == ext.size()-1) {
+	  std::string allnames;
+	  for(size_t j=0;j<ext.size();j++) {
+	    if (j > 0) allnames += ",";
+	    name = pre + root + ext[j];
+	    allnames += name;
+	  }
+	  throw file_not_found(allnames);
+	}
       } else {
 	break;
       }

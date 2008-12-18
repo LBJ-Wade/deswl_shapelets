@@ -25,8 +25,7 @@
 class FitsException : public std::runtime_error {
   public:
     FitsException(const char* m) : std::runtime_error(m) {};
-    FitsException(std::string m) : std::runtime_error(m.c_str()) {};
-    FitsException(char* m) : std::runtime_error((const char*) m) {};
+    FitsException(std::string m) : std::runtime_error(m) {};
 };
 
 

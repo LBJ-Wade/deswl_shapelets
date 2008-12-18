@@ -39,6 +39,7 @@ void ShearLog::NoWriteLog()
   if (logout && logout != &std::cout) {
     delete logout;
   }
+  logout = 0;
 }
 
 void ShearLog::WriteLogToFitsHeader() const
@@ -46,88 +47,76 @@ void ShearLog::WriteLogToFitsHeader() const
 
   if ("" == fits_file) return;
 
-  //std::cout<<"Writing log to Shear file: "<<fits_file<<std::endl;
-  bool create=false;
-  FitsFile fits(fits_file.c_str(), READWRITE, create);
-  fits.GotoHDU(2);
+  try {
 
-  // copying out to avoid g++ errors due to const incorrectness
-  long val=0;
+    //std::cout<<"Writing log to Shear file: "<<fits_file<<std::endl;
+    bool create=false;
+    FitsFile fits(fits_file.c_str(), READWRITE, create);
+    fits.GotoHDU(2);
 
-  // use msexit to differentiate from exit codes for other codes
-  val=exitcode;
-  fits.WriteKey("msexit", TLONG, val, "Exit code for MeasureShear");
+    // copying out to avoid g++ errors due to const incorrectness
+    long val=0;
 
-  val=ngals;
-  fits.WriteKey("msnobj", TLONG, val, 
-      "# of objects processed by MeasureShear");
-  val=ns_gamma;
-  fits.WriteKey("ns_gamma", TLONG, val, 
-      "# of successful shear measurements");
-  val=ns_native;
-  fits.WriteKey("ns_nativ", TLONG, val, 
-      "# of successful native shapeles measurements");
+    // use msexit to differentiate from exit codes for other codes
+    val=exitcode;
+    fits.WriteKey("msexit", TLONG, val, "Exit code for MeasureShear");
 
-  val=nf_range1;
-  fits.WriteKey("nf_rnge1", TLONG, val, 
-      "# of MeasureShear failures range1");
-  val=nf_range2;
-  fits.WriteKey("nf_rnge2", TLONG, val, 
-      "# of MeasureShear failures range2");
+    val=ngals;
+    fits.WriteKey("msnobj", TLONG, val, 
+	"# of objects processed by MeasureShear");
+    val=ns_gamma;
+    fits.WriteKey("ns_gamma", TLONG, val, 
+	"# of successful shear measurements");
+    val=ns_native;
+    fits.WriteKey("ns_nativ", TLONG, val, 
+	"# of successful native shapeles measurements");
 
-  val=nf_edge1;
-  fits.WriteKey("nf_edge1", TLONG, val, 
-      "# of MeasureShear failures edge1");
-  val=nf_edge2;
-  fits.WriteKey("nf_edge2", TLONG, val, 
-      "# of MeasureShear failures edge2");
+    val=nf_range1;
+    fits.WriteKey("nf_rnge1", TLONG, val, 
+	"# of MeasureShear failures range1");
+    val=nf_range2;
+    fits.WriteKey("nf_rnge2", TLONG, val, 
+	"# of MeasureShear failures range2");
 
-  val=nf_npix1;
-  fits.WriteKey("nf_npix1", TLONG, val, 
-      "# of MeasureShear failures pixel extraction1");
-  val=nf_npix2;
-  fits.WriteKey("nf_npix2", TLONG, val, 
-      "# of MeasureShear failures pixel extraction2");
+    val=nf_edge1;
+    fits.WriteKey("nf_edge1", TLONG, val, 
+	"# of MeasureShear failures edge1");
+    val=nf_edge2;
+    fits.WriteKey("nf_edge2", TLONG, val, 
+	"# of MeasureShear failures edge2");
 
-  val=nf_native;
-  fits.WriteKey("nf_nativ", TLONG, val, 
-      "# of MeasureShear failures native calculations");
-  val=nf_small;
-  fits.WriteKey("nf_small", TLONG, val, 
-      "# of MeasureShear failures too small");
+    val=nf_npix1;
+    fits.WriteKey("nf_npix1", TLONG, val, 
+	"# of MeasureShear failures pixel extraction1");
+    val=nf_npix2;
+    fits.WriteKey("nf_npix2", TLONG, val, 
+	"# of MeasureShear failures pixel extraction2");
 
-  // prefix ms to make unique
-  val=nf_tmverror;
-  fits.WriteKey("nf_mstmv", TLONG, val, 
-      "# of MeasureShear failures TMV errors");
-  val=nf_othererror;
-  fits.WriteKey("nf_msoth", TLONG, val, 
-      "# of MeasureShear failures unclassified errors");
+    val=nf_native;
+    fits.WriteKey("nf_nativ", TLONG, val, 
+	"# of MeasureShear failures native calculations");
+    val=nf_small;
+    fits.WriteKey("nf_small", TLONG, val, 
+	"# of MeasureShear failures too small");
 
-  val=nf_mu;
-  fits.WriteKey("nf_mu", TLONG, val, 
-      "# of MeasureShear failures calculating mu");
-  val=nf_gamma;
-  fits.WriteKey("nf_gamma", TLONG, val, 
-      "# of MeasureShear failures calculating shear");
+    // prefix ms to make unique
+    val=nf_tmverror;
+    fits.WriteKey("nf_mstmv", TLONG, val, 
+	"# of MeasureShear failures TMV errors");
+    val=nf_othererror;
+    fits.WriteKey("nf_msoth", TLONG, val, 
+	"# of MeasureShear failures unclassified errors");
 
-  // Write to Header:
-  // exitcode
-  // ngals
-  // ns_gamma
-  // ns_nativ = ns_native
-  // nf_rnge1 = nf_range1
-  // nf_rnge2 = nf_range2
-  // nf_edge1
-  // nf_npix1
-  // nf_nativ = nf_native
-  // nf_small
-  // nf_edge2
-  // nf_npix2
-  // nf_tmver = nf_tmverror
-  // nf_other = nf_othererror
-  // nf_mu
-  // nf_gamma
+    val=nf_mu;
+    fits.WriteKey("nf_mu", TLONG, val, 
+	"# of MeasureShear failures calculating mu");
+    val=nf_gamma;
+    fits.WriteKey("nf_gamma", TLONG, val, 
+	"# of MeasureShear failures calculating shear");
+  } 
+  catch(...) 
+  { if (exitcode == 0) throw; }
+
 }
 
 void ShearLog::WriteLog() const
@@ -158,8 +147,8 @@ void ShearLog::WriteLog() const
 	"nf_tmverror="<<nf_tmverror <<" & "<<
 	"nf_othererror="<<nf_othererror <<" & "<<
 	"nf_mu="<<nf_mu <<" & "<<
-	"nf_gamma="<<nf_gamma <<" & "<<
-	"QA2END"<<std::endl;
+	"nf_gamma="<<nf_gamma <<
+	" QA2END"<<std::endl;
     }
   }
 }
@@ -222,61 +211,54 @@ void PSFLog::NoWriteLog()
   if (logout && logout != &std::cout) {
     delete logout;
   }
+  logout = 0;
 }
 
 void PSFLog::WriteLogToFitsHeader() const
 {
   if ("" == fits_file) return;
 
-  bool create=false;
-  //std::cout<<"Writing log to PSF file: "<<fits_file<<std::endl;
-  FitsFile fits(fits_file.c_str(), READWRITE, create);
-  fits.GotoHDU(2);
+  try {
+    bool create=false;
+    //std::cout<<"Writing log to PSF file: "<<fits_file<<std::endl;
+    FitsFile fits(fits_file.c_str(), READWRITE, create);
+    fits.GotoHDU(2);
 
-  // copying out to avoid g++ errors due to const incorrectness
-  long val=0;
+    // copying out to avoid g++ errors due to const incorrectness
+    long val=0;
 
-  val=exitcode;
-  // use fsexit to differentiate from exit codes for other codes
-  fits.WriteKey("mpexit", TLONG, val, "Exit code for MeasurePSF");
-  val=nstars;
-  fits.WriteKey("mpnstars", TLONG, val, 
-      "# of PSF star candidates used");
-  val=ns_psf;
-  fits.WriteKey("ns_psf", TLONG, val, 
-      "# of successful PSF decompositions");
-  val=nf_range;
-  fits.WriteKey("nf_range", TLONG, val, 
-      "# PSF failures due to range error");
-  val=nf_edge;
-  fits.WriteKey("nf_edge", TLONG, val, 
-      "# PSF failures due to edge error");
-  val=nf_npix;
-  fits.WriteKey("nf_npix", TLONG, val, 
-      "# PSF failures due bad pix extraction");
-  val=nf_tmverror;
-  fits.WriteKey("nf_mptmv", TLONG, val, 
-      "# PSF failures due to TMV errors");
-  val=nf_othererror;
-  fits.WriteKey("nf_mpoth", TLONG, val, 
-      "# PSF failures due to unclassified errors");
-  val=nf_psf;
-  fits.WriteKey("nf_psf", TLONG, val, 
-      "# PSF failures");
+    val=exitcode;
+    // use fsexit to differentiate from exit codes for other codes
+    fits.WriteKey("mpexit", TLONG, val, "Exit code for MeasurePSF");
+    val=nstars;
+    fits.WriteKey("mpnstars", TLONG, val, 
+	"# of PSF star candidates used");
+    val=ns_psf;
+    fits.WriteKey("ns_psf", TLONG, val, 
+	"# of successful PSF decompositions");
+    val=nf_range;
+    fits.WriteKey("nf_range", TLONG, val, 
+	"# PSF failures due to range error");
+    val=nf_edge;
+    fits.WriteKey("nf_edge", TLONG, val, 
+	"# PSF failures due to edge error");
+    val=nf_npix;
+    fits.WriteKey("nf_npix", TLONG, val, 
+	"# PSF failures due bad pix extraction");
+    val=nf_tmverror;
+    fits.WriteKey("nf_mptmv", TLONG, val, 
+	"# PSF failures due to TMV errors");
+    val=nf_othererror;
+    fits.WriteKey("nf_mpoth", TLONG, val, 
+	"# PSF failures due to unclassified errors");
+    val=nf_psf;
+    fits.WriteKey("nf_psf", TLONG, val, 
+	"# PSF failures");
 
-  fits.Close();
-
-
-  // Write to Header:
-  // exitcode
-  // nstars
-  // ns_psf
-  // nf_range
-  // nf_edge
-  // nf_npix
-  // nf_tmver = nf_tmverror
-  // nf_other = nf_otherror
-  // nf_psf
+    fits.Close();
+  }
+  catch (...)
+  { if (exitcode == 0) throw; }
 }
 
 void PSFLog::WriteLog() const
@@ -300,8 +282,8 @@ void PSFLog::WriteLog() const
 	"nf_npix="<<nf_npix <<" & "<<
 	"nf_tmverror="<<nf_tmverror <<" & "<<
 	"nf_othererror="<<nf_othererror <<" & "<<
-	"nf_psf="<<nf_psf <<" & "<<
-	"QA2END"<<std::endl;
+	"nf_psf="<<nf_psf <<
+	" QA2END"<<std::endl;
     }
   }
 }
@@ -349,34 +331,39 @@ void FindStarsLog::NoWriteLog()
   if (logout != &std::cout) {
     delete logout;
   }
+  logout = 0;
 }
 
 void FindStarsLog::WriteLogToFitsHeader() const
 {
   if ("" == fits_file) return;
 
-  bool create=false;
-  //std::cout<<"Writing log to FindStars file: "<<fits_file<<std::endl;
-  FitsFile fits(fits_file.c_str(), READWRITE, create);
-  fits.GotoHDU(2);
+  try {
+    bool create=false;
+    //std::cout<<"Writing log to FindStars file: "<<fits_file<<std::endl;
+    FitsFile fits(fits_file.c_str(), READWRITE, create);
+    fits.GotoHDU(2);
 
-  // not efficient since entire file must be resized and all data moved
-  // forward each time
+    // not efficient since entire file must be resized and all data moved
+    // forward each time
 
-  // copying out to avoid g++ errors due to const incorrectness
-  long val;
-  val=exitcode;
-  fits.WriteKey("fsexit", TLONG, val, "Exit code for FindStars");
-  val=nobj;
-  fits.WriteKey("fsnobj", TLONG, val, 
-      "# of objects processed in FindStars");
-  // Using fsnstar to avoid name collision with same parameter in the
-  // PSF log file
-  val=nstars;
-  fits.WriteKey("fsnstars", TLONG, val, 
-      "# of PSF candidate stars found by FindStars");
+    // copying out to avoid g++ errors due to const incorrectness
+    long val;
+    val=exitcode;
+    fits.WriteKey("fsexit", TLONG, val, "Exit code for FindStars");
+    val=nobj;
+    fits.WriteKey("fsnobj", TLONG, val, 
+	"# of objects processed in FindStars");
+    // Using fsnstar to avoid name collision with same parameter in the
+    // PSF log file
+    val=nstars;
+    fits.WriteKey("fsnstars", TLONG, val, 
+	"# of PSF candidate stars found by FindStars");
 
-  fits.Close();
+    fits.Close();
+  }
+  catch(...)
+  { if (exitcode == 0) throw; }
 }
 
 void FindStarsLog::WriteLog() const
@@ -394,8 +381,8 @@ void FindStarsLog::WriteLog() const
 	"QA2BEG "<<
 	"Name=findstars & "<<
 	"nobj="<<nobj <<" & "<<
-	"nobj="<<nstars <<" & "<<
-	"QA2END"<<std::endl;
+	"nobj="<<nstars <<
+	" QA2END"<<std::endl;
     }
   }
 }
