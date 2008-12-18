@@ -1748,7 +1748,7 @@ int main(int argc, char **argv) try
   params["gal_order2"] = 2;
   params["gal_aperture"] = 3.;
   params["min_gal_size"] = 1.0;
-  ShearLog shearlog("testpsf.log");
+  ShearLog shearlog("testshear.log");
   int success2 = DoMeasureShear(params,shearlog);
   dbg<<"Shear sucess = "<<success2<<std::endl;
   // There are 3681 galaxies in the file without error codes.

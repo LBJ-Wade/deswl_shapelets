@@ -430,30 +430,34 @@ void FittedPSF::WriteFits(std::string file, const ConfigFile& params) const
     dbg<<"   orig ymax: "<<GetYMax()<<" new: "<<test.GetYMax()<<std::endl;
 
     dbg<<"\n";
-    dbg<<"orig avepsf = "<<(*avepsf)<<std::endl;
-    dbg<<"     new = "<<(*test.avepsf)<<std::endl;
-    dbg<<"     diff = "<<(*avepsf)-(*test.avepsf)<<std::endl;
     dbg<<"     Norm(diff) = "<<Norm((*avepsf)-(*test.avepsf))<<std::endl;
-    if (Norm((*avepsf)-(*test.avepsf)) > 0.001) 
+    if (Norm((*avepsf)-(*test.avepsf)) > 0.001) {
+      dbg<<"orig avepsf = "<<(*avepsf)<<std::endl;
+      dbg<<"     new = "<<(*test.avepsf)<<std::endl;
+      dbg<<"     diff = "<<(*avepsf)-(*test.avepsf)<<std::endl;
+      dbg<<"     Norm(diff) = "<<Norm((*avepsf)-(*test.avepsf))<<std::endl;
       throw std::runtime_error("Error in FittedPSF Fits I/O");
+    }
 
-    dbg<<"\n";
-    dbg<<"orig rot_matrix = "<<V->Rows(0,npca);
-    dbg<<"     new =  "<<(*test.V);
-    dbg<<"     diff =  "<<V->Rows(0,npca)-(*test.V)<<std::endl;
     dbg<<"     Norm(diff) =  "<<Norm(V->Rows(0,npca)-(*test.V))<<std::endl;
-    if (Norm(V->Rows(0,npca)-(*test.V)) > 0.001) 
+    if (Norm(V->Rows(0,npca)-(*test.V)) > 0.001) {
+      dbg<<"orig rot_matrix = "<<V->Rows(0,npca)<<std::endl;
+      dbg<<"     new =  "<<(*test.V)<<std::endl;
+      dbg<<"     diff =  "<<V->Rows(0,npca)-(*test.V)<<std::endl;
+      dbg<<"     Norm(diff) =  "<<Norm(V->Rows(0,npca)-(*test.V))<<std::endl;
       throw std::runtime_error("Error in FittedPSF Fits I/O");
+    }
 
-    dbg<<"\n";
-    dbg<<"orig interp_matrix = "<<(*f);
-    dbg<<"     new: "<<(*test.f);
-    dbg<<"     diff: "<<(*f)-(*test.f);
-    dbg<<"     Norm(diff): "<<Norm((*f)-(*test.f));
-    if (Norm((*f)-(*test.f)) > 0.001) 
+    dbg<<"     Norm(diff): "<<Norm((*f)-(*test.f))<<std::endl;
+    if (Norm((*f)-(*test.f)) > 0.001) {
+      dbg<<"orig interp_matrix = "<<(*f)<<std::endl;
+      dbg<<"     new: "<<(*test.f)<<std::endl;
+      dbg<<"     diff: "<<(*f)-(*test.f)<<std::endl;
+      dbg<<"     Norm(diff): "<<Norm((*f)-(*test.f))<<std::endl;
       throw std::runtime_error("Error in FittedPSF Fits I/O");
+    }
 
-    dbg<<"Done testing fitted PSF file IO\n";
+    dbg<<"Done testing fitted PSF file IO"<<std::endl;
   }
 }
 
@@ -528,13 +532,9 @@ void FittedPSF::ReadFits(std::string file, int hdu, const ConfigFile& params)
   bounds.SetYMax(ymax);
   xdbg<<"bounds = "<<bounds<<std::endl;
 
-  fitsize = (fitorder+1)*(fitorder+2)/2;
-  xdbg<<"fitsize = "<<fitsize<<std::endl;
   avepsf.reset(new BVec(psforder,sigma));
-  V.reset(new tmv::Matrix<double,tmv::RowMajor>(npca,avepsf->size()));
-  f.reset(new tmv::Matrix<double>(fitsize,npca));
-
   int n_shapelet_coeff = (psforder+1)*(psforder+2)/2;
+  Assert(int(avepsf->size()) == n_shapelet_coeff);
   fits.ReadCell(
       (char*)ave_psf_name.c_str(),
       TDOUBLE, (char*)(avepsf->ptr()),
@@ -542,14 +542,19 @@ void FittedPSF::ReadFits(std::string file, int hdu, const ConfigFile& params)
   xdbg<<"avepsf = "<<*avepsf<<std::endl;
 
   int n_rot_matrix = npca*n_shapelet_coeff;
+  V.reset(new tmv::Matrix<double,tmv::RowMajor>(npca,avepsf->size()));
+  Assert(int(V->LinearView().size()) == n_rot_matrix);
   fits.ReadCell(
       (char*)rot_matrix_name.c_str(),
       TDOUBLE, (char*)(V->ptr()),
       1, n_rot_matrix);
   xdbg<<"V = "<<*V<<std::endl;
 
-  int n_fit_coeff = (fitorder+1)*(fitorder+2)/2;
-  int n_interp_matrix = npca*n_fit_coeff;
+  fitsize = (fitorder+1)*(fitorder+2)/2;
+  xdbg<<"fitsize = "<<fitsize<<std::endl;
+  int n_interp_matrix = npca*fitsize;
+  f.reset(new tmv::Matrix<double>(fitsize,npca));
+  Assert(int(f->LinearView().size()) == n_interp_matrix);
   fits.ReadCell(
       (char*)interp_matrix_name.c_str(),
       TDOUBLE, (char*)(f->ptr()),

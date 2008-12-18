@@ -292,8 +292,8 @@ def AddExtraPaths(env):
     env.Prepend(LIBPATH= lib_paths)
     env.Prepend(CPPPATH= cpp_paths)
 
-    #print 'LIBPATH = ',env['LIBPATH']
-    #print 'CPPPATH = ',env['CPPPATH']
+    print 'LIBPATH = ',env['LIBPATH']
+    print 'CPPPATH = ',env['CPPPATH']
 
 def ReadFileList(fname):
     """

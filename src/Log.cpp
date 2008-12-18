@@ -142,7 +142,7 @@ void ShearLog::WriteLog() const
 	"STATUS5END"<<std::endl;
     } else {
       *logout << 
-	"STATUS2BEG "<<
+	"QA2BEG "<<
 	"Name=measureshear & "<<
 	"ngals="<<ngals<<" & "<<
 	"ns_gamma="<<ns_gamma <<" & "<<
@@ -159,7 +159,7 @@ void ShearLog::WriteLog() const
 	"nf_othererror="<<nf_othererror <<" & "<<
 	"nf_mu="<<nf_mu <<" & "<<
 	"nf_gamma="<<nf_gamma <<" & "<<
-	"STATUS2END"<<std::endl;
+	"QA2END"<<std::endl;
     }
   }
 }
@@ -291,7 +291,7 @@ void PSFLog::WriteLog() const
 	"STATUS5END"<<std::endl;
     } else {
       *logout << 
-	"STATUS2BEG "<<
+	"QA2BEG "<<
 	"Name=measurepsf & "<<
 	"nstars="<<nstars <<" & "<<
 	"ns_psf="<<ns_psf <<" & "<<
@@ -301,7 +301,7 @@ void PSFLog::WriteLog() const
 	"nf_tmverror="<<nf_tmverror <<" & "<<
 	"nf_othererror="<<nf_othererror <<" & "<<
 	"nf_psf="<<nf_psf <<" & "<<
-	"STATUS2END"<<std::endl;
+	"QA2END"<<std::endl;
     }
   }
 }
@@ -391,11 +391,11 @@ void FindStarsLog::WriteLog() const
 	"STATUS5END"<<std::endl;
     } else {
       *logout << 
-	"STATUS2BEG "<<
+	"QA2BEG "<<
 	"Name=findstars & "<<
 	"nobj="<<nobj <<" & "<<
 	"nobj="<<nstars <<" & "<<
-	"STATUS2END"<<std::endl;
+	"QA2END"<<std::endl;
     }
   }
 }
