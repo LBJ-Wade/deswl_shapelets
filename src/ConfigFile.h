@@ -53,7 +53,7 @@
 #include <algorithm>
 #include <stdexcept>
 
-#ifdef __ICC
+#ifdef __INTEL_COMPILER
 #pragma warning (disable : 444)
 // Disable "destructor for base class ... is not virtual"
 // Technically, it is bad form to inherit from a class that doesn't have
@@ -219,7 +219,7 @@ class ConvertibleString : public std::string
     }
 
 };
-#ifdef __ICC
+#ifdef __INTEL_COMPILER
 #pragma warning (default : 444)
 #endif
 
