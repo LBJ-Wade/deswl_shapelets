@@ -29,8 +29,7 @@
 class StarFinderException : public std::runtime_error {
   public:
     StarFinderException(const char* m) : std::runtime_error(m) {};
-    StarFinderException(std::string m) : std::runtime_error(m.c_str()) {};
-    StarFinderException(char* m) : std::runtime_error((const char*) m) {};
+    StarFinderException(std::string m) : std::runtime_error(m) {};
 };
 
 

@@ -538,12 +538,18 @@ bool Ellipse::Measure(const std::vector<std::vector<Pixel> >& pix,
     const std::vector<BVec>& psf,
     int order, double sigma, bool use_integ, tmv::Matrix<double>* cov,
     BVec* bret, tmv::Matrix<double>* bcov)
-{ return DoMeasure(pix,&psf,order,sigma,use_integ,cov,bret,bcov); }
+{ 
+  didstatus3output = false;
+  return DoMeasure(pix,&psf,order,sigma,use_integ,cov,bret,bcov); 
+}
 
 bool Ellipse::Measure(const std::vector<std::vector<Pixel> >& pix,
     int order, double sigma, bool use_integ, tmv::Matrix<double>* cov,
     BVec* bret, tmv::Matrix<double>* bcov)
-{ return DoMeasure(pix,0,order,sigma,use_integ,cov,bret,bcov); }
+{
+  didstatus3output = false;
+  return DoMeasure(pix,0,order,sigma,use_integ,cov,bret,bcov);
+}
 
 void Ellipse::DoMeasureShapelet(const std::vector<std::vector<Pixel> >& pix,
     const std::vector<BVec>* psf, BVec& b, tmv::Matrix<double>* bcov) const

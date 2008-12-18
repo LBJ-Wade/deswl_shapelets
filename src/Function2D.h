@@ -9,9 +9,6 @@
 #include "TMV.h"
 #include "dbg.h"
 
-inline void f2d_error(const char *s)
-{ std::cerr<<s<<std::endl; exit(1); }
-
 struct Range_error {
   Position p;
   Bounds b;

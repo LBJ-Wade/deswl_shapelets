@@ -8,5 +8,5 @@ echo Try execution with bad configfile:
 ./measurepsf foo root=decam--27--9-i-3_20 input_prefix=data/ output_prefix=output/
 ./measureshear foo root=decam--27--9-i-3_20 input_prefix=data/ output_prefix=output/
 echo Try execution with bad imagename:
-./measurepsf ../example_config/wl.config stars_file=decam--27--9-i-3_20_stars.fits
+./measurepsf ../example_config/wl.config stars_file=decam--27--9-i-3_20_stars.fits root=foo
 ./measureshear ../example_config/wl.config shear_file=decam--27--9-i-3_20_shear.fits

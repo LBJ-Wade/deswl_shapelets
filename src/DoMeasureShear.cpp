@@ -248,7 +248,8 @@ int DoMeasureShear_DES(ConfigFile& params, ShearLog& log)
     } 
     catch (...)
     {
-      std::cerr<<"Caught some kind of exception in the parallel region.\n";
+      std::cerr<<"STATUS5BEG Caught some error in parallel region STATUS5END\n";
+      exit(1);
     }
   }
   // End openmp parallel section.
@@ -557,7 +558,8 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
     } 
     catch (...)
     {
-      std::cerr<<"Caught some kind of exception in the parallel region.\n";
+      std::cerr<<"STATUS5BEG Caught some error in parallel region STATUS5END\n";
+      exit(1);
     }
   }
   // End openmp parallel section.

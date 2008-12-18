@@ -24,7 +24,7 @@ Legendre2D<T>::Legendre2D(std::istream& fin) : Function2D<T>()
 // is that instead of x,x^2,x^3,etc., we use P1(x),P2(x),P3(x),etc.
 {
   fin >> xorder >> yorder >> bounds;
-  if (!fin) f2d_error("reading order, bounds");
+  if (!fin) throw std::runtime_error("reading order, bounds");
   coeffs.reset(new tmv::Matrix<T>(xorder+1,yorder+1,0.));
   int maxorder = std::max(xorder,yorder);
   for(int m = 0; m <= maxorder; m++) {
@@ -32,7 +32,7 @@ Legendre2D<T>::Legendre2D(std::istream& fin) : Function2D<T>()
       fin >> (*coeffs)(i,m-i);
     }
   }
-  if (!fin) f2d_error("reading (legendre) function");
+  if (!fin) throw std::runtime_error("reading (legendre) function");
 }
 
 template <class T>
@@ -51,7 +51,7 @@ void Legendre2D<T>::Write(std::ostream& fout) const
     }
     fout << std::endl;
   }
-  if (!fout) f2d_error("writing (legendre) function");
+  if (!fout) throw std::runtime_error("writing (legendre) function");
   fout.precision(oldprec);
   fout.flags(oldf);
 }

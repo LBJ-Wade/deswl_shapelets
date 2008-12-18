@@ -101,7 +101,7 @@ void StarFinder::CopyConfig(ConfigFile& conf)
       std::ostringstream err;
       err<<"MeasureStars config does not contain required field: \""
           <<*it<<"\""<<std::endl;
-      throw StarFinderException(err.str());
+      throw std::runtime_error(err.str());
     }
   }
 
@@ -148,7 +148,7 @@ void StarFinder::CopyConfig(ConfigFile& conf)
 
     std::ostringstream err;
     err<<"Error getting field from config file: "<<s<<std::endl;
-    throw StarFinderException(err.str());
+    throw std::runtime_error(err.str());
 
   }
 }
@@ -271,6 +271,7 @@ std::vector<PotentialStar*> StarFinder::FindStars(
     size_t nstars_expected = size_t(mStarfrac * someobj.size());
     if (qpeaklist.size() < nstars_expected) {
       if (qpeaklist.size() < size_t(0.2 * nstars_expected)) {
+	std::cout<<"STATUS3BEG Warning: Only "<<qpeaklist.size()<<" stars found in section "<<i<<','<<j<<". STATUS3END"<<std::endl;
 	dbg<<"Warning: only "<<qpeaklist.size()<<" stars found in section ";
 	dbg<<i<<','<<j<<std::endl;
       }
@@ -346,6 +347,7 @@ std::vector<PotentialStar*> StarFinder::FindStars(
       // if there are still < 10 stars, give a warning, and
       // just add all the stars to fitlist
       if (starsarray[i][j].size() < mStarsperbin) {
+	std::cout<<"STATUS3BEG Warning: Only "<<starsarray[i][j].size()<<" stars in section "<<i<<','<<j<<". STATUS3END"<<std::endl;
         dbg<<"Warning: only "<<starsarray[i][j].size()<<" stars in section ";
         dbg<<i<<','<<j<<std::endl;
         //if (iter == mMaxrefititer-1) {

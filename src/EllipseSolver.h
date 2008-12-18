@@ -18,6 +18,8 @@ class BaseEllipseSolver : public NLSolver
 
 class ESImpl;
 
+extern bool didstatus3output;
+
 class EllipseSolver : public BaseEllipseSolver
 {
   public :

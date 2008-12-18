@@ -50,7 +50,8 @@ enum ExitCode {
   FAILURE_CONFIGFILE_ERROR	= 4,
   FAILURE_STD_EXCEPTION		= 5,
   FAILURE_READ_ERROR            = 6,
-  FAILURE_FORMAT_ERROR          = 7
+  FAILURE_FORMAT_ERROR          = 7,
+  FAILURE_STARFINDER_ERROR      = 8
 };
 
 inline const char* Text(const ExitCode& code)
@@ -64,7 +65,24 @@ inline const char* Text(const ExitCode& code)
     case FAILURE_STD_EXCEPTION : return "FAILURE_STD_EXCEPTION";
     case FAILURE_READ_ERROR : return "FAILURE_READ_ERROR";
     case FAILURE_FORMAT_ERROR : return "FAILURE_FORMAT_ERROR";
+    case FAILURE_STARFINDER_ERROR : return "FAILURE_FORMAT_ERROR";
     default : return "UNKNOWN";
+  }
+}
+
+inline int Status(ExitCode code)
+{
+  switch (code) {
+    case SUCCESS : return 2;
+    case FAILURE : return 5;
+    case FAILURE_FILE_NOT_FOUND : return 5;
+    case FAILURE_TMV_ERROR : return 4;
+    case FAILURE_CONFIGFILE_ERROR : return 5;
+    case FAILURE_STD_EXCEPTION : return 5;
+    case FAILURE_READ_ERROR : return 5;
+    case FAILURE_FORMAT_ERROR : return 5;
+    case FAILURE_STARFINDER_ERROR : return 4;
+    default : return 0;
   }
 }
 

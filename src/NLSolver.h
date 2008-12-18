@@ -224,7 +224,7 @@ inline void NLSolver::H(const tmv::Vector<double>& ,
   std::cerr<<"H is undefined\n";
   exit(1);
 #else
-  throw 0; 
+  throw std::runtime_error("H is undefined in NLSolver");
 #endif
 }
 

@@ -51,7 +51,7 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
   dbg<<"Read transformation\n";
 
   // we are using weight image, so sk, noise, gain are dummy
-  try {
+  //try {
     MeasureSigmas(
 	im, 
 	sxcat.pos, sxcat.local_sky, sxcat.noise, 0.0, 
@@ -60,9 +60,9 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
 	psfap, 
 	fscat.sigma0,
 	fscat.size_flags);
-  } catch(...) {
-    std::cerr<<"Caught signal from MeasureSigmas"<<std::endl;  
-  }
+  //} catch(...) {
+    //std::cerr<<"Caught signal from MeasureSigmas"<<std::endl;  
+  //}
   dbg<<"Done MeasureSigmas\n";
 
   // Eventually separate this out
@@ -72,7 +72,7 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
   
   std::vector<int> starflags; 
 
-  try {
+  //try {
     sf.RunFindStars(
 	sxcat.flags,
 	fscat.size_flags,
@@ -81,11 +81,11 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
 	fscat.sigma0,
 	sxcat.mag,
 	fscat.star_flag);
-  } catch( StarFinderException e ) {
-    std::cerr<<"Caught signal from RunFindStars: "<<e.what()<<std::endl;  
-  } catch (...) {
-    std::cerr<<"Caught unknown signal from RunFindStars"<<std::endl;  
-  }
+  //} catch( StarFinderException e ) {
+    //std::cerr<<"Caught signal from RunFindStars: "<<e.what()<<std::endl;  
+  //} catch (...) {
+    //std::cerr<<"Caught unknown signal from RunFindStars"<<std::endl;  
+  //}
   dbg<<"After RunFindStars\n";
 
   size_t star_count=0;
@@ -100,6 +100,10 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
 
   std::string output_file = Name(params, "stars");
   dbg<<"Writing to stars file: "<<output_file<<std::endl;
+
+  if (star_count < 100) {
+    std::cout<<"STATUS3BEG Warning: Only "<<star_count<<" stars found for Name="<<output_file<<". STATUS3END"<<std::endl;
+  }
 
   /*
   std::ofstream output(output_file.c_str());
@@ -223,7 +227,8 @@ int main(int argc, char **argv) try
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_FILE_NOT_FOUND;
     log.extraexitinfo = e.what();
-    return EXIT_FAILURE; // = 1 typically
+    if (Status(log.exitcode)==5) return EXIT_FAILURE;
+    else return EXIT_SUCCESS;
   }
   catch (ConfigFile::file_not_found& e)
   {
@@ -231,7 +236,8 @@ int main(int argc, char **argv) try
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_CONFIGFILE_ERROR;
     log.extraexitinfo = e.what();
-    return EXIT_FAILURE;
+    if (Status(log.exitcode)==5) return EXIT_FAILURE;
+    else return EXIT_SUCCESS;
   }
   catch (ConfigFile::key_not_found& e)
   {
@@ -239,7 +245,8 @@ int main(int argc, char **argv) try
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_CONFIGFILE_ERROR;
     log.extraexitinfo = e.what();
-    return EXIT_FAILURE;
+    if (Status(log.exitcode)==5) return EXIT_FAILURE;
+    else return EXIT_SUCCESS;
   }
   catch (tmv::Error& e)
   {
@@ -247,7 +254,15 @@ int main(int argc, char **argv) try
     std::cerr<<"Caught \n"<<e<<std::endl;
     log.exitcode = FAILURE_TMV_ERROR;
     log.extraexitinfo = e.what();
-    return EXIT_FAILURE;
+    if (Status(log.exitcode)==5) return EXIT_FAILURE;
+    else return EXIT_SUCCESS;
+  }
+  catch(StarFinderException& e ) {
+    dbg<<"Caught \n"<<e.what()<<std::endl;
+    log.exitcode = FAILURE_STARFINDER_ERROR;
+    log.extraexitinfo = e.what();
+    if (Status(log.exitcode)==5) return EXIT_FAILURE;
+    else return EXIT_SUCCESS;
   }
   catch (std::exception& e)
   {
@@ -255,14 +270,16 @@ int main(int argc, char **argv) try
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_STD_EXCEPTION;
     log.extraexitinfo = e.what();
-    return EXIT_FAILURE;
+    if (Status(log.exitcode)==5) return EXIT_FAILURE;
+    else return EXIT_SUCCESS;
   }
   catch (ExitCode e)
   {
     dbg<<"Caught ExitCode "<<e<<std::endl;
     std::cerr<<"Caught ExitCode "<<e<<std::endl;
     log.exitcode = e;
-    return EXIT_FAILURE;
+    if (Status(log.exitcode)==5) return EXIT_FAILURE;
+    else return EXIT_SUCCESS;
   }
   catch (...)
   {
@@ -270,7 +287,8 @@ int main(int argc, char **argv) try
     dbg<<"Caught Unknown error\n";
     std::cerr<<"Caught Unknown error\n";
     log.extraexitinfo="Caught unknown exception";
-    return EXIT_FAILURE;
+    if (Status(log.exitcode)==5) return EXIT_FAILURE;
+    else return EXIT_SUCCESS;
   }
 #endif
 }

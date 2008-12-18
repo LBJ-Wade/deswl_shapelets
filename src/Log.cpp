@@ -119,21 +119,38 @@ void ShearLog::WriteLogToFitsHeader() const
 
 }
 
+inline std::string StatusText1(ExitCode exitcode)
+{ 
+  return std::string("STATUS") +
+    char('0'+Status(exitcode)) +
+    std::string("BEG"); 
+}
+inline std::string StatusText2(ExitCode exitcode)
+{
+  return std::string("STATUS") +
+    char('0'+Status(exitcode)) +
+    std::string("END");
+}
+
 void ShearLog::WriteLog() const
 {
   if (logout) {
     // Emit logging information
     if (exitcode) {
       *logout << 
-	"STATUS5BEG "<<
+	StatusText1(exitcode)<<" "<<
 	Text(exitcode)<<" "<<
-	extraexitinfo<<" "<<
-	"STATUS5END"<<std::endl;
+	extraexitinfo<<" ";
+      if (fits_file != "")
+	*logout << " (Name="<<fits_file<<") ";
+      *logout<< StatusText2(exitcode)<<std::endl;
     } else {
+      std::string name = "measureshear";
+      if (fits_file != "") name = fits_file;
       *logout << 
 	"QA2BEG "<<
-	"Name=measureshear & "<<
-	"ngals="<<ngals<<" & "<<
+	"Name="<<name <<" & "<<
+	"ngals="<<ngals <<" & "<<
 	"ns_gamma="<<ns_gamma <<" & "<<
 	"ns_native="<<ns_native <<" & "<<
 	"nf_range1="<<nf_range1 <<" & "<<
@@ -267,14 +284,18 @@ void PSFLog::WriteLog() const
     // Emit logging information
     if (exitcode) {
       *logout << 
-	"STATUS5BEG "<<
+	StatusText1(exitcode)<<" "<<
 	Text(exitcode)<<" "<<
-	extraexitinfo<<" "<<
-	"STATUS5END"<<std::endl;
+	extraexitinfo<<" ";
+      if (fits_file != "")
+	*logout << " (Name="<<fits_file<<") ";
+      *logout<< StatusText2(exitcode)<<std::endl;
     } else {
+      std::string name = "measurepsf";
+      if (fits_file != "") name = fits_file;
       *logout << 
 	"QA2BEG "<<
-	"Name=measurepsf & "<<
+	"Name="<<name <<" & "<<
 	"nstars="<<nstars <<" & "<<
 	"ns_psf="<<ns_psf <<" & "<<
 	"nf_range="<<nf_range <<" & "<<
@@ -372,16 +393,20 @@ void FindStarsLog::WriteLog() const
     // Emit logging information
     if (exitcode) {
       *logout << 
-	"STATUS5BEG "<<
+	StatusText1(exitcode)<<" "<<
 	Text(exitcode)<<" "<<
-	extraexitinfo<<" "<<
-	"STATUS5END"<<std::endl;
+	extraexitinfo<<" ";
+      if (fits_file != "")
+	*logout << " (Name="<<fits_file<<") ";
+      *logout<< StatusText2(exitcode)<<std::endl;
     } else {
+      std::string name = "findstars";
+      if (fits_file != "") name = fits_file;
       *logout << 
 	"QA2BEG "<<
-	"Name=findstars & "<<
+	"Name="<<name <<" & "<<
 	"nobj="<<nobj <<" & "<<
-	"nobj="<<nstars <<
+	"nstars="<<nstars <<
 	" QA2END"<<std::endl;
     }
   }

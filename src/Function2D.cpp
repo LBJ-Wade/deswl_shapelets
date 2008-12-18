@@ -13,7 +13,7 @@ inline double norm(const double& x) { return x*x; }
 template <class T>
 Constant2D<T>::Constant2D(std::istream& fin) : Function2D<T>()
 {
-  if(!(fin >> (*coeffs)(0,0))) f2d_error("reading constant");
+  if(!(fin >> (*coeffs)(0,0))) throw std::runtime_error("reading constant");
 }
 
 template <class T>
@@ -22,7 +22,7 @@ void Constant2D<T>::Write(std::ostream& fout) const
   int oldprec = fout.precision(6);
   std::ios_base::fmtflags oldf = fout.setf(std::ios_base::scientific,std::ios_base::floatfield);
   fout << "C " << (*coeffs)(0,0) << std::endl;
-  if (!fout) f2d_error("writing (constant) function");
+  if (!fout) throw std::runtime_error("writing (constant) function");
   fout.precision(oldprec);
   fout.flags(oldf);
 }
@@ -72,7 +72,7 @@ Polynomial2D<T>::Polynomial2D(std::istream& fin) : Function2D<T>()
 // Note that aij are complex numbers so each is listed as real_part imag_part.
 {
   int xo,yo;
-  if (!(fin >> xo >> yo >> scale)) f2d_error("reading xorder,yorder,scale");
+  if (!(fin >> xo >> yo >> scale)) throw std::runtime_error("reading xorder,yorder,scale");
   xorder = xo;
   yorder = yo;
   coeffs.reset(new tmv::Matrix<T>(xo+1,yo+1,0.));
@@ -83,7 +83,7 @@ Polynomial2D<T>::Polynomial2D(std::istream& fin) : Function2D<T>()
     tmv::VectorView<T> mdiag = coeffs->SubVector(i0,m-i0,-1,1,len);
     for(int i=0;i<len;i++) fin >> mdiag(i);
   }
-  if (!fin) f2d_error("reading (polynomial)");
+  if (!fin) throw std::runtime_error("reading (polynomial)");
 }
 
 template <class T>
@@ -103,7 +103,7 @@ void Polynomial2D<T>::Write(std::ostream& fout) const
     }
   }
   fout << std::endl;
-  if (!fout) f2d_error("writing (polynomial) function");
+  if (!fout) throw std::runtime_error("writing (polynomial) function");
   fout.flags(oldf);
   fout.precision(oldprec);
 }
@@ -289,7 +289,7 @@ std::auto_ptr<Function2D<T> > Function2D<T>::Read(std::istream& fin)
 #ifdef CHEBY2D_H
     case 'X' : return std::auto_ptr<Function2D<T> >(new Cheby2D<T>(fin));
 #endif
-    default: f2d_error("invalid type"); return std::auto_ptr<Function2D<T> >(0);
+    default: throw std::runtime_error("invalid type"); return std::auto_ptr<Function2D<T> >(0);
   }
 }
 
@@ -603,7 +603,7 @@ inline double betacf(double a,double b,double x)
     h *= del;
     if (std::abs(del-1.0) < EPS) break;
   }
-  if (m>MAXIT) f2d_error("a or b too big in betacf, or MAXIT too small");
+  if (m>MAXIT) throw std::runtime_error("a or b too big in betacf, or MAXIT too small");
   return h;
 }
 
@@ -626,7 +626,7 @@ inline double gammln(double x)
 
 inline double betai(double a,double b,double x)
 {
-  if (x<0.0 || x>1.0) f2d_error("Bad x in betai");
+  if (x<0.0 || x>1.0) throw std::runtime_error("Bad x in betai");
   if (x==0.0) return 0.;
   if (x==1.0) return 1.;
   double bt = exp(gammln(a+b)-gammln(a)-gammln(b)+a*log(x)+b*log(1.0-x));

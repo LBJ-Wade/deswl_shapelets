@@ -85,7 +85,8 @@ int main(int argc, char **argv) try
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_FILE_NOT_FOUND;
     log.extraexitinfo = e.what();
-    return EXIT_FAILURE; // = 1 typically
+    if (Status(log.exitcode)==5) return EXIT_FAILURE;
+    else return EXIT_SUCCESS;
   }
   catch (ConfigFile::file_not_found& e)
   {
@@ -93,7 +94,8 @@ int main(int argc, char **argv) try
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_CONFIGFILE_ERROR;
     log.extraexitinfo = e.what();
-    return EXIT_FAILURE;
+    if (Status(log.exitcode)==5) return EXIT_FAILURE;
+    else return EXIT_SUCCESS;
   }
   catch (ConfigFile::key_not_found& e)
   {
@@ -101,7 +103,8 @@ int main(int argc, char **argv) try
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_CONFIGFILE_ERROR;
     log.extraexitinfo = e.what();
-    return EXIT_FAILURE;
+    if (Status(log.exitcode)==5) return EXIT_FAILURE;
+    else return EXIT_SUCCESS;
   }
   catch (tmv::Error& e)
   {
@@ -109,7 +112,8 @@ int main(int argc, char **argv) try
     std::cerr<<"Caught \n"<<e<<std::endl;
     log.exitcode = FAILURE_TMV_ERROR;
     log.extraexitinfo = e.what();
-    return EXIT_FAILURE;
+    if (Status(log.exitcode)==5) return EXIT_FAILURE;
+    else return EXIT_SUCCESS;
   }
   catch (std::exception& e)
   {
@@ -117,14 +121,16 @@ int main(int argc, char **argv) try
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_STD_EXCEPTION;
     log.extraexitinfo = e.what();
-    return EXIT_FAILURE;
+    if (Status(log.exitcode)==5) return EXIT_FAILURE;
+    else return EXIT_SUCCESS;
   }
   catch (ExitCode e)
   { 
     dbg<<"Caught ExitCode "<<e<<std::endl;
     std::cerr<<"Caught ExitCode "<<e<<std::endl;
     log.exitcode = e;
-    return EXIT_FAILURE;
+    if (Status(log.exitcode)==5) return EXIT_FAILURE;
+    else return EXIT_SUCCESS;
   }
   catch (...)
   {
@@ -132,7 +138,8 @@ int main(int argc, char **argv) try
     std::cerr<<"Caught Unknown error\n";
     log.exitcode = FAILURE;
     log.extraexitinfo = "Caught unknown exception";
-    return EXIT_FAILURE;
+    if (Status(log.exitcode)==5) return EXIT_FAILURE;
+    else return EXIT_SUCCESS;
   }
 #endif
 }

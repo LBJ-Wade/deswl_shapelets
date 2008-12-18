@@ -351,7 +351,10 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
 #ifdef _OPENMP
     }
     catch (...)
-    { std::cerr<<"Caught some error in parallel region\n"; exit(1); }
+    {
+      std::cerr<<"STATUS5BEG Caught some error in parallel region STATUS5END\n";
+      exit(1); 
+    }
   }
 #endif
 
@@ -625,7 +628,10 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
 #ifdef _OPENMP
     }
     catch (...)
-    { std::cerr<<"Caught some error in parallel region\n"; exit(1); }
+    {
+      std::cerr<<"STATUS5BEG Caught some error in parallel region STATUS5END\n";
+      exit(1); 
+    }
   }
 #endif
 

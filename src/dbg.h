@@ -15,6 +15,7 @@ bool XDEBUG=false;
 //
 
 #include <iostream>
+#include <stdexcept>
 
 extern std::ostream* dbgout;
 extern bool XDEBUG;
@@ -32,16 +33,14 @@ extern bool XDEBUG;
     do { if(!(x)) { \
       dbg << "Error - Assert " #x " failed"<<std::endl; \
       dbg << "on line "<<__LINE__<<" in file "<<__FILE__<<std::endl; \
-      std::cerr << "Error - Assert " #x " failed"<<std::endl; \
-      std::cerr << "on line "<<__LINE__<<" in file "<<__FILE__<<std::endl; \
-      exit(1);} } while(false)
+      throw std::runtime_error("Error - Assert " #x " failed"); } \
+    } while(false)
 #endif
 
 inline void myerror(const char *s,const char *s2 = "")
 {
   dbg << "Error: " << s << ' ' << s2 << std::endl;
-  std::cerr << "Error: " << s << ' ' << s2 << std::endl;
-  exit(1);
+  throw std::runtime_error(std::string("Error: ") + s + ' ' + s2);
 }
 
 #endif

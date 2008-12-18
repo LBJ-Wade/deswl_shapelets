@@ -49,14 +49,15 @@ void ReadSXCat(const ConfigFile& params, SXCAT_STRUCT& cat)
 
   dbg<<"  nrows = "<<nrows<<std::endl;
   if (nrows <= 0) {
-    std::cerr<<"nrows must be >= 0"<<std::endl;
+    std::cerr<<"nrows must be > 0"<<std::endl;
     throw FAILURE_FORMAT_ERROR;
   }
 
   // MJ: <100 have basically no chance to find the stars
   if (nrows <= minrows) {
-    std::cerr<<"Too few rows in catalog"<<std::endl;
-    throw FAILURE_FORMAT_ERROR;
+    std::cout<<"STATUS3BEG Warning: Input catalog only has "<<nrows<<" rows for Name="<<file<<". STATUS3END"<<std::endl;
+    //std::cerr<<"Too few rows in catalog"<<std::endl;
+    //throw FAILURE_FORMAT_ERROR;
   }
 
   // Allocate memory for the columns we will read

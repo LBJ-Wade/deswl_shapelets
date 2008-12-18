@@ -19,9 +19,9 @@
 class ESImpl 
 {
 
-  friend class EllipseSolver;
-
   public :
+
+    friend class EllipseSolver;
 
     ESImpl(const std::vector<std::vector<Pixel> >& _pix,
 	int _order, double _sigma, 
@@ -84,7 +84,10 @@ class ESImpl
     tmv::Matrix<double> _Gth;
     tmv::Matrix<double> _Gmu;
     mutable tmv::Matrix<double> _dTdE;
+
 };
+
+bool didstatus3output = false;
 
 EllipseSolver::EllipseSolver(const std::vector<std::vector<Pixel> >& _pix,
     int _order, double _sigma, 
@@ -194,7 +197,7 @@ ESImpl::ESImpl(const std::vector<std::vector<Pixel> >& _pix,
   pix(_pix), psf(&_psf), f_psf(_fp), sigma_obs(pix.size()),
   I(SumSize(pix)), Z(I.size()), Z1(I.size()), W(I.size()), 
   psi(I.size(),nsize,0.), A_aux(I.size(),np2size), AC(I.size(),nsize),
-  A(A_aux.Cols(0,nsize)),
+  A(A_aux.Cols(0,nsize)), 
   fixcen(_fixcen), fixgam(_fixgam), fixmu(_fixmu), useflux(_useflux),
   numeric_j(false), U((fixcen?0:2)+(fixgam?0:2)+(fixmu?0:1),5,0.),
   xinit(5,0.), xx(5), ff(6), dff(6,5),
@@ -344,7 +347,11 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
     xxdbg<<"after psf correction"<<std::endl;
     AC.ReSetDiv();
     if (AC.Singular()) {
-      xdbg<<"Warning -- Singular AC:\n";
+      if (!didstatus3output) {
+	std::cout<<"STATUS3BEG Warning: Singular AC matrix encountered in EllipseSolver. STATUS3END"<<std::endl;
+	didstatus3output = true;
+      }
+      dbg<<"Warning -- Singular AC:\n";
       xxdbg<<"AC = "<<AC<<std::endl;
       xxdbg<<"AC.R = "<<AC.QRD().GetR()<<std::endl;
     }
@@ -352,7 +359,11 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
   } else {
     A.ReSetDiv();
     if (A.Singular()) {
-      xdbg<<"Warning -- Singular A:\n";
+      if (!didstatus3output) {
+	std::cout<<"STATUS3BEG Warning: Singular A matrix encountered in EllipseSolver. STATUS3END"<<std::endl;
+	didstatus3output = true;
+      }
+      dbg<<"Warning -- Singular A:\n";
       xxdbg<<"A = "<<A<<std::endl;
       xxdbg<<"A.R = "<<A.QRD().GetR()<<std::endl;
     }
