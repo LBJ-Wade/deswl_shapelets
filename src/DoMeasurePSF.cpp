@@ -124,7 +124,7 @@ void WritePSFFits(
 */
 
 
-void TestPSFCatIO(ConfigFile& params, PSF_STRUCT& psfcat)
+static void TestPSFCatIO(ConfigFile& params, PSF_STRUCT& psfcat)
 {
 
   PSF_STRUCT test;

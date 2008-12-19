@@ -1,12 +1,12 @@
 echo FindStars
-time ./findstars ../example_config/wl.config root=decam--27--9-i-3_20 input_prefix=data/ output_prefix=output/
-echo MeasurePSF:
-time ./measurepsf ../example_config/wl.config root=decam--27--9-i-3_20 input_prefix=data/ output_prefix=output/
-echo MeasureShear:
-time ./measureshear ../example_config/wl.config root=decam--27--9-i-3_20 input_prefix=data/ output_prefix=output/
-echo Try execution with bad configfile:
-./measurepsf foo root=decam--27--9-i-3_20 input_prefix=data/ output_prefix=output/
-./measureshear foo root=decam--27--9-i-3_20 input_prefix=data/ output_prefix=output/
-echo Try execution with bad imagename:
-./measurepsf ../example_config/wl.config stars_file=decam--27--9-i-3_20_stars.fits root=foo
-./measureshear ../example_config/wl.config shear_file=decam--27--9-i-3_20_shear.fits
+time ./findstars ../example_config/wl.config root=decam--25--38-i-12_01 debug_file=fs.debug verbose=2 output_dots=1 input_prefix=data/ output_prefix=output/ stars_minsize=0.1
+#echo MeasurePSF:
+#time ./measurepsf ../example_config/wl.config root=decam--25--38-i-12_01 debug_file=mp.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
+#echo MeasureShear:
+#time ./measureshear ../example_config/wl.config root=decam--25--38-i-12_01 debug_file=ms.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
+#echo Try execution with bad configfile:
+#./measurepsf foo root=decam--27--9-i-3_20 input_prefix=data/ output_prefix=output/
+#./measureshear foo root=decam--27--9-i-3_20 input_prefix=data/ output_prefix=output/
+#echo Try execution with bad imagename:
+#./measurepsf ../example_config/wl.config stars_file=decam--27--9-i-3_20_stars.fits root=foo
+#./measureshear ../example_config/wl.config shear_file=decam--27--9-i-3_20_shear.fits

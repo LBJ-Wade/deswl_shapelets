@@ -21,7 +21,7 @@ std::ostream* dbgout = 0;
 bool XDEBUG = false;
 
 
-void TestFindStarsIO(ConfigFile& params, FINDSTARS_STRUCT& fscat)
+static void TestFindStarsIO(ConfigFile& params, FINDSTARS_STRUCT& fscat)
 {
 
   FINDSTARS_STRUCT test;

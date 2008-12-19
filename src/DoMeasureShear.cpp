@@ -27,7 +27,7 @@
 //#define ENDAT 200
 
 // simpler io tests
-void TestShearIO(ConfigFile& params, SHEAR_STRUCT& shcat)
+static void TestShearIO(ConfigFile& params, SHEAR_STRUCT& shcat)
 {
 
   SHEAR_STRUCT test;
