@@ -52,12 +52,25 @@ void StarFinder::RunFindStars(
 
     // A series of checks
     // Only objects with no flags in SExtractor
-    if (flags[i] != 0) continue;
+    if (flags[i] != 0) {
+      xdbg<<"Reject "<<i<<" for flag "<<flags[i]<<std::endl;
+      continue;
+    }
     // No flags in our sigma calculation
-    if (size_flags[i] != 0) continue;
+    if (size_flags[i] != 0) {
+      xdbg<<"Reject "<<i<<" for size flag "<<size_flags[i]<<std::endl;
+      continue;
+    }
     // Range checking
-    if (sigma[i] < mMinsize || sigma[i] > mMaxsize) continue;
-    if (mag[i] < mMinmag || mag[i] > mMaxmag) continue;
+    if (sigma[i] < mMinsize || sigma[i] > mMaxsize) {
+      xdbg<<"Reject "<<i<<" for size "<<sigma[i]<<" outside range "<<mMinsize<<" -- "<<mMaxsize<<std::endl;
+      continue;
+    }
+    if (mag[i] < mMinmag || mag[i] > mMaxmag) {
+      xdbg<<"Reject "<<i<<" for mag "<<mag[i]<<" outside range "<<mMinmag<<" -- "<<mMaxmag<<std::endl;
+      continue;
+    }
+    xdbg<<"OK: "<<sigma[i]<<"  "<<mag[i]<<std::endl;
 
     count++;
     maybestars.push_back(

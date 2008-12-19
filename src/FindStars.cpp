@@ -88,6 +88,12 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
   //}
   dbg<<"After RunFindStars\n";
 
+  if (params.keyExists("stars_maxoutmag")) {
+    double maxoutmag = params["stars_maxoutmag"];
+    for (size_t i=0; i<sxcat.pos.size(); i++) {
+      if (sxcat.mag[i] > maxoutmag) fscat.star_flag[i] = 0;
+    }
+  }
   size_t star_count=0;
   for (size_t i=0; i<sxcat.pos.size(); i++) {
     if (fscat.star_flag[i] == 1) {

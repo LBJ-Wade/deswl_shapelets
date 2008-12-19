@@ -338,8 +338,7 @@ def DoLibraryAndHeaderChecks(config):
         # Look for ACML, MKL before more generic (and probably less
         # optimized) ATLAS library.
         if (compiler[0] == 'i' and not config.env['STATIC'] and
-                (config.CheckLib('mkl',language='C++') or
-                 config.CheckLib('mkl',language='C') )) :
+                config.CheckLib('mkl',language='C++') ) :
             if config.env['WITH_LAPACK']:
                 print 'Using MKL LAPACK'
                 config.env['_extralibs'] += ['mkl_lapack']
@@ -351,8 +350,7 @@ def DoLibraryAndHeaderChecks(config):
             config.env['_extralibs'] += ['mkl']
 
         elif (compiler[0] == 'i' and 
-                 (config.CheckLib('mkl_ia32',language='C++') or 
-                  config.CheckLib('mkl_ia32',language='C') )) :
+                 config.CheckLib('mkl_ia32',language='C++') ) :
             if config.env['WITH_LAPACK']:
                 print 'Using MKL LAPACK'
                 config.env['_extralibs'] += ['mkl_lapack']
@@ -393,8 +391,7 @@ def DoLibraryAndHeaderChecks(config):
             config.env['_extralibs'] += ['mkl_em64t','guide','pthread']
  
         elif (compiler[0] == 'i' and 
-                 (config.CheckLib('mkl_intel_lp64',language='C++')  or
-                  config.CheckLib('mkl_intel_lp64',language='C') )):
+                 config.CheckLib('mkl_intel_lp64',language='C++') ) :
             if config.env['WITH_LAPACK']:
                 print 'Using MKL LAPACK'
                 config.env['_extralibs'] += ['mkl_lapack']
@@ -409,8 +406,7 @@ def DoLibraryAndHeaderChecks(config):
 	        'mkl_core','guide','pthread']
 
         elif (compiler[0] == 'p' and 
-                (config.CheckLibWithHeader('acml','acml.h',language='C++') or
-                 config.CheckLibWithHeader('acml','acml.h',language='C')) ):
+                config.CheckLibWithHeader('acml','acml.h',language='C++') ) :
             if config.env['WITH_LAPACK']:
                 print 'Using ACML LAPACK'
             else:
@@ -420,10 +416,8 @@ def DoLibraryAndHeaderChecks(config):
             #config.env.Append(CPPDEFINES=['ACML'])
             config.env['_extralibs'] += ['acml','pgftnrtl']
 
-        elif ( (config.CheckLib('atlas',language='C++') or
-	        config.CheckLib('atlas',language='C')) and
-	       (config.CheckLibWithHeader('cblas','cblas.h',language='C++') or
-		config.CheckLibWithHeader('cblas','cblas.h',language='C'))) :
+        elif ( config.CheckLib('atlas',language='C++') and
+	       config.CheckLibWithHeader('cblas','cblas.h',language='C++') ) :
             if config.env['WITH_LAPACK']:
                 print 'No LAPACK support for non MKL, ACML option.'
                     #config.env.Append(CPPDEFINES=['NOLAP'])
