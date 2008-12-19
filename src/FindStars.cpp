@@ -20,6 +20,73 @@
 std::ostream* dbgout = 0;
 bool XDEBUG = false;
 
+
+void TestFindStarsIO(ConfigFile& params, FINDSTARS_STRUCT& fscat)
+{
+
+  FINDSTARS_STRUCT test;
+  ReadFindStarsCat(params,test);
+
+  std::stringstream err;
+
+  if (test.id.size() != fscat.id.size()) {
+    throw std::runtime_error("id in catalog is wrong size");
+  }
+  for (size_t i=0; i<test.id.size(); i++) {
+    if (test.id[i] != fscat.id[i]) {
+      err<<"id["<<i<<"] differs in catalog";
+      throw std::runtime_error(err.str());
+    }
+  }
+
+  if (test.size_flags.size() != fscat.size_flags.size()) {
+      throw std::runtime_error("field size_flags in catalog is wrong size");
+  }
+  for (size_t i=0; i<test.size_flags.size(); i++) {
+    if (test.size_flags[i] != fscat.size_flags[i]) {
+      err<<"size_flags["<<i<<"] differs in catalog";
+      throw std::runtime_error(err.str());
+    }
+  }
+
+  if (test.star_flag.size() != fscat.star_flag.size()) {
+      throw std::runtime_error("field size_flags in catalog is wrong size");
+  }
+  for (size_t i=0; i<test.star_flag.size(); i++) {
+    if (test.star_flag[i] != fscat.star_flag[i]) {
+      err<<"star_flag["<<i<<"] differs in catalog";
+      throw std::runtime_error(err.str());
+    }
+  }
+
+
+/*
+  Assert(test.id.size() == fscat.id.size());
+  Assert(test.sigma0.size() == fscat.id.size());
+  Assert(test.size_flags.size() == fscat.id.size());
+  Assert(test.star_flag.size() == fscat.id.size());
+  for(size_t i=0;i<fscat.id.size();i++) {
+    if (fscat.id[i] != test.id[i]) {
+      dbg<<"id["<<i<<"] = "<<fscat.id[i]<<"  "<<test.id[i]<<std::endl;
+      Assert(0);
+    }
+    if (fscat.sigma0[i] != test.sigma0[i]) {
+      dbg<<"sigma0["<<i<<"] = "<<fscat.sigma0[i]<<"  "<<test.sigma0[i]<<std::endl;
+      Assert(0);
+    }
+    if (fscat.size_flags[i] != test.size_flags[i]) {
+      dbg<<"size_flags["<<i<<"] = "<<fscat.size_flags[i]<<"  "<<test.size_flags[i]<<std::endl;
+      Assert(0);
+    }
+    if (fscat.star_flag[i] != test.star_flag[i]) {
+      dbg<<"star_flag["<<i<<"] = "<<fscat.star_flag[i]<<"  "<<test.star_flag[i]<<std::endl;
+      Assert(0);
+    }
+  }
+*/
+}
+
+
 static void DoFindStars(ConfigFile& params, FindStarsLog& log)
 {
   // Load image:
@@ -142,33 +209,7 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
   */
 
   WriteFindStarsCat(params, fscat);
-
-#if 0
-  FINDSTARS_STRUCT test;
-  ReadFindStarsCat(params,test);
-  Assert(test.id.size() == fscat.id.size());
-  Assert(test.sigma0.size() == fscat.id.size());
-  Assert(test.size_flags.size() == fscat.id.size());
-  Assert(test.star_flag.size() == fscat.id.size());
-  for(size_t i=0;i<fscat.id.size();i++) {
-    if (fscat.id[i] != test.id[i]) {
-      dbg<<"id["<<i<<"] = "<<fscat.id[i]<<"  "<<test.id[i]<<std::endl;
-      Assert(0);
-    }
-    if (fscat.sigma0[i] != test.sigma0[i]) {
-      dbg<<"sigma0["<<i<<"] = "<<fscat.sigma0[i]<<"  "<<test.sigma0[i]<<std::endl;
-      Assert(0);
-    }
-    if (fscat.size_flags[i] != test.size_flags[i]) {
-      dbg<<"size_flags["<<i<<"] = "<<fscat.size_flags[i]<<"  "<<test.size_flags[i]<<std::endl;
-      Assert(0);
-    }
-    if (fscat.star_flag[i] != test.star_flag[i]) {
-      dbg<<"star_flag["<<i<<"] = "<<fscat.star_flag[i]<<"  "<<test.star_flag[i]<<std::endl;
-      Assert(0);
-    }
-  }
-#endif
+  TestFindStarsIO(params, fscat);
 
   dbg<<"Done Write\n";
 }

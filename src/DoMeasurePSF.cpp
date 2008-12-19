@@ -123,6 +123,49 @@ void WritePSFFits(
 
 */
 
+
+void TestPSFCatIO(ConfigFile& params, PSF_STRUCT& psfcat)
+{
+
+  PSF_STRUCT test;
+  ReadPSFCat(params,test);
+
+  std::stringstream err;
+
+  if (test.id.size() != psfcat.id.size()) {
+    throw std::runtime_error("id in catalog is wrong size");
+  }
+  for (size_t i=0; i<test.id.size(); i++) {
+    if (test.id[i] != psfcat.id[i]) {
+      err<<"id["<<i<<"] differs in catalog";
+      throw std::runtime_error(err.str());
+    }
+  }
+
+  if (test.psf_flags.size() != psfcat.psf_flags.size()) {
+      throw std::runtime_error("field psf_flags in catalog is wrong size");
+  }
+  for (size_t i=0; i<test.psf_flags.size(); i++) {
+    if (test.psf_flags[i] != psfcat.psf_flags[i]) {
+      err<<"psf_flags["<<i<<"] differs in catalog";
+      throw std::runtime_error(err.str());
+    }
+  }
+
+  if (test.psf_order.size() != psfcat.psf_order.size()) {
+      throw std::runtime_error("field size_flags in catalog is wrong size");
+  }
+  for (size_t i=0; i<test.psf_order.size(); i++) {
+    if (test.psf_order[i] != psfcat.psf_order[i]) {
+      err<<"psf_order["<<i<<"] differs in catalog";
+      throw std::runtime_error(err.str());
+    }
+  }
+
+}
+
+
+
 static void ExtractStars(
     SXCAT_STRUCT& sxcat, 
     FINDSTARS_STRUCT& fscat, 
@@ -384,6 +427,7 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
   }
   */
   WritePSFCat(params, psfcat);
+  TestPSFCatIO(params, psfcat);
   dbg<<"Done writing output psf catalog\n";
 
 

@@ -87,4 +87,7 @@ inline int Status(ExitCode code)
 }
 
 
+// tolerance for testing output files
+#define TEST_TOL 1.e-6
+
 #endif

@@ -26,7 +26,49 @@
 //#define STARTAT 8000
 //#define ENDAT 200
 
+// simpler io tests
+void TestShearIO(ConfigFile& params, SHEAR_STRUCT& shcat)
+{
 
+  SHEAR_STRUCT test;
+  ReadShearCat(params,test);
+
+  std::stringstream err;
+
+  if (test.id.size() != shcat.id.size()) {
+    throw std::runtime_error("id in catalog is wrong size");
+  }
+  for (size_t i=0; i<test.id.size(); i++) {
+    if (test.id[i] != shcat.id[i]) {
+      err<<"id["<<i<<"] differs in catalog";
+      throw std::runtime_error(err.str());
+    }
+  }
+
+  if (test.shear_flags.size() != shcat.shear_flags.size()) {
+      throw std::runtime_error("field shear_flags in catalog is wrong size");
+  }
+  for (size_t i=0; i<test.shear_flags.size(); i++) {
+    if (test.shear_flags[i] != shcat.shear_flags[i]) {
+      err<<"shear_flags["<<i<<"] differs in catalog";
+      throw std::runtime_error(err.str());
+    }
+  }
+
+  if (test.gal_order.size() != shcat.gal_order.size()) {
+      throw std::runtime_error("field size_flags in catalog is wrong size");
+  }
+  for (size_t i=0; i<test.gal_order.size(); i++) {
+    if (test.gal_order[i] != shcat.gal_order[i]) {
+      err<<"gal_order["<<i<<"] differs in catalog";
+      throw std::runtime_error(err.str());
+    }
+  }
+
+}
+
+
+// visual tests
 static void TestReadShearCat(ConfigFile& params, SHEAR_STRUCT& shcat)
 {
   SHEAR_STRUCT shcat_test;
@@ -312,6 +354,7 @@ int DoMeasureShear_DES(ConfigFile& params, ShearLog& log)
 
   if (1) {
     WriteShearCat(params, shcat);
+    TestShearIO(params, shcat);
     if (0) {
       TestReadShearCat(params, shcat);
     }
