@@ -42,6 +42,9 @@ void StarFinder::RunFindStars(
     std::vector<float>& mag,
     std::vector<long>& starflags)
 {
+  starflags.clear();
+  starflags.resize(x.size(), 0);
+
   std::vector<PotentialStar*> maybestars;
 
   // First get a list of potential stars
@@ -84,8 +87,6 @@ void StarFinder::RunFindStars(
   dbg<<"  Running FindStars\n";
   std::vector<PotentialStar*> stars = FindStars(maybestars);
 
-  starflags.clear();
-  starflags.resize(x.size(), 0);
   dbg<<"  Found "<<stars.size()<<"\n";
   for (unsigned long i=0; i<stars.size();i++) {
     starflags[ stars[i]->GetIndex() ] = 1;
@@ -519,8 +520,8 @@ std::vector<PotentialStar*> StarFinder::GetPeakList(
     double valley1_new = hist.FindFirstValleyAfter(peak1);
     if (!(valley1_new > valley1)) {
       std::ostringstream err;
-      err<<"Couldn't find a stellar peak."<<std::endl;
-      err<<"All the objects seem to be basically the same size."<<std::endl;
+      err<<"Couldn't find a stellar peak.  ";
+      err<<"All the objects seem to be basically the same size.";
       throw StarFinderException(err.str());
     }
     valley1 = valley1_new;
@@ -731,8 +732,8 @@ void StarFinder::FitStellarSizes(Function2D<double> *f, size_t order,
 
   if (starlist.size() <= (order+1)*(order+2)/2) {
     std::ostringstream err;
-    err<<"Not enough stars to do fit.\n";
-    err<<"Increase mStarsperbin or decrease mFitorder\n";
+    err<<"Not enough stars to do fit.  ";
+    err<<"Increase mStarsperbin or decrease mFitorder.";
     throw StarFinderException(err.str());
   }
 
@@ -771,7 +772,7 @@ void StarFinder::RoughlyFitBrightStars(const std::vector<PotentialStar*>& objlis
   xdbg<<"'five' = "<<five<<std::endl;
   if (3*five-1 >= brightlist.size()) {
     std::ostringstream err;
-    err<<"Too few objects in brightlist.  Increase mStartn1.\n";
+    err<<"Too few objects in brightlist.  Increase mStartn1.";
     throw StarFinderException(err.str());
   }
   Assert(3*five-1<brightlist.size());

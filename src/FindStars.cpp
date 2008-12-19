@@ -72,7 +72,7 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
   
   std::vector<int> starflags; 
 
-  //try {
+  try {
     sf.RunFindStars(
 	sxcat.flags,
 	fscat.size_flags,
@@ -81,11 +81,18 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
 	fscat.sigma0,
 	sxcat.mag,
 	fscat.star_flag);
-  //} catch( StarFinderException e ) {
-    //std::cerr<<"Caught signal from RunFindStars: "<<e.what()<<std::endl;  
-  //} catch (...) {
-    //std::cerr<<"Caught unknown signal from RunFindStars"<<std::endl;  
-  //}
+  } catch(StarFinderException& e) {
+    dbg<<"Caught StarFinderException: "<<e.what()<<std::endl;  
+    // Need to catch this here, so we can write the output file
+    // with the sizes, even though we haven't figured out which 
+    // objects are stars.
+    std::string output_file = Name(params, "stars");
+    dbg<<"Writing to stars file: "<<output_file<<std::endl;
+    WriteFindStarsCat(params, fscat);
+    throw;
+  } catch (...) {
+    throw;
+  }
   dbg<<"After RunFindStars\n";
 
   if (params.keyExists("stars_maxoutmag")) {
