@@ -240,8 +240,9 @@ int main(int argc, char **argv) try
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_FILE_NOT_FOUND;
     log.extraexitinfo = e.what();
-    if (Status(log.exitcode)==5) return EXIT_FAILURE;
-    else return EXIT_SUCCESS;
+    //if (Status(log.exitcode)==5) 
+    return EXIT_FAILURE;
+    //else return EXIT_SUCCESS;
   }
   catch (ConfigFile::file_not_found& e)
   {
@@ -249,8 +250,9 @@ int main(int argc, char **argv) try
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_CONFIGFILE_ERROR;
     log.extraexitinfo = e.what();
-    if (Status(log.exitcode)==5) return EXIT_FAILURE;
-    else return EXIT_SUCCESS;
+    //if (Status(log.exitcode)==5) 
+    return EXIT_FAILURE;
+    //else return EXIT_SUCCESS;
   }
   catch (ConfigFile::key_not_found& e)
   {
@@ -258,8 +260,9 @@ int main(int argc, char **argv) try
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_CONFIGFILE_ERROR;
     log.extraexitinfo = e.what();
-    if (Status(log.exitcode)==5) return EXIT_FAILURE;
-    else return EXIT_SUCCESS;
+    //if (Status(log.exitcode)==5) 
+    return EXIT_FAILURE;
+    //else return EXIT_SUCCESS;
   }
   catch (tmv::Error& e)
   {
@@ -267,15 +270,17 @@ int main(int argc, char **argv) try
     std::cerr<<"Caught \n"<<e<<std::endl;
     log.exitcode = FAILURE_TMV_ERROR;
     log.extraexitinfo = e.what();
-    if (Status(log.exitcode)==5) return EXIT_FAILURE;
-    else return EXIT_SUCCESS;
+    //if (Status(log.exitcode)==5) 
+    return EXIT_FAILURE;
+    //else return EXIT_SUCCESS;
   }
   catch(StarFinderException& e ) {
     dbg<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_STARFINDER_ERROR;
     log.extraexitinfo = e.what();
-    if (Status(log.exitcode)==5) return EXIT_FAILURE;
-    else return EXIT_SUCCESS;
+    //if (Status(log.exitcode)==5) 
+    return EXIT_FAILURE;
+    //else return EXIT_SUCCESS;
   }
   catch (std::exception& e)
   {
@@ -283,16 +288,18 @@ int main(int argc, char **argv) try
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
     log.exitcode = FAILURE_STD_EXCEPTION;
     log.extraexitinfo = e.what();
-    if (Status(log.exitcode)==5) return EXIT_FAILURE;
-    else return EXIT_SUCCESS;
+    //if (Status(log.exitcode)==5) 
+    return EXIT_FAILURE;
+    //else return EXIT_SUCCESS;
   }
   catch (ExitCode e)
   {
     dbg<<"Caught ExitCode "<<e<<std::endl;
     std::cerr<<"Caught ExitCode "<<e<<std::endl;
     log.exitcode = e;
-    if (Status(log.exitcode)==5) return EXIT_FAILURE;
-    else return EXIT_SUCCESS;
+    //if (Status(log.exitcode)==5) 
+    return EXIT_FAILURE;
+    //else return EXIT_SUCCESS;
   }
   catch (...)
   {
@@ -300,8 +307,9 @@ int main(int argc, char **argv) try
     dbg<<"Caught Unknown error\n";
     std::cerr<<"Caught Unknown error\n";
     log.extraexitinfo="Caught unknown exception";
-    if (Status(log.exitcode)==5) return EXIT_FAILURE;
-    else return EXIT_SUCCESS;
+    //if (Status(log.exitcode)==5) 
+    return EXIT_FAILURE;
+    //else return EXIT_SUCCESS;
   }
 #endif
 }
