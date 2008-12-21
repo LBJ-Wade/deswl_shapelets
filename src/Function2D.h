@@ -225,6 +225,8 @@ template <class T> class Polynomial2D : public Function2D<T>
     virtual void LinearPreTransform(T a, T b, T c, T d, T e, T f);
     virtual void operator+=(const Function2D<T>& rhs);
 
+    void MakeProductOf(const Polynomial2D<T>& f, const Polynomial2D<T>& g);
+
     virtual void SetFunction(int _xorder, int _yorder, const tmv::Vector<T>& fvect);
 
   private:

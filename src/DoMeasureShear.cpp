@@ -429,7 +429,7 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
 	xdbg<<"p = "<<all_pos[i]<<", b = "<<e.b<<std::endl;
       }                       
     }
-  } else if (XDEBUG) {
+  } else /*if (XDEBUG)*/ {
     xdbg<<"Check transformation:\n";
     double rmserror = 0.;
     int count = 0;
@@ -450,6 +450,9 @@ int DoMeasureShear(ConfigFile& params, ShearLog& log)
     rmserror /= count;
     rmserror = std::sqrt(rmserror);
     xdbg<<"rms error = "<<rmserror*3600.<<" arcsec\n";
+    if (rmserror > 0.1) { 
+      std::cout<<"STATUS3BEG Warning: Positions from WCS transformation have rms error of "<<rmserror<<" arcsec relative to ra, dec in catalog. STATUS3END"<<std::endl;
+    }
   }
 
   // Read the fitted psf file

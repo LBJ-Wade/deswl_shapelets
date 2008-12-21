@@ -115,10 +115,40 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
 
   // Read distortion function
   Transformation trans(params);
-  dbg<<"Read transformation\n";
+  dbg<<"Done read transformation\n";
+  xdbg<<"Check transformation:\n";
+  double rmserror = 0.;
+  int count = 0;
+  for(size_t i=0;i<sxcat.pos.size();i++) {
+    try {
+      Position skypos(sxcat.ra[i],sxcat.dec[i]);
+      Position temp;
+      trans.Transform(sxcat.pos[i],temp);
+      temp /= 3600.; // arcsec -> degrees
+      xdbg<<sxcat.pos[i]<<"  "<<skypos<<"  "<<temp;
+      xdbg<<"  "<<(temp-skypos)*3600.<<std::endl;
+      rmserror += std::norm(temp-skypos);
+      count++;
+    } catch (Range_error& e) {
+      xdbg<<"distortion range error\n";
+      xdbg<<"p = "<<sxcat.pos[i]<<", b = "<<e.b<<std::endl;
+    }
+  }
+  rmserror /= count;
+  rmserror = std::sqrt(rmserror);
+  rmserror *= 3600.;  // degrees -> arcsec.
+  xdbg<<"rms error = "<<rmserror<<" arcsec\n";
+  // There seems to be a random error on the RA value of +- 0.05, which
+  // gives an rms error of about 0.03.
+  // I would have thought that with these being read from a binary FITS
+  // file that there wouldn't be rounding issues.  But there seems to have
+  // been rounding somewhere to the nearest 0.1 arcsec.
+  if (rmserror > 0.1) { 
+    std::cout<<"STATUS3BEG Warning: Positions from WCS transformation have rms error of "<<rmserror<<" arcsec relative to ra, dec in catalog. STATUS3END"<<std::endl;
+  }
 
   // we are using weight image, so sk, noise, gain are dummy
-  //try {
+  try {
     MeasureSigmas(
 	im, 
 	sxcat.pos, sxcat.local_sky, sxcat.noise, 0.0, 
@@ -127,9 +157,10 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
 	psfap, 
 	fscat.sigma0,
 	fscat.size_flags);
-  //} catch(...) {
-    //std::cerr<<"Caught signal from MeasureSigmas"<<std::endl;  
-  //}
+  } catch(...) {
+    std::cerr<<"Caught signal from MeasureSigmas"<<std::endl;  
+    throw;
+  }
   dbg<<"Done MeasureSigmas\n";
 
   // Eventually separate this out
@@ -185,28 +216,24 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
     std::cout<<"STATUS3BEG Warning: Only "<<star_count<<" stars found for Name="<<output_file<<". STATUS3END"<<std::endl;
   }
 
-  /*
-  std::ofstream output(output_file.c_str());
+  std::string text_output_file = "findstars.dat";
+  std::ofstream output(text_output_file.c_str());
   if (!output.is_open()) {
     throw std::runtime_error("Error opening stars file");
   }
 
-  std::string delim = params["stars_delim"];
+  //std::string delim = params["stars_delim"];
+  std::string delim = "  ";
   for (size_t i=0; i<sxcat.pos.size(); i++) {
     output
-      <<sxcat.id[i]<<delim
-      <<sxcat.x[i]<<delim
-      <<sxcat.y[i]<<delim
-      <<sxcat.local_sky[i]<<delim
-      <<sxcat.sigma[i]<<delim
+      <<fscat.id[i]<<delim
+      <<fscat.sigma0[i]<<delim
       <<sxcat.mag[i]<<delim
-      <<sxcat.size_flags[i]<<delim
-      <<sxcat.star_flag[i]<<delim
-      <<sxcat.ra[i]<<delim
-      <<sxcat.dec[i]
+      <<fscat.size_flags[i]<<delim
+      <<fscat.star_flag[i]<<delim
       <<std::endl;
   }
-  */
+  output.close();
 
   WriteFindStarsCat(params, fscat);
   TestFindStarsIO(params, fscat);

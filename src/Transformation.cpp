@@ -442,26 +442,14 @@ static void ReadTANFits(const std::string& filename, int hdu,
 
   char pvstr[10] = "PV1_1";
   for(int pvnum=0; pvnum<=1; pvnum++) {
+    Assert(pvnum < int(pv.size()));
+    Assert(pv[pvnum].colsize() >= 4);
+    Assert(pv[pvnum].rowsize() >= 4);
     pv[pvnum].Zero();
 
-    //pvstr[2]='1'+pvnum;
-    pvstr[2]='2'-pvnum;
-    // MJ -- This is backwards from what Erin told me for the 
-    //       definitions of the PV1 and PV2 parameters.
-    //       The current code makes the WCS output match the alpha
-    //       and delta values given in the sextractor catalog.
-    //       So there are three possibilities:
-    //       1) Erin just mixed up the definitions, although it seems
-    //          odd that 1 would be dec and 2 would be ra when the 
-    //          opposite is true for every other parameter.
-    //       2) Sextractor has a bug where it calculates the wrong ra/dec.
-    //          Also odd, since I would have thought other people would be
-    //          testing this.
-    //       3) I have a bug somewhere else that switches the two matrices.
-    //          This is the most plausible explanation, but I can't find it.
-
-    int k = 0;
+    pvstr[2]='1'+pvnum;
     pvstr[5] = '\0';
+    int k = 0;
     for(int n=0;n<4;++n) {
       for(int i=n,j=0;j<=n;--i,++j,++k) {
 	if (k == 3) ++k; // I don't know why they skip 3.
@@ -622,48 +610,56 @@ void Transformation::ReadWCS(std::string fitsfile, int hdu)
   WCSType wcstype;
 
   ReadWCSFits(fitsfile,hdu,wcstype,cd,crpix,crval);
+  double ra0 = crval[0] * PI/180.;
+  double dec0 = crval[1] * PI/180.;
+  xdbg<<"wcstype = "<<wcstype<<std::endl;
+  xdbg<<"cd = "<<cd<<std::endl;
+  xdbg<<"crpix = "<<crpix<<std::endl;
+  xdbg<<"crval = "<<crval<<std::endl;
 
   if (wcstype == TAN) {
     std::vector<tmv::Matrix<double> > pv(2,tmv::Matrix<double>(4,4,0.));
     ReadTANFits(fitsfile,hdu,pv);
 
+#if 1
     if (XDEBUG) {
       // Do the direct calculation here:
-      double x = 951.104;
-      double y = 39.3815; 
-      double ra = 334.154;
-      double dec = -10.2984;
+      double x = 1792.75;
+      double y = 38.2455;
+      double ra = 336.24920674;
+      double dec = -39.60856451;
 
-      xdbg<<"x,y = "<<x<<','<<y<<std::endl;
       tmv::Vector<double> xy(2); xy(0) = x; xy(1) = y;
+      xdbg.precision(10);
+      xdbg<<"xy0 = "<<xy<<std::endl;
+      xdbg<<"xy1 = "<<xy-crpix<<std::endl;
       xy = cd * (xy - crpix);
+      xdbg<<"xy2 = "<<xy<<std::endl;
       double x2 = xy(0);
       double y2 = xy(1);
-      xdbg<<"x2,y2 = "<<x2<<','<<y2<<std::endl;
+      xdbg<<"xy2 = "<<x2<<','<<y2<<std::endl;
       tmv::Vector<double> xv(4);
       tmv::Vector<double> yv(4);
       xv(0) = 1.; xv(1) = x2; xv(2) = xv(1)*x2; xv(3) = xv(2)*x2;
       yv(0) = 1.; yv(1) = y2; yv(2) = yv(1)*y2; yv(3) = yv(2)*y2;
       double x3 = xv * pv[0] * yv;
       double y3 = xv * pv[1] * yv;
-      xdbg<<"x3,y3 = "<<x3<<','<<y3<<std::endl;
+      xdbg<<"xy3 = "<<x3<<','<<y3<<std::endl;
       x3 *= PI/180.;
       y3 *= PI/180.;
-      double cenr = crval[0] * PI/180.;
-      double cend = crval[1] * PI/180.;
-      double sd = cos(y3)*cos(x3)*sin(cend) + sin(y3)*cos(cend);
-      double cdcr = cos(y3)*cos(x3)*cos(cend) - sin(y3)*sin(cend);
-      double cdsr = cos(y3)*sin(x3);
-      double d = asin(sd);
-      double sr = cdsr/cos(d);
-      double cr = cdcr/cos(d);
-      double r = atan2(sr,cr);
-      r += cenr;
+      double b0 = -cos(ra0)*sin(dec0)*y3 - sin(ra0)*x3 + cos(ra0)*cos(dec0);
+      double b1 = -sin(ra0)*sin(dec0)*y3 + cos(ra0)*x3 + sin(ra0)*cos(dec0);
+      double b2 = cos(dec0)*y3 + sin(dec0);
+      double d = asin(b2/sqrt(1+x3*x3+y3*y3));
+      double r = atan2(b1,b0);
       d *= 180./PI;
       r *= 180./PI;
+      if (r < 0.) r += 360.;
       xdbg<<"r,d = "<<r<<','<<d<<std::endl;
       xdbg<<"Should be "<<ra<<','<<dec<<std::endl;
+      xdbg<<"diff = "<<(r-ra)*3600.<<','<<(d-dec)*3600.<<" arcsec\n";
     }
+#endif
 
     ReCenterDistortion(pv[0],cd,crpix);
     ReCenterDistortion(pv[1],cd,crpix);
@@ -695,35 +691,93 @@ void Transformation::ReadWCS(std::string fitsfile, int hdu)
 
   // The exact formulae are:
   //
-  //             sin(dec) = cos(v) cos(u) sin(dec0) + sin(v) cos(dec0)
-  // cos(dec) cos(ra-ra0) = cos(v) cos(u) cos(dec0) - sin(v) sin(dec0)
-  // cos(dec) sin(ra-ra0) = cos(v) sin(u)
-#if 0
-  double sd = cos(y)*cos(x)*sin(cend) + sin(y)*cos(cend);
-  double cdcr = cos(y)*cos(x)*cos(cend) - sin(y)*sin(cend);
-  double cdsr = cos(y)*sin(x);
-  double d = asin(sd);
-  double sr = cdsr/cos(d);
-  double cr = cdcr/cos(d);
-  double r = atan2(sr,cr);
-  r += cenr;
-#endif
-  // But it is probably sufficient to do a Taylor expansion of these
+  // tan(ra) = (-sin(ra0) sin(dec0) v + cos(ra0) u + sin(ra0) cos(dec0)) /
+  //             (-cos(ra0) sin(dec0) v - sin(ra0) u + cos(ra0) cos(dec0))
+  // sin(dec) = (cos(dec0) v + sin(dec0)) / (sqrt(1+u^2+v^2))
+  //
+  // But it is sufficient to do a Taylor expansion of these
   // equations around the tangent point.  
   //
-  // Expanding to 2nd order, and letting dec = dec0 + d, ra = ra0 + r:
+  // Expanding to 4th order, and letting dec = dec0 + d, ra = ra0 + r:
   //
-  // sin(dec) = sin(dec0 + d) = sin(dec0) + d cos(dec0)
-  // d cos(dec0) = (-1/2 v^2 - 1/2 u^2) sin(dec0) + v cos(dec0)
-  // d = v - 1/2 (u^2+v^2) tan(dec0)
+  // r cos(dec0) ~= u + u v tan(dec0) - 1/3 u^3 sec^2(dec0) + u v^2 tan^2(dec0)
+  //                - u^3 v tan(dec0) sec^2(dec0) + u v^3 tan^3(dec0)
+  // d ~= v - 1/2 u^2 tan(dec0) - 1/3 v^3 - 1/2 u^2 v sec^2(dec0)
+  //      - 1/2 u^2 v^2 tan^3(dec0) + 1/8 u^4 tan(dec0) (tan^2(dec0) + 3)
   //
-  // (cos(dec0) - d sin(dec0)) r = (1-1/2 v^2) u
-  // r = u/cos(dec0) - 1/2 v^2 u/cos(dec0) + d u tan(dec0)
-  // r = u/cos(dec0) + u v tan(dec0)
-  // 
-  // We should eventually include the second order terms.  But for now,
-  // We just do the first order terms which are pretty simple to apply:
-  (*up) *= 1./cos(crval(1) * PI/180.);
+  // (I think 3rd order is sufficient, but this takes essentially no time
+  //  so might as well go slightly overkill with 4th order.)
+
+  Polynomial2D<double> uv(6,6);
+  Polynomial2D<double> u2(6,6);
+  Polynomial2D<double> v2(6,6);
+  Polynomial2D<double> u3(9,9);
+  Polynomial2D<double> u2v(9,9);
+  Polynomial2D<double> uv2(9,9);
+  Polynomial2D<double> v3(9,9);
+  Polynomial2D<double> u4(12,12);
+  Polynomial2D<double> u3v(12,12);
+  Polynomial2D<double> u2v2(12,12);
+  Polynomial2D<double> uv3(12,12);
+
+  const Polynomial2D<double>& ux = static_cast<const Polynomial2D<double>&>(*up);
+  const Polynomial2D<double>& vx = static_cast<const Polynomial2D<double>&>(*vp);
+
+  u2.MakeProductOf(ux,ux);
+  uv.MakeProductOf(ux,vx);
+  v2.MakeProductOf(vx,vx);
+  u3.MakeProductOf(ux,u2);
+  u2v.MakeProductOf(ux,uv);
+  uv2.MakeProductOf(ux,v2);
+  v3.MakeProductOf(vx,v2);
+  u4.MakeProductOf(ux,u3);
+  u3v.MakeProductOf(ux,u2v);
+  u2v2.MakeProductOf(ux,uv2);
+  uv3.MakeProductOf(ux,v3);
+
+  // Above formula assume u,v in radians, but currently u,v are in degrees.
+  u2 *= PI/180.;
+  uv *= PI/180.;
+  u3 *= std::pow(PI/180.,2);
+  u2v *= std::pow(PI/180.,2);
+  uv2 *= std::pow(PI/180.,2);
+  v3 *= std::pow(PI/180.,2);
+  u4 *= std::pow(PI/180.,3);
+  u3v *= std::pow(PI/180.,3);
+  u2v2 *= std::pow(PI/180.,3);
+  uv3 *= std::pow(PI/180.,3);
+
+  // r cos(dec0) ~= u + u v tan(dec0) - 1/3 u^3 sec^2(dec0) + u v^2 tan^2(dec0)
+  //                - u^3 v tan(dec0) sec^2(dec0) + u v^3 tan^3(dec0)
+  double t = tan(dec0);
+  double s = 1./cos(dec0);
+  uv *= t;
+  u3 *= -(1./3.) * s*s;
+  uv2 *= t*t;
+  u3v *= -t*s*s;
+  uv3 *= t*t*t;
+
+  (*up) += uv;
+  (*up) += u3;
+  (*up) += uv2;
+  (*up) += u3v;
+  (*up) += uv3;
+  (*up) *= s;
+
+  // d ~= v - 1/2 u^2 tan(dec0) - 1/3 v^3 - 1/2 u^2 v sec^2(dec0)
+  //      - 1/2 u^2 v^2 tan^3(dec0) + 1/8 u^4 tan(dec0) (tan^2(dec0) + 3)
+  u2 *= -0.5*t;
+  v3 *= -(1./3.);
+  u2v *= -0.5 * s*s;
+  u2v2 *= -0.5*t*t*t;
+  u4 *= (1./8.)*t*(t*t+3.);
+
+  (*vp) += u2;
+  (*vp) += v3;
+  (*vp) += u2v;
+  (*vp) += u2v2;
+  (*vp) += u4;
+
   up->AddLinear(crval(0),0.,0.);
   vp->AddLinear(crval(1),0.,0.);
 
@@ -737,5 +791,3 @@ void Transformation::ReadWCS(std::string fitsfile, int hdu)
   dvdxp = vp->DFDX();
   dvdyp = vp->DFDY();
 }
-
-

@@ -192,6 +192,31 @@ void Polynomial2D<T>::operator+=(const Function2D<T>& rhs)
 }
 
 template <class T>
+void Polynomial2D<T>::MakeProductOf(
+    const Polynomial2D<T>& f, const Polynomial2D<T>& g)
+{
+  // h(x,y) = f(x,y) * g(x,y)
+  //        = (Sum_ij f_ij x^i y^j) (Sum_mn g_mn x^m y^n)
+  //        = Sum_ijmj f_ij g_mn x^(i+m) y^(j+n)
+  Assert(scale == f.scale);
+  Assert(scale == g.scale);
+  int newxorder = f.GetXOrder() + g.GetXOrder();
+  int newyorder = f.GetYOrder() + g.GetYOrder();
+  if (xorder != newxorder || yorder != newyorder) {
+    xorder = newxorder;
+    yorder = newyorder;
+    coeffs.reset(new tmv::Matrix<T>(xorder+1,yorder+1));
+  }
+  coeffs->Zero();
+  for(int i=0;i<=f.GetXOrder();i++) for(int j=0;j<=f.GetYOrder();j++) {
+    for(int m=0;m<=g.GetXOrder();m++) for(int n=0;n<=g.GetYOrder();n++) {
+      Assert (i+m <= xorder && j+n <= yorder);
+      (*coeffs)(i+m,j+n) += (*f.coeffs)(i,j) * (*g.coeffs)(m,n);
+    }
+  }
+}
+
+template <class T>
 std::auto_ptr<Function2D<T> > Polynomial2D<T>::DFDX() const
 {
   if (xorder == 0) 
