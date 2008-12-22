@@ -78,7 +78,7 @@ inline int Status(ExitCode code)
     case FAILURE_FILE_NOT_FOUND : return 5;
     case FAILURE_TMV_ERROR : return 4;
     case FAILURE_CONFIGFILE_ERROR : return 5;
-    case FAILURE_STD_EXCEPTION : return 5;
+    case FAILURE_STD_EXCEPTION : return 4;
     case FAILURE_READ_ERROR : return 5;
     case FAILURE_FORMAT_ERROR : return 5;
     case FAILURE_STARFINDER_ERROR : return 4;
