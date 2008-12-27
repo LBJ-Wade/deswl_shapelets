@@ -76,36 +76,27 @@ void MeasureSigmas(
       double sigma1 = SingleSigma(
 	  im, all_pos[i], all_sky[i], all_noise[i], gain, weight_im, 
 	  trans, psfap, flag1);
-//#ifdef _OPENMP
-//#pragma omp critical 
-//#endif
-      {
-	//dbg<<"sigmas["<<i<<"]: "<<sigma1<<std::endl;
-	//dbg<<"flags["<<i<<"]: "<<flag1<<std::endl;
-	sigmas[i] = sigma1;
-	flags[i] = flag1;
-      }
+#ifndef _OPENMP
+      dbg<<"sigmas["<<i<<"]: "<<sigma1<<std::endl;
+      dbg<<"flags["<<i<<"]: "<<flag1<<std::endl;
+#endif
+      sigmas[i] = sigma1;
+      flags[i] = flag1;
     } catch (std::exception& e) {
-#ifdef _OPENMP
-#pragma omp critical 
+#ifndef _OPENMP
+      dbg<<"Caught: "<<e.what()<<std::endl;
 #endif
-      {
-	dbg<<"Caught: "<<e.what()<<std::endl;
-	sigmas[i] = DEFVALNEG;
-	flags[i] = 1;
-      }
+      sigmas[i] = DEFVALNEG;
+      flags[i] = 1;
     } catch (...) {
-#ifdef _OPENMP
-#pragma omp critical 
+#ifndef _OPENMP
+      dbg<<"Caught unknown exception"<<std::endl;
 #endif
-      {
-	dbg<<"Caught unknown exception"<<std::endl;
-	sigmas[i] = DEFVALNEG;
-	flags[i] = 1;
-      }
+      sigmas[i] = DEFVALNEG;
+      flags[i] = 1;
     }
 
-  }
+  } // End omp parallel for
 }
 
 void EstimateSigma(

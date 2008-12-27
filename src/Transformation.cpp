@@ -610,8 +610,6 @@ void Transformation::ReadWCS(std::string fitsfile, int hdu)
   WCSType wcstype;
 
   ReadWCSFits(fitsfile,hdu,wcstype,cd,crpix,crval);
-  double ra0 = crval[0] * PI/180.;
-  double dec0 = crval[1] * PI/180.;
   xdbg<<"wcstype = "<<wcstype<<std::endl;
   xdbg<<"cd = "<<cd<<std::endl;
   xdbg<<"crpix = "<<crpix<<std::endl;
@@ -621,7 +619,7 @@ void Transformation::ReadWCS(std::string fitsfile, int hdu)
     std::vector<tmv::Matrix<double> > pv(2,tmv::Matrix<double>(4,4,0.));
     ReadTANFits(fitsfile,hdu,pv);
 
-#if 1
+#if 0
     if (XDEBUG) {
       // Do the direct calculation here:
       double x = 1792.75;
@@ -647,6 +645,8 @@ void Transformation::ReadWCS(std::string fitsfile, int hdu)
       xdbg<<"xy3 = "<<x3<<','<<y3<<std::endl;
       x3 *= PI/180.;
       y3 *= PI/180.;
+      double ra0 = crval[0] * PI/180.;
+      double dec0 = crval[1] * PI/180.;
       double b0 = -cos(ra0)*sin(dec0)*y3 - sin(ra0)*x3 + cos(ra0)*cos(dec0);
       double b1 = -sin(ra0)*sin(dec0)*y3 + cos(ra0)*x3 + sin(ra0)*cos(dec0);
       double b2 = cos(dec0)*y3 + sin(dec0);
@@ -749,6 +749,7 @@ void Transformation::ReadWCS(std::string fitsfile, int hdu)
 
   // r cos(dec0) ~= u + u v tan(dec0) - 1/3 u^3 sec^2(dec0) + u v^2 tan^2(dec0)
   //                - u^3 v tan(dec0) sec^2(dec0) + u v^3 tan^3(dec0)
+  double dec0 = crval[1] * PI/180.;
   double t = tan(dec0);
   double s = 1./cos(dec0);
   uv *= t;

@@ -1,12 +1,16 @@
+#root=decam--25--42-i-9_28
+#root=decam--25--38-i-12_01
+root=decam--24--37-i-14_06
 echo FindStars
-time ./findstars ../example_config/wl.config root=decam--25--38-i-12_01 debug_file=fs.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
+echo ./findstars ../example_config/wl.config root=$root debug_file=fs.debug verbose=2 output_dots=1 input_prefix=data/ output_prefix=output/
+time ./findstars ../example_config/wl.config root=$root debug_file=fs.debug verbose=2 output_dots=1 input_prefix=data/ output_prefix=output/
 echo MeasurePSF:
-time ./measurepsf ../example_config/wl.config root=decam--25--38-i-12_01 debug_file=mp.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
+time ./measurepsf ../example_config/wl.config root=$root debug_file=mp.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
 echo MeasureShear:
-time ./measureshear ../example_config/wl.config root=decam--25--38-i-12_01 debug_file=ms.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
+time ./measureshear ../example_config/wl.config root=$root debug_file=ms.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
 #echo Try execution with bad configfile:
-#./measurepsf foo root=decam--27--9-i-3_20 input_prefix=data/ output_prefix=output/
-#./measureshear foo root=decam--27--9-i-3_20 input_prefix=data/ output_prefix=output/
+#./measurepsf foo root=$root input_prefix=data/ output_prefix=output/
+#./measureshear foo root=$root input_prefix=data/ output_prefix=output/
 #echo Try execution with bad imagename:
-#./measurepsf ../example_config/wl.config stars_file=decam--27--9-i-3_20_stars.fits root=foo
-#./measureshear ../example_config/wl.config shear_file=decam--27--9-i-3_20_shear.fits
+#./measurepsf ../example_config/wl.config stars_file=$(root)_stars.fits root=foo
+#./measureshear ../example_config/wl.config shear_file=$(root)_shear.fits

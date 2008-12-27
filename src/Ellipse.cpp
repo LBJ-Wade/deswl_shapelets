@@ -72,7 +72,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     // Also, we start by just fitting the centroid.
     if (!fixcen && (!fixgam || !fixmu)) {
 #ifdef _OPENMP
-#pragma omp critical
+//#pragma omp critical
 #endif
       {
 	if (psf)
@@ -111,7 +111,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     // Next allow the shear and/or mu to be fit as well:
 #ifdef N_FLUX_ATTEMPTS
 #ifdef _OPENMP
-#pragma omp critical
+//#pragma omp critical
 #endif
     {
       if (psf)
@@ -149,7 +149,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
 #endif
     // Repeat, but allow flux to change.
 #ifdef _OPENMP
-#pragma omp critical
+//#pragma omp critical
 #endif
     {
       if (psf)
@@ -194,7 +194,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
   }
   if (!fixcen) {
 #ifdef _OPENMP
-#pragma omp critical
+//#pragma omp critical
 #endif
     {
       if (psf)
@@ -257,7 +257,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     }
 
 #ifdef _OPENMP
-#pragma omp critical
+//#pragma omp critical
 #endif
     {
       if (psf)
@@ -306,7 +306,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
   }
   if (!fixmu) {
 #ifdef _OPENMP
-#pragma omp critical
+//#pragma omp critical
 #endif
     {
       if (psf)
@@ -357,7 +357,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     t1 = tp.tv_sec + tp.tv_usec/1.e6;
   }
 #ifdef _OPENMP
-#pragma omp critical
+//#pragma omp critical
 #endif
   {
     if (psf)
@@ -406,7 +406,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
   }
   // Finally allow the flux change as needed.
 #ifdef _OPENMP
-#pragma omp critical
+//#pragma omp critical
 #endif
   {
     if (psf)
@@ -484,7 +484,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
 #endif
 
 #ifdef _OPENMP
-#pragma omp critical
+//#pragma omp critical
 #endif
     {
       if (psf)
