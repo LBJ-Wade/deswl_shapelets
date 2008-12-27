@@ -82,12 +82,12 @@ void MeasureSigmas(
 #endif
       sigmas[i] = sigma1;
       flags[i] = flag1;
-    } catch (std::exception& e) {
 #ifndef _OPENMP
+    } catch (std::exception& e) {
       dbg<<"Caught: "<<e.what()<<std::endl;
-#endif
       sigmas[i] = DEFVALNEG;
       flags[i] = 1;
+#endif
     } catch (...) {
 #ifndef _OPENMP
       dbg<<"Caught unknown exception"<<std::endl;
