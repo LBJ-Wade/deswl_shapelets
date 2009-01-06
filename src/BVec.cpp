@@ -1,6 +1,6 @@
 
 #include "BVec.h"
-#include "TMV_Diag.h"
+#include "TMV.h"
 #include <cmath>
 #include "dbg.h"
 

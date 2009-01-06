@@ -1,7 +1,6 @@
 
 #include "PsiHelper.h"
 #include "TMV.h"
-#include "TMV_Diag.h"
 #include "dbg.h"
 
 const double PI = 3.14159265359;

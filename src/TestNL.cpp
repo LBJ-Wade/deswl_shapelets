@@ -2,8 +2,6 @@
 #include "NLSolver.h"
 #include <cstdlib>
 #include "TMV.h"
-#include "TMV_Diag.h"
-#include "TMV_Tri.h"
 #include <iostream>
 
 #define DOLINEAR

@@ -8,23 +8,29 @@ libwl_files="""Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp Ellipse.cpp
 BVec.cpp EllipseSolver.cpp PsiHelper.cpp Pixel.cpp Transformation.cpp
 ConfigFile.cpp FittedPSF.cpp CrudeMeasure.cpp ReadCatalog.cpp DoMeasurePSF.cpp
 DoMeasureShear.cpp SingleShear.cpp SinglePSF.cpp NLSolver.cpp Log.cpp
-FitsFile.cpp Form.h PotentialStar.h Histogram.cpp StarFinder.cpp SXCat.cpp""".split()
+FitsFile.cpp Histogram.cpp StarFinder.cpp SXCat.cpp""".split()
 
+if env['MEM_TEST']:
+    print 'Using mmgr.cpp'
+    libwl_files += ['mmgr.cpp']
 
 # Library file containing generic code
-libwl = env.Library('#lib/wl',libwl_files)
+obj_lib = env.Object(libwl_files)
+libwl = env.Library('#lib/wl',obj_lib)
 
-sblibs=['tmv_symband','tmv','cfitsio'] + env['_extralibs']
+sblibs=['tmv_symband','tmv','cfitsio']
 
-measurepsf = env.Program('measurepsf', 'MeasurePSF.cpp', LIBS=['wl'] + sblibs)
+env.Append(LIBS=['wl'] + sblibs)
 
-measureshear = env.Program('measureshear', 'MeasureShear.cpp', LIBS=['wl'] + sblibs)
+measurepsf = env.Program('measurepsf', 'MeasurePSF.cpp')
 
-findstars = env.Program('findstars', 'FindStars.cpp', LIBS=['wl'] + sblibs)
+measureshear = env.Program('measureshear', 'MeasureShear.cpp')
 
-#testwl = env.Program('testwl', 'TestWL.cpp', LIBS=['wl'] + sblibs )
+findstars = env.Program('findstars', 'FindStars.cpp')
 
-#testnl = env.Program('testnl', 'TestNL.cpp', LIBS=['wl'] + sblibs)
+#testwl = env.Program('testwl', 'TestWL.cpp')
+
+#testnl = env.Program('testnl', 'TestNL.cpp')
 
 bin_install_dir = os.path.join(env['PREFIX'], 'bin')
 

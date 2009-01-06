@@ -2,7 +2,6 @@
 #include "Transformation.h"
 #include "TMV.h"
 #include "TMV_Small.h"
-#include "TMV_Tri.h"
 #include "dbg.h"
 #include  <fitsio.h>
 #include "Legendre2D.h"

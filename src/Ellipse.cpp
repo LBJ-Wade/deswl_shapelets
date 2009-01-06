@@ -2,7 +2,6 @@
 #include "Ellipse.h"
 #include "EllipseSolver.h"
 #include "TMV.h"
-#include "TMV_Tri.h"
 #include <cmath>
 #include "dbg.h"
 #include <fstream>

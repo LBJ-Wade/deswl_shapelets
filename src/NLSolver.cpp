@@ -2,7 +2,6 @@
 #include <iostream>
 #include <limits>
 #include <algorithm>
-#include "TMV_Sym.h"
 
 template <class T> inline T SQR(T x) { return x*x; }
 const double sqrteps = sqrt(std::numeric_limits<double>::epsilon());

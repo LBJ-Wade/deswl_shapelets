@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <complex>
 #include "TMV.h"
-#include "TMV_Tri.h"
 #include <iostream>
 #include <vector>
 #include "dbg.h"

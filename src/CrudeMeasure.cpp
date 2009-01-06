@@ -3,7 +3,7 @@
 #include "dbg.h"
 #include "NLSolver.h"
 #include <vector>
-#include "TMV_Diag.h"
+#include "TMV.h"
 
 class CrudeSolver : public NLSolver 
 {

@@ -1,6 +1,6 @@
 
 #include "FittedPSF.h"
-#include "TMV_Diag.h"
+#include "TMV.h"
 #include "dbg.h"
 #include "Function2D.h"
 #include "Legendre2D.h"

@@ -2,8 +2,7 @@
 #root=decam--25--38-i-12_01
 root=decam--24--37-i-14_06
 echo FindStars
-echo ./findstars ../example_config/wl.config root=$root debug_file=fs.debug verbose=2 output_dots=1 input_prefix=data/ output_prefix=output/
-time ./findstars ../example_config/wl.config root=$root debug_file=fs.debug verbose=2 output_dots=1 input_prefix=data/ output_prefix=output/
+time ./findstars ../example_config/wl.config root=$root debug_file=fs.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
 echo MeasurePSF:
 time ./measurepsf ../example_config/wl.config root=$root debug_file=mp.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
 echo MeasureShear:

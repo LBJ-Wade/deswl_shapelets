@@ -1,8 +1,6 @@
 
 #include "EllipseSolver.h"
 #include "TMV.h"
-#include "TMV_Diag.h"
-#include "TMV_Tri.h"
 #include "dbg.h"
 #include "PsiHelper.h"
 
