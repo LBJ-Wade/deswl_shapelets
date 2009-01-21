@@ -802,6 +802,32 @@ int main()
     return result
 
 
+def CheckTMV(context):
+    tmv_source_file = """
+#include "TMV_Sym.h"
+int main()
+{
+  tmv::SymMatrix<double> S(10,4.);
+  tmv::Matrix<double> m(10,3,2.);
+  tmv::Matrix<double> m2 = m / S;
+  return 0;
+}
+"""
+
+    context.Message('Checking for correct TMV linkage... ')
+
+    if not context.TryCompile(tmv_source_file,'.cpp'):
+        context.Result(0)
+        print 'Error: TMV file failed to compile.'
+        Exit(1)
+
+    if not CheckLibs(context,['tmv_symband','tmv'],tmv_source_file):
+        context.Result(0)
+        print 'Error: TMV file failed to link correctly'
+
+    context.Result(1)
+    return 1
+
 
 
 def DoLibraryAndHeaderChecks(config):
@@ -815,23 +841,32 @@ def DoLibraryAndHeaderChecks(config):
     (MKL or ACML if that BLAS) CLAPACK, FLAPACK, ATLAS LAPACK
     """
 
-    # Mike Jarvis' matrix libraries
-    if not config.CheckLibWithHeader('tmv','TMV.h',language='C++'):
-        print 'tmv library or TMV.h not found'
-        Exit(1)
-    if not config.CheckLibWithHeader('tmv_symband','TMV_Sym.h',language='C++'):
-        print 'tmv_symband library not found'
-        Exit(1)
-
     # We need cfitsio in the search path
     if not config.CheckLibWithHeader('cfitsio','fitsio.h',language='C++'):
         print 'cfitsio not found'
         Exit(1)
 
-    # The rest needs to be the same as in the TMV SConstruct file
+    # Mike Jarvis' matrix libraries
+    # First do a simple check that the library and header are in the path.
+    # We check the linking with the BLAS library below.
+    if not config.CheckLibWithHeader('tmv','TMV.h',language='C++',autoadd=0):
+        print 'tmv library or TMV.h not found'
+        Exit(1)
+    if not config.CheckLibWithHeader('tmv_symband','TMV_Sym.h',language='C++',
+            autoadd=0):
+        print 'tmv_symband library not found'
+        Exit(1)
+
+    # This next section checks for the BLAS and/or LAPACK libraries.
+    # It needs to be the same as in the TMV SConstruct file
     # to make sure the correct libraries are linked
     # We don't need the CPPDEFINES or env['LAP'] or env['NOMIX_SMALL'] 
     # here though.
+    #
+    # This should be modularized.  Is there a way to do something similar
+    # to a #include in python?  It would be nice to just include 
+    # a file that does the BLAS/LAPACK check, since that would make it 
+    # easier to keep the tmv and wl SConstruct files in sync.
     foundlap = 0
     foundblas = 0
     foundatlasblas = 0
@@ -934,6 +969,10 @@ def DoLibraryAndHeaderChecks(config):
             print 'No LAPACK libraries found'
             foundlap = 0
 
+    # Check that tmv library links correctly with the BLAS/LAPACK
+    # library found above.
+    config.CheckTMV()
+
 
 def DoConfig(env):
     """
@@ -980,7 +1019,9 @@ def DoConfig(env):
         'CheckMKL_LAP' : CheckMKL_LAP ,
         'CheckATLAS_LAP' : CheckATLAS_LAP ,
         'CheckCLAPACK' : CheckCLAPACK ,
-        'CheckFLAPACK' : CheckFLAPACK })
+        'CheckFLAPACK' : CheckFLAPACK ,
+        'CheckTMV' : CheckTMV
+        })
     DoLibraryAndHeaderChecks(config)
     env = config.Finish()
     # MJ: Turn the cache back on now, since we want it for the
