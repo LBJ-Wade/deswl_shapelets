@@ -18,9 +18,7 @@ if env['MEM_TEST']:
 obj_lib = env.Object(libwl_files)
 libwl = env.Library('#lib/wl',obj_lib)
 
-sblibs=['tmv_symband','tmv','cfitsio']
-
-env.Append(LIBS=['wl'] + sblibs)
+env.Prepend(LIBS=['wl'])
 
 measurepsf = env.Program('measurepsf', 'MeasurePSF.cpp')
 

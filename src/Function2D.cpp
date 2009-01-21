@@ -304,17 +304,23 @@ std::auto_ptr<Function2D<T> > Function2D<T>::Read(std::istream& fin)
 
   fin >> fc >> tc;
   if (tc != 'D' && tc != 'C') fin.putback(tc);
+  std::auto_ptr<Function2D<T> > ret;
   switch(fc) {
-    case 'C' : return std::auto_ptr<Function2D<T> >(new Constant2D<T>(fin));
-    case 'P' : return std::auto_ptr<Function2D<T> >(new Polynomial2D<T>(fin));
+    case 'C' : ret.reset(new Constant2D<T>(fin));
+	       break;
+    case 'P' : ret.reset(new Polynomial2D<T>(fin));
+	       break;
 #ifdef LEGENDRE2D_H
-    case 'L' : return std::auto_ptr<Function2D<T> >(new Legendre2D<T>(fin));
+    case 'L' : ret.reset(new Legendre2D<T>(fin));
+	       break;
 #endif
 #ifdef CHEBY2D_H
-    case 'X' : return std::auto_ptr<Function2D<T> >(new Cheby2D<T>(fin));
+    case 'X' : ret.reset(new Cheby2D<T>(fin));
+	       break;
 #endif
-    default: throw std::runtime_error("invalid type"); return std::auto_ptr<Function2D<T> >(0);
+    default: throw std::runtime_error("invalid type");
   }
+  return ret;
 }
 
 template <class T>
