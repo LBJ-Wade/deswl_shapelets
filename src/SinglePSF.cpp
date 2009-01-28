@@ -170,16 +170,7 @@ void MeasureSinglePSF(
 {
   std::vector<std::vector<Pixel> > pix(1);
   long getpix_flag = 0;
-  try {
-    GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,psfap,getpix_flag);
-  }
-  catch (Range_error& e) {
-    xdbg<<"skip: transformation range error: \n";
-    xdbg<<"p = "<<cen<<", b = "<<e.b<<std::endl;
-    log.nf_range++;
-    flags |= MPSF_TRANSFORM_EXCEPTION;
-    return;
-  }
+  GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,psfap,getpix_flag);
   if (getpix_flag) {
     xdbg<<"skip: getpix flag == "<<getpix_flag<<std::endl;
     if (getpix_flag & EDGE) {
@@ -214,6 +205,52 @@ void MeasureSinglePSF(
     nu = psf[0] / std::sqrt(cov(0,0));
     psf.Normalize();  // Divide by (0,0) element
     flags |= MPSF_MEASURE_FAILED;
+  }
+}
+
+void MeasureSinglePSF1(
+    Position cen, const Image<double>& im, double sky,
+    const Transformation& trans,
+    double noise, double gain, const Image<double>* weight_im,
+    double sigma_p, double psfap, int psforder, PSFLog& log,
+    BVec& psf, double& nu, long& flags)
+{
+  try {
+    // We don't need to save skypos.  We just want to catch the range
+    // error here, so we don't need to worry about it for dudx, etc.
+    Position skypos;
+    trans.Transform(cen,skypos);
+    dbg<<"skypos = "<<skypos<<std::endl;
+  } catch (Range_error& e) {
+    xdbg<<"skip: transformation range error: \n";
+    xdbg<<"p = "<<cen<<", b = "<<e.b<<std::endl;
+    log.nf_range++;
+    flags |= MPSF_TRANSFORM_EXCEPTION;
+    return;
+  }
+
+
+  try {
+    MeasureSinglePSF(
+	// Input data:
+	cen, im, sky, trans, 
+	// Noise values:
+	noise, gain, weight_im,
+	// Parameters:
+	sigma_p, psfap, psforder,
+	// Log information
+	log,
+	// Ouput value:
+	psf, nu, flags);
+  } catch (tmv::Error& e) {
+    dbg<<"TMV Error thrown in MeasureSinglePSF\n";
+    dbg<<e<<std::endl;
+    log.nf_tmverror++;
+    flags |= MPSF_TMV_EXCEPTION;
+  } catch (...) {
+    dbg<<"unkown exception in MeasureSinglePSF\n";
+    log.nf_othererror++;
+    flags |= MPSF_UNKNOWN_EXCEPTION;
   }
 }
 

@@ -19,11 +19,6 @@
 
 #include "SXCat.h"
 
-#ifdef _OPENMP
-#undef _OPENMP
-//#include <omp.h>
-#endif
-
 //#define SINGLESTAR 18
 //#define NSTARS 10
 //#define STARTAT 85
@@ -202,7 +197,7 @@ static void ExtractStars(
 // This is now very DES specific in order to quickly meet Joe's demands
 int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log) 
 {
-  XDEBUG = true;
+  //XDEBUG = true;
 
   xdbg<<"Start DoMeasurePSF\n";
 
@@ -317,7 +312,7 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
   // Main loop to measure psf shapelets:
 #ifdef _OPENMP
 #pragma omp parallel 
-  { 
+  {
     try {
 #endif
       PSFLog log1;  // Just for this thread
@@ -340,33 +335,23 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
 	{
 	  if (output_dots) { std::cerr<<"."; std::cerr.flush(); }
 	  dbg<<"star "<<i<<":\n";
+	  dbg<<"pos[i] = "<<sxcat.pos[i]<<std::endl;
 	}
 
 	BVec psf1 = psf_default;
 	double nu1 = nu_default;
 	long flag1=0;
-	try {
-	  MeasureSinglePSF(
-	      // Input data:
-	      starcat.pos[i], im, starcat.local_sky[i], trans, 
-	      // Noise values:
-	      starcat.noise[i], gain, weight_im,
-	      // Parameters:
-	      sigma_p, psfap, psforder,
-	      // Log information
-	      log1,
-	      // Ouput value:
-	      psf1, nu1, flag1);
-	} catch (tmv::Error& e) {
-	  dbg<<"TMV Error thrown in MeasureSinglePSF\n";
-	  dbg<<e<<std::endl;
-	  log1.nf_tmverror++;
-	  flag1 |= MPSF_TMV_EXCEPTION;
-	} catch (...) {
-	  dbg<<"unkown exception in MeasureSinglePSF\n";
-	  log1.nf_othererror++;
-	  flag1 |= MPSF_UNKNOWN_EXCEPTION;
-	}
+	MeasureSinglePSF1(
+	    // Input data:
+	    starcat.pos[i], im, starcat.local_sky[i], trans, 
+	    // Noise values:
+	    starcat.noise[i], gain, weight_im,
+	    // Parameters:
+	    sigma_p, psfap, psforder,
+	    // Log information
+	    log1,
+	    // Ouput value:
+	    psf1, nu1, flag1);
 #ifdef _OPENMP
 #pragma omp critical
 #endif
@@ -501,7 +486,7 @@ int DoMeasurePSF_DES(ConfigFile& params, PSFLog& log)
 
 int DoMeasurePSF(ConfigFile& params, PSFLog& log) 
 {
-  XDEBUG = true;
+  //XDEBUG = true;
 
   xdbg<<"Start DoMeasurePSF\n";
 
@@ -595,7 +580,7 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
   // Main loop to measure psf shapelets:
 #ifdef _OPENMP
 #pragma omp parallel 
-  { 
+  {
     try {
 #endif
       PSFLog log1;  // Just for this thread
@@ -613,7 +598,7 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
 	XDEBUG = true;
 #endif
 #ifdef _OPENMP
-#pragma omp critical
+//#pragma omp critical
 #endif
 	{
 	  if (output_dots) { std::cerr<<"."; std::cerr.flush(); }
@@ -623,30 +608,19 @@ int DoMeasurePSF(ConfigFile& params, PSFLog& log)
 	BVec psf1 = psf_default;
 	double nu1 = nu_default;
 	long flag1=0;
-	try {
-	  MeasureSinglePSF(
-	      // Input data:
-	      all_pos[i], im, all_sky[i], trans, 
-	      // Noise values:
-	      all_noise[i], gain, weight_im,
-	      // Parameters:
-	      sigma_p, psfap, psforder,
-	      // Log information
-	      log1,
-	      // Ouput value:
-	      psf1, nu1, flag1);
-	} catch (tmv::Error& e) {
-	  dbg<<"TMV Error thrown in MeasureSinglePSF\n";
-	  dbg<<e<<std::endl;
-	  log1.nf_tmverror++;
-	  flag1 |= MPSF_TMV_EXCEPTION;
-	} catch (...) {
-	  dbg<<"unkown exception in MeasureSinglePSF\n";
-	  log1.nf_othererror++;
-	  flag1 |= MPSF_UNKNOWN_EXCEPTION;
-	}
+	MeasureSinglePSF1(
+	    // Input data:
+	    all_pos[i], im, all_sky[i], trans, 
+	    // Noise values:
+	    all_noise[i], gain, weight_im,
+	    // Parameters:
+	    sigma_p, psfap, psforder,
+	    // Log information
+	    log1,
+	    // Ouput value:
+	    psf1, nu1, flag1);
 #ifdef _OPENMP
-#pragma omp critical
+//#pragma omp critical
 #endif
 	{
 	  flagvec[i] = flag1;

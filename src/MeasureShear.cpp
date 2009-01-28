@@ -7,6 +7,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <cstdio>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -80,7 +81,7 @@ int main(int argc, char **argv) try
 
     return EXIT_SUCCESS; // = 0 typically.  Defined in <cstdlib>
   }
-#if 0
+#if 1
   // Change to 1 to let gdb see where the program bombed out.
   catch(int) {}
 #else

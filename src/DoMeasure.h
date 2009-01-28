@@ -96,5 +96,11 @@ void MeasureSinglePSF(
     double noise, double gain, const Image<double>* weight_im,
     double sigma_p, double psf_aperture, int psf_order, PSFLog& log,
     BVec& psf, double& nu, long& flags);
+void MeasureSinglePSF1(
+    Position cen, const Image<double>& im, double sky,
+    const Transformation& trans,
+    double noise, double gain, const Image<double>* weight_im,
+    double sigma_p, double psf_aperture, int psf_order, PSFLog& log,
+    BVec& psf, double& nu, long& flags);
 
 #endif

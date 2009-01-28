@@ -4,11 +4,14 @@ import os
 
 Import('env')
 
-libwl_files="""Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp Ellipse.cpp
-BVec.cpp EllipseSolver.cpp PsiHelper.cpp Pixel.cpp Transformation.cpp
-ConfigFile.cpp FittedPSF.cpp CrudeMeasure.cpp ReadCatalog.cpp DoMeasurePSF.cpp
-DoMeasureShear.cpp SingleShear.cpp SinglePSF.cpp NLSolver.cpp Log.cpp
+libwl_files="""Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp
+BVec.cpp EllipseSolver.cpp Pixel.cpp Transformation.cpp
+ConfigFile.cpp FittedPSF.cpp CrudeMeasure.cpp ReadCatalog.cpp 
+SingleShear.cpp NLSolver.cpp Log.cpp
 FitsFile.cpp Histogram.cpp StarFinder.cpp SXCat.cpp""".split()
+
+libwl_omp_files="""Ellipse.cpp PsiHelper.cpp 
+DoMeasurePSF.cpp DoMeasureShear.cpp SinglePSF.cpp""".split()
 
 if env['MEM_TEST']:
     print 'Using mmgr.cpp'
@@ -16,15 +19,21 @@ if env['MEM_TEST']:
 
 # Library file containing generic code
 obj_lib = env.Object(libwl_files)
-libwl = env.Library('#lib/wl',obj_lib)
 
-env.Prepend(LIBS=['wl'])
+env2 = env.Clone()
+if env['WITH_OPENMP'] :
+  env2.Append(CCFLAGS=env['OMP_FLAGS'])
+obj_lib_omp = env2.Object(libwl_omp_files)
 
-measurepsf = env.Program('measurepsf', 'MeasurePSF.cpp')
+libwl = env.Library('#lib/wl',obj_lib+obj_lib_omp)
 
-measureshear = env.Program('measureshear', 'MeasureShear.cpp')
+env2.Prepend(LIBS=['wl'])
 
-findstars = env.Program('findstars', 'FindStars.cpp')
+measurepsf = env2.Program('measurepsf', 'MeasurePSF.cpp')
+
+measureshear = env2.Program('measureshear', 'MeasureShear.cpp')
+
+findstars = env2.Program('findstars', 'FindStars.cpp')
 
 #testwl = env.Program('testwl', 'TestWL.cpp')
 

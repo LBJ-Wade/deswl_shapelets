@@ -41,7 +41,7 @@ opts = Variables(config_file)
 # Now set up options for the command line
 opts.Add('CXX','Name of c++ compiler')
 opts.Add('FLAGS','Compile flags to send to the compiler','')
-opts.Add(BoolVariable('DEBUG','Turn on debugging statements',False))
+opts.Add(BoolVariable('DEBUG','Turn on debugging statements',True))
 opts.Add(PathVariable('PREFIX',
             'prefix for installation','', PathVariable.PathAccept))
 
@@ -83,12 +83,14 @@ opts.Add(BoolVariable('FORCE_ATLAS_LAPACK',
 opts.Add(BoolVariable('FORCE_FLAPACK',
             'Force scons to use Fortran LAPACK', False))
 opts.Add('LIBS','Libraries to send to the linker','')
+opts.Add(BoolVariable('CACHE_LIB',
+            'Cache the results of the library checks',True))
 
 opts.Add(BoolVariable('WITH_OPENMP',
             'Look for openmp and use if found.', True))
 opts.Add(BoolVariable('STATIC',
             'Use static linkage', False))
-opts.Add(BoolOption('MEM_TEST',
+opts.Add(BoolVariable('MEM_TEST',
             'Test for memory leaks',False))
 opts.Add(BoolVariable('WARN',
             'Add warning compiler flags, like -Wall', False))
@@ -814,6 +816,7 @@ int main()
 }
 """
 
+    print 'Checking for correct TMV linkage... (this may take a little while)'
     context.Message('Checking for correct TMV linkage... ')
 
     if not context.TryCompile(tmv_source_file,'.cpp'):
@@ -1008,7 +1011,8 @@ def DoConfig(env):
     # Figure out what BLAS and/or LAPACK libraries are on the system
     # MJ: I have had bad luck with scons figuring out when the cache
     #     is invalid.  This just forces a check every time.
-    SCons.SConf.SetCacheMode('force')
+    if not env['CACHE_LIB']:
+        SCons.SConf.SetCacheMode('force')
     config = env.Configure(custom_tests = {
         'CheckMKL' : CheckMKL ,
         'CheckACML' : CheckACML ,
@@ -1026,7 +1030,8 @@ def DoConfig(env):
     env = config.Finish()
     # MJ: Turn the cache back on now, since we want it for the
     #     main compilation steps.
-    SCons.SConf.SetCacheMode('auto')
+    if not env['CACHE_LIB']:
+        SCons.SConf.SetCacheMode('auto')
 
 
 #

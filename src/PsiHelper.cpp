@@ -22,31 +22,6 @@ void MakePsi1(const tmv::VectorView<double>& psi,
   Assert(int(psi.size()) == (order+1)*(order+2)/2);
   const double invsqrtpi = 1./sqrtpi;
 
-#if 0
-  // coeff(p,q) = sqrt( 1/ (pi p! q!) )
-  static std::auto_ptr<tmv::DiagMatrix<double> > coeffp;
-#ifdef _OPENMP
-#pragma omp critical 
-#endif
-  {
-    if (!coeff.get() || coeff->size() < psi.size()) {
-      std::vector<double> sqrtfact(order+1);
-      sqrtfact[0] = 1.;
-      if (order > 0) sqrtfact[1] = 1.;
-      coeff.reset(new tmv::DiagMatrix<double>(psi.size()));
-      for(int n=0,k=0;n<=order;++n) {
-	if (n > 1) sqrtfact[n] = sqrtfact[n-1] * sqrt(double(n));
-	for(int p=n,q=0;p>=q;--p,++q,++k) {
-	  double temp = invsqrtpi / sqrtfact[p] / sqrtfact[q];
-	  (*coeffp)(k) = temp;
-	  if (p!=q) (*coeffp)(++k) = temp;
-	}
-      }
-    }
-  }
-  const tmv::ConstDiagMatrixView<double>& coeff = 
-    coeffp->SubDiagMatrix(0,psi.size());
-#else
   // coeff(p,q) = sqrt( 1/ (pi p! q!) )
   tmv::DiagMatrix<double> coeff(psi.size());
   std::vector<double> sqrtfact(order+1);
@@ -60,7 +35,6 @@ void MakePsi1(const tmv::VectorView<double>& psi,
       if (p!=q) coeff(++k) = temp;
     }
   }
-#endif
 
   double rsq = std::norm(z);
   // psi(p,q) = coeff(p,q) z^m exp(-r^2/2) [(-)^q q! Lqm(r^2)]

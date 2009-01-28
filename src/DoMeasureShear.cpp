@@ -18,10 +18,6 @@
 
 #include "SXCat.h"
 
-#ifdef _OPENMP
-//#include <omp.h>
-#endif
-
 //#define SINGLEGAL 8146
 //#define STARTAT 8000
 //#define ENDAT 200
