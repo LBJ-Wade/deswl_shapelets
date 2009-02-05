@@ -8,10 +8,6 @@
 #include "Transformation.h"
 #include "ConfigFile.h"
 
-// Flags:
-const int EDGE = 1;
-const int LT10PIX = 2;
-
 struct Pixel { 
   Pixel(double _u, double _v, double _I, double _wt) :
     z(_u,_v), I(_I), wt(_wt) {}

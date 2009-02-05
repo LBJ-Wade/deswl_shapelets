@@ -1,10 +1,4 @@
 
-#include "ConfigFile.h"
-#include "DoMeasure.h"
-#include "TMV.h"
-#include "dbg.h"
-#include "Name.h"
-
 #include <cstdlib>
 #include <iostream>
 #include <cstdio>
@@ -13,8 +7,45 @@
 #include <omp.h>
 #endif
 
+#include "TMV.h"
+#include "ConfigFile.h"
+#include "dbg.h"
+#include "Name.h"
+#include "Image.h"
+#include "FittedPSF.h"
+#include "TimeVars.h"
+#include "Log.h"
+#include "ShearCatalog.h"
+#include "InputCatalog.h"
+
 std::ostream* dbgout = 0;
 bool XDEBUG = false;
+
+static void DoMeasureShear(ConfigFile& params, ShearLog& log) 
+{
+  std::auto_ptr<Image<double> > weight_im;
+  Image<double> im(params,weight_im);
+
+  // Read input catalog
+  InputCatalog incat(params,"cat_");
+
+  // Read distortion function
+  Transformation trans(params);
+
+  // Read the fitted psf file
+  FittedPSF fitpsf(params,"fitpsf_");
+
+  // Create shear catalog
+  ShearCatalog shearcat(incat,trans,params,"shear_");
+
+  // Measure shears and shapelet vectors
+  shearcat.MeasureShears(im,weight_im.get(),trans,fitpsf,log);
+
+  // Write results to file
+  shearcat.Write();
+
+  xdbg<<"Log: \n"<<log<<std::endl;
+}
 
 int main(int argc, char **argv) try 
 {
@@ -76,12 +107,12 @@ int main(int argc, char **argv) try
 
     dbg<<"Config params = \n"<<params<<std::endl;
 
-    DoMeasureShear_DES(params,log);
+    DoMeasureShear(params,log);
     if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}
 
     return EXIT_SUCCESS; // = 0 typically.  Defined in <cstdlib>
   }
-#if 1
+#if 0
   // Change to 1 to let gdb see where the program bombed out.
   catch(int) {}
 #else

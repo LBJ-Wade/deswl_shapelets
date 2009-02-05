@@ -728,11 +728,14 @@ int main(int argc, char **argv) try
   // Read data will of course fail to work this well, but the answers
   // will nonetheless be as accurate as possible give the data available.
 
-  double Dvec[] = {0.1,-0.02,-0.015,0.11};
-  tmv::SmallMatrix<double,2,2> D(Dvec);
-  //double pixscale = 0.1;
+  //double Dvec[] = {0.14,-0.02,-0.015,0.11};
+  tmv::SmallMatrix<double,2,2,tmv::RowMajor> D
+  D = tmv::ListInit,
+    0.14, -0.02,
+    -0.015, 0.11;
+  //double pixscale = 0.12;
   //D.SetToIdentity(pixscale);
-  double pixscale = sqrt(std::abs(D(0,0)*D(1,1)-D(0,1)*D(1,0)));
+  double pixscale = sqrt(D.Det());
   dbg<<"pixscale = "<<pixscale<<std::endl;
 
 #ifdef TEST12

@@ -1,5 +1,6 @@
 
 #include "Pixel.h"
+#include "Params.h"
 #include "dbg.h"
 
 void GetPixList(const Image<double>& im, std::vector<Pixel>& pix,

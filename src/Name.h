@@ -1,10 +1,14 @@
 #ifndef NAME_H
 #define NAME_H
 
-
-// Taken from:
-// http://www.techbytes.ca/techbyte103.html
 #include <sys/stat.h> 
+#include <string>
+#include <vector>
+#include <stdexcept>
+#include "dbg.h"
+
+// This function is taken from:
+// http://www.techbytes.ca/techbyte103.html
 inline bool FileExists(const std::string& strFilename) 
 { 
   struct stat stFileInfo; 

@@ -5,136 +5,124 @@
 #include "FitsFile.h"
 #include <fstream>
 
-struct ShearLog {
+class Log 
+{
+  public :
 
-  ShearLog(std::string logfile="", std::string fits_file="");
-  ~ShearLog();
+    Log(std::string logfile="", std::string fits_file="");
+    virtual ~Log();
 
-  ShearLog& operator+=(const ShearLog& rhs)
-  {
-    nf_range1 += rhs.nf_range1;
-    nf_range2 += rhs.nf_range2;
-    nf_edge1 += rhs.nf_edge1;
-    nf_npix1 += rhs.nf_npix1;
-    nf_small += rhs.nf_small;
-    nf_edge2 += rhs.nf_edge2;
-    nf_npix2 += rhs.nf_npix2;
-    nf_tmverror += rhs.nf_tmverror;
-    nf_othererror += rhs.nf_othererror;
-    ns_native += rhs.ns_native;
-    nf_native += rhs.nf_native;
-    ns_mu += rhs.ns_mu;
-    nf_mu += rhs.nf_mu;
-    ns_gamma += rhs.ns_gamma;
-    nf_gamma += rhs.nf_gamma;
-    
-    return *this;
-  }
+    void NoWriteLog(); // Don't write the log on deletion.
+    virtual void WriteLog() const = 0;
+    virtual void WriteLogToFitsHeader() const = 0;
+    virtual void Write(std::ostream& os) const = 0;
 
-  void NoWriteLog(); // Don't write the log on deletion.
-  void WriteLog() const;
-  void WriteLogToFitsHeader() const;
-  void Write(std::ostream& os) const;
+    ExitCode exitcode;
+    std::string extraexitinfo;
 
-  ExitCode exitcode;
-  std::string extraexitinfo;
+  protected :
 
-  int ngals;
-  int nf_range1;
-  int nf_range2;
-  int nf_edge1;
-  int nf_npix1;
-  int nf_small;
-  int nf_edge2;
-  int nf_npix2;
-  int nf_tmverror;
-  int nf_othererror;
-  int ns_native;
-  int nf_native;
-  int ns_mu;
-  int nf_mu;
-  int ns_gamma;
-  int nf_gamma;
-
-  private :
-
-  std::ostream* logout;
-  std::string fits_file;
+    std::ostream* logout;
+    std::string fits_file;
 
 };
 
-struct PSFLog {
+class ShearLog : public Log 
+{
+  public :
 
-  PSFLog(std::string logfile="", std::string fits_file="");
-  ~PSFLog();
+    ShearLog(std::string logfile="", std::string fits_file="");
+    virtual ~ShearLog();
 
-  PSFLog& operator+=(const PSFLog& rhs)
-  {
-    nf_range += rhs.nf_range;
-    nf_edge += rhs.nf_edge;
-    nf_npix += rhs.nf_npix;
-    nf_tmverror += rhs.nf_tmverror;
-    nf_othererror += rhs.nf_othererror;
-    ns_psf += rhs.ns_psf;
-    nf_psf += rhs.nf_psf;
+    virtual void WriteLog() const;
+    virtual void WriteLogToFitsHeader() const;
+    virtual void Write(std::ostream& os) const;
 
-    return *this;
-  }
+    ShearLog& operator+=(const ShearLog& rhs)
+    {
+      nf_range1 += rhs.nf_range1;
+      nf_range2 += rhs.nf_range2;
+      nf_small += rhs.nf_small;
+      nf_tmverror += rhs.nf_tmverror;
+      nf_othererror += rhs.nf_othererror;
+      ns_native += rhs.ns_native;
+      nf_native += rhs.nf_native;
+      ns_mu += rhs.ns_mu;
+      nf_mu += rhs.nf_mu;
+      ns_gamma += rhs.ns_gamma;
+      nf_gamma += rhs.nf_gamma;
 
-  void NoWriteLog(); // Don't write the log on deletion.
-  void WriteLog() const;
-  void WriteLogToFitsHeader() const;
-  void Write(std::ostream& os) const;
+      return *this;
+    }
 
-  ExitCode exitcode;
-  std::string extraexitinfo;
-
-  int nstars;
-  int nf_range;
-  int nf_edge;
-  int nf_npix;
-  int nf_tmverror;
-  int nf_othererror;
-  int ns_psf;
-  int nf_psf;
-
-  private :
-
-  std::ostream* logout;
-  std::string fits_file;
-
-};
-
-struct FindStarsLog {
-
-  FindStarsLog(std::string _logfile="", std::string _fits_file="");
-  ~FindStarsLog();
-
-  void NoWriteLog(); // Don't write the log on deletion.
-  void WriteLog() const;
-  void WriteLogToFitsHeader() const;
-  void Write(std::ostream& os) const;
-
-  ExitCode exitcode;
-  std::string extraexitinfo;
-
-  int nobj;
-  int nstars;
-
-  private :
-
-  std::ostream* logout;
-  std::string fits_file;
+    int ngals;
+    int nf_range1;
+    int nf_range2;
+    int nf_small;
+    int nf_tmverror;
+    int nf_othererror;
+    int ns_native;
+    int nf_native;
+    int ns_mu;
+    int nf_mu;
+    int ns_gamma;
+    int nf_gamma;
 
 };
 
-inline std::ostream& operator<<(std::ostream& os, const ShearLog& log)
-{ log.Write(os); return os; }
+class PSFLog : public Log 
+{
+  public :
 
-inline std::ostream& operator<<(std::ostream& os, const PSFLog& log)
-{ log.Write(os); return os; }
+    PSFLog(std::string logfile="", std::string fits_file="");
+    virtual ~PSFLog();
 
-inline std::ostream& operator<<(std::ostream& os, const FindStarsLog& log)
+    virtual void WriteLog() const;
+    virtual void WriteLogToFitsHeader() const;
+    virtual void Write(std::ostream& os) const;
+
+    PSFLog& operator+=(const PSFLog& rhs)
+    {
+      nf_range += rhs.nf_range;
+      nf_tmverror += rhs.nf_tmverror;
+      nf_othererror += rhs.nf_othererror;
+      ns_psf += rhs.ns_psf;
+      nf_psf += rhs.nf_psf;
+
+      return *this;
+    }
+
+    int nstars;
+    int nf_range;
+    int nf_tmverror;
+    int nf_othererror;
+    int ns_psf;
+    int nf_psf;
+
+};
+
+class FindStarsLog : public Log 
+{
+  public :
+
+    FindStarsLog(std::string _logfile="", std::string _fits_file="");
+    virtual ~FindStarsLog();
+
+    virtual void WriteLog() const;
+    virtual void WriteLogToFitsHeader() const;
+    virtual void Write(std::ostream& os) const;
+
+    int ntot;
+    int nr_flag;
+    int nr_mag;
+    int nr_size;
+    int nobj;
+    int nallstars;
+    int nstars;
+
+};
+
+inline std::ostream& operator<<(std::ostream& os, const Log& log)
 { log.Write(os); return os; }
 
 #endif

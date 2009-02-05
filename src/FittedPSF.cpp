@@ -1,5 +1,6 @@
 
 #include "FittedPSF.h"
+#include "FitsFile.h"
 #include "TMV.h"
 #include "dbg.h"
 #include "Function2D.h"
@@ -37,41 +38,44 @@ static void SetPRow(size_t fitorder, Position pos, const Bounds& bounds,
   Assert(pq == Prow.size());
 }
 
-FittedPSF::FittedPSF(const std::vector<BVec>& psf,
-    const std::vector<long>& flagvec,
-    const std::vector<Position>& pos,
-    const std::vector<double>& nu,
-    double _sigma, const ConfigFile& params) :
-  psforder(params["psf_order"]), sigma(_sigma),
-  fitorder(params["fitpsf_order"]), fitsize((fitorder+1)*(fitorder+2)/2)
-  //fitorder(2), fitsize((fitorder+1)*(fitorder+2)/2)
+FittedPSF::FittedPSF(const PSFCatalog& psfcat,
+    const ConfigFile& _params, std::string _prefix) :
+  params(_params), prefix(_prefix),
+  psforder(params["psf_order"]),
+  fitorder(params[prefix + "order"]), fitsize((fitorder+1)*(fitorder+2)/2)
 {
   xdbg<<"FittedPSF constructor\n";
   // Do a polynomial fit of the psf shapelet vectors
-  //
-  // First, rotate the vectors into their eigen directions.
-  // The matrix V is stored to let us get back to the original basis.
+
+  Assert(psfcat.psf.size() > 0);
+  sigma = psfcat.psf[0].GetSigma();
+
+  // Calculate the average psf vector
   avepsf.reset(new BVec(psforder,sigma));
   avepsf->Zero();
   size_t psfsize = avepsf->size();
   size_t ngoodpsf=0;
-  for(size_t n=0;n<psf.size();n++) if (!flagvec[n]) {
-    xxdbg<<"n = "<<n<<", psf[n] = "<<psf[n]<<std::endl;
-    *avepsf += psf[n];
+  for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
+    xxdbg<<"n = "<<n<<", psf[n] = "<<psfcat.psf[n]<<std::endl;
+    Assert(psfcat.psf[n].GetSigma() == sigma);
+    *avepsf += psfcat.psf[n];
     ngoodpsf++;
   }
   *avepsf /= double(ngoodpsf);
   xdbg<<"ngoodpsf = "<<ngoodpsf<<std::endl;
   xdbg<<"average psf = "<<*avepsf<<std::endl;
+
+  // Rotate the vectors into their eigen directions.
+  // The matrix V is stored to let us get back to the original basis.
   tmv::Matrix<double> M(ngoodpsf,psfsize);
   tmv::DiagMatrix<double> invsig(ngoodpsf);
   size_t i=0;
-  for(size_t n=0;n<psf.size();n++) if (!flagvec[n]) {
-    Assert(psf[n].size() == psfsize);
+  for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
+    Assert(psfcat.psf[n].size() == psfsize);
     Assert(i < ngoodpsf);
-    M.row(i) = psf[n] - *avepsf;
-    invsig(i) = nu[n];
-    bounds += pos[n];
+    M.row(i) = psfcat.psf[n] - *avepsf;
+    invsig(i) = psfcat.nu[n];
+    bounds += psfcat.pos[n];
     i++;
   }
   Assert(i == ngoodpsf);
@@ -94,13 +98,13 @@ FittedPSF::FittedPSF(const std::vector<BVec>& psf,
   xxdbg<<"U = "<<U<<std::endl;
   xxdbg<<"V = "<<*V<<std::endl;
   //xdbg<<"M-USV = "<<M1-U*S*(*V)<<std::endl;
-  if (params.keyExists("fitpsf_npca")) {
-    npca = params["fitpsf_npca"];
+  if (params.keyExists(prefix + "npca")) {
+    npca = params[prefix + "npca"];
     xdbg<<"npca = "<<npca<<" from parameter file\n";
   } else {
     double thresh = S(0);
-    if (params.keyExists("fitpsf_pca_thresh")) 
-      thresh *= double(params["fitpsf_pca_thresh"]);
+    if (params.keyExists(prefix + "pca_thresh")) 
+      thresh *= double(params[prefix + "pca_thresh"]);
     else thresh *= tmv::Epsilon<double>();
     xdbg<<"thresh = "<<thresh<<std::endl;
     for(npca=1;npca<int(M.rowsize());npca++) if (S(npca) < thresh) break;
@@ -114,8 +118,8 @@ FittedPSF::FittedPSF(const std::vector<BVec>& psf,
   xxdbg<<"V.Rows(0,npca) = "<<V->Rows(0,npca)<<std::endl;
   tmv::Matrix<double> P(ngoodpsf,fitsize,0.);
   i=0;
-  for(size_t n=0;n<psf.size();n++) if (!flagvec[n]) {
-    SetPRow(fitorder,pos[n],bounds,P.row(i));
+  for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
+    SetPRow(fitorder,psfcat.pos[n],bounds,P.row(i));
     i++;
   }
   Assert(i == ngoodpsf);
@@ -129,85 +133,82 @@ FittedPSF::FittedPSF(const std::vector<BVec>& psf,
   xdbg<<"Done making FittedPSF\n";
 }
 
-void FittedPSF::Write(std::ostream& os) const
+FittedPSF::FittedPSF(const ConfigFile& _params, std::string _prefix) :
+  params(_params), prefix(_prefix)
 {
-  os << psforder <<"  "<< sigma <<"  ";
-  os << fitorder <<"  "<< npca << std::endl;
-  os << bounds << std::endl;
-  os << *avepsf << std::endl;
-  os << V->Rows(0,npca) <<std::endl;
-  os << *f << std::endl;
+  Read();
 }
 
-void FittedPSF::Read(std::istream& is)
+void FittedPSF::WriteAscii(std::string file) const
 {
+  std::ofstream fout(file.c_str());
+  fout << psforder <<"  "<< sigma <<"  ";
+  fout << fitorder <<"  "<< npca << std::endl;
+  fout << bounds << std::endl;
+  fout << *avepsf << std::endl;
+  fout << V->Rows(0,npca) <<std::endl;
+  fout << *f << std::endl;
+}
+
+void FittedPSF::ReadAscii(std::string file)
+{
+  std::ifstream fin(file.c_str());
+  if (!fin) {
+    throw std::runtime_error("Error opening fitpsf file");
+  }
+
   xdbg<<"Reading FittedPSF:\n";
-  is >> psforder >> sigma >> fitorder >> npca >> bounds;
+  fin >> psforder >> sigma >> fitorder >> npca >> bounds;
   xdbg<<"psforder = "<<psforder<<", sigma_psf = "<<sigma<<std::endl;
   xdbg<<"fitorder = "<<fitorder<<", npca = "<<npca<<std::endl;
   xdbg<<"bounds = "<<bounds<<std::endl;
   fitsize = (fitorder+1)*(fitorder+2)/2;
   avepsf.reset(new BVec(psforder,sigma));
-  is >> *avepsf;
+  fin >> *avepsf;
   xxdbg<<"avepsf = "<<*avepsf<<std::endl;
   V.reset(new tmv::Matrix<double,tmv::RowMajor>(npca,avepsf->size()));
-  is >> *V;
+  fin >> *V;
   xxdbg<<"V = "<<*V<<std::endl;
   f.reset(new tmv::Matrix<double>(fitsize,npca));
-  is >> *f;
+  fin >> *f;
   xxdbg<<"f = "<<*f<<std::endl;
 }
 
 
-void FittedPSF::Write(const ConfigFile& params) const
+void FittedPSF::Write() const
 {
   std::string file = Name(params,"fitpsf");
-  // MJ -- check which kind of write from ext or other way.
-  if (1) {
-    WriteFits(file,params);
+  dbg<<"Writing to fitpsf file: "<<file<<std::endl;
+
+  if (file.find("fits") != std::string::npos) {
+    WriteFits(file);
   } else {
-    std::ofstream fout(file.c_str());
-    Write(fout);
-    fout.close();
+    WriteAscii(file);
   }
+  dbg<<"Done Write\n";
 }
 
-void FittedPSF::Read(const ConfigFile& params)
+void FittedPSF::Read()
 {
   std::string file = Name(params,"fitpsf",false,true);
+  // false,true = input_prefix=false, mustexist=true.
+  // It is an input here, but it is in the output_prefix directory.
   dbg<< "Reading FittedPSF from file: " << file << std::endl;
-  // MJ -- check which kind of read from ext or other way.
-  if (1) {
-    int hdu = 2;
-    if (params.keyExists("fitpsf_hdu")) hdu = params["fitpsf_hdu"];
-    ReadFits(file,hdu,params);
+
+  if (file.find("fits") != std::string::npos) {
+    ReadFits(file);
   } else {
-    std::ifstream fin(file.c_str());
-    Assert(fin);
-    Read(fin);
-    fin.close();
+    ReadAscii(file);
   }
+  dbg<<"Done Read PSFCatalog\n";
 }
 
-
-void FittedPSF::WriteFitsKeywords(FitsFile& fits, const ConfigFile& params) const
+void FittedPSF::WriteFits(std::string file) const
 {
-  fits.WriteParKey(params, "version", TSTRING);
-  fits.WriteParKey(params, "noise_method", TSTRING);
-  fits.WriteParKey(params, "dist_method", TSTRING);
-  fits.WriteParKey(params, "fitpsf_order", TLONG);
-  fits.WriteParKey(params, "fitpsf_pca_thresh", TDOUBLE);
-} 
-void FittedPSF::WriteFits(std::string file, const ConfigFile& params) const
-{
-  int colnum;
-  LONGLONG firstrow;
-  LONGLONG firstel;
-  LONGLONG nel;
-  std::stringstream err;
+  dbg<<"Start WriteFits"<<std::endl;
 
-  FitsFile fits(file.c_str(), READWRITE, true);
-  fitsfile* fptr = fits.get_fptr();
+  FitsFile fits(file, READWRITE, true);
+  dbg<<"Made fits"<<std::endl;
 
   // Note the actual coeffs may be less than this the way Mike does things
   // but we will fill the extra with zeros
@@ -230,88 +231,65 @@ void FittedPSF::WriteFits(std::string file, const ConfigFile& params) const
   //interp_matrix_form << n_interp_matrix_max << "d";
   interp_matrix_form << n_interp_matrix << "d";
 
-#if 0
-  // I think this should work, but it didn't on my AMD machine with pgCC.
-  char* ave_psf_form_cstr = (char*) ave_psf_form.str().c_str();
-  char* rot_matrix_form_cstr = (char*) rot_matrix_form.str().c_str();
-  char* interp_matrix_form_cstr = (char*) interp_matrix_form.str().c_str();
-#else
-  Assert(ave_psf_form.str().size() < 9);       // Usually size = 3
-  Assert(rot_matrix_form.str().size() < 9);    // Usually size = 4 or 5
-  Assert(interp_matrix_form.str().size() < 9); // Usually size = 4 or 5
-  char ave_psf_form_cstr[10];  
-  strcpy(ave_psf_form_cstr,ave_psf_form.str().c_str());
-  char rot_matrix_form_cstr[10];  
-  strcpy(rot_matrix_form_cstr,rot_matrix_form.str().c_str());
-  char interp_matrix_form_cstr[10];  
-  strcpy(interp_matrix_form_cstr,interp_matrix_form.str().c_str());
-#endif
+  std::string psf_order_col=params.get(prefix + "psf_order_col");
+  std::string sigma_col=params.get(prefix + "sigma_col");
+  std::string fit_order_col=params.get(prefix + "fit_order_col");
+  std::string npca_col=params.get(prefix + "npca_col");
 
-  std::string psf_order_name=params.get("fitpsf_psf_order_name");
-  std::string sigma_name=params.get("fitpsf_sigma_name");
-  std::string fit_order_name=params.get("fitpsf_fit_order_name");
-  std::string npca_name=params.get("fitpsf_npca_name");
+  std::string xmin_col=params.get(prefix + "xmin_col");
+  std::string xmax_col=params.get(prefix + "xmax_col");
+  std::string ymin_col=params.get(prefix + "ymin_col");
+  std::string ymax_col=params.get(prefix + "ymax_col");
 
-  std::string xmin_name=params.get("fitpsf_xmin_name");
-  std::string xmax_name=params.get("fitpsf_xmax_name");
-  std::string ymin_name=params.get("fitpsf_ymin_name");
-  std::string ymax_name=params.get("fitpsf_ymax_name");
+  std::string ave_psf_col=params.get(prefix + "ave_psf_col");
+  std::string rot_matrix_col=params.get(prefix + "rot_matrix_col");
+  std::string interp_matrix_col=params.get(prefix + "interp_matrix_col");
 
-  std::string ave_psf_name=params.get("fitpsf_ave_psf_name");
-  std::string rot_matrix_name=params.get("fitpsf_rot_matrix_name");
-  std::string interp_matrix_name=params.get("fitpsf_interp_matrix_name");
+  dbg<<"Before table_cols"<<std::endl;
+  const int nfields=11;
+  std::string table_cols[nfields] = {
+    psf_order_col,
+    sigma_col,
+    fit_order_col,
+    npca_col,
+    xmin_col,
+    xmax_col,
+    ymin_col,
+    ymax_col,
+    ave_psf_col,
+    rot_matrix_col,
+    interp_matrix_col
+  };
+  std::string table_types[nfields] = {
+    "1j",   // psforder
+    "1d",  // sigma
+    "1j",  // fitorder
+    "1j",  // npca
+    "1e",  // xmin  
+    "1e",  // xmax
+    "1e",  // ymin
+    "1e",  // ymax
+    ave_psf_form.str(),  // ave_psf
+    rot_matrix_form.str(),  // rot_matrix
+    interp_matrix_form.str()
+  };  // interp_matrix
+  std::string table_units[nfields] = {
+    "None",    // psforder
+    "arcsec", // sigma
+    "None",   // fitorder
+    "None",   // npca
+    "pixels",   // xmin
+    "pixels",   // xmax
+    "pixels",   // ymin
+    "pixels",   // ymax
+    "None",   // ave_psf
+    "None", // rot_matrix
+    "None"
+  };  // interp_matrix
 
-  int nfields=11;
-  char *table_names[] =  
-      {(char*)psf_order_name.c_str(),
-	(char*)sigma_name.c_str(),
-	(char*)fit_order_name.c_str(),
-	(char*)npca_name.c_str(),
-	(char*)xmin_name.c_str(),
-	(char*)xmax_name.c_str(),
-	(char*)ymin_name.c_str(),
-	(char*)ymax_name.c_str(),
-	(char*)ave_psf_name.c_str(),
-	(char*)rot_matrix_name.c_str(),
-	(char*)interp_matrix_name.c_str()};
-  char *table_types[] =  
-      {(char*)"1j",   // psforder
-	(char*)"1d",  // sigma
-	(char*)"1j",  // fitorder
-	(char*)"1j",  // npca
-	(char*)"1e",  // xmin  
-	(char*)"1e",  // xmax
-	(char*)"1e",  // ymin
-	(char*)"1e",  // ymax
-	(char*)ave_psf_form_cstr,  // ave_psf
-	(char*)rot_matrix_form_cstr,  // rot_matrix
-	(char*)interp_matrix_form_cstr};  // interp_matrix
-  char *table_units[] =  
-      {(char*)"None",    // psforder
-	(char*)"arcsec", // sigma
-	(char*)"None",   // fitorder
-	(char*)"None",   // npca
-	(char*)"pixels",   // xmin
-	(char*)"pixels",   // xmax
-	(char*)"pixels",   // ymin
-	(char*)"pixels",   // ymax
-	(char*)"None",   // ave_psf
-	(char*)"None", // rot_matrix
-	(char*)"None"};  // interp_matrix
-
-
-  // Create a binary table
-  int fits_status=0;
-  int tbl_type = BINARY_TBL;
-  int nrows=1;
-  fits_create_tbl(fptr, tbl_type, nrows, nfields, 
-      table_names, table_types, table_units, NULL, &fits_status);
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error creating FittedPSF FITS table";
-    throw FitsException(serr);
-  }
-
+  dbg<<"Before Create table"<<std::endl;
+  fits.CreateBinaryTable(1,nfields,table_cols,table_types,table_units);
+  dbg<<"After Create table"<<std::endl;
 
   // dimensions information
   std::stringstream tdim10;
@@ -319,106 +297,48 @@ void FittedPSF::WriteFits(std::string file, const ConfigFile& params) const
   fits.WriteKey("TDIM10",TSTRING,tdim10.str().c_str(),
       "dimensions of rot_matrix");
 
-
   std::stringstream tdim11;
   tdim11<<"("<<n_fit_coeff<<","<<n_shapelet_coeff<<")";
   fits.WriteKey("TDIM11",TSTRING,tdim11.str().c_str(),
       "dimensions of interp_matrix");
 
-  WriteFitsKeywords(fits, params);
+  fits.WriteParKey(params, "version", TSTRING);
+  fits.WriteParKey(params, "noise_method", TSTRING);
+  fits.WriteParKey(params, "dist_method", TSTRING);
+  fits.WriteParKey(params, prefix + "order", TLONG);
+  fits.WriteParKey(params, prefix + "pca_thresh", TDOUBLE);
+  dbg<<"After Write keys"<<std::endl;
 
   float xmin = bounds.GetXMin();
   float xmax = bounds.GetXMax();
   float ymin = bounds.GetYMin();
   float ymax = bounds.GetYMax();
 
-  colnum = 1;  
-  firstrow = 1;
-  firstel = 1;
-  nel = 1;
-  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &psforder);
+  fits.WriteColumn(TINT, 1, 1, 1, 1, &psforder);
 
+  fits.WriteColumn(TDOUBLE, 2, 1, 1, 1, &sigma);
 
-  colnum = 2;  
-  firstrow = 1;
-  firstel = 1;
-  nel = 1;
-  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, &sigma);
+  fits.WriteColumn(TINT, 3, 1, 1, 1, &fitorder);
 
-  colnum = 3;  
-  firstrow = 1;
-  firstel = 1;
-  nel = 1;
-  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &fitorder);
+  fits.WriteColumn(TINT, 4, 1, 1, 1, &npca);
 
-  colnum = 4;  
-  firstrow = 1;
-  firstel = 1;
-  nel = 1;
-  fits.WriteColumn(TLONG, colnum, firstrow, firstel, nel, &npca);
+  fits.WriteColumn(TFLOAT, 5, 1, 1, 1, &xmin);
 
+  fits.WriteColumn(TFLOAT, 6, 1, 1, 1, &xmax);
 
-  colnum = 5;  
-  firstrow = 1;
-  firstel = 1;
-  nel = 1;
-  fits.WriteColumn(TFLOAT, colnum, firstrow, firstel, nel, &xmin);
+  fits.WriteColumn(TFLOAT, 7, 1, 1, 1, &ymin);
 
-  colnum = 6;  
-  firstrow = 1;
-  firstel = 1;
-  nel = 1;
-  fits.WriteColumn(TFLOAT, colnum, firstrow, firstel, nel, &xmax);
+  fits.WriteColumn(TFLOAT, 8, 1, 1, 1, &ymax);
 
-  colnum = 7;  
-  firstrow = 1;
-  firstel = 1;
-  nel = 1;
-  fits.WriteColumn(TFLOAT, colnum, firstrow, firstel, nel, &ymin);
+  fits.WriteColumn(TDOUBLE, 9, 1, 1, n_shapelet_coeff, avepsf->cptr());
 
-  colnum = 8;  
-  firstrow = 1;
-  firstel = 1;
-  nel = 1;
-  fits.WriteColumn(TFLOAT, colnum, firstrow, firstel, nel, &ymax);
+  fits.WriteColumn(TDOUBLE, 10, 1, 1, n_rot_matrix, V->ptr());
 
-  colnum = 9;  
-  firstrow = 1;
-  firstel = 1;
-  nel = n_shapelet_coeff;
-  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, avepsf->cptr());
-
-#if 0
-  for (int i=0; i<n_shapelet_coeff; i++) {
-    for (int j=0; j<n_shapelet_coeff; j++) {
-      if (i >= npca) {
-	*(rot_matrix +j*n_shapelet_coeff + i) = 0;
-      }
-     // dbg
-     //	<<"rot_matrix["<<i<<"]["<<j<<"] = "
-     //	<<*(rot_matrix +j*n_shapelet_coeff + i)<<std::endl;
-    }
-  }
-#endif
-  colnum = 10;  
-  firstrow = 1;
-  firstel = 1;
-  nel = n_rot_matrix;
-  //nel = n_rot_matrix_max;
-  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, V->ptr());
-
-  colnum = 11;  
-  firstrow = 1;
-  firstel = 1;
-  nel = n_interp_matrix;
-  fits.WriteColumn(TDOUBLE, colnum, firstrow, firstel, nel, f->ptr());
-
-  fits.Close();
+  fits.WriteColumn(TDOUBLE, 11, 1, 1, n_interp_matrix, f->ptr());
 
   // Test FITS I/O:
   if (0) {
-    FittedPSF test;
-    test.Read(params);
+    FittedPSF test(params,"fitpsf_");
     // Compare  
     dbg<<"   orig psforder: "<<GetOrder()<<" new: "<<test.GetOrder()<<std::endl;
     dbg<<"   orig fitorder: "<<GetFitOrder()<<" new: "<<test.GetFitOrder()<<std::endl;
@@ -461,47 +381,41 @@ void FittedPSF::WriteFits(std::string file, const ConfigFile& params) const
   }
 }
 
-void FittedPSF::ReadFits(std::string file, int hdu, const ConfigFile& params)
+void FittedPSF::ReadFits(std::string file)
 {
   FitsFile fits(file);
 
+  int hdu = 2;
+  if (params.keyExists(prefix + "hdu")) hdu = params[prefix + "hdu"];
   dbg<<"Moving to HDU #"<<hdu<<std::endl;
   fits.GotoHDU(hdu);
 
   // Allocate memory for the columns we will read
   //ResizePSFCat(cat, nrows, psforder);
 
-  std::string psf_order_name=params.get("fitpsf_psf_order_name");
-  std::string sigma_name=params.get("fitpsf_sigma_name");
-  std::string fit_order_name=params.get("fitpsf_fit_order_name");
-  std::string npca_name=params.get("fitpsf_npca_name");
+  std::string psf_order_col=params.get(prefix + "psf_order_col");
+  std::string sigma_col=params.get(prefix + "sigma_col");
+  std::string fit_order_col=params.get(prefix + "fit_order_col");
+  std::string npca_col=params.get(prefix + "npca_col");
 
-  std::string xmin_name=params.get("fitpsf_xmin_name");
-  std::string xmax_name=params.get("fitpsf_xmax_name");
-  std::string ymin_name=params.get("fitpsf_ymin_name");
-  std::string ymax_name=params.get("fitpsf_ymax_name");
+  std::string xmin_col=params.get(prefix + "xmin_col");
+  std::string xmax_col=params.get(prefix + "xmax_col");
+  std::string ymin_col=params.get(prefix + "ymin_col");
+  std::string ymax_col=params.get(prefix + "ymax_col");
 
-  std::string ave_psf_name=params.get("fitpsf_ave_psf_name");
-  std::string rot_matrix_name=params.get("fitpsf_rot_matrix_name");
-  std::string interp_matrix_name=params.get("fitpsf_interp_matrix_name");
+  std::string ave_psf_col=params.get(prefix + "ave_psf_col");
+  std::string rot_matrix_col=params.get(prefix + "rot_matrix_col");
+  std::string interp_matrix_col=params.get(prefix + "interp_matrix_col");
 
   int nrows=1;
 
-  fits.ReadScalarCol(
-      (char *)psf_order_name.c_str(),
-      TLONG,  (char *)&psforder, nrows);
+  fits.ReadScalarCol(psf_order_col, TINT,  &psforder, nrows);
   xdbg<<"psforder = "<<psforder<<std::endl;
-  fits.ReadScalarCol(
-      (char *)sigma_name.c_str(),
-      TDOUBLE,  (char *)&sigma, nrows);
+  fits.ReadScalarCol(sigma_col, TDOUBLE, &sigma, nrows);
   xdbg<<"sigma = "<<sigma<<std::endl;
-  fits.ReadScalarCol(
-      (char *)fit_order_name.c_str(),
-      TLONG,  (char *)&fitorder, nrows);
+  fits.ReadScalarCol(fit_order_col, TINT, &fitorder, nrows);
   xdbg<<"fitorder = "<<fitorder<<std::endl;
-  fits.ReadScalarCol(
-      (char *)npca_name.c_str(),
-      TLONG,  (char *)&npca, nrows);
+  fits.ReadScalarCol(npca_col, TINT, &npca, nrows);
   xdbg<<"npca = "<<npca<<std::endl;
 
   float xmin;
@@ -509,21 +423,13 @@ void FittedPSF::ReadFits(std::string file, int hdu, const ConfigFile& params)
   float ymin;
   float ymax;
 
-  fits.ReadScalarCol(
-      (char *)xmin_name.c_str(),
-      TFLOAT,  (char *)&xmin, nrows);
+  fits.ReadScalarCol(xmin_col, TFLOAT, &xmin, nrows);
   xdbg<<"xmin = "<<xmin<<std::endl;
-  fits.ReadScalarCol(
-      (char *)xmax_name.c_str(),
-      TFLOAT,  (char *)&xmax, nrows);
+  fits.ReadScalarCol(xmax_col, TFLOAT, &xmax, nrows);
   xdbg<<"xmax = "<<xmax<<std::endl;
-  fits.ReadScalarCol(
-      (char *)ymin_name.c_str(),
-      TFLOAT,  (char *)&ymin, nrows);
+  fits.ReadScalarCol(ymin_col, TFLOAT, &ymin, nrows);
   xdbg<<"ymin = "<<ymin<<std::endl;
-  fits.ReadScalarCol(
-      (char *)ymax_name.c_str(),
-      TFLOAT,  (char *)&ymax, nrows);
+  fits.ReadScalarCol(ymax_col, TFLOAT, &ymax, nrows);
   xdbg<<"ymax = "<<ymax<<std::endl;
 
   bounds.SetXMin(xmin);
@@ -535,19 +441,13 @@ void FittedPSF::ReadFits(std::string file, int hdu, const ConfigFile& params)
   avepsf.reset(new BVec(psforder,sigma));
   int n_shapelet_coeff = (psforder+1)*(psforder+2)/2;
   Assert(int(avepsf->size()) == n_shapelet_coeff);
-  fits.ReadCell(
-      (char*)ave_psf_name.c_str(),
-      TDOUBLE, (char*)(avepsf->ptr()),
-      1, n_shapelet_coeff);
+  fits.ReadCell(ave_psf_col, TDOUBLE, avepsf->ptr(), 1, n_shapelet_coeff);
   xdbg<<"avepsf = "<<*avepsf<<std::endl;
 
   int n_rot_matrix = npca*n_shapelet_coeff;
   V.reset(new tmv::Matrix<double,tmv::RowMajor>(npca,avepsf->size()));
   Assert(int(V->LinearView().size()) == n_rot_matrix);
-  fits.ReadCell(
-      (char*)rot_matrix_name.c_str(),
-      TDOUBLE, (char*)(V->ptr()),
-      1, n_rot_matrix);
+  fits.ReadCell(rot_matrix_col, TDOUBLE, V->ptr(), 1, n_rot_matrix);
   xdbg<<"V = "<<*V<<std::endl;
 
   fitsize = (fitorder+1)*(fitorder+2)/2;
@@ -555,13 +455,8 @@ void FittedPSF::ReadFits(std::string file, int hdu, const ConfigFile& params)
   int n_interp_matrix = npca*fitsize;
   f.reset(new tmv::Matrix<double>(fitsize,npca));
   Assert(int(f->LinearView().size()) == n_interp_matrix);
-  fits.ReadCell(
-      (char*)interp_matrix_name.c_str(),
-      TDOUBLE, (char*)(f->ptr()),
-      1, n_interp_matrix);
+  fits.ReadCell(interp_matrix_col, TDOUBLE, f->ptr(), 1, n_interp_matrix);
   xdbg<<"f = "<<*f<<std::endl;
-
-  fits.Close();
 }
 
 void FittedPSF::InterpolateVector(

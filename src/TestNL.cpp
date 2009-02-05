@@ -60,8 +60,9 @@ class NonLinear : public NLSolver
 
     NonLinear(double sigma) : b(MM), t(MM)
     {
-      double xa[] = {-4.,-5.,4.,-4.};
-      tmv::Vector<double> x(4,xa);
+      //double xa[] = {-4.,-5.,4.,-4.};
+      tmv::Vector<double> x(4);
+      x = tmv::ListInit, -4., -5., 4., -4.;
 
       for(size_t i=0;i<MM;i++) {
 	t(i) = (i+0.5)*(0.5/MM);
@@ -102,12 +103,12 @@ class NonLinear2 : public NLSolver
 
     NonLinear2(double sigma) : b(MM), t(MM), A(MM,2), y(2)
     {
-      double x[] = {-4.,-5.};
-      double y[] = {4.,-4.};
+      double xx[2] = {-4.,-5.};
+      double yy[2] = {4.,-4.};
 
       for(size_t i=0;i<MM;i++) {
 	t(i) = (i+0.5)*(0.5/MM);
-	b(i) = y[0]*exp(x[0]*t(i)) + y[1]*exp(x[1]*t(i)) +
+	b(i) = yy[0]*exp(xx[0]*t(i)) + yy[1]*exp(xx[1]*t(i)) +
 	  sigma*(2.*double(rand())/RAND_MAX - 1.);
       }
       A.SaveDiv();
@@ -266,8 +267,9 @@ int main() try
     nlin.method = NLSolver::Newton;
 #endif
     nlin.min_step = 1.e-12;
-    double x0a[] = {-1., -2., 1., -1.};
-    tmv::Vector<double> x(4,x0a);
+    //double x0a[] = {-1., -2., 1., -1.};
+    tmv::Vector<double> x(4);
+    x = tmv::ListInit, -1., -2., 1., -1.;
     tmv::Vector<double> f(MM);
 
     //std::cout<<"xinit = "<<x<<std::endl;
@@ -287,8 +289,9 @@ int main() try
 #ifdef USEBEST
     nlin.method = NLSolver::Newton;
 #endif
-    double x0a[] = {-1., -2.};
-    tmv::Vector<double> x(2,x0a);
+    //double x0a[] = {-1., -2.};
+    tmv::Vector<double> x(2);
+    x = tmv::ListInit, -1., -2.;
     tmv::Vector<double> f(MM);
 
     //std::cout<<"xinit = "<<x<<std::endl;
@@ -335,8 +338,9 @@ int main() try
 #ifdef DOROSENBROCK
   { 
     std::cout<<"Test Rosenbrock\n";
-    double lambda[] = {0., 1.e-3, 1., 1.e4};
-    for(size_t i=0;i<4;i++) {
+    const int ntest = 4;
+    double lambda[ntest] = {0., 1.e-3, 1., 1.e4};
+    for(int i=0;i<ntest;i++) {
       Rosen ros(lambda[i]);
       ros.ftol = 1.e-20;
       ros.gtol = 1.e-10;

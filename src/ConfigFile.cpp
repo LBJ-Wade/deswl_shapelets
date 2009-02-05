@@ -87,9 +87,9 @@ bool ConfigFile::keyExists( const std::string& key ) const
 void ConfigFile::trim( std::string& s )
 {
   // Remove leading and trailing whitespace
-  const char whitespace[] = " \n\t\v\r\f";
+  std::string whitespace = " \n\t\v\r\f";
   s.erase( 0, s.find_first_not_of(whitespace) );
-  s.erase( s.find_last_not_of(whitespace) + 1U );
+  s.erase( s.find_last_not_of(whitespace) + 1);
 }
 
 

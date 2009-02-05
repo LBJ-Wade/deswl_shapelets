@@ -5,38 +5,24 @@
 #define DEFVALPOS 9999
 #define DEFVALNEG -9999
 
-// Flags for a given module should increase monotonically in this file in 
-// order to keep things straight
-
 //
-// Flags for the DoMeasurePSF processing
-// In DoMeasurePSF or MeasureSinglePSF
+// Flags 
 //
-#define MPSF_TMV_EXCEPTION            0x1
-#define MPSF_UNKNOWN_EXCEPTION        0x2
-#define MPSF_TRANSFORM_EXCEPTION      0x4
-#define MPSF_EDGE1                    0x8
-#define MPSF_LT10PIX1                 0x10
-#define MPSF_MEASURE_FAILED           0x20
-
-
-//
-// Flags for the DoMeasureShear processing
-// In DoMeasureShear or MeasureSingleShear
-//
-#define MSH_TRANSFORM_EXCEPTION     0x1
-#define MSH_FITTEDPSF_EXCEPTION     0x2
-#define MSH_TMV_EXCEPTION           0x4
-#define MSH_UNKNOWN_EXCEPTION       0x8
-#define MSH_EDGE1                   0x10
-#define MSH_LT10PIX1                0x20
-#define MSH_NATIVE_FAILED           0x40
-#define MSH_TOOSMALL                0x80
-#define MSH_EDGE2                   0x100
-#define MSH_LT10PIX2                0x200
-#define MSH_DECONV_FAILED           0x400
-#define MSH_SHEAR_FAILED            0x800
-#define MSH_SHAPELET_FAILED         0x1000
+#define INPUT_FLAG              0x1
+#define TRANSFORM_EXCEPTION     0x2
+#define FITTEDPSF_EXCEPTION     0x4
+#define TMV_EXCEPTION           0x8
+#define STD_EXCEPTION           0x10
+#define UNKNOWN_EXCEPTION       0x20
+#define EDGE                    0x40
+#define LT10PIX                 0x80
+#define MEASURE_PSF_FAILED      0x100
+#define NATIVE_FAILED           0x200
+#define TOOSMALL                0x400
+#define DECONV_FAILED           0x800
+#define SHEAR_FAILED            0x1000
+#define SHAPELET_FAILED         0x2000
+#define UNKNOWN_FAILURE         0x4000
 
 
 //

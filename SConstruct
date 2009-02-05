@@ -128,53 +128,38 @@ def BasicCCFlags(env):
     
         if compiler == 'g++':
             env.Replace(CCFLAGS=['-O2'])
-            env['TEST_FLAGS'] = []
             if version <= 4.2:
                 env.Append(CCFLAGS=['-fno-strict-aliasing'])
             if env['WARN']:
                 env.Append(CCFLAGS=['-ansi','-pedantic-errors','-Wall','-Werror'])
-                env['TEST_FLAGS'] = ['-ansi','-pedantic-errors','-Wall','-Werror']
     
         elif compiler == 'icpc':
             env.Replace(CCFLAGS=['-O2'])
-            env['TEST_FLAGS'] = []
             if version >= 10:
                 env.Append(CCFLAGS=['-vec-report0'])
-                env['TEST_FLAGS'] += ['-vec-report0']
             if env['WARN']:
                 env.Append(CCFLAGS=['-Wall','-Werror','-wd383,810,981'])
-                env['TEST_FLAGS'] += ['-Wall','-Werror','-wd383,810,981']
                 if version >= 9:
                     env.Append(CCFLAGS=['-wd1572'])
-                    env['TEST_FLAGS'] += ['-wd1572']
-                if version >= 10 and env['WITH_BLAS']:
-                    # These warning only show up in mkl.h:
-                    env.Append(CCFLAGS=['-wd424,193'])
                 if version >= 11:
                     env.Append(CCFLAGS=['-wd2259'])
-                    env['TEST_FLAGS'] += ['-wd2259']
 
         elif compiler == 'pgCC':
             env.Replace(CCFLAGS=['-O2','-fast','-Mcache_align'])
-            env['TEST_FLAGS'] = ['-O0']
 
         elif compiler == 'cl':
-            env.Replace(CCFLAGS=['/EHsc','/nologo','/O2','/Oi',])
-            env['TEST_FLAGS'] = ['/EHsc','/nologo']
+            env.Replace(CCFLAGS=['/EHsc','/nologo','/O2','/Oi'])
             if env['WARN']:
                 env.Append(CCFLAGS=['/W2','/WX'])
-                env['TEST_FLAGS'] += ['/W1','/WX']
 
         else:
             print 'Warning: Unknown compiler.  You should set FLAGS directly.'
             env.Replace(CCFLAGS=[])
-            env['TEST_FLAGS'] = []
 
     else :
         # If flags are specified as an option use them:
         cxx_flags = env['FLAGS'].split(' ')
         env.Replace(CCFLAGS=cxx_flags)
-        env['TEST_FLAGS'] = cxx_flags
 
     # Also parse the LIBS options if present
     if env['LIBS'] == '':
@@ -227,7 +212,7 @@ def AddOpenMPFlag(env):
 
     #print 'Adding openmp support:',flag
     print 'Using OpenMP'
-    env['OMP_FLAGS'] = flag 
+    env.Append(CCFLAGS=flag)
     env.Append(LINKFLAGS=ldflag)
     env.Append(LIBS=xlib)
 

@@ -40,8 +40,8 @@
 // 
 // See file example.cpp for more examples.
 
-#ifndef CONFIGFILE_H
-#define CONFIGFILE_H
+#ifndef ConfigFile_H
+#define ConfigFile_H
 
 #include <string>
 #include <map>

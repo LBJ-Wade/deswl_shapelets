@@ -2,11 +2,14 @@
 #root=decam--25--38-i-12_01
 root=decam--24--37-i-14_06
 echo FindStars
-time ./findstars ../example_config/wl.config root=$root debug_file=fs.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/ omp_num_threads=8
+echo ./findstars ../example_config/wl.config root=$root debug_file=fs.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/ 
+time ./findstars ../example_config/wl.config root=$root debug_file=fs.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/ 
 echo MeasurePSF:
-time ./measurepsf ../example_config/wl.config root=$root debug_file=mp.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/ omp_num_threads=8
+echo ./measurepsf ../example_config/wl.config root=$root debug_file=mp.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
+time ./measurepsf ../example_config/wl.config root=$root debug_file=mp.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
 echo MeasureShear:
-time ./measureshear ../example_config/wl.config root=$root debug_file=ms.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/ omp_num_threads=8
+echo ./measureshear ../example_config/wl.config root=$root debug_file=ms.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
+time ./measureshear ../example_config/wl.config root=$root debug_file=ms.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
 #echo Try execution with bad configfile:
 #./measurepsf foo root=$root input_prefix=data/ output_prefix=output/
 #./measureshear foo root=$root input_prefix=data/ output_prefix=output/

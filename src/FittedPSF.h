@@ -1,13 +1,13 @@
 #ifndef FitPSF_H
 #define FitPSF_H
 
+#include <vector>
+#include <iostream>
 #include "BVec.h"
 #include "Bounds.h"
 #include "ConfigFile.h"
 #include "dbg.h"
-#include "FitsFile.h"
-#include <vector>
-#include <iostream>
+#include "PSFCatalog.h"
 
 class FittedPSFAtXY;
 
@@ -15,12 +15,12 @@ class FittedPSF {
 
   public :
 
-    FittedPSF() {};
-    FittedPSF(const std::vector<BVec>& psf,
-	const std::vector<long>& flagvec,
-	const std::vector<Position>& pos,
-	const std::vector<double>& nu,
-	double sigma_p, const ConfigFile& params);
+    // Make from PSFCatalog
+    FittedPSF(const PSFCatalog& psfcat,
+	const ConfigFile& params, std::string key_prefix);
+
+    // Read from file
+    FittedPSF(const ConfigFile& params, std::string key_prefix);
 
     int GetOrder() const { return psforder; }
     int GetFitOrder() const { return fitorder; }
@@ -32,14 +32,13 @@ class FittedPSF {
     double GetYMin() const {return bounds.GetYMin();}
     double GetYMax() const {return bounds.GetYMax();}
 
-    void Write(const ConfigFile& params) const;
-    void Write(std::ostream& os) const;
-    void WriteFitsKeywords(FitsFile& fits, const ConfigFile& params) const;
-    void WriteFits(std::string file, const ConfigFile& params) const;
+    void Write() const;
+    void WriteAscii(std::string file) const;
+    void WriteFits(std::string file) const;
 
-    void Read(const ConfigFile& params);
-    void Read(std::istream& os);
-    void ReadFits(std::string file, int hdu, const ConfigFile& params);
+    void Read();
+    void ReadAscii(std::string file);
+    void ReadFits(std::string file);
 
     void Interpolate(Position pos, BVec& b) const
     {
@@ -47,15 +46,15 @@ class FittedPSF {
       Assert(V.get());
       Assert(b.GetOrder() == psforder);
       Assert(b.size() == avepsf->size());
-      Assert(b.GetSigma() == sigma);
+      b.SetSigma(sigma);
       InterpolateVector(pos,b.View());
     }
 
-    // Instead of:
-    // psf.Interpolate(pos,b);
-    // This next construct allows you to instead write:
+    // This next construct with FittedPSFAtXY allows you to write:
     // b = psf(pos);
-    // Both do the same thing.  I just like the second notation better.
+    // instead of:
+    // psf.Interpolate(pos,b);
+    // Both do the same thing.  I just like the first notation better.
     friend class FittedPSFAtXY;
     inline FittedPSFAtXY operator()(Position pos) const; // below...
 
@@ -63,6 +62,9 @@ class FittedPSF {
 
     void InterpolateVector(Position pos,
 	const tmv::VectorView<double>& b) const;
+
+    const ConfigFile& params;
+    std::string prefix;
 
     int psforder;
     double sigma;
@@ -74,10 +76,6 @@ class FittedPSF {
     std::auto_ptr<tmv::Matrix<double,tmv::RowMajor> > V;
     std::auto_ptr<tmv::Matrix<double> > f;
 };
-
-inline std::ostream& operator<<(std::ostream& os, const FittedPSF& p)
-{ p.Write(os); return os; }
-
 
 class FittedPSFAtXY : public tmv::AssignableToVector<double> {
 

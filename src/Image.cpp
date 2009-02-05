@@ -1,11 +1,40 @@
+
 #include "Image.h"
 #include "Function2D.h"
+#include "ConfigFile.h"
+#include "Name.h"
+
 #include <fitsio.h>
 
 template <class T> inline T SQR(const T& x) { return x*x; }
 template <class T> inline void SWAP(T& a, T& b) { T temp = a; a = b; b = temp; }
 
-template <class T> Image<T>::Image(const std::string& filename, int hdu) 
+template <class T>
+Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im)
+{
+  int image_hdu = 1;
+  if (params.keyExists("image_hdu")) image_hdu = params["image_hdu"];
+  ReadFits(Name(params,"image",true),image_hdu);
+  xdbg<<"Opened image "<<Name(params,"image",true)<<std::endl;
+
+  // Load weight image (if necessary)
+  if (params["noise_method"] == "WEIGHT_IMAGE") {
+    int weight_hdu = 1;
+    if (params.keyExists("weight_hdu")) weight_hdu = params["weight_hdu"];
+    weight_im.reset(
+	new Image<T>(Name(params,"weight",true),weight_hdu));
+    dbg<<"Opened weight image.\n";
+  }
+}
+
+template <class T> 
+Image<T>::Image(const std::string& filename, int hdu) 
+{
+  ReadFits(filename,hdu);
+}
+
+template <class T> 
+void Image<T>::ReadFits(const std::string& filename, int hdu) 
 {
   xxdbg<<"Start read fitsimage"<<std::endl;
   fitsfile *fptr;
@@ -55,7 +84,8 @@ template <class T> Image<T>::Image(const std::string& filename, int hdu)
   Assert(fitserr==0);
 }
 
-template <class T> void Image<T>::Flush(const std::string& filename)
+template <class T> 
+void Image<T>::Flush(const std::string& filename)
 {
   fitsfile *fptr;
   int fitserr=0;
@@ -70,7 +100,8 @@ template <class T> void Image<T>::Flush(const std::string& filename)
   Assert(fitserr==0);
 }
 
-template <class T> std::vector<std::vector<Image<T>*> > Image<T>::Divide(
+template <class T> 
+std::vector<std::vector<Image<T>*> > Image<T>::Divide(
     size_t nx, size_t ny) const
 {
   std::vector<size_t> x(nx+1);
@@ -88,7 +119,8 @@ template <class T> std::vector<std::vector<Image<T>*> > Image<T>::Divide(
   return blockimages;
 }
 
-template <class T> double Image<T>::Interpolate(double x, double y) const
+template <class T> 
+T Image<T>::Interpolate(double x, double y) const
 {
   Assert(x>=double(xmin) && x<double(xmax));
   Assert(y>=double(ymin) && y<double(ymax));
@@ -116,17 +148,18 @@ template <class T> double Image<T>::Interpolate(double x, double y) const
   if (j==-1) {j++; dy -= 1.;}
   Assert(i>=0 && j>=0 && i+1<int(itsm->colsize()) && j+1<=int(itsm->rowsize()));
 
-  double f0 = (*itsm)(i,j);
-  double f1 = (*itsm)(i+1,j);
-  double f2 = (*itsm)(i+1,j);
-  double f3 = (*itsm)(i+1,j+1);
-  double dfdx = f1-f0;
-  double dfdy = f2-f0;
-  double d2fdxdy = f3+f0-f1-f2;
+  T f0 = (*itsm)(i,j);
+  T f1 = (*itsm)(i+1,j);
+  T f2 = (*itsm)(i+1,j);
+  T f3 = (*itsm)(i+1,j+1);
+  T dfdx = f1-f0;
+  T dfdy = f2-f0;
+  T d2fdxdy = f3+f0-f1-f2;
   return f0 + dfdx*dx + dfdy*dy + d2fdxdy*dx*dy;
 }
   
-template <class T> double Image<T>::QuadInterpolate(double x, double y) const
+template <class T> 
+T Image<T>::QuadInterpolate(double x, double y) const
 {
   //static size_t count=0;
   //++count;
@@ -153,15 +186,15 @@ template <class T> double Image<T>::QuadInterpolate(double x, double y) const
   If any points are off the edge, we set them to the value they would
   have if the second derivative were 0 there.
 */
-  double f0 = (*itsm)(i,j);
-  double f1 = (i > 0) ? (*itsm)(i-1,j) : 0.;
-  double f2 = (i < itsm->colsize()-1) ? (*itsm)(i+1,j) : 0.;
-  double f3 = (j > 0) ? (*itsm)(i,j-1) : 0.;
-  double f4 = (j < itsm->rowsize()-1) ? (*itsm)(i,j+1) : 0.;
-  double f5 = (i > 0 && j > 0) ? (*itsm)(i-1,j-1) : 0.;
-  double f6 = (i < itsm->colsize()-1 && j > 0) ? (*itsm)(i+1,j-1) : 0.;
-  double f7 = (i > 0 && j < itsm->rowsize()-1) ? (*itsm)(i-1,j+1) : 0.;
-  double f8 = (i < itsm->colsize()-1 && j < itsm->rowsize()-1) ?
+  T f0 = (*itsm)(i,j);
+  T f1 = (i > 0) ? (*itsm)(i-1,j) : 0.;
+  T f2 = (i < itsm->colsize()-1) ? (*itsm)(i+1,j) : 0.;
+  T f3 = (j > 0) ? (*itsm)(i,j-1) : 0.;
+  T f4 = (j < itsm->rowsize()-1) ? (*itsm)(i,j+1) : 0.;
+  T f5 = (i > 0 && j > 0) ? (*itsm)(i-1,j-1) : 0.;
+  T f6 = (i < itsm->colsize()-1 && j > 0) ? (*itsm)(i+1,j-1) : 0.;
+  T f7 = (i > 0 && j < itsm->rowsize()-1) ? (*itsm)(i-1,j+1) : 0.;
+  T f8 = (i < itsm->colsize()-1 && j < itsm->rowsize()-1) ?
     (*itsm)(i+1,j+1) : 0.;
   if (i == 0) {
     f1 = 2*f0 - f2;
@@ -183,17 +216,18 @@ template <class T> double Image<T>::QuadInterpolate(double x, double y) const
     f7 = 2*f1 - f5;
     f8 = 2*f2 - f6;
   }
-  double dfdx = (f2-f1)/2.;
-  double dfdy = (f4-f3)/2.;
-  double d2fdx2 = (f1+f2-2.*f0);
-  double d2fdy2 = (f3+f4-2.*f0);
-  double d2fdxdy = (f5+f8-f7-f6)/4.;
-  double temp = f0 + dfdx*dx + dfdy*dy + 0.5*d2fdx2*dx*dx + 0.5*d2fdy2*dy*dy +
+  T dfdx = (f2-f1)/2.;
+  T dfdy = (f4-f3)/2.;
+  T d2fdx2 = (f1+f2-2.*f0);
+  T d2fdy2 = (f3+f4-2.*f0);
+  T d2fdxdy = (f5+f8-f7-f6)/4.;
+  T temp = f0 + dfdx*dx + dfdy*dy + 0.5*d2fdx2*dx*dx + 0.5*d2fdy2*dy*dy +
 	d2fdxdy*dx*dy;
   return temp;
 }
 
-template <class T> double Image<T>::Median() const
+template <class T> 
+T Image<T>::Median() const
 {
   std::vector<T> pixels;
   pixels.reserve(itsm->colsize()*itsm->rowsize());
@@ -204,29 +238,5 @@ template <class T> double Image<T>::Median() const
   return pixels[pixels.size()/2];
 }
 
-template <class T> inline void MultF(T f, double& x, double& y)
-  // (x+iy) *= f  
-  // This one is for real f
-{ y *= f; x *= f; }
-
-template <class T> inline void MultF2(T f, double& x, double& y)
-  // x+iy = f*x
-  // This one is for real f
-{ x *= f; }
-
-template <class T> inline void MultF(std::complex<T> f, double& x, double& y)
-  // (x+iy) *= f
-{
-  double origy = y;
-  y = y*real(f)+x*imag(f);
-  x = x*real(f)-origy*imag(f);
-}
-
-template <class T> inline void MultF2(std::complex<T> f, double& x, double& y)
-  // x+iy = f*x
-{
-  y = x*imag(f);
-  x *= real(f);
-}
-
 template class Image<double>;
+template class Image<float>;

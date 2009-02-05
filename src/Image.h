@@ -5,6 +5,7 @@
 
 #include "TMV.h"
 #include "Bounds.h"
+#include "ConfigFile.h"
 
 template <class T> class Image {
 
@@ -28,6 +29,8 @@ template <class T> class Image {
       sourcem(new tmv::Matrix<T,tmv::ColMajor>(
 	    rhs.itsm->SubMatrix(x1,x2,y1,y2))),
       itsm(new tmv::MatrixView<T>(sourcem->View())) {}
+
+    Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im);
 
     ~Image() {}
 
@@ -65,10 +68,10 @@ template <class T> class Image {
     std::vector<std::vector<Image*> > Divide(size_t nx, size_t ny) const; 
     // SubImages refer to the same storage as this.
 
-    double Interpolate(double x, double y) const;
-    double QuadInterpolate(double x, double y) const;
+    T Interpolate(double x, double y) const;
+    T QuadInterpolate(double x, double y) const;
 
-    double Median() const;
+    T Median() const;
 
   private:
 
@@ -80,6 +83,8 @@ template <class T> class Image {
 	size_t x1, size_t x2, size_t y1, size_t y2) :
       xmin(x1), xmax(x2), ymin(y1), ymax(y2),
       sourcem(0), itsm(new tmv::MatrixView<T>(m)) {}
+
+    void ReadFits(const std::string& fitsfile, int hdu=1); 
 
 };
 

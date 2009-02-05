@@ -10,140 +10,56 @@
 #include <string>
 #include <sstream>
 #include <iostream>
-#include "fitsio.h"
-
 #include <vector>
-#include <cstring>
-
-// in case we don't have the ConfigFile class available
-#define HAVE_CONFIG_FILE
-
-#ifdef HAVE_CONFIG_FILE
-#include "ConfigFile.h"
-#endif
+#include "fitsio.h"
 
 class FitsException : public std::runtime_error {
   public:
-    FitsException(const char* m) : std::runtime_error(m) {};
     FitsException(std::string m) : std::runtime_error(m) {};
 };
-
 
 class FitsFile
 {
   public:
     FitsFile() {};
-    FitsFile(const char* filename, int mode=READONLY, bool create=false);
     FitsFile(std::string filename, int mode=READONLY, bool create=false);
     ~FitsFile();
 
-    void Open(const char* filename, int mode=READONLY, bool create=false);
     void Open(std::string filename, int mode=READONLY, bool create=false);
     void Close();
     // Read a binary fits column
 
-    void ReadScalarCol(
-	char* colname, 
-	int coltype, 
-	char* dptr,
-	long long nrows);
-    void ReadCell(
-	char* colname, 
-	int coltype, 
-	char* dptr,
-	LONGLONG row,
-	LONGLONG nel);
+    void ReadScalarCol(std::string colname, int coltype, void* dptr,
+	LONGLONG nrows);
+    void ReadCell(std::string colname, int coltype, void* dptr,
+	LONGLONG row, LONGLONG nel);
 
-#ifdef HAVE_CONFIG_FILE
-    void WriteParKey(const ConfigFile& params, const char* name, int type);
+#ifdef ConfigFile_H
+    void WriteParKey(const ConfigFile& params, std::string name, int type);
 #endif
 
-    template <class T> void 
-      WriteColumn(
-	  int datatype, 
-	  int colnum, 
-	  LONGLONG firstrow, 
-	  LONGLONG firstel,
-	  LONGLONG nel,
-	  const T* data)
-      {
-	int fits_status=0;
-	fits_write_col(
-	    mFptr, datatype, 
-	    colnum, firstrow, firstel, nel, 
-	    (void*)data, 
-	    &fits_status);
-	if (!fits_status==0) {
-	  fits_report_error(stderr, fits_status); 
-	  std::stringstream serr;
-	  serr<<"Error writing to fits column "<<colnum;
-	  throw FitsException(serr.str());
-	}
+    void ReadKey(std::string name, int dtype, void* dptr);
+    void WriteKey(std::string name, int datatype, const void* value,
+	std::string comment);
+    void WriteColumn(int datatype, int colnum,
+	LONGLONG firstrow, LONGLONG firstel, LONGLONG nel, const void* data);
 
+    void CreateBinaryTable(
+	LONGLONG nrows,
+	const std::vector<std::string>& names,
+	const std::vector<std::string>& types,
+	const std::vector<std::string>& units);
+    void CreateBinaryTable(
+	LONGLONG nrows, int nfields,
+	const std::string* names,
+	const std::string* types,
+	const std::string* units);
 
-      }
-
-
-
-    void ReadKey(char const* name, int dtype, char* dptr);
-
-    void WriteKey(
-	const char* name,
-	int datatype,
-	const char* cstr, 
-	const char* comment) {
-
-      int fits_status=0;
-      fits_write_key(
-	  mFptr, 
-	  datatype, 
-	  (char*)name, 
-	  (char*)cstr, 
-	  (char*)comment,
-	  &fits_status);
-
-      if (!fits_status==0) {
-	fits_report_error(stderr, fits_status); 
-	std::stringstream serr;
-	serr<<"Error writing keyword "<<name;
-	throw FitsException(serr.str());
-      }
-
-    }
-
-    template <class T> void WriteKey(
-	const char* name,
-	int datatype,
-	T& val, 
-	const char* comment) {
-
-      int fits_status=0;
-      fits_write_key(
-	  mFptr, 
-	  datatype, 
-	  (char*)name, 
-	  &val, 
-	  (char*)comment,
-	  &fits_status);
-
-      if (!fits_status==0) {
-	fits_report_error(stderr, fits_status); 
-	std::stringstream serr;
-	serr<<"Error writing keyword "<<name;
-	throw FitsException(serr.str());
-      }
-
-
-    }
-
-
-    long ReadLongKey(char const* name);
+    long ReadLongKey(std::string name);
 
     void GotoHDU(int hdu);
 
-    fitsfile* get_fptr() { 
-      return mFptr;
-    }
+    fitsfile* get_fptr() { return mFptr; }
 
   protected:
     std::string mFileName;
