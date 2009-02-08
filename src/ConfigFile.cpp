@@ -30,6 +30,10 @@ void ConfigFile::Load( std::string filename, std::string delimiter,
 {
   // Construct a ConfigFile, getting keys and values from given file
 
+  std::string delimiter1 = myDelimiter;
+  std::string comment1 = myComment;
+  std::string sentry1 = mySentry;
+
   if (delimiter != "") myDelimiter = delimiter;
   if (comment != "") myComment = comment;
   if (sentry != "") mySentry = sentry;
@@ -44,8 +48,11 @@ void ConfigFile::Load( std::string filename, std::string delimiter,
 #endif
 
   in >> (*this);
-}
 
+  myDelimiter = delimiter1;
+  myComment = comment1;
+  mySentry = sentry1;
+}
 
 ConvertibleString& ConfigFile::getnocheck( const std::string& key )
 {

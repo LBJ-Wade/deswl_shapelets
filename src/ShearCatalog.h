@@ -19,10 +19,10 @@ class ShearCatalog
 
     // Make from incat, trans
     ShearCatalog(const InputCatalog& incat, const Transformation& trans,
-	const ConfigFile& _params, std::string key_prefix = "");
+	const ConfigFile& _params);
 
     // Read from file
-    ShearCatalog(const ConfigFile& _params, std::string key_prefix = "");
+    ShearCatalog(const ConfigFile& _params);
 
     size_t size() const { return id.size(); }
     void Read();
@@ -51,7 +51,6 @@ class ShearCatalog
   private :
 
     const ConfigFile& params;
-    std::string prefix;
 
 };
 

@@ -2,17 +2,24 @@
 #root=decam--25--38-i-12_01
 root=decam--24--37-i-14_06
 echo FindStars
-echo ./findstars ../example_config/wl.config root=$root debug_file=fs.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/ 
-time ./findstars ../example_config/wl.config root=$root debug_file=fs.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/ 
+echo ./findstars ../example_config/wl.config image_file=data/$root.fits.fz output_prefix=output/ debug_file=fs.debug verbose=1 output_dots=1 
+time ./findstars ../example_config/wl.config image_file=data/$root.fits.fz output_prefix=output/ debug_file=fs.debug verbose=1 output_dots=1 
+#echo ./findstars ../example_config/wl.config root=$root input_prefix=data/ output_prefix=output/ debug_file=fs.debug verbose=1 output_dots=1 
+#time ./findstars ../example_config/wl.config root=$root input_prefix=data/ output_prefix=output/ debug_file=fs.debug verbose=1 output_dots=1 
 echo MeasurePSF:
-echo ./measurepsf ../example_config/wl.config root=$root debug_file=mp.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
-time ./measurepsf ../example_config/wl.config root=$root debug_file=mp.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
+echo ./measurepsf ../example_config/wl.config root=$root input_prefix=data/ output_prefix=output/ debug_file=mp.debug verbose=1 output_dots=1 
+time ./measurepsf ../example_config/wl.config root=$root input_prefix=data/ output_prefix=output/ debug_file=mp.debug verbose=1 output_dots=1 
 echo MeasureShear:
-echo ./measureshear ../example_config/wl.config root=$root debug_file=ms.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
-time ./measureshear ../example_config/wl.config root=$root debug_file=ms.debug verbose=1 output_dots=1 input_prefix=data/ output_prefix=output/
+echo ./measureshear ../example_config/wl.config root=$root input_prefix=data/ output_prefix=output/ debug_file=ms.debug verbose=1 output_dots=1 
+time ./measureshear ../example_config/wl.config root=$root input_prefix=data/ output_prefix=output/ debug_file=ms.debug verbose=1 output_dots=1 
+echo FullPipeline
+echo ./fullpipe ../example_config/wl.config root=$root input_prefix=data/ output_prefix=output/ debug_file=ms.debug verbose=1 output_dots=1 
+time ./fullpipe ../example_config/wl.config root=$root input_prefix=data/ output_prefix=output/ debug_file=ms.debug verbose=1 output_dots=1 
 #echo Try execution with bad configfile:
+#./findstars foo root=$root input_prefix=data/ output_prefix=output/
 #./measurepsf foo root=$root input_prefix=data/ output_prefix=output/
 #./measureshear foo root=$root input_prefix=data/ output_prefix=output/
 #echo Try execution with bad imagename:
-#./measurepsf ../example_config/wl.config stars_file=$(root)_stars.fits root=foo
-#./measureshear ../example_config/wl.config shear_file=$(root)_shear.fits
+#./findstars ../example_config/wl.config stars_file=$(root)_stars.fits root=foo
+#./measurepsf ../example_config/wl.config psf_file=$(root)_psf.fits root=foo
+#./measureshear ../example_config/wl.config shear_file=$(root)_shear.fits root=foo

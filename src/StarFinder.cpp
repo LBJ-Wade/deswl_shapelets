@@ -16,10 +16,16 @@
 #include "PotentialStar.h"
 #include "Histogram.h"
 #include "ConfigFile.h"
+#include "fspd.h"
 
-#define SFKeyAssign(k) k = params[ key_prefix + #k ]
+#define SFKeyAssign(k) \
+  if (mustexist || params.keyExists(key_prefix + #k)) \
+      k = params[ key_prefix + #k ];\
+  xdbg << "SFAssign " #k " = " << k << \
+      " from parameter "<<(key_prefix + #k)<<std::endl
 
-StarFinder::StarFinder(const ConfigFile& params, std::string key_prefix) 
+void StarFinder::SetParams(const ConfigFile& params, std::string key_prefix,
+    bool mustexist)
 {
   SFKeyAssign(minsize);
   SFKeyAssign(maxsize);
@@ -51,6 +57,20 @@ StarFinder::StarFinder(const ConfigFile& params, std::string key_prefix)
   SFKeyAssign(fitorder);
   SFKeyAssign(fitsigclip);
   SFKeyAssign(maxrefititer);
+}
+
+StarFinder::StarFinder(const ConfigFile& params, std::string key_prefix)
+{
+  std::string fspd((const char*)findstars_params_default,
+      findstars_params_default_len);
+  std::istringstream is(fspd);
+  ConfigFile default_params;
+  default_params.setDelimiter("\t");
+  default_params.setComment("#");
+  default_params.Read(is);
+  SetParams(default_params,"",true);
+
+  SetParams(params,key_prefix);
 }
 
 #undef SFKeyAssign
@@ -488,20 +508,21 @@ std::vector<PotentialStar*> StarFinder::GetPeakList(
     // Has to be this way, since valleycount can be 0,
     // so peakcount/valleycount can be undefined.
     double signif = (double)valleycount/(double)peakcount;
-    xdbg<<"signif = "<<signif<<std::endl;
+    dbg<<"signif = "<<valleycount<<"/"<<peakcount<<" = "<<signif<<std::endl;
 
     // If the valley count is <= okvalcount then drop the significance
     // to 0 regardless of the peak count, since sometimes the peak is fairly
     // broad so peakcount isn't high enough to get a good ratio.
     if (firstpass && valleycount <= okvalcount) {
       signif = 0.;
-      xdbg<<"reset signif to 0, since valleycount "<<valleycount<<" <= ";
-      xdbg<<okvalcount<<std::endl;
+      dbg<<"reset signif to 0, since valleycount "<<valleycount<<" <= ";
+      dbg<<okvalcount<<std::endl;
     }
 
     // If we have a new good peak, get all the stars in it for peaklist
     // Also make sure we repeat the loop by setting done = false
     if (signif <= maxsignifratio) {
+      dbg<<"signif = "<<signif<<" <= "<<maxsignifratio<<std::endl;
       xdbg<<"good signif value\n";
       // Range is symmetrical about peakvalue with upper limit at valley
       double peakstart = std::min(2.*peak-valley,peak-binsize*0.5);
@@ -538,7 +559,7 @@ std::vector<PotentialStar*> StarFinder::GetPeakList(
       }
     }
     else {
-      xdbg<<"signif = "<<signif<<" > "<<maxsignifratio<<std::endl;
+      dbg<<"signif = "<<signif<<" > "<<maxsignifratio<<std::endl;
       done=true; // maybe.  still loop if count < miniter
     }
 
@@ -604,12 +625,14 @@ void StarFinder::RoughlyFitBrightStars(
   xdbg<<"brightlist is:\n";
   for(size_t i=0; i<std::min(size_t(20),brightlist.size()); i++)
     xdbg<<brightlist[i]->GetMag()<<" , "<<brightlist[i]->GetSize()<<std::endl;
+  if (brightlist.size() > 20) 
+    xdbg<<"...  (total of "<<brightlist.size()<<" elements)\n";
   // Of the smallest 15, find the 5 that form the tightest peak
   // Originally I hardcoded this number as 5, but now it is calculated
   // from starfrac.
   size_t five = size_t(0.5*starfrac*brightlist.size());
-  if (five < 5) five = 5;
   xdbg<<"'five' = "<<five<<std::endl;
+  if (five < 5) { five = 5; xdbg<<"'five' => "<<five<<std::endl; }
   if (3*five-1 >= brightlist.size()) {
     std::ostringstream err;
     err<<"Too few objects in brightlist.  Increase startn1.";

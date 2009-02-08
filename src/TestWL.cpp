@@ -1,17 +1,23 @@
 
+#include <fstream>
+#include <iostream>
+#include <cmath>
+
 #include "BVec.h"
 #include "Ellipse.h"
 #include "EllipseSolver.h"
 #include "TMV.h"
 #include "TMV_Small.h"
-#include <fstream>
-#include <iostream>
-#include <cmath>
 #include "dbg.h"
 #include "TestHelper.h"
-#include "DoMeasure.h"
+#include "Log.h"
+#include "InputCatalog.h"
+#include "StarCatalog.h"
+#include "PSFCatalog.h"
+#include "FittedPSF.h"
+#include "ShearCatalog.h"
 
-bool showtests = true;
+bool showtests = false;
 bool dontthrow = false;
 std::string lastsuccess = "";
 
@@ -21,8 +27,8 @@ const double sqrtpi = sqrt(PI);
 std::ostream* dbgout = new std::ofstream("testwl.debug");
 //std::ostream* dbgout = 0;
 //std::ostream* dbgout = &std::cout;
-//bool XDEBUG = true;
-bool XDEBUG = false;
+bool XDEBUG = true;
+//bool XDEBUG = false;
 
 #if 0
 #define TEST1
@@ -722,6 +728,8 @@ inline void DirectConvolveB(const BVec& rbi, const BVec& rbp, BVec& rb)
 
 int main(int argc, char **argv) try 
 {
+  tmv::WriteWarningsTo(dbgout);
+
   // First check that the functions work very well in the limit of
   // well sampled (pixscale = 0.1), large aperture (aperture = 15.)
   // data with exact shapelet intensity patterns.
@@ -729,7 +737,7 @@ int main(int argc, char **argv) try
   // will nonetheless be as accurate as possible give the data available.
 
   //double Dvec[] = {0.14,-0.02,-0.015,0.11};
-  tmv::SmallMatrix<double,2,2,tmv::RowMajor> D
+  tmv::SmallMatrix<double,2,2,tmv::RowMajor> D;
   D = tmv::ListInit,
     0.14, -0.02,
     -0.015, 0.11;
@@ -1715,53 +1723,185 @@ int main(int argc, char **argv) try
 #endif
 
 #ifdef TEST6
-  ConfigFile params;
-  // MJ: This is now out of date.
-  params["root"] = "N/fldn422_4.";
-  params["image_ext"] = "fits";
-  params["cat_ext"] = "starE";
-  params["dist_ext"] = "undfunc2";
-  params["psf_ext"] = "psf";
-  params["fitpsf_ext"] = "fitpsf";
-  params["noise_method"] = "GAIN_FITS";
-  params["gain_key"] = "GAIN";
-  params["readnoise_key"] = "RON";
-  params["dist_method"] = "FUNC2D";
-  params["i_x"] = 2;
-  params["i_y"] = 3;
-  params["i_sky"] = 6;
-  params["i_errcode"] = 14;
-  params["psf_aperture"] = 7.;
-  params["psf_order"] = 10;
-  params["fitpsf_order"] = 2;
-  params["fitpsf_pca_thresh"] = 1.e-3;
-  params["output_dots"] = 1;
+  ConfigFile params("testwl.config");
+  params.Load("findstars.params.btc","\t");
+  params.Load("fitsparams.config");
+
+  // Read input files
+  std::auto_ptr<Image<double> > weight_im;
+  Image<double> im(params,weight_im);
+  Transformation trans(params);
+  InputCatalog incat(params);
+
+  // Find stars
+  StarCatalog starcat(incat,params,"");
+  //starcat.CalcSizes(im,weight_im.get(),trans);
+  FindStarsLog fslog("testfs.log");
+  int nstars = starcat.FindStars(fslog);
+  dbg<<fslog<<std::endl;
+  Test(nstars >= 240,"Find Stars");
+
+  // Test I/O
+  starcat.Write();
+  StarCatalog starcat2(params,"");
+  std::vector<std::string> all_ext = params["stars_ext"];
+  for(size_t k=0;k<all_ext.size();++k) {
+    dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
+    params["stars_ext"] = all_ext[k];
+    if (k > 0) starcat2.Read();
+    Test(starcat.size() == starcat2.size(),"starcat size I/O");
+    for(size_t i=0;i<starcat.size();++i) {
+      Test(starcat.id[i] == starcat2.id[i],"starcat id I/O");
+      Test(std::abs(starcat.pos[i] - starcat2.pos[i]) <= 0.01,"starcat pos I/O");
+      Test(std::abs(starcat.sky[i] - starcat2.sky[i]) <= 0.01,"starcat sky I/O");
+      Test(std::abs(starcat.noise[i] - starcat2.noise[i]) <= 0.01,
+	  "starcat noise I/O");
+      Test(starcat.flags[i] == starcat2.flags[i],"starcat flags I/O");
+      dbg<<"starcat.mag[i] = "<<starcat.mag[i]<<
+	", starcat2.mag[i] = "<<starcat2.mag[i]<<std::endl;
+      dbg<<"abs(diff) = "<<std::abs(starcat.mag[i] - starcat2.mag[i])<<std::endl;
+      Test(std::abs(starcat.mag[i] - starcat2.mag[i]) <= 0.01,
+	  "starcat mag I/O");
+      Test(std::abs(starcat.objsize[i] - starcat2.objsize[i]) <= 0.01,
+	  "starcat objsize I/O");
+      Test(starcat.isastar[i] == starcat2.isastar[i],"starcat isastar I/O");
+    }
+  }
+  params["stars_ext"] = all_ext;
+
+  // Measure PSF
+  PSFCatalog psfcat(starcat,params);
+  double sigma_p = psfcat.EstimateSigma(im,weight_im.get(),trans);
   PSFLog psflog("testpsf.log");
-  int success1 = DoMeasurePSF(params,psflog);
-  dbg<<"PSF sucess = "<<success1<<std::endl;
-  // There are 241 stars in the file, but depending on the exact parameters,
+  int npsf = psfcat.MeasurePSF(im,weight_im.get(),trans,sigma_p,psflog);
+  dbg<<psflog<<std::endl;
+  // There are 244 stars in the file, but depending on the exact parameters,
   // one or two cross the edge, which gives an error flag.
   // The rest should all be measured successfully.
-  Test(success1 >= 239,"DoMeasurePSF");
-  std::cout<<"Passed DoMeasurePSF test\n";
-  params["cat_ext"] = "pcatE";
-  params["shear_ext"] = "shear";
-  params["f_psf"] = 1.0;
-  params["gal_order"] = 6;
-  params["gal_order2"] = 2;
-  params["gal_aperture"] = 3.;
-  params["min_gal_size"] = 1.0;
+  Test(npsf >= 240,"Measure PSF");
+
+  // Test I/O
+  psfcat.Write();
+  PSFCatalog psfcat2(params);
+  all_ext = params["psf_ext"];
+  for(size_t k=0;k<all_ext.size();++k) {
+    dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
+    params["psf_ext"] = all_ext[k];
+    if (k > 0) psfcat2.Read();
+    Test(psfcat.size() == psfcat2.size(),"psfcat size I/O");
+    for(size_t i=0;i<psfcat.size();++i) {
+      Test(psfcat.id[i] == psfcat2.id[i],"psfcat id I/O");
+      Test(std::abs(psfcat.pos[i] - psfcat2.pos[i]) <= 0.01,"psfcat pos I/O");
+      Test(std::abs(psfcat.sky[i] - psfcat2.sky[i]) <= 0.01,"psfcat sky I/O");
+      Test(std::abs(psfcat.noise[i] - psfcat2.noise[i]) <= 0.01,
+	  "psfcat noise I/O");
+      Test(psfcat.flags[i] == psfcat2.flags[i],"psfcat flags I/O");
+      Test(std::abs(psfcat.nu[i] - psfcat2.nu[i]) <= 0.01,"psfcat nu I/O");
+      Test(psfcat.psf[i].size() == psfcat2.psf[i].size(),"psfcat psf.size I/O");
+      Test(std::abs(psfcat.psf[i].GetSigma() - psfcat2.psf[i].GetSigma()) 
+	  <= 0.01, "psfcat psf.GetSigma I/O");
+      Test(Norm(psfcat.psf[i] - psfcat2.psf[i]) <= 1.e-4*Norm(psfcat.psf[i]),
+	  "psfcat psf vector I/O");
+    }
+  }
+  params["psf_ext"] = all_ext;
+
+  // Fit PSF
+  FittedPSF fitpsf(psfcat,params);
+  double rms = 0.; 
+  int count = 0;
+  for(int i=0;i<nstars;i++) if (!psfcat.flags[i]) {
+    BVec checkpsf(fitpsf.GetPSFOrder(),fitpsf.GetSigma());
+    checkpsf = fitpsf(starcat.pos[i]);
+    double normsqdiff = NormSq(psfcat.psf[i]-checkpsf);
+    rms += normsqdiff;
+    count++;
+  }
+  rms /= count;
+  rms = sqrt(rms);
+  dbg<<"fitpsf rms = "<<rms<<std::endl;
+  Test(rms < double(fitpsf.GetPSFSize())/double(fitpsf.GetFitSize()),
+      "Fit PSF rms");
+
+  // Test I/O
+  fitpsf.Write();
+  FittedPSF fitpsf2(params);
+  all_ext = params["fitpsf_ext"];
+  for(size_t k=0;k<all_ext.size();++k) {
+    dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
+    params["fitpsf_ext"] = all_ext[k];
+    if (k > 0) fitpsf2.Read();
+    rms = 0.; 
+    count = 0;
+    Test(fitpsf2.GetPSFOrder() == fitpsf.GetPSFOrder(), "FittedPSF I/O: order");
+    Test(std::abs(fitpsf2.GetSigma() - fitpsf.GetSigma()) < 0.01, 
+	"FittedPSF I/O: sigma");
+    for(int i=0;i<nstars;i++) if (!psfcat.flags[i]) {
+      BVec checkpsf(fitpsf.GetPSFOrder(),fitpsf.GetSigma());
+      checkpsf = fitpsf(starcat.pos[i]);
+      BVec checkpsf2(fitpsf2.GetPSFOrder(),fitpsf2.GetSigma());
+      checkpsf2 = fitpsf2(starcat.pos[i]);
+      double normsqdiff = NormSq(checkpsf2-checkpsf);
+      rms += normsqdiff;
+      ++count;
+    }
+    rms /= count;
+    rms = sqrt(rms);
+    dbg<<"fitpsf I/O rms = "<<rms<<std::endl;
+    Test(rms < 1.e-4,"Fit PSF I/O");
+  }
+  params["fitpsf_ext"] = all_ext;
+
+  // Measure shears
+  ShearCatalog shearcat(incat,trans,params);
   ShearLog shearlog("testshear.log");
-  int success2 = DoMeasureShear(params,shearlog);
-  dbg<<"Shear sucess = "<<success2<<std::endl;
-  // There are 3681 galaxies in the file without error codes.
-  // Lots of these are too small and such.  But also, the fitting 
-  // code has trouble convergine on quite a few of them.
-  // (I'm still working on that...)
-  // The code currently converges on more than 1600 of them.
-  // So for now, 1500 seems like a good minimum number for the test.
-  Test(success2 >= 1500,"DoMeasureShear");
-  std::cout<<"Passed DoMeasureShear test\n";
+  int nshear = shearcat.MeasureShears(im,weight_im.get(),trans,fitpsf,shearlog);
+  dbg<<shearlog<<std::endl;
+  // There are 4557 galaxies in the file without error codes.
+  // The code currently converges on more than 3000 of them,
+  // although only about 2300 or so have no error flag.
+  Test(nshear >= 3000,"Measure Shear");
+
+  // Test I/O
+  shearcat.Write();
+  ShearCatalog shearcat2(params);
+  all_ext = params["shear_ext"];
+  for(size_t k=0;k<all_ext.size();++k) {
+    dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
+    params["shear_ext"] = all_ext[k];
+    if (k > 0) shearcat2.Read();
+    Test(shearcat.size() == shearcat2.size(),"shearcat size I/O");
+    for(size_t i=0;i<shearcat.size();++i) {
+      Test(shearcat.id[i] == shearcat2.id[i],"shearcat id I/O");
+      Test(std::abs(shearcat.pos[i] - shearcat2.pos[i]) <= 0.01,
+	  "shearcat pos I/O");
+      Test(std::abs(shearcat.sky[i] - shearcat2.sky[i]) <= 0.01,
+	  "shearcat sky I/O");
+      Test(std::abs(shearcat.noise[i] - shearcat2.noise[i]) <= 0.01,
+	  "shearcat noise I/O");
+      Test(shearcat.flags[i] == shearcat2.flags[i],"shearcat flags I/O");
+      Test(std::abs(shearcat.skypos[i] - shearcat2.skypos[i]) <= 0.01,
+	  "shearcat skypos I/O");
+      Test(std::abs(shearcat.shear[i] - shearcat2.shear[i]) <= 0.01,
+	  "shearcat shear I/O");
+      Test(std::abs(shearcat.nu[i] - shearcat2.nu[i]) <= 0.01,
+	  "shearcat nu I/O");
+      Test(Norm(tmv::Matrix<double>(shearcat.cov[i] - shearcat2.cov[i]))
+	  <= 1.e-4*Norm(shearcat.cov[i]), "shearcat cov I/O");
+      Test(shearcat.shape[i].size() == shearcat2.shape[i].size(),
+	  "shearcat shape.size I/O");
+      dbg<<"sigma1 = "<<shearcat.shape[i].GetSigma()<<
+	"  sigma2 = "<<shearcat2.shape[i].GetSigma()<<std::endl;
+      dbg<<"abs(diff) = "<<(std::abs(shearcat.shape[i].GetSigma()-shearcat2.shape[i].GetSigma()))<<std::endl;
+      Test(std::abs(shearcat.shape[i].GetSigma()-shearcat2.shape[i].GetSigma())
+	  <= 0.01, "shearcat shape.GetSigma I/O");
+      Test(Norm(shearcat.shape[i] - shearcat2.shape[i]) 
+	  <= 1.e-4*Norm(shearcat.shape[i]),"shearcat shape vector I/O");
+    }
+  }
+  params["shear_ext"] = all_ext;
+
+  std::cout<<"Passed full pipeline\n";
 #endif
 
   if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}

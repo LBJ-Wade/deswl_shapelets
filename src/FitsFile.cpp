@@ -1,8 +1,9 @@
 
+#include <cstring>
+#include <sstream>
 #include "ConfigFile.h"
 #include "FitsFile.h"
 #include "dbg.h"
-#include <cstring>
 
 
 FitsFile::FitsFile(std::string filename, int mode, bool create)
@@ -46,68 +47,21 @@ void FitsFile::Close()
 }
 
 
-// only if we have config file available
-#ifdef ConfigFile_H
-void FitsFile::WriteParKey(const ConfigFile& params, std::string cname,
-    int type)
-{
-
-  std::string key = cname;
-  std::string hname_key = key + "_hname";
-  std::string comment_key = key + "_comment";
-
-  std::string hname=params.get(hname_key);
-  std::string comment=params.get(comment_key);
-
-  switch (type) {
-    case TSTRING:
-      {
-	std::string val=params.get(key);
-	WriteKey(hname, type, val.c_str(), comment);
-      }
-      break;
-    case TDOUBLE:
-      {
-	double val=params.get(key);
-	WriteKey(hname, type, &val, comment);
-      }
-      break;
-    case TINT:
-      {
-	int val=params.get(key);
-	WriteKey(hname, type, &val, comment);
-      }
-    case TLONG:
-      {
-	long val=params.get(key);
-	WriteKey(hname, type, &val, comment);
-      }
-      break;
-    default:
-      std::stringstream err;
-      err<<"WriteParKey Unsupported type: "<<type;
-      throw std::runtime_error(err.str());
-  }
-
-}
-#endif
-
-
 /* 
  * this reads the entire column.  Must already be pointed to the correct
  * hdu
  */
 
 void FitsFile::ReadScalarCol(std::string colname, 
-    int coltype, void* dptr, LONGLONG nrows)
+    Type_FITS coltype, void* dptr, long nrows)
 {
   std::ostringstream err;
   int fitserr=0;
 
   // always read the first row.
-  LONGLONG frow=1;
+  long frow=1;
   // Assume scalar column
-  LONGLONG felem=1;
+  long felem=1;
 
   int colnum;
   fits_get_colnum(mFptr, CASEINSEN, (char*) colname.c_str(), &colnum, &fitserr);
@@ -132,104 +86,102 @@ void FitsFile::ReadScalarCol(std::string colname,
 
 }
 
+template <class IT1, class IT2, class IT3, class IT4>
+static void DoCreateBinaryTable(
+    long nrows, long nfields, fitsfile* mFptr,
+    IT1 names, IT2 nelem, IT3 types, IT4 units) 
+{
+  // Create a binary table
+  int fits_status=0;
+  int tbl_type = BINARY_TBL;
+
+  // Convert to C-style arrays of C-style strings:
+  char** cnames = new char*[nfields];
+  char** cunits = new char*[nfields];
+  for(int i=0;i<nfields;++i, ++names, ++units ) {
+    cnames[i] = new char[names->size()+1];
+    strcpy(cnames[i],names->c_str());
+    cunits[i] = new char[units->size()+1];
+    strcpy(cunits[i],units->c_str());
+  }
+  // Make FITS TFORM string:
+  char** cforms = new char*[nfields];
+  for(int i=0;i<nfields;++i, ++nelem, ++types ) {
+    std::ostringstream form;
+    form << *nelem;
+    switch (*types) {
+      case XSTRING :
+	form << "A"; break;
+      case XSHORT :
+	form << "I"; break;
+      case XINT : case XLONG :
+	form << "J"; break;
+      case XFLOAT :
+	form << "E"; break;
+      case XDOUBLE :
+	form << "D"; break;
+      default :
+	std::stringstream err;
+	err<<"WriteParKey Unsupported type: "<<*types;
+	throw std::runtime_error(err.str());
+    }
+    cforms[i] = new char[form.str().size()+1];
+    strcpy(cforms[i],form.str().c_str());
+  }
+  
+  fits_create_tbl(mFptr, tbl_type, nrows, nfields, 
+      cnames, cforms, cunits, NULL, &fits_status);
+
+  for(int i=0;i<nfields;++i) {
+    delete [] cnames[i];
+    delete [] cforms[i];
+    delete [] cunits[i];
+  }
+
+  delete [] cnames;
+  delete [] cforms;
+  delete [] cunits;
+
+  if (!fits_status==0) {
+    fits_report_error(stderr, fits_status); 
+    std::string serr="Error creating FindStars FITS table: ";
+    throw FitsException(serr);
+  }
+}
+
 void FitsFile::CreateBinaryTable(
-    LONGLONG nrows,
+    long nrows,
     const std::vector<std::string>& names,
-    const std::vector<std::string>& types,
+    const std::vector<int>& nelem,
+    const std::vector<Type_FITS>& types,
     const std::vector<std::string>& units) 
 {
-  // Create a binary table
-  int fits_status=0;
-  int tbl_type = BINARY_TBL;
+  Assert(nelem.size() == names.size());
   Assert(types.size() == names.size());
   Assert(units.size() == names.size());
-  int nfields = names.size();
-
-  // Convert to C-style arrays of C-style strings:
-  char** cnames = new char*[nfields];
-  char** ctypes = new char*[nfields];
-  char** cunits = new char*[nfields];
-  for(int i=0;i<nfields;++i) {
-    cnames[i] = new char[names[i].size()+1];
-    strcpy(cnames[i],names[i].c_str());
-    ctypes[i] = new char[types[i].size()+1];
-    strcpy(ctypes[i],types[i].c_str());
-    cunits[i] = new char[units[i].size()+1];
-    strcpy(cunits[i],units[i].c_str());
-  }
-  
-  fits_create_tbl(mFptr, tbl_type, nrows, nfields, 
-      cnames, ctypes, cunits, NULL, &fits_status);
-
-  for(int i=0;i<nfields;++i) {
-    delete [] cnames[i];
-    delete [] ctypes[i];
-    delete [] cunits[i];
-  }
-
-  delete [] cnames;
-  delete [] ctypes;
-  delete [] cunits;
-
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error creating FindStars FITS table: ";
-    throw FitsException(serr);
-  }
+  DoCreateBinaryTable(nrows,names.size(),mFptr,
+      names.begin(),nelem.begin(),types.begin(),units.begin());
 }
 
 void FitsFile::CreateBinaryTable(
-    LONGLONG nrows, int nfields,
+    long nrows, int nfields,
     const std::string* names,
-    const std::string* types,
+    const int* nelem,
+    const Type_FITS* types,
     const std::string* units) 
 {
-  // Create a binary table
-  int fits_status=0;
-  int tbl_type = BINARY_TBL;
-
-  // Convert to C-style arrays of C-style strings:
-  char** cnames = new char*[nfields];
-  char** ctypes = new char*[nfields];
-  char** cunits = new char*[nfields];
-  for(int i=0;i<nfields;++i) {
-    cnames[i] = new char[names[i].size()+1];
-    strcpy(cnames[i],names[i].c_str());
-    ctypes[i] = new char[types[i].size()+1];
-    strcpy(ctypes[i],types[i].c_str());
-    cunits[i] = new char[units[i].size()+1];
-    strcpy(cunits[i],units[i].c_str());
-  }
-  
-  fits_create_tbl(mFptr, tbl_type, nrows, nfields, 
-      cnames, ctypes, cunits, NULL, &fits_status);
-
-  for(int i=0;i<nfields;++i) {
-    delete [] cnames[i];
-    delete [] ctypes[i];
-    delete [] cunits[i];
-  }
-
-  delete [] cnames;
-  delete [] ctypes;
-  delete [] cunits;
-
-  if (!fits_status==0) {
-    fits_report_error(stderr, fits_status); 
-    std::string serr="Error creating FindStars FITS table: ";
-    throw FitsException(serr);
-  }
+  DoCreateBinaryTable(nrows,nfields,mFptr,names,nelem,types,units);
 }
 
 
-void FitsFile::ReadCell(std::string colname, int coltype, 
-    void* dptr, LONGLONG row, LONGLONG nel)
+void FitsFile::ReadCell(std::string colname, Type_FITS coltype, 
+    void* dptr, long row, long nel)
 {
   std::ostringstream err;
   int fitserr=0;
 
   // Start at the first element and read nel
-  LONGLONG felem=1;
+  long felem=1;
 
   int colnum;
   fits_get_colnum(mFptr, CASEINSEN, (char*) colname.c_str(), 
@@ -254,7 +206,7 @@ void FitsFile::ReadCell(std::string colname, int coltype,
   }
 }
 
-void FitsFile::ReadKey(std::string name, int dtype, void* dptr)
+void FitsFile::ReadKey(std::string name, Type_FITS dtype, void* dptr)
 {
   int fitserr=0;
   std::stringstream err;
@@ -278,7 +230,7 @@ long FitsFile::ReadLongKey(std::string name)
 
   int fitserr=0;
   std::stringstream err;
-  fits_read_key(mFptr, TLONG, (char *)name.c_str(), &val, NULL, &fitserr);
+  fits_read_key(mFptr, XLONG, (char *)name.c_str(), &val, NULL, &fitserr);
   if (!fitserr==0)
   {
     fits_report_error(stderr, fitserr); 
@@ -310,7 +262,7 @@ void FitsFile::GotoHDU(int hdu)
 
 #if 0
 void CreateBinaryTable(
-    LONGLONG nrows, 
+    long nrows, 
     vector<string>& names, 
     vector<string>& types,
     vector<string>& units, 
@@ -321,8 +273,8 @@ void CreateBinaryTable(
 }
 #endif
 
-void FitsFile::WriteKey(std::string name, int datatype, const void* value,
-    std::string comment) 
+void FitsFile::WriteKey(std::string name, Type_FITS datatype,
+    const void* value, std::string comment) 
 {
   int fits_status=0;
   fits_write_key(
@@ -341,8 +293,8 @@ void FitsFile::WriteKey(std::string name, int datatype, const void* value,
   }
 }
 
-void FitsFile::WriteColumn(int datatype, int colnum,
-    LONGLONG firstrow, LONGLONG firstel, LONGLONG nel, const void* data)
+void FitsFile::WriteColumn(Type_FITS datatype, int colnum,
+    long firstrow, long firstel, long nel, const void* data)
 {
   int fits_status=0;
   fits_write_col(

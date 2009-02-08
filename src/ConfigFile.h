@@ -52,6 +52,7 @@
 #include <vector>
 #include <algorithm>
 #include <stdexcept>
+#include <limits>
 
 #ifdef __INTEL_COMPILER
 #pragma warning (disable : 444)
@@ -130,6 +131,19 @@ class ConvertibleString : public std::string
       err += std::string(": this = ") + *this;
       T temp;
       std::stringstream ss(*this);
+
+      // This bit is needed to get the oct and hex to work:
+      // I haven't incorporated it into the below vector conversion,
+      // so those always need to be decimal.
+      if (std::numeric_limits<T>::is_integer) {
+	if ((*this)[0] == '0') {
+	  if ((*this)[1] == 'x' || (*this)[1] == 'X') {
+	    ss >> std::hex;
+	  } else {
+	    ss >> std::oct;
+	  }
+	}
+      }
       ss >> temp;
       if (!ss) 
 #ifndef NOTHROW
@@ -273,6 +287,7 @@ class ConfigFile
 	std::string sentry = "EndConfigFile" );
     ConfigFile();
 
+    // "" means use existing values
     void Load( std::string filename,
 	std::string delimiter = "",
 	std::string comment = "",
@@ -347,12 +362,14 @@ template<class T>
 T ConfigFile::read( const std::string& key ) const
 {
   // Read the value corresponding to key
-  mapci p = myContents.find(key);
+  std::string key2 = key;
+  trim(key2);
+  mapci p = myContents.find(key2);
   if( p == myContents.end() ) 
 #ifdef NOTHROW
-  { std::cerr<<"Key not found: "<<kay<<std::endl; exit(1); }
+  { std::cerr<<"Key not found: "<<key2<<std::endl; exit(1); }
 #else
-    throw key_not_found(key);
+    throw key_not_found(key2);
 #endif
   return p->second;
 }
@@ -363,7 +380,9 @@ T ConfigFile::read( const std::string& key, const T& value ) const
 {
   // Return the value corresponding to key or given default value
   // if key is not found
-  mapci p = myContents.find(key);
+  std::string key2 = key;
+  trim(key2);
+  mapci p = myContents.find(key2);
   if( p == myContents.end() ) return value;
   return p->second;
 }
@@ -375,7 +394,9 @@ bool ConfigFile::readInto( T& var, const std::string& key ) const
   // Get the value corresponding to key and store in var
   // Return true if key is found
   // Otherwise leave var untouched
-  mapci p = myContents.find(key);
+  std::string key2 = key;
+  trim(key2);
+  mapci p = myContents.find(key2);
   bool found = ( p != myContents.end() );
   if( found ) var = static_cast<T>( p->second );
   return found;
@@ -388,7 +409,9 @@ bool ConfigFile::readInto( T& var, const std::string& key, const T& value ) cons
   // Get the value corresponding to key and store in var
   // Return true if key is found
   // Otherwise set var to given default
-  mapci p = myContents.find(key);
+  std::string key2 = key;
+  trim(key2);
+  mapci p = myContents.find(key2);
   bool found = ( p != myContents.end() );
   if( found ) var = p->second;
   else var = value;

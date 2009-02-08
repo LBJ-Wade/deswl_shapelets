@@ -4,9 +4,24 @@ import os
 
 Import('env')
 
+pipe = os.popen("xxd -i fitsparams.config fp.h")
+xxdexit = pipe.close()
+if not (xxdexit == None):
+  print 'Warning: xxd exit status = ',xxdexit
+  print '         Failure making file fp.h.'
+  print '         This is ok if you have not updated fitsparams.config'
+
+pipe = os.popen("xxd -i findstars.params.default fspd.h")
+xxdexit = pipe.close()
+if not (xxdexit == None):
+  print 'Warning: xxd exit status = ',xxdexit
+  print '         Failure making file fspd.h.'
+  print '         This is ok if you have not updated findstars.params.default'
+
+
 libwl_files="""Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp
 BVec.cpp EllipseSolver.cpp Pixel.cpp Transformation.cpp
-ConfigFile.cpp FittedPSF.cpp CrudeMeasure.cpp 
+ConfigFile.cpp FittedPSF.cpp CrudeMeasure.cpp Name.cpp
 NLSolver.cpp Log.cpp Ellipse.cpp PsiHelper.cpp 
 FitsFile.cpp Histogram.cpp StarFinder.cpp StarCatalog.cpp
 PSFCatalog.cpp ShearCatalog.cpp InputCatalog.cpp""".split()
@@ -31,9 +46,9 @@ findstars = env.Program('findstars', 'FindStars.cpp')
 
 fullpipe = env.Program('fullpipe', 'FullPipeline.cpp')
 
-#testwl = env.Program('testwl', 'TestWL.cpp')
+testwl = env.Program('testwl', 'TestWL.cpp')
 
-#testnl = env.Program('testnl', 'TestNL.cpp')
+testnl = env.Program('testnl', 'TestNL.cpp')
 
 bin_install_dir = os.path.join(env['PREFIX'], 'bin')
 

@@ -4,17 +4,19 @@
 #include <stdexcept>
 #include "Params.h"
 
-Log::Log(std::string _logfile, std::string _fits_file) :
-  exitcode(SUCCESS), fits_file(_fits_file)
+Log::Log(std::string _logfile, std::string _fits_file, bool desqa) :
+  exitcode(SUCCESS), logout(0), fits_file(_fits_file)
 {
-  if (_logfile == "") {
-    logout = &std::cout;
-  } else {
-    logout = new std::ofstream(_logfile.c_str(),std::ios_base::app);
-    if (!logout) {
-      throw std::runtime_error(
-	  std::string("Error: Unable to open logfile ") + _logfile
-	  + " for append output");
+  if (desqa) {
+    if (_logfile == "") {
+      logout = &std::cout;
+    } else {
+      logout = new std::ofstream(_logfile.c_str(),std::ios_base::app);
+      if (!logout) {
+	throw std::runtime_error(
+	    std::string("Error: Unable to open logfile ") + _logfile
+	    + " for append output");
+      }
     }
   }
 }
@@ -42,9 +44,9 @@ void Log::NoWriteLog()
   logout = 0;
 }
 
-ShearLog::ShearLog(std::string _logfile, std::string _fits_file) :
-  Log(_logfile,_fits_file),
-  ngals(0), nf_range1(0), nf_range2(0), nf_small(0),
+ShearLog::ShearLog(std::string _logfile, std::string _fits_file, bool desqa) :
+  Log(_logfile,_fits_file,desqa),
+  ngals(0), ngoodin(0), ngood(0), nf_range1(0), nf_range2(0), nf_small(0),
   nf_tmverror(0), nf_othererror(0), ns_native(0), nf_native(0),
   ns_mu(0), nf_mu(0), ns_gamma(0), nf_gamma(0)
 {}
@@ -66,33 +68,37 @@ void ShearLog::WriteLogToFitsHeader() const
     fits.GotoHDU(2);
 
     // use msexit to differentiate from exit codes for other codes
-    fits.WriteKey("msexit", TLONG, &exitcode, "Exit code for MeasureShear");
-    fits.WriteKey("msnobj", TLONG, &ngals, 
+    fits.WriteKey("msexit", XLONG, &exitcode, "Exit code for MeasureShear");
+    fits.WriteKey("msnobj", XLONG, &ngals, 
 	"# of objects processed by MeasureShear");
-    fits.WriteKey("ns_gamma", TLONG, &ns_gamma, 
+    fits.WriteKey("ms_ngoodin", XLONG, &ngoodin,
+	"# of objects with no input error flags");
+    fits.WriteKey("ms_ngood", XLONG, &ngood,
+	"# of measurements with no error flags");
+    fits.WriteKey("ns_gamma", XLONG, &ns_gamma, 
 	"# of successful shear measurements");
-    fits.WriteKey("ns_nativ", TLONG, &ns_native, 
+    fits.WriteKey("ns_nativ", XLONG, &ns_native, 
 	"# of successful native shapeles measurements");
 
-    fits.WriteKey("nf_rnge1", TLONG, &nf_range1, 
+    fits.WriteKey("nf_rnge1", XLONG, &nf_range1, 
 	"# of MeasureShear failures range1");
-    fits.WriteKey("nf_rnge2", TLONG, &nf_range2, 
+    fits.WriteKey("nf_rnge2", XLONG, &nf_range2, 
 	"# of MeasureShear failures range2");
 
-    fits.WriteKey("nf_nativ", TLONG, &nf_native, 
+    fits.WriteKey("nf_nativ", XLONG, &nf_native, 
 	"# of MeasureShear failures native calculations");
-    fits.WriteKey("nf_small", TLONG, &nf_small, 
+    fits.WriteKey("nf_small", XLONG, &nf_small, 
 	"# of MeasureShear failures too small");
 
     // prefix ms to make unique
-    fits.WriteKey("nf_mstmv", TLONG, &nf_tmverror, 
+    fits.WriteKey("nf_mstmv", XLONG, &nf_tmverror, 
 	"# of MeasureShear failures TMV errors");
-    fits.WriteKey("nf_msoth", TLONG, &nf_othererror, 
+    fits.WriteKey("nf_msoth", XLONG, &nf_othererror, 
 	"# of MeasureShear failures unclassified errors");
 
-    fits.WriteKey("nf_mu", TLONG, &nf_mu, 
+    fits.WriteKey("nf_mu", XLONG, &nf_mu, 
 	"# of MeasureShear failures calculating mu");
-    fits.WriteKey("nf_gamma", TLONG, &nf_gamma, 
+    fits.WriteKey("nf_gamma", XLONG, &nf_gamma, 
 	"# of MeasureShear failures calculating shear");
   } 
   catch(...) 
@@ -132,6 +138,8 @@ void ShearLog::WriteLog() const
 	"QA2BEG "<<
 	"Name="<<name <<" & "<<
 	"ngals="<<ngals <<" & "<<
+	"ngoodin="<<ngoodin <<" & "<<
+	"ngood="<<ngood <<" & "<<
 	"ns_gamma="<<ns_gamma <<" & "<<
 	"ns_native="<<ns_native <<" & "<<
 	"nf_range1="<<nf_range1 <<" & "<<
@@ -149,6 +157,10 @@ void ShearLog::WriteLog() const
 
 void ShearLog::Write(std::ostream& os) const
 {
+  os<<"N Total objects = "<<ngals<<std::endl;
+  os<<"N objects with no input error flags = "<<ngoodin<<std::endl;
+  os<<"N objects with no measurement error flags = "<<ngood<<std::endl;
+
   os<<"N_Rejected for range error - distortion = "<<nf_range1<<std::endl;
   os<<"N_Rejected for range error - psf interp = "<<nf_range2<<std::endl;
 
@@ -170,10 +182,10 @@ void ShearLog::Write(std::ostream& os) const
   os<<"N_Error: Other caught = "<<nf_othererror<<std::endl;
 }
 
-PSFLog::PSFLog(std::string _logfile, std::string _fits_file) :
-  Log(_logfile,_fits_file),
-  nstars(0), nf_range(0), nf_tmverror(0), nf_othererror(0),
-  ns_psf(0), nf_psf(0) {}
+PSFLog::PSFLog(std::string _logfile, std::string _fits_file, bool desqa) :
+  Log(_logfile,_fits_file,desqa),
+  nstars(0), ngoodin(0), ngood(0), nf_range(0),
+  nf_tmverror(0), nf_othererror(0), ns_psf(0), nf_psf(0) {}
 
 PSFLog::~PSFLog() {
   this->WriteLog();
@@ -191,18 +203,22 @@ void PSFLog::WriteLogToFitsHeader() const
     fits.GotoHDU(2);
 
     // use fsexit to differentiate from exit codes for other codes
-    fits.WriteKey("mpexit", TLONG, &exitcode, "Exit code for MeasurePSF");
-    fits.WriteKey("mpnstars", TLONG, &nstars, 
+    fits.WriteKey("mpexit", XLONG, &exitcode, "Exit code for MeasurePSF");
+    fits.WriteKey("mpnstars", XLONG, &nstars, 
 	"# of PSF star candidates used");
-    fits.WriteKey("ns_psf", TLONG, &ns_psf, 
+    fits.WriteKey("mpgoodin", XLONG, &ngoodin,
+	"# of objects with no input error flags");
+    fits.WriteKey("mp_ngood", XLONG, &ngood,
+	"# of measurements with no error flags");
+    fits.WriteKey("ns_psf", XLONG, &ns_psf, 
 	"# of successful PSF decompositions");
-    fits.WriteKey("nf_range", TLONG, &nf_range, 
+    fits.WriteKey("nf_range", XLONG, &nf_range, 
 	"# PSF failures due to range error");
-    fits.WriteKey("nf_mptmv", TLONG, &nf_tmverror, 
+    fits.WriteKey("nf_mptmv", XLONG, &nf_tmverror, 
 	"# PSF failures due to TMV errors");
-    fits.WriteKey("nf_mpoth", TLONG, &nf_othererror, 
+    fits.WriteKey("nf_mpoth", XLONG, &nf_othererror, 
 	"# PSF failures due to unclassified errors");
-    fits.WriteKey("nf_psf", TLONG, &nf_psf, 
+    fits.WriteKey("nf_psf", XLONG, &nf_psf, 
 	"# PSF failures");
   }
   catch (...)
@@ -228,6 +244,8 @@ void PSFLog::WriteLog() const
 	"QA2BEG "<<
 	"Name="<<name <<" & "<<
 	"nstars="<<nstars <<" & "<<
+	"ngoodin="<<ngoodin <<" & "<<
+	"ngood="<<ngood <<" & "<<
 	"ns_psf="<<ns_psf <<" & "<<
 	"nf_range="<<nf_range <<" & "<<
 	"nf_tmverror="<<nf_tmverror <<" & "<<
@@ -240,6 +258,10 @@ void PSFLog::WriteLog() const
 
 void PSFLog::Write(std::ostream& os) const
 {
+  os<<"N Total stars = "<<nstars<<std::endl;
+  os<<"N stars with no input error flags = "<<ngoodin<<std::endl;
+  os<<"N stars with no measurement error flags = "<<ngood<<std::endl;
+
   os<<"N_Rejected for range error - distortion = "<<nf_range<<std::endl;
 
   os<<"PSF measurement:\n";
@@ -251,8 +273,9 @@ void PSFLog::Write(std::ostream& os) const
 }
 
 
-FindStarsLog::FindStarsLog(std::string _logfile, std::string _fits_file) :
-  Log(_logfile,_fits_file),
+FindStarsLog::FindStarsLog(std::string _logfile, std::string _fits_file, 
+    bool desqa) :
+  Log(_logfile,_fits_file,desqa),
   ntot(0), nr_flag(0), nr_mag(0), nr_size(0),
   nobj(0), nallstars(0), nstars(0) {}
 
@@ -275,20 +298,20 @@ void FindStarsLog::WriteLogToFitsHeader() const
     // forward each time
 
     // copying out to avoid g++ errors due to const incorrectness
-    fits.WriteKey("fsexit", TLONG, &exitcode, "Exit code for FindStars");
-    fits.WriteKey("fsntot", TLONG, &ntot, 
+    fits.WriteKey("fsexit", XLONG, &exitcode, "Exit code for FindStars");
+    fits.WriteKey("fsntot", XLONG, &ntot, 
 	"# of total objects processed in FindStars");
-    fits.WriteKey("fsnrflag", TLONG, &nr_flag,
+    fits.WriteKey("fsnrflag", XLONG, &nr_flag,
 	"# of objects rejected because of input flag");
-    fits.WriteKey("fsnrmag", TLONG, &nr_mag,
+    fits.WriteKey("fsnrmag", XLONG, &nr_mag,
 	"# of objects rejected because of mag limits");
-    fits.WriteKey("fsnrsize", TLONG, &nr_size,
+    fits.WriteKey("fsnrsize", XLONG, &nr_size,
 	"# of objects rejected because of size limits");
-    fits.WriteKey("fsnobj", TLONG, &nobj, 
+    fits.WriteKey("fsnobj", XLONG, &nobj, 
 	"# of objects processed in FindStars");
-    fits.WriteKey("fsnall", TLONG, &nallstars,
+    fits.WriteKey("fsnall", XLONG, &nallstars,
 	"# of total stars found by FindStars");
-    fits.WriteKey("fsnstars", TLONG, &nstars, 
+    fits.WriteKey("fsnstars", XLONG, &nstars, 
 	"# of good stars found by FindStars");
   }
   catch(...)
@@ -328,12 +351,12 @@ void FindStarsLog::WriteLog() const
 void FindStarsLog::Write(std::ostream& os) const
 {
   os<<"N total input objects = "<<ntot<<std::endl;
-  os<<"N rejected because of input flag"<<nr_flag<<std::endl;
-  os<<"N rejected because of mag limits"<<nr_mag<<std::endl;
-  os<<"N rejected because of size limits"<<nr_size<<std::endl;
-  os<<"N objects processed in FindStars"<<nobj<<std::endl;
-  os<<"N total stars found by FindStars"<<nallstars<<std::endl;
-  os<<"N good stars found by FindStars"<<nstars<<std::endl;
+  os<<"N rejected because of input flag = "<<nr_flag<<std::endl;
+  os<<"N rejected because of mag limits = "<<nr_mag<<std::endl;
+  os<<"N rejected because of size limits = "<<nr_size<<std::endl;
+  os<<"N objects processed in FindStars = "<<nobj<<std::endl;
+  os<<"N total stars found by FindStars = "<<nallstars<<std::endl;
+  os<<"N good stars found by FindStars = "<<nstars<<std::endl;
 }
 
 

@@ -7,9 +7,10 @@
 #include <fstream>
 #include "TimeVars.h"
 #include "PsiHelper.h"
+#include "Params.h"
 
 #define N_FLUX_ATTEMPTS 0
-#define MAXITER 3
+#define MAXITER 4
 
 static std::complex<double> GammaAdd(const std::complex<double> g1,
     const std::complex<double> g2)
@@ -36,8 +37,8 @@ static std::complex<double> GammaAdd(const std::complex<double> g1,
 
 bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     const std::vector<BVec>* psf,
-    int order, double sigma, bool use_integ, tmv::Matrix<double>* cov,
-    BVec* bret, tmv::Matrix<double>* bcov)
+    int order, double sigma, bool use_integ, long& flag, bool desqa,
+    tmv::Matrix<double>* cov, BVec* bret, tmv::Matrix<double>* bcov)
 {
   timeval tp;
   double t1=0.,t2=0.;
@@ -45,8 +46,8 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
   // The non-linear solver is pretty sensitive to having a good
   // initial estimate.  So start with a simple estimate.
   if (order > 3) {
-    //if (!DoMeasure(pix,psf,order-2,sigma,use_integ)) return false;
-    DoMeasure(pix,psf,order-2,sigma,use_integ);
+    //if (!DoMeasure(pix,psf,order-2,sigma,use_integ,flag,desqa)) return false;
+    DoMeasure(pix,psf,order-2,sigma,use_integ,flag,desqa);
   }
 
   xdbg<<"Start DoMeasure: order = "<<order<<", psf = "<<bool(psf)<<std::endl;
@@ -197,10 +198,10 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
 #endif
     {
       if (psf)
-	solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,
+	solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,desqa,
 	      false,true,true));
       else
-	solver.reset(new EllipseSolver(pix,order,sigma,
+	solver.reset(new EllipseSolver(pix,order,sigma,desqa,
 	      false,true,true));
     }
     xdbg<<"xinit = "<<x<<std::endl;
@@ -260,10 +261,10 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
 #endif
     {
       if (psf)
-	solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,
+	solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,desqa,
 	      true,false,true));
       else
-	solver.reset(new EllipseSolver(pix,order,sigma,
+	solver.reset(new EllipseSolver(pix,order,sigma,desqa,
 	      true,false,true));
     }
     xdbg<<"xinit = "<<x<<std::endl;
@@ -309,10 +310,10 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
 #endif
     {
       if (psf)
-	solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,
+	solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,desqa,
 	      true,true,false));
       else
-	solver.reset(new EllipseSolver(pix,order,sigma,
+	solver.reset(new EllipseSolver(pix,order,sigma,desqa,
 	      true,true,false));
     }
     xdbg<<"xinit = "<<x<<std::endl;
@@ -360,10 +361,10 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
 #endif
   {
     if (psf)
-      solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,
+      solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,desqa,
 	    fixcen,fixgam,fixmu,true));
     else
-      solver.reset(new EllipseSolver(pix,order,sigma,
+      solver.reset(new EllipseSolver(pix,order,sigma,desqa,
 	    fixcen,fixgam,fixmu,true));
   }
   xdbg<<"xinit = "<<x<<std::endl;
@@ -409,10 +410,10 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
 #endif
   {
     if (psf)
-      solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,
+      solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,desqa,
 	    fixcen,fixgam,fixmu));
     else
-      solver.reset(new EllipseSolver(pix,order,sigma,
+      solver.reset(new EllipseSolver(pix,order,sigma,desqa,
 	    fixcen,fixgam,fixmu));
   }
   xdbg<<"xinit = "<<x<<std::endl;
@@ -487,10 +488,10 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
 #endif
     {
       if (psf)
-	solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,
+	solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,desqa,
 	      fixcen,fixgam,true));
       else
-	solver.reset(new EllipseSolver(pix,order,sigma,
+	solver.reset(new EllipseSolver(pix,order,sigma,desqa,
 	      fixcen,fixgam,true));
     }
 
@@ -498,17 +499,35 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
 #ifdef NOTHROW
     solver->startwithch = false;
 #endif
-    solver->ftol = 1.e-8;
-    solver->gtol = 1.e-10;
-    if (XDEBUG) solver->nlout = dbgout;
-    solver->delta0 = 0.01;
-    solver->min_step = 1.e-15;
-    solver->max_iter = 50;
+    if (iter == 1) {
+      solver->ftol = 1.e-8;
+      solver->gtol = 1.e-10;
+      if (XDEBUG) solver->nlout = dbgout;
+      solver->delta0 = 0.01;
+      solver->min_step = 1.e-15;
+      solver->max_iter = 50;
+    }
+    else {
+      solver->ftol *= 10.;
+      solver->gtol *= 10.;
+    }
   }
   xdbg<<"Done: Final solver pass successful: x = "<<x<<std::endl;
   xdbg<<"f = "<<f<<std::endl;
   xdbg<<"b = "<<solver->GetB()<<std::endl;
   if (cov) xdbg<<"cov = "<<*cov<<std::endl;
+
+  // Check for flags
+  solver->CallF(x,f);
+  if (Norm(f) > solver->ftol) {
+    xdbg<<"Local minimum\n";
+    flag |= SHEAR_LOCAL_MIN;
+  }
+  if (solver->ftol > 1.e-8) {
+    xdbg<<"ftol was raised\n";
+    flag |= SHEAR_POOR_FIT;
+  }
+
   if (XDEBUG && psf) {
     for(size_t k=0;k<pix.size();k++) {
       double sig_psf = (*psf)[k].GetSigma();
@@ -535,19 +554,17 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
 
 bool Ellipse::Measure(const std::vector<std::vector<Pixel> >& pix,
     const std::vector<BVec>& psf,
-    int order, double sigma, bool use_integ, tmv::Matrix<double>* cov,
-    BVec* bret, tmv::Matrix<double>* bcov)
+    int order, double sigma, bool use_integ, long& flag, bool desqa,
+    tmv::Matrix<double>* cov, BVec* bret, tmv::Matrix<double>* bcov)
 { 
-  didstatus3output = false;
-  return DoMeasure(pix,&psf,order,sigma,use_integ,cov,bret,bcov); 
+  return DoMeasure(pix,&psf,order,sigma,use_integ,flag,desqa,cov,bret,bcov); 
 }
 
 bool Ellipse::Measure(const std::vector<std::vector<Pixel> >& pix,
-    int order, double sigma, bool use_integ, tmv::Matrix<double>* cov,
-    BVec* bret, tmv::Matrix<double>* bcov)
+    int order, double sigma, bool use_integ, long& flag, bool desqa,
+    tmv::Matrix<double>* cov, BVec* bret, tmv::Matrix<double>* bcov)
 {
-  didstatus3output = false;
-  return DoMeasure(pix,0,order,sigma,use_integ,cov,bret,bcov);
+  return DoMeasure(pix,0,order,sigma,use_integ,flag,desqa,cov,bret,bcov);
 }
 
 void Ellipse::DoMeasureShapelet(const std::vector<std::vector<Pixel> >& pix,

@@ -16,11 +16,10 @@ class PSFCatalog
   public :
 
     // Make from starcat
-    PSFCatalog(const StarCatalog& starcat, const ConfigFile& _params,
-	std::string key_prefix = "");
+    PSFCatalog(const StarCatalog& starcat, const ConfigFile& _params);
 
     // Read from file
-    PSFCatalog(const ConfigFile& _params, std::string key_prefix = "");
+    PSFCatalog(const ConfigFile& _params);
 
     size_t size() const { return id.size(); }
     void Read();
@@ -48,7 +47,6 @@ class PSFCatalog
   private :
 
     const ConfigFile& params;
-    std::string prefix;
 
 };
 

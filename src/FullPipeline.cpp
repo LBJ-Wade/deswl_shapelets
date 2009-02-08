@@ -1,13 +1,4 @@
 
-#include <iostream>
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-
-#include "TMV.h"
-#include "ConfigFile.h"
-#include "dbg.h"
-#include "Name.h"
 #include "Image.h"
 #include "Transformation.h"
 #include "InputCatalog.h"
@@ -18,9 +9,7 @@
 #include "ShearCatalog.h"
 #include "TimeVars.h"
 #include "Log.h"
-
-std::ostream* dbgout = 0;
-bool XDEBUG = false;
+#include "BasicSetup.h"
 
 static void DoFullPipeline(ConfigFile& params,
     std::string logfile, std::auto_ptr<Log>& log)
@@ -35,10 +24,10 @@ static void DoFullPipeline(ConfigFile& params,
   Transformation trans(params);
 
   // Read input catalog
-  InputCatalog incat(params,"cat_");
+  InputCatalog incat(params,&im);
 
   // Create StarCatalog from InputCatalog
-  StarCatalog starcat(incat,params,"stars_");
+  StarCatalog starcat(incat,params);
 
   // Update the sizes to more robust values
   starcat.CalcSizes(im,weight_im.get(),trans);
@@ -67,7 +56,7 @@ static void DoFullPipeline(ConfigFile& params,
   log.reset(new PSFLog(logfile,Name(params,"psf")));
 
   // Create PSFCatalog from StarCatalog
-  PSFCatalog psfcat(starcat,params,"psf_");
+  PSFCatalog psfcat(starcat,params);
 
   // Estimate the scale size to use for shapelet decompositions
   double sigma_p = psfcat.EstimateSigma(im,weight_im.get(),trans);
@@ -85,7 +74,7 @@ static void DoFullPipeline(ConfigFile& params,
   //       FittedPSF calculation, since the fittedpsf file is not ingested.
 
   // Fit the PSF with a polynomial:
-  FittedPSF fitpsf(psfcat,params,"fitpsf_");
+  FittedPSF fitpsf(psfcat,params);
 
   // Write fitted psf to file
   fitpsf.Write();
@@ -95,7 +84,7 @@ static void DoFullPipeline(ConfigFile& params,
   log.reset(new ShearLog(logfile,Name(params,"shear")));
 
   // Create shear catalog
-  ShearCatalog shearcat(incat,trans,params,"shear_");
+  ShearCatalog shearcat(incat,trans,params);
 
   // Measure shears and shapelet vectors
   shearcat.MeasureShears(im,weight_im.get(),trans,fitpsf,
@@ -110,56 +99,17 @@ static void DoFullPipeline(ConfigFile& params,
 
 int main(int argc, char **argv) try 
 {
-  // Read parameters
-  if (argc < 2) {
-    std::cout<<"STATUS5BEG Invalid command line for fullpipe. STATUS5END"<<std::endl;
-    std::cerr<<"Usage: fullpipe configfile [param=value ...]\n";
-    std::cerr<<"The first parameter is the configuration file that has \n";
-    std::cerr<<"all the parameters for this run. \n";
-    std::cerr<<"These values may be modified on the command line by \n";
-    std::cerr<<"entering param/value pais as param=value. \n";
-    std::cerr<<"Note: root is not usuallly given in the parameter file, \n";
-    std::cerr<<"so the normal command line would be something like:\n";
-    std::cerr<<"fullpipe fullpipe.config root=img123\n";
-    return EXIT_FAILURE;
-  }
-  ConfigFile params(argv[1]);
-  for(int k=2;k<argc;k++) params.Append(argv[k]);
+  ConfigFile params;
+  if (BasicSetup(argc,argv,params,"fullpipe")) return EXIT_FAILURE;
 
+  // Setup Log
   std::string logfile = ""; // Default is to stdout
   if (params.keyExists("log_file") || params.keyExists("log_ext")) 
     logfile = Name(params,"log");
-
-  std::string logdelim = "  ";
-  if (params.keyExists("log_delim")) logdelim = params["log_delim"];
-
   std::auto_ptr<Log> log;
 
   try {
-
-    // Setup debugging
-    if (params.keyExists("verbose") && int(params["verbose"]) > 0) {
-      if (params.keyExists("debug_file") || params.keyExists("debug_ext")) {
-	dbgout = new std::ofstream(Name(params,"debug").c_str());
-      }
-      else dbgout = &std::cout;
-      if (int(params["verbose"]) > 1) XDEBUG = true;
-    }
-
-#ifdef _OPENMP
-    if (params.keyExists("omp_num_threads")) {
-      int num_threads = params["omp_num_threads"];
-      omp_set_num_threads(num_threads);
-    }
-#endif
-
-    dbg<<"Config params = \n"<<params<<std::endl;
-
     DoFullPipeline(params,logfile,log);
-    if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}
-
-    return EXIT_SUCCESS; // = 0 typically.  Defined in <cstdlib>
-
   }
 #if 0
   // Change to 1 to let gdb see where the program bombed out.
@@ -169,77 +119,86 @@ int main(int argc, char **argv) try
   {
     dbg<<"Caught \n"<<e.what()<<std::endl;
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
-    log->exitcode = FAILURE_FILE_NOT_FOUND;
-    log->extraexitinfo = e.what();
+    if (log.get()) {
+      log->exitcode = FAILURE_FILE_NOT_FOUND;
+      log->extraexitinfo = e.what();
+    }
     return EXIT_FAILURE;
   }
   catch (ConfigFile::file_not_found& e)
   {
     dbg<<"Caught \n"<<e.what()<<std::endl;
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
-    log->exitcode = FAILURE_CONFIGFILE_ERROR;
-    log->extraexitinfo = e.what();
+    if (log.get()) {
+      log->exitcode = FAILURE_CONFIGFILE_ERROR;
+      log->extraexitinfo = e.what();
+    }
     return EXIT_FAILURE;
   }
   catch (ConfigFile::key_not_found& e)
   {
     dbg<<"Caught \n"<<e.what()<<std::endl;
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
-    log->exitcode = FAILURE_CONFIGFILE_ERROR;
-    log->extraexitinfo = e.what();
+    if (log.get()) {
+      log->exitcode = FAILURE_CONFIGFILE_ERROR;
+      log->extraexitinfo = e.what();
+    }
     return EXIT_FAILURE;
   }
   catch (tmv::Error& e)
   {
     dbg<<"Caught \n"<<e<<std::endl;
     std::cerr<<"Caught \n"<<e<<std::endl;
-    log->exitcode = FAILURE_TMV_ERROR;
-    log->extraexitinfo = e.what();
+    if (log.get()) {
+      log->exitcode = FAILURE_TMV_ERROR;
+      log->extraexitinfo = e.what();
+    }
     return EXIT_FAILURE;
   }
   catch (std::exception& e)
   {
     dbg<<"Caught \n"<<e.what()<<std::endl;
     std::cerr<<"Caught \n"<<e.what()<<std::endl;
-    log->exitcode = FAILURE_STD_EXCEPTION;
-    log->extraexitinfo = e.what();
+    if (log.get()) {
+      log->exitcode = FAILURE_STD_EXCEPTION;
+      log->extraexitinfo = e.what();
+    }
     return EXIT_FAILURE;
   }
   catch (ExitCode e)
   { 
     dbg<<"Caught ExitCode "<<e<<std::endl;
     std::cerr<<"Caught ExitCode "<<e<<std::endl;
-    log->exitcode = e;
+    if (log.get()) log->exitcode = e;
     return EXIT_FAILURE;
   }
   catch (...)
   {
     dbg<<"Caught Unknown error\n";
     std::cerr<<"Caught Unknown error\n";
-    log->exitcode = FAILURE;
-    log->extraexitinfo = "Caught unknown exception";
+    if (log.get()) {
+      log->exitcode = FAILURE;
+      log->extraexitinfo = "Caught unknown exception";
+    }
     return EXIT_FAILURE;
   }
 #endif
+
+  if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}
+  return EXIT_SUCCESS; // = 0 typically.  Defined in <cstdlib>
 }
 catch (std::exception& e)
 {
-  dbg<<"Caught \n"<<e.what()<<std::endl;
-  dbg<<"outside of the normal try..catch block.";
-  dbg<<"Unable to write to the log file.\n";
-  std::cerr<<"Caught \n"<<e.what()<<std::endl;
-  std::cerr<<"outside of the normal try..catch block.";
-  std::cerr<<"Unable to write to the log file.\n";
-  std::cout<<"STATUS5BEG Catastrophic error: "<<e.what()<<" STATUS5END\n";
+  std::cerr<<"Fatal error: Caught \n"<<e.what()<<std::endl;
+  if (des_qa) 
+    std::cout<<"STATUS5BEG Fatal error: "<<e.what()<<" STATUS5END\n";
   return EXIT_FAILURE;
 }
 catch (...)
 {
-  dbg<<"Cought an exception outside of the normal try..catch block.";
-  dbg<<"Unable to write to the log file.\n";
-  std::cerr<<"Cought an exception outside of the normal try..catch block.";
-  std::cerr<<"Unable to write to the log file.\n";
-  std::cout<<"STATUS5BEG Catastrophic error: Caught unknown exception STATUS5END\n";
+  std::cerr<<"Fatal error: Cought an exception.\n";
+  if (des_qa)
+    std::cout<<"STATUS5BEG Fatal error: unknown exception STATUS5END\n";
   return EXIT_FAILURE;
 }
 

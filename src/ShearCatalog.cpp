@@ -15,6 +15,8 @@
 #include "FittedPSF.h"
 #include "TimeVars.h"
 #include "Log.h"
+#include "Params.h"
+#include "Form.h"
 
 //#define SINGLEGAL 8146
 //#define STARTAT 8000
@@ -26,7 +28,7 @@ static void MeasureSingleShear1(
     double noise, double gain, const Image<double>* weight_im, 
     double gal_aperture, double max_aperture,
     int gal_order, int gal_order2,
-    double f_psf, double min_gal_size,
+    double f_psf, double min_gal_size, bool desqa,
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
@@ -64,7 +66,8 @@ static void MeasureSingleShear1(
   int gal_size = (go+1)*(go+2)/2;
 
   if (times) ell.DoTimings();
-  if (ell.Measure(pix,go,sigma_obs,true)) {
+  long flag1=0;
+  if (ell.Measure(pix,go,sigma_obs,true,flag1,desqa)) {
     if (times) {
       times->ns_native++;
       times->ts_native_integ += ell.t_integ;
@@ -88,8 +91,6 @@ static void MeasureSingleShear1(
     log.nf_native++;
     dbg<<"Native measurement failed\n";
     flag |= NATIVE_FAILED;
-    shear = ell.GetGamma();
-    ell.MeasureShapelet(pix,shapelet);
     return;
   }
   //double mu_2 = ell.GetMu();
@@ -101,9 +102,7 @@ static void MeasureSingleShear1(
     dbg<<"skip: galaxy is too small -- "<<sigma_obs<<" psf size = "<<sigma_p<<std::endl;
     if (times) times->nf_small++;
     log.nf_small++;
-    flag |= TOOSMALL;
-    shear = ell.GetGamma();
-    ell.MeasureShapelet(pix,shapelet);
+    flag |= TOO_SMALL;
     return;
   }
   galap *= exp(ell.GetMu());
@@ -112,7 +111,7 @@ static void MeasureSingleShear1(
 
   // Check - mu should now be zero:
   // This one works
-  //ell.Measure(pix,go,sigma_obs);
+  //ell.Measure(pix,go,sigma_obs,true,flag1,desqa);
   //xdbg<<"After native fit #2:\n";
   //xdbg<<"Mu = "<<ell.GetMu()<<std::endl;
 
@@ -127,7 +126,8 @@ static void MeasureSingleShear1(
   xdbg<<"sigma = "<<sigma<<std::endl;
   ell.SetFP(f_psf);
   if (times) ell.ResetTimes();
-  if (ell.Measure(pix,psf,go,sigma,false)) {
+  flag1 = 0;
+  if (ell.Measure(pix,psf,go,sigma,false,flag1,desqa)) {
     if (times) {
       times->ns_mu++;
       times->ts_mu_integ += ell.t_integ;
@@ -136,6 +136,14 @@ static void MeasureSingleShear1(
       times->ts_mu_final += ell.t_final;
     }
     log.ns_mu++;
+    if (flag1) {
+      Assert((flag1 & ~(SHEAR_LOCAL_MIN | SHEAR_POOR_FIT)) == false);
+      // This is just bumps the Ellipse flags up two spots
+      // from the SHEAR_* to SHAPE_* flags.
+      flag1 <<= 2;
+      Assert((flag1 & ~(SHAPE_LOCAL_MIN | SHAPE_POOR_FIT)) == false);
+      flag |= flag1;
+    }
     dbg<<"Successful deconvolving fit:\n";
     xdbg<<"Mu = "<<ell.GetMu()<<std::endl;
   }
@@ -150,7 +158,6 @@ static void MeasureSingleShear1(
     log.nf_mu++;
     dbg<<"Deconvolving measurement failed\n";
     flag |= DECONV_FAILED;
-    shear = ell.GetGamma();
     ell.MeasureShapelet(pix,psf,shapelet);
     return;
   }
@@ -167,7 +174,7 @@ static void MeasureSingleShear1(
   // Check - mu should now be zero:
   b_gal.SetSigma(sigma);
   dbg<<"Meausre with sigma = "<<sigma<<std::endl;
-  ell.Measure(pix,psf,go,sigma,false,&b_gal);
+  ell.Measure(pix,psf,go,sigma,false,flag1,desqa,&b_gal);
   dbg<<"After deconvolving fit #2:\n";
   dbg<<"Mu = "<<ell.GetMu()<<std::endl;
   dbg<<"b_gal = "<<b_gal<<std::endl;
@@ -180,6 +187,8 @@ static void MeasureSingleShear1(
     while (npix <= gal_size) { gal_size -= go+1; --go; }
     dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
     dbg<<"Reduced gal_order to "<<go<<" gal_size = "<<gal_size<<std::endl;
+    flag |= SHAPE_REDUCED_ORDER;
+    if (go < 2) { flag |= TOO_SMALL; return; }
   }
   //shapelet = new BVec(go,sigma);
   shapelet.SetSigma(sigma);
@@ -190,7 +199,10 @@ static void MeasureSingleShear1(
   // Under normal circumstances, b20/b00 ~= conj(gamma)/sqrt(2)
   gale = std::complex<double>(shapelet[3],shapelet[4]);
   gale /= shapelet[0];
-  if (std::abs(gale) < 0.5) ell.SetGamma(conj(gale) * sqrt(2.));
+  if (std::abs(gale) < 0.5) {
+    ell.SetGamma(conj(gale) * sqrt(2.));
+    shear = ell.GetGamma();
+  }
 
   // Finally, we calculate the shear in the deconvolved galaxy.
   //ell.FixMu();
@@ -204,7 +216,7 @@ static void MeasureSingleShear1(
   }
   if (times) ell.ResetTimes();
   tmv::Matrix<double> cov(5,5);
-  if (ell.Measure(pix,psf,go,sigma,false,&cov)) {
+  if (ell.Measure(pix,psf,go,sigma,false,flag,desqa,&cov)) {
     if (times) {
       times->ns_gamma++;
       times->ts_gamma_integ += ell.t_integ;
@@ -216,8 +228,10 @@ static void MeasureSingleShear1(
     dbg<<"Successful Gamma fit\n";
     xdbg<<"Measured gamma = "<<ell.GetGamma()<<std::endl;
     shear = ell.GetGamma();
-    shearcov = cov.SubMatrix(2,4,2,4);
-    //shearcov.SetToIdentity(0.001);
+    tmv::SmallMatrix<double,2,2,tmv::RowMajor> cov1 = 
+      cov.SubMatrix(2,4,2,4);
+    if (!(cov1.Det() > 0.)) flag |= SHEAR_BAD_COVAR;
+    else shearcov = cov1;
   }
   else {
     if (times) {
@@ -231,7 +245,10 @@ static void MeasureSingleShear1(
     dbg<<"Measurement failed\n";
     flag |= SHEAR_FAILED;
     shear = ell.GetGamma();
-    shearcov = cov.SubMatrix(2,4,2,4);
+    tmv::SmallMatrix<double,2,2,tmv::RowMajor> cov1 = 
+      cov.SubMatrix(2,4,2,4);
+    if (!(cov1.Det() > 0.)) flag |= SHEAR_BAD_COVAR;
+    else shearcov = cov1;
     return;
   }
   //dbg<<"Stats: Mu: "<<mu_1<<"  "<<mu_2<<"  "<<mu_3<<std::endl;
@@ -249,7 +266,7 @@ static void MeasureSingleShear(
     double noise, double gain, const Image<double>* weight_im, 
     double gal_aperture, double max_aperture,
     int gal_order, int gal_order2,
-    double f_psf, double min_gal_size,
+    double f_psf, double min_gal_size, bool desqa,
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
@@ -273,7 +290,7 @@ static void MeasureSingleShear(
 
   // Calculate the psf from the fitted-psf formula:
   std::vector<BVec> psf(1,
-      BVec(fitpsf.GetOrder(), fitpsf.GetSigma()));
+      BVec(fitpsf.GetPSFOrder(), fitpsf.GetSigma()));
   try {
     dbg<<"for fittedpsf cen = "<<cen<<std::endl;
     psf[0] = fitpsf(cen);
@@ -296,7 +313,7 @@ static void MeasureSingleShear(
 	noise, gain, weight_im, 
 	// Parameters:
 	gal_aperture, max_aperture, gal_order, gal_order2, 
-	f_psf, min_gal_size, 
+	f_psf, min_gal_size, desqa,
 	// Time stats if desired:
 	times,
 	// Log information
@@ -320,35 +337,20 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
     const Image<double>* weight_im, const Transformation& trans,
     const FittedPSF& fitpsf, ShearLog& log)
 {
-  // Read some needed parameters
   int ngals = pos.size();
   dbg<<"ngals = "<<ngals<<std::endl;
 
-  Assert(params.keyExists("shear_aperture"));
-  double gal_aperture = params["shear_aperture"];
-  double max_aperture = 0.;
-  if (params.keyExists("shear_max_aperture")) 
-    max_aperture = params["shear_max_aperture"];
-
-  Assert(params.keyExists("shear_gal_order"));
-  int gal_order = params["shear_gal_order"];
-  int gal_order2 = gal_order;
-  if (params.keyExists("shear_gal_order2")) 
-    gal_order2 = params["shear_gal_order2"];
-
-  Assert(params.keyExists("shear_f_psf"));
-  double f_psf = params["shear_f_psf"];
-
-  double gain = 0.;
-  if (params.keyExists("image_gain")) gain = params["image_gain"];
-
-  Assert(params.keyExists("shear_min_gal_size"));
-  double min_gal_size = params["shear_min_gal_size"];
-
-  bool output_dots=false;
-  if (params.keyExists("output_dots")) output_dots=true;
-  bool timing=false;
-  if (params.keyExists("timing")) timing=true;
+  // Read some needed parameters
+  double gal_aperture = params.get("shear_aperture");
+  double max_aperture = params.read("shear_max_aperture",0.);
+  int gal_order = params.get("shear_gal_order");
+  int gal_order2 = params.read("shear_gal_order2",gal_order);
+  double f_psf = params.get("shear_f_psf");
+  double gain = params.read("image_gain",0.);
+  double min_gal_size = params.get("shear_min_gal_size");
+  bool desqa = params.read("des_qa",false);
+  bool output_dots = params.read("output_dots",false);
+  bool timing = params.read("timing",false);
 
   OverallFitTimes alltimes;
 
@@ -363,6 +365,8 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
 #ifdef SINGLEGAL
   log.ngals = 1;
 #endif
+  log.ngoodin = std::count(flags.begin(),flags.end(),0);
+  dbg<<log.ngoodin<<"/"<<log.ngals<<" galaxies with no input flags\n";
 
   // Main loop to measure shears
 #ifdef _OPENMP
@@ -376,7 +380,7 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
 #ifdef _OPENMP
 #pragma omp for schedule(dynamic)
 #endif
-      for(int i=0;i<ngals;i++) {
+      for(int i=0;i<ngals;i++) if (!flags[i]) {
 #ifdef STARTAT
 	if (i < STARTAT) continue;
 #endif
@@ -406,7 +410,7 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
 	    noise[i], gain, weight_im, 
 	    // Parameters:
 	    gal_aperture, max_aperture, gal_order, gal_order2, 
-	    f_psf, min_gal_size, 
+	    f_psf, min_gal_size, desqa,
 	    // Time stats if desired:
 	    timing ? &times : 0, 
 	    // Log information
@@ -447,11 +451,21 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
   }
 #endif
 
-  int nsuccess = log.ns_gamma;
-  dbg<<nsuccess<<" successful shear measurements, ";
-  dbg<<ngals-nsuccess<<" unsuccessful.\n";
+  dbg<<log.ns_gamma<<" successful shear measurements, ";
+  dbg<<ngals-log.ns_gamma<<" unsuccessful\n";
+  log.ngood = std::count(flags.begin(),flags.end(),0);
+  dbg<<log.ngood<<" with no flags\n";
+
+  if (output_dots) {
+    std::cerr
+      <<std::endl
+      <<"Success rate: "<<log.ns_gamma<<"/"<<log.ngoodin
+      <<"  # with no flags: "<<log.ngood
+      <<std::endl;
+  }
 
   if (timing) {
+    dbg<<"From timing structure:\n";
     dbg<<alltimes.ns_gamma<<" successful shear measurements, ";
     dbg<<alltimes.nf_native<<" + "<<alltimes.nf_mu;
     dbg<<" + "<<alltimes.nf_gamma<<" unsuccessful\n";
@@ -459,24 +473,21 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
   }
   xdbg<<log<<std::endl;
 
-  if (output_dots) { 
-    std::cerr
-      <<std::endl
-      <<"Success rate: "<<nsuccess<<"/"<<ngals
-      <<std::endl; 
-  }
-
-  return nsuccess;
+  return log.ns_gamma;
 }
 
 ShearCatalog::ShearCatalog(const InputCatalog& incat,
-    const Transformation& trans,
-    const ConfigFile& _params, std::string key_prefix) :
+    const Transformation& trans, const ConfigFile& _params) :
   id(incat.id), pos(incat.pos), sky(incat.sky), noise(incat.noise),
-  flags(incat.flags),
-  params(_params), prefix(key_prefix)
+  flags(incat.flags), params(_params)
 {
   dbg<<"Create ShearCatalog\n";
+
+  // Fix flags to only have INPUT_FLAG set.
+  // (I don't think this is necessary, but just in case.)
+  for (size_t i=0; i<size(); i++) {
+    flags[i] &= INPUT_FLAG;
+  }
 
   // Calculate sky positions
   Position skypos_default(DEFVALNEG,DEFVALNEG);
@@ -524,14 +535,14 @@ ShearCatalog::ShearCatalog(const InputCatalog& incat,
     }
   }
 
-  shear.resize(id.size(),0.);
+  shear.resize(id.size(),std::complex<double>(DEFVALPOS,DEFVALPOS));
   nu.resize(id.size(),DEFVALNEG);
 
   tmv::SmallMatrix<double,2,2> cov_default;
   cov_default = tmv::ListInit, DEFVALPOS, 0, 0, DEFVALPOS;
   cov.resize(id.size(),cov_default);
 
-  int gal_order = params.get(prefix + "gal_order");
+  int gal_order = params.get("shear_gal_order");
   BVec shape_default(gal_order,1.);
   shape_default.SetAllTo(DEFVALNEG);
   shape.resize(id.size(),shape_default);
@@ -548,8 +559,7 @@ ShearCatalog::ShearCatalog(const InputCatalog& incat,
   Assert(shape.size() == size());
 }
 
-ShearCatalog::ShearCatalog(const ConfigFile& _params, std::string key_prefix) :
-  params(_params), prefix(key_prefix)
+ShearCatalog::ShearCatalog(const ConfigFile& _params) : params(_params)
 {
   Read();
 
@@ -582,102 +592,83 @@ void ShearCatalog::WriteFits(std::string file) const
   int ncoeff = shape[0].size();
   dbg<<"ncoeff = "<<ncoeff<<std::endl;
 
-  std::stringstream coeff_form;
-  coeff_form << ncoeff << "d";
-
-  std::string id_col=params.get(prefix + "id_col");
-  std::string x_col=params.get(prefix + "x_col");
-  std::string y_col=params.get(prefix + "y_col");
-  std::string sky_col=params.get(prefix + "sky_col");
-  std::string noise_col=params.get(prefix + "noise_col");
-  std::string flags_col=params.get(prefix + "flags_col");
-  std::string ra_col=params.get(prefix + "ra_col");
-  std::string dec_col=params.get(prefix + "dec_col");
-  std::string shear1_col=params.get(prefix + "shear1_col");
-  std::string shear2_col=params.get(prefix + "shear2_col");
-  std::string nu_col=params.get(prefix + "nu_col");
-  std::string cov00_col=params.get(prefix + "cov00_col");
-  std::string cov01_col=params.get(prefix + "cov01_col");
-  std::string cov11_col=params.get(prefix + "cov11_col");
-  std::string order_col=params.get(prefix + "order_col");
-  std::string sigma_col=params.get(prefix + "sigma_col");
-  std::string coeffs_col=params.get(prefix + "coeffs_col");
+  std::string id_col=params.get("shear_id_col");
+  std::string x_col=params.get("shear_x_col");
+  std::string y_col=params.get("shear_y_col");
+  std::string sky_col=params.get("shear_sky_col");
+  std::string noise_col=params.get("shear_noise_col");
+  std::string flags_col=params.get("shear_flags_col");
+  std::string ra_col=params.get("shear_ra_col");
+  std::string dec_col=params.get("shear_dec_col");
+  std::string shear1_col=params.get("shear_shear1_col");
+  std::string shear2_col=params.get("shear_shear2_col");
+  std::string nu_col=params.get("shear_nu_col");
+  std::string cov00_col=params.get("shear_cov00_col");
+  std::string cov01_col=params.get("shear_cov01_col");
+  std::string cov11_col=params.get("shear_cov11_col");
+  std::string order_col=params.get("shear_order_col");
+  std::string sigma_col=params.get("shear_sigma_col");
+  std::string coeffs_col=params.get("shear_coeffs_col");
 
   const int nfields=17;
   std::string table_cols[nfields] = {
     id_col,
-    x_col,
-    y_col,
+    x_col, y_col,
     sky_col,
     noise_col,
     flags_col,
-    ra_col,
-    dec_col,
-    shear1_col,
-    shear2_col,
+    ra_col, dec_col,
+    shear1_col, shear2_col,
     nu_col,
-    cov00_col,
-    cov01_col,
-    cov11_col,
-    order_col,
-    sigma_col,
-    coeffs_col,
+    cov00_col, cov01_col, cov11_col,
+    order_col, sigma_col, coeffs_col,
   };
-  std::string table_types[nfields] = {
-    "1j", // id
-    "1d", // x
-    "1d", // y
-    "1d", // sky
-    "1d", // noise
-    "1i", // flags
-    "1d", // ra
-    "1d", // dec
-    "1d", // shear1
-    "1d", // shear2
-    "1d", // nu
-    "1d", // cov00
-    "1d", // cov01
-    "1d", // cov11
-    "1j", // order
-    "1d", // sigma
-    coeff_form.str()
+  int table_nelem[nfields] = {
+    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+    ncoeff
+  };
+  Type_FITS table_types[nfields] = {
+    XLONG,
+    XDOUBLE, XDOUBLE,
+    XDOUBLE,
+    XDOUBLE,
+    XLONG,
+    XDOUBLE, XDOUBLE,
+    XDOUBLE, XDOUBLE,
+    XDOUBLE,
+    XDOUBLE, XDOUBLE, XDOUBLE,
+    XLONG, XDOUBLE, XDOUBLE,
   };
   std::string table_units[nfields] = {
     "None",
-    "Pixels",
-    "Pixels",
+    "Pixels", "Pixels",
     "ADU",
     "ADU^2",
     "None",
-    "Deg",
-    "Deg",
+    "Deg", "Deg",
+    "None", "None",
     "None",
-    "None",
-    "None",
-    "None",
-    "None",
-    "None",
-    "None",
-    "Arcsec",
-    "None"
+    "None", "None", "None",
+    "None", "Arcsec", "None"
   };
 
   // Create a binary table
-  fits.CreateBinaryTable(size(),nfields,table_cols,table_types,table_units);
+  fits.CreateBinaryTable(size(),nfields,
+      table_cols,table_nelem,table_types,table_units);
 
   // Write the header keywords
-  fits.WriteParKey(params, "version", TSTRING);
-  fits.WriteParKey(params, "noise_method", TSTRING);
-  fits.WriteParKey(params, "dist_method", TSTRING);
+  WriteParKey("version");
+  WriteParKey("noise_method");
+  WriteParKey("dist_method");
 
-  fits.WriteParKey(params, prefix + "aperture", TDOUBLE);
-  fits.WriteParKey(params, prefix + "max_aperture", TDOUBLE);
-  fits.WriteParKey(params, prefix + "gal_order", TLONG);
-  fits.WriteParKey(params, prefix + "gal_order2", TLONG);
-  fits.WriteParKey(params, prefix + "min_gal_size", TDOUBLE);
-  fits.WriteParKey(params, prefix + "f_psf", TDOUBLE);
+  WriteParKey("shear_aperture");
+  WriteParKey("shear_max_aperture");
+  WriteParKey("shear_gal_order");
+  WriteParKey("shear_gal_order2");
+  WriteParKey("shear_min_gal_size");
+  WriteParKey("shear_f_psf");
 
-  fits.WriteColumn(TLONG, 1, 1, 1, size(), &id[0]);
+  fits.WriteColumn(XLONG, 1, 1, 1, size(), &id[0]);
 
   std::vector<double> x(size());
   std::vector<double> y(size());
@@ -685,12 +676,12 @@ void ShearCatalog::WriteFits(std::string file) const
     x[i] = pos[i].GetX();
     y[i] = pos[i].GetY();
   }
-  fits.WriteColumn(TDOUBLE, 2, 1, 1, size(), &x[0]);
-  fits.WriteColumn(TDOUBLE, 3, 1, 1, size(), &y[0]);
+  fits.WriteColumn(XDOUBLE, 2, 1, 1, size(), &x[0]);
+  fits.WriteColumn(XDOUBLE, 3, 1, 1, size(), &y[0]);
 
-  fits.WriteColumn(TDOUBLE, 4, 1, 1, size(), &sky[0]);
-  fits.WriteColumn(TDOUBLE, 5, 1, 1, size(), &noise[0]);
-  fits.WriteColumn(TLONG, 6, 1, 1, size(), &flags[0]);
+  fits.WriteColumn(XDOUBLE, 4, 1, 1, size(), &sky[0]);
+  fits.WriteColumn(XDOUBLE, 5, 1, 1, size(), &noise[0]);
+  fits.WriteColumn(XLONG, 6, 1, 1, size(), &flags[0]);
 
   std::vector<double> ra(size());
   std::vector<double> dec(size());
@@ -698,8 +689,8 @@ void ShearCatalog::WriteFits(std::string file) const
     ra[i] = skypos[i].GetX();
     dec[i] = skypos[i].GetY();
   }
-  fits.WriteColumn(TDOUBLE, 7, 1, 1, size(), &ra[0]);
-  fits.WriteColumn(TDOUBLE, 8, 1, 1, size(), &dec[0]);
+  fits.WriteColumn(XDOUBLE, 7, 1, 1, size(), &ra[0]);
+  fits.WriteColumn(XDOUBLE, 8, 1, 1, size(), &dec[0]);
 
   std::vector<double> shear1(size());
   std::vector<double> shear2(size());
@@ -707,9 +698,9 @@ void ShearCatalog::WriteFits(std::string file) const
     shear1[i] = real(shear[i]);
     shear2[i] = imag(shear[i]);
   }
-  fits.WriteColumn(TDOUBLE, 9, 1, 1, size(), &shear1[0]);
-  fits.WriteColumn(TDOUBLE, 10, 1, 1, size(), &shear2[0]);
-  fits.WriteColumn(TDOUBLE, 11, 1, 1, size(), &nu[0]);
+  fits.WriteColumn(XDOUBLE, 9, 1, 1, size(), &shear1[0]);
+  fits.WriteColumn(XDOUBLE, 10, 1, 1, size(), &shear2[0]);
+  fits.WriteColumn(XDOUBLE, 11, 1, 1, size(), &nu[0]);
 
   std::vector<double> cov00(size());
   std::vector<double> cov01(size());
@@ -719,17 +710,17 @@ void ShearCatalog::WriteFits(std::string file) const
     cov01[i] = cov[i](0,1);
     cov11[i] = cov[i](1,1);
   }
-  fits.WriteColumn(TDOUBLE, 12, 1, 1, size(), &cov00[0]);
-  fits.WriteColumn(TDOUBLE, 13, 1, 1, size(), &cov01[0]);
-  fits.WriteColumn(TDOUBLE, 14, 1, 1, size(), &cov11[0]);
+  fits.WriteColumn(XDOUBLE, 12, 1, 1, size(), &cov00[0]);
+  fits.WriteColumn(XDOUBLE, 13, 1, 1, size(), &cov01[0]);
+  fits.WriteColumn(XDOUBLE, 14, 1, 1, size(), &cov11[0]);
   
   for (size_t i=0; i<size(); i++) {
     size_t row = i+1;
     long b_order = shape[i].GetOrder();
     double b_sigma = shape[i].GetSigma();
-    fits.WriteColumn(TLONG, 15, row, 1, 1, &b_order);
-    fits.WriteColumn(TDOUBLE, 16, row, 1, 1, &b_sigma);
-    fits.WriteColumn(TDOUBLE, 17, row, 1, ncoeff, shape[i].cptr());
+    fits.WriteColumn(XLONG, 15, row, 1, 1, &b_order);
+    fits.WriteColumn(XDOUBLE, 16, row, 1, 1, &b_sigma);
+    fits.WriteColumn(XDOUBLE, 17, row, 1, ncoeff, shape[i].cptr());
   }
 }
 
@@ -751,6 +742,8 @@ void ShearCatalog::WriteAscii(std::string file, std::string delim) const
     throw std::runtime_error("Error opening shear file");
   }
 
+  Form hexform; hexform.hex().trail(0);
+
   for(size_t i=0;i<size();i++) {
     fout
       << id[i] << delim
@@ -758,7 +751,7 @@ void ShearCatalog::WriteAscii(std::string file, std::string delim) const
       << pos[i].GetY() << delim
       << sky[i] << delim
       << noise[i] << delim
-      << flags[i] << delim
+      << hexform(flags[i]) << delim
       << skypos[i].GetX() << delim
       << skypos[i].GetY() << delim
       << real(shear[i]) << delim
@@ -777,23 +770,40 @@ void ShearCatalog::WriteAscii(std::string file, std::string delim) const
 
 void ShearCatalog::Write() const
 {
-  std::string file = Name(params,"shear");
-  dbg<<"Writing to shear file: "<<file<<std::endl;
+  std::vector<std::string> files = MultiName(params, "shear");  
 
-  if (file.find("fits") != std::string::npos) {
-    WriteFits(file);
-  } else {
-    std::string delim = "  ";
-    if (params.keyExists(prefix + "delim")) delim = params[prefix + "delim"];
-    WriteAscii(file,delim);
+  for(size_t i=0; i<files.size(); ++i) {
+    const std::string& file = files[i];
+    dbg<<"Writing shear catalog to file: "<<file<<std::endl;
+
+    bool fitsio = false;
+    if (params.keyExists("shear_io")) {
+      std::vector<std::string> ios = params["shear_io"];
+      Assert(ios.size() == files.size());
+      fitsio = (ios[i] == "FITS");
+    }
+    else if (file.find("fits") != std::string::npos) 
+      fitsio = true;
+
+    if (fitsio) {
+      WriteFits(file);
+    } else {
+      std::string delim = "  ";
+      if (params.keyExists("shear_delim")) {
+	std::vector<std::string> delims = params["shear_delim"];
+	Assert(delims.size() == files.size());
+	delim = delims[i];
+      }
+      else if (file.find("csv") != std::string::npos) delim = ",";
+      WriteAscii(file,delim);
+    }
   }
-  dbg<<"Done Write\n";
+  dbg<<"Done Write ShearCatalog\n";
 }
 
 void ShearCatalog::ReadFits(std::string file)
 {
-  int hdu = 2;
-  if (params.keyExists(prefix + "hdu")) hdu = params[prefix + "hdu"];
+  int hdu = params.read("shear_hdu",2);
 
   FitsFile fits(file);
 
@@ -801,83 +811,83 @@ void ShearCatalog::ReadFits(std::string file)
   fits.GotoHDU(hdu);
 
   long nrows=0;
-  fits.ReadKey("NAXIS2", TLONG, &nrows);
+  fits.ReadKey("NAXIS2", XLONG, &nrows);
 
   dbg<<"  nrows = "<<nrows<<std::endl;
   if (nrows <= 0) {
     throw std::runtime_error("nrows must be > 0");
   }
 
-  std::string id_col=params.get(prefix + "id_col");
-  std::string x_col=params.get(prefix + "x_col");
-  std::string y_col=params.get(prefix + "y_col");
-  std::string sky_col=params.get(prefix + "sky_col");
-  std::string noise_col=params.get(prefix + "noise_col");
-  std::string flags_col=params.get(prefix + "flags_col");
-  std::string ra_col=params.get(prefix + "ra_col");
-  std::string dec_col=params.get(prefix + "dec_col");
-  std::string shear1_col=params.get(prefix + "shear1_col");
-  std::string shear2_col=params.get(prefix + "shear2_col");
-  std::string nu_col=params.get(prefix + "nu_col");
-  std::string cov00_col=params.get(prefix + "cov00_col");
-  std::string cov01_col=params.get(prefix + "cov01_col");
-  std::string cov11_col=params.get(prefix + "cov11_col");
-  std::string order_col=params.get(prefix + "order_col");
-  std::string sigma_col=params.get(prefix + "sigma_col");
-  std::string coeffs_col=params.get(prefix + "coeffs_col");
+  std::string id_col=params.get("shear_id_col");
+  std::string x_col=params.get("shear_x_col");
+  std::string y_col=params.get("shear_y_col");
+  std::string sky_col=params.get("shear_sky_col");
+  std::string noise_col=params.get("shear_noise_col");
+  std::string flags_col=params.get("shear_flags_col");
+  std::string ra_col=params.get("shear_ra_col");
+  std::string dec_col=params.get("shear_dec_col");
+  std::string shear1_col=params.get("shear_shear1_col");
+  std::string shear2_col=params.get("shear_shear2_col");
+  std::string nu_col=params.get("shear_nu_col");
+  std::string cov00_col=params.get("shear_cov00_col");
+  std::string cov01_col=params.get("shear_cov01_col");
+  std::string cov11_col=params.get("shear_cov11_col");
+  std::string order_col=params.get("shear_order_col");
+  std::string sigma_col=params.get("shear_sigma_col");
+  std::string coeffs_col=params.get("shear_coeffs_col");
 
   dbg<<"Reading columns"<<std::endl;
   dbg<<"  "<<id_col<<std::endl;
   id.resize(nrows);
-  fits.ReadScalarCol(id_col,TLONG,&id[0], nrows);
+  fits.ReadScalarCol(id_col,XLONG,&id[0], nrows);
 
   dbg<<"  "<<x_col<<"  "<<y_col<<std::endl;
   pos.resize(nrows);
   std::vector<double> x(nrows);
   std::vector<double> y(nrows);
-  fits.ReadScalarCol(x_col,TDOUBLE,&x[0], nrows);
-  fits.ReadScalarCol(y_col,TDOUBLE,&y[0], nrows);
+  fits.ReadScalarCol(x_col,XDOUBLE,&x[0], nrows);
+  fits.ReadScalarCol(y_col,XDOUBLE,&y[0], nrows);
   for(long i=0;i<nrows;++i) pos[i] = Position(x[i],y[i]);
 
   dbg<<"  "<<sky_col<<std::endl;
-  fits.ReadScalarCol(sky_col,TDOUBLE,&sky[0], nrows);
+  fits.ReadScalarCol(sky_col,XDOUBLE,&sky[0], nrows);
 
   dbg<<"  "<<noise_col<<std::endl;
-  fits.ReadScalarCol(noise_col,TDOUBLE,&noise[0], nrows);
+  fits.ReadScalarCol(noise_col,XDOUBLE,&noise[0], nrows);
 
   dbg<<"  "<<flags_col<<std::endl;
   flags.resize(nrows,0);
-  fits.ReadScalarCol(flags_col,TLONG,&flags[0], nrows);
+  fits.ReadScalarCol(flags_col,XLONG,&flags[0], nrows);
 
   dbg<<"  "<<ra_col<<"  "<<dec_col<<std::endl;
   skypos.resize(nrows);
   std::vector<double> ra(nrows);
   std::vector<double> dec(nrows);
-  fits.ReadScalarCol(ra_col,TDOUBLE,&ra[0], nrows);
-  fits.ReadScalarCol(dec_col,TDOUBLE,&dec[0], nrows);
+  fits.ReadScalarCol(ra_col,XDOUBLE,&ra[0], nrows);
+  fits.ReadScalarCol(dec_col,XDOUBLE,&dec[0], nrows);
   for(long i=0;i<nrows;++i) skypos[i] = Position(ra[i],dec[i]);
 
   dbg<<"  "<<shear1_col<<"  "<<shear2_col<<std::endl;
   shear.resize(nrows);
   std::vector<double> shear1(nrows);
   std::vector<double> shear2(nrows);
-  fits.ReadScalarCol(shear1_col,TDOUBLE,&shear1[0], nrows);
-  fits.ReadScalarCol(shear2_col,TDOUBLE,&shear2[0], nrows);
+  fits.ReadScalarCol(shear1_col,XDOUBLE,&shear1[0], nrows);
+  fits.ReadScalarCol(shear2_col,XDOUBLE,&shear2[0], nrows);
   for(long i=0;i<nrows;++i) 
     shear[i] = std::complex<double>(shear1[i],shear2[i]);
 
   dbg<<"  "<<nu_col<<std::endl;
   nu.resize(nrows,0);
-  fits.ReadScalarCol(nu_col,TDOUBLE,&nu[0], nrows);
+  fits.ReadScalarCol(nu_col,XDOUBLE,&nu[0], nrows);
 
   dbg<<"  "<<cov00_col<<"  "<<cov01_col<<"  "<<cov11_col<<std::endl;
   cov.resize(nrows);
   std::vector<double> cov00(nrows);
   std::vector<double> cov01(nrows);
   std::vector<double> cov11(nrows);
-  fits.ReadScalarCol(cov00_col,TDOUBLE,&cov00[0], nrows);
-  fits.ReadScalarCol(cov01_col,TDOUBLE,&cov01[0], nrows);
-  fits.ReadScalarCol(cov11_col,TDOUBLE,&cov11[0], nrows);
+  fits.ReadScalarCol(cov00_col,XDOUBLE,&cov00[0], nrows);
+  fits.ReadScalarCol(cov01_col,XDOUBLE,&cov01[0], nrows);
+  fits.ReadScalarCol(cov11_col,XDOUBLE,&cov11[0], nrows);
   for(long i=0;i<nrows;++i) 
     cov[i] = tmv::ListInit, cov00[i], cov01[i], cov01[i], cov11[i];
 
@@ -886,11 +896,11 @@ void ShearCatalog::ReadFits(std::string file)
     size_t row=i+1;
     double b_sigma;
     long b_order;
-    fits.ReadCell(order_col,TLONG,&b_order,row,1);
-    fits.ReadCell(sigma_col,TDOUBLE,&b_sigma,row,1);
+    fits.ReadCell(order_col,XLONG,&b_order,row,1);
+    fits.ReadCell(sigma_col,XDOUBLE,&b_sigma,row,1);
     shape.push_back(BVec(b_order,b_sigma));
     int ncoeff=(b_order+1)*(b_order+2)/2;
-    fits.ReadCell(coeffs_col,TDOUBLE,shape[i].ptr(),row,ncoeff);
+    fits.ReadCell(coeffs_col,XDOUBLE,shape[i].ptr(),row,ncoeff);
   }
 }
 
@@ -901,11 +911,15 @@ void ShearCatalog::ReadAscii(std::string file, std::string delim)
     throw std::runtime_error("Error opening stars file");
   }
 
+  id.clear(); pos.clear(); sky.clear(); noise.clear(); flags.clear();
+  skypos.clear(); shear.clear(); nu.clear(); cov.clear(); shape.clear();
+
   if (delim == "  ") {
-    long id1,flag,b_order;
-    double x,y,sky1,noise1,ra,dec,s1,s2,nu1,b_sigma,c00,c01,c11;
-    while ( fin >> id1 >> x >> y >> sky1 >> noise1 >> flag >>
-	ra >> dec >> s1 >> s2 >> nu1 >>
+    ConvertibleString flag;
+    long id1,b_order;
+    double x,y,sky1,noise1,ra,dec,s1,s2,nu1,c00,c01,c11,b_sigma;
+    while ( fin >> id1 >> x >> y >> sky1 >> noise1 >> 
+	flag >> ra >> dec >> s1 >> s2 >> nu1 >>
 	c00 >> c01 >> c11 >> b_order >> b_sigma )
     {
       id.push_back(id1);
@@ -973,13 +987,20 @@ void ShearCatalog::Read()
   std::string file = Name(params,"shear",false,true);
   // false,true = input_prefix=false, mustexist=true.
   // It is an input here, but it is in the output_prefix directory.
-  dbg<< "Reading PSF cat from file: " << file << std::endl;
+  dbg<< "Reading Shear cat from file: " << file << std::endl;
 
-  if (file.find("fits") != std::string::npos) {
+  bool fitsio = false;
+  if (params.keyExists("shear_io")) 
+    fitsio = (params["shear_io"] == "FITS");
+  else if (file.find("fits") != std::string::npos) 
+    fitsio = true;
+
+  if (fitsio) {
     ReadFits(file);
   } else {
     std::string delim = "  ";
-    if (params.keyExists(prefix + "delim")) delim = params[prefix + "delim"];
+    if (params.keyExists("shear_delim")) delim = params["shear_delim"];
+    else if (file.find("csv") != std::string::npos) delim = ",";
     ReadAscii(file,delim);
   }
   dbg<<"Done Read ShearCatalog\n";

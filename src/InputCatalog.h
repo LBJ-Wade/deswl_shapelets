@@ -5,13 +5,14 @@
 #include <string>
 #include "Bounds.h"
 #include "ConfigFile.h"
+#include "Image.h"
 
 class InputCatalog 
 {
 
   public :
 
-    InputCatalog(ConfigFile& _params, std::string key_prefix);
+    InputCatalog(ConfigFile& _params, const Image<double>* im=0);
 
     size_t size() const { return pos.size(); }
 
@@ -34,7 +35,6 @@ class InputCatalog
   private :
 
     const ConfigFile& params;
-    std::string prefix;
 
 };
 

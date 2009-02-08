@@ -31,11 +31,11 @@ class Ellipse {
 
     bool Measure(const std::vector<std::vector<Pixel> >& pix, 
 	const std::vector<BVec>& psf,
-	int order, double sigma, bool use_iteg, 
+	int order, double sigma, bool use_iteg, long& flag, bool desqa,
 	tmv::Matrix<double>* cov=0, 
 	BVec* bret=0, tmv::Matrix<double>* bcov=0);
     bool Measure(const std::vector<std::vector<Pixel> >& pix, 
-	int order, double sigma, bool use_integ,
+	int order, double sigma, bool use_integ, long& flag, bool desqa,
 	tmv::Matrix<double>* cov=0, 
 	BVec* bret=0, tmv::Matrix<double>* bcov=0);
 
@@ -81,8 +81,8 @@ class Ellipse {
   private :
 
     bool DoMeasure(const std::vector<std::vector<Pixel> >& pix, 
-	const std::vector<BVec>* psf, int order, double sigma, 
-	bool use_integ, tmv::Matrix<double>* cov=0, 
+	const std::vector<BVec>* psf, int order, double sigma,
+	bool use_integ, long& flag, bool desqa, tmv::Matrix<double>* cov=0, 
 	BVec* bret=0, tmv::Matrix<double>* bcov=0);
     void DoMeasureShapelet(const std::vector<std::vector<Pixel> >& pix, 
 	const std::vector<BVec>* psf, BVec& bret,

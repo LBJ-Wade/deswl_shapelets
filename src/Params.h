@@ -18,11 +18,17 @@
 #define LT10PIX                 0x80
 #define MEASURE_PSF_FAILED      0x100
 #define NATIVE_FAILED           0x200
-#define TOOSMALL                0x400
+#define TOO_SMALL               0x400
 #define DECONV_FAILED           0x800
 #define SHEAR_FAILED            0x1000
 #define SHAPELET_FAILED         0x2000
 #define UNKNOWN_FAILURE         0x4000
+#define SHAPE_REDUCED_ORDER     0x8000
+#define SHEAR_LOCAL_MIN         0x10000
+#define SHEAR_POOR_FIT          0x20000
+#define SHAPE_LOCAL_MIN         0x40000
+#define SHAPE_POOR_FIT          0x80000
+#define SHEAR_BAD_COVAR         0x100000
 
 
 //

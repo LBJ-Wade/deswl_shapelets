@@ -22,12 +22,12 @@ class ESImpl
     friend class EllipseSolver;
 
     ESImpl(const std::vector<std::vector<Pixel> >& _pix,
-	int _order, double _sigma, 
+	int _order, double _sigma, bool desqa,
 	bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux);
 
     ESImpl(const std::vector<std::vector<Pixel> >& _pix,
-	const std::vector<BVec>& _psf, double _fp,
-	int _order, double _sigma, 
+	const std::vector<BVec>& _psf, 
+	double _fp, int _order, double _sigma, bool desqa,
 	bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux);
 
     void F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const;
@@ -82,22 +82,21 @@ class ESImpl
     tmv::Matrix<double> _Gth;
     tmv::Matrix<double> _Gmu;
     mutable tmv::Matrix<double> _dTdE;
+    mutable bool didstatus3output;
 
 };
 
-bool didstatus3output = false;
-
-EllipseSolver::EllipseSolver(const std::vector<std::vector<Pixel> >& _pix,
-    int _order, double _sigma, 
-    bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux) :
-  pimpl(new ESImpl(_pix,_order,_sigma,_fixcen,_fixgam,_fixmu,_useflux))
+EllipseSolver::EllipseSolver(const std::vector<std::vector<Pixel> >& pix,
+    int order, double sigma, bool desqa,
+    bool fixcen, bool fixgam, bool fixmu, bool useflux) :
+  pimpl(new ESImpl(pix,order,sigma,desqa,fixcen,fixgam,fixmu,useflux))
 {}
 
-EllipseSolver::EllipseSolver(const std::vector<std::vector<Pixel> >& _pix,
-    const std::vector<BVec>& _psf, double _fp,
-    int _order, double _sigma, 
-    bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux) :
-  pimpl(new ESImpl(_pix,_psf,_fp,_order,_sigma,_fixcen,_fixgam,_fixmu,_useflux))
+EllipseSolver::EllipseSolver(const std::vector<std::vector<Pixel> >& pix,
+    const std::vector<BVec>& psf, double fp,
+    int order, double sigma, bool desqa,
+    bool fixcen, bool fixgam, bool fixmu, bool useflux) :
+  pimpl(new ESImpl(pix,psf,fp,order,sigma,desqa,fixcen,fixgam,fixmu,useflux))
 {}
 
 EllipseSolver::~EllipseSolver()
@@ -123,7 +122,7 @@ inline size_t SumSize(const std::vector<std::vector<Pixel> >& v)
 }
 
 ESImpl::ESImpl(const std::vector<std::vector<Pixel> >& _pix, 
-    int _order, double _sigma, 
+    int _order, double _sigma, bool desqa,
     bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux) :
   nsize((_order+1)*(_order+2)/2),
   np2size((_order+3)*(_order+4)/2), b(_order,_sigma),
@@ -141,7 +140,8 @@ ESImpl::ESImpl(const std::vector<std::vector<Pixel> >& _pix,
   _Gx(np2size,nsize), _Gy(np2size,nsize), 
   _Gg1(np2size,nsize), _Gg2(np2size,nsize), 
   _Gth(np2size,nsize), _Gmu(np2size,nsize),
-  _dTdE(0,0)
+  _dTdE(0,0),
+  didstatus3output(!desqa)
 {
   for(size_t k=0,n=0;k<pix.size();k++) {
     for(size_t i=0;i<pix[k].size();i++,n++) {
@@ -188,7 +188,8 @@ static int CalcMaxPSFOrder(const std::vector<BVec>& psf)
 #define SIZE_4 (maxpsforder+1)*(maxpsforder+2)/2
 #define SIZE_5 (maxpsforder+3)*(maxpsforder+4)/2
 ESImpl::ESImpl(const std::vector<std::vector<Pixel> >& _pix, 
-    const std::vector<BVec>& _psf, double _fp, int _order, double _sigma,
+    const std::vector<BVec>& _psf,
+    double _fp, int _order, double _sigma, bool desqa,
     bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux) :
   nsize((_order+1)*(_order+2)/2),
   np2size((_order+3)*(_order+4)/2), b(_order,_sigma),
@@ -206,7 +207,8 @@ ESImpl::ESImpl(const std::vector<std::vector<Pixel> >& _pix,
   _Gx(np2size,nsize), _Gy(np2size,nsize),
   _Gg1(SIZE_1b,SIZE_1), _Gg2(SIZE_1b,SIZE_1),
   _Gth(SIZE_1b,SIZE_1), _Gmu(SIZE_2,SIZE_3),
-  _dTdE(SIZE_4,SIZE_4)
+  _dTdE(SIZE_4,SIZE_4),
+  didstatus3output(!desqa)
 {
   for(size_t k=0,n=0;k<pix.size();k++) {
     for(size_t i=0;i<pix[k].size();i++,n++) {
@@ -1009,6 +1011,27 @@ void EllipseSolver::GetBCov(tmv::Matrix<double>& bcov) const
   bcov = Rinv * Rinv.Transpose();
 }
 
+void EllipseSolver::CallF(const tmv::Vector<double>& x,
+    tmv::Vector<double>& f) const
+{
+  Assert(x.size() == 5);
+  Assert(f.size() == 5);
+  pimpl->xinit = x;
+  if (pimpl->fixcen) { pimpl->fixuc = x[0]; pimpl->fixvc = x[1]; }
+  if (pimpl->fixgam) { pimpl->fixg1 = x[2]; pimpl->fixg2 = x[3]; }
+  if (pimpl->fixmu) { pimpl->fixm = x[4]; }
+
+  pimpl->x_short = pimpl->U * x;
+
+  pimpl->flux = 0;
+
+  F(pimpl->x_short,pimpl->f_short);
+
+  if (pimpl->useflux) 
+    f = pimpl->f_short.SubVector(1,pimpl->f_short.size()) * pimpl->U;
+  else f = pimpl->f_short*pimpl->U;
+}
+
 bool EllipseSolver::Solve(tmv::Vector<double>& x, tmv::Vector<double>& f,
     tmv::Matrix<double>* cov) const
 {
@@ -1129,19 +1152,19 @@ class ESImpl2
     mutable tmv::Matrix<double> _dTdE;
 };
 
-EllipseSolver2::EllipseSolver2(const std::vector<std::vector<Pixel> >& _pix,
-    int _order, double _sigma, double _pixscale,
-    bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux) :
-  pimpl(new ESImpl2(_pix,_order,_sigma,_pixscale,
-	_fixcen,_fixgam,_fixmu,_useflux))
+EllipseSolver2::EllipseSolver2(const std::vector<std::vector<Pixel> >& pix,
+    int order, double sigma, double pixscale,
+    bool fixcen, bool fixgam, bool fixmu, bool useflux) :
+  pimpl(new ESImpl2(pix,order,sigma,pixscale,
+	fixcen,fixgam,fixmu,useflux))
 {}
 
-EllipseSolver2::EllipseSolver2(const std::vector<std::vector<Pixel> >& _pix,
-    const std::vector<BVec>& _psf, double _fp,
-    int _order, double _sigma, double _pixscale,
-    bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux) :
-  pimpl(new ESImpl2(_pix,_psf,_fp,_order,_sigma,_pixscale,
-	_fixcen,_fixgam,_fixmu,_useflux))
+EllipseSolver2::EllipseSolver2(const std::vector<std::vector<Pixel> >& pix,
+    const std::vector<BVec>& psf, double fp,
+    int order, double sigma, double pixscale,
+    bool fixcen, bool fixgam, bool fixmu, bool useflux) :
+  pimpl(new ESImpl2(pix,psf,fp,order,sigma,pixscale,
+	fixcen,fixgam,fixmu,useflux))
 {}
 
 EllipseSolver2::~EllipseSolver2()
@@ -1533,6 +1556,26 @@ void ESImpl2::J(const tmv::Vector<double>& x, const tmv::Vector<double>& f,
   df /= flux;
   //df.col(4) += 2.*f;
   xxdbg<<"Done J: df = "<<df<<std::endl;
+}
+
+void EllipseSolver2::CallF(const tmv::Vector<double>& x,
+    tmv::Vector<double>& f) const
+{
+  Assert(x.size() == 5);
+  Assert(f.size() == 5);
+  pimpl->xinit = x;
+  if (pimpl->fixcen) { pimpl->fixuc = x[0]; pimpl->fixvc = x[1]; }
+  if (pimpl->fixgam) { pimpl->fixg1 = x[2]; pimpl->fixg2 = x[3]; }
+  if (pimpl->fixmu) { pimpl->fixm = x[4]; }
+
+  pimpl->x_short = pimpl->U * x;
+
+  pimpl->flux = 0;
+  F(pimpl->x_short,pimpl->f_short);
+
+  if (pimpl->useflux) 
+    f = pimpl->f_short.SubVector(1,pimpl->f_short.size()) * pimpl->U;
+  else f = pimpl->f_short*pimpl->U;
 }
 
 bool EllipseSolver2::Solve(tmv::Vector<double>& x, tmv::Vector<double>& f,

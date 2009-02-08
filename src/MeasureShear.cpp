@@ -1,25 +1,11 @@
 
-#include <cstdlib>
-#include <iostream>
-#include <cstdio>
-
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-
-#include "TMV.h"
-#include "ConfigFile.h"
-#include "dbg.h"
-#include "Name.h"
 #include "Image.h"
 #include "FittedPSF.h"
 #include "TimeVars.h"
 #include "Log.h"
 #include "ShearCatalog.h"
 #include "InputCatalog.h"
-
-std::ostream* dbgout = 0;
-bool XDEBUG = false;
+#include "BasicSetup.h"
 
 static void DoMeasureShear(ConfigFile& params, ShearLog& log) 
 {
@@ -27,90 +13,42 @@ static void DoMeasureShear(ConfigFile& params, ShearLog& log)
   Image<double> im(params,weight_im);
 
   // Read input catalog
-  InputCatalog incat(params,"cat_");
+  InputCatalog incat(params,&im);
 
   // Read distortion function
   Transformation trans(params);
 
   // Read the fitted psf file
-  FittedPSF fitpsf(params,"fitpsf_");
+  FittedPSF fitpsf(params);
 
   // Create shear catalog
-  ShearCatalog shearcat(incat,trans,params,"shear_");
+  ShearCatalog shearcat(incat,trans,params);
 
   // Measure shears and shapelet vectors
-  shearcat.MeasureShears(im,weight_im.get(),trans,fitpsf,log);
+  int nshear = shearcat.MeasureShears(im,weight_im.get(),trans,fitpsf,log);
 
   // Write results to file
   shearcat.Write();
+
+  if (nshear == 0) throw std::runtime_error("No successful shear measurements");
 
   xdbg<<"Log: \n"<<log<<std::endl;
 }
 
 int main(int argc, char **argv) try 
 {
-  // Read parameters
-  if (argc < 2) {
-    std::cout<<"STATUS5BEG Invalid command line for measureshear. STATUS5END"<<std::endl;
-    std::cerr<<"Usage: measureshear configfile [param=value ...]\n";
-    std::cerr<<"The first parameter is the configuration file that has \n";
-    std::cerr<<"all the parameters for this run. \n";
-    std::cerr<<"These values may be modified on the command line by \n";
-    std::cerr<<"entering param/value pais as param=value. \n";
-    std::cerr<<"Note: root is not usuallly given in the parameter file, \n";
-    std::cerr<<"so the normal command line would be something like:\n";
-    std::cerr<<"measureshear measureshear.config root=img123\n";
-    return EXIT_FAILURE;
-  }
-  ConfigFile params(argv[1]);
-  for(int k=2;k<argc;k++) params.Append(argv[k]);
+  ConfigFile params;
+  if (BasicSetup(argc,argv,params,"measureshear")) return EXIT_FAILURE;
 
+  // Setup Log
   std::string logfile = ""; // Default is to stdout
   if (params.keyExists("log_file") || params.keyExists("log_ext")) 
     logfile = Name(params,"log");
-
-  std::string logdelim = "  ";
-  if (params.keyExists("log_delim")) logdelim = params["log_delim"];
-
-
   std::string shear_file = Name(params,"shear");
-  ShearLog log(logfile,shear_file); 
-
-  // This automatically writes its output when it goes out of scope
-  // whether that is naturally in after an exception is caught.
-  // Log output is:  (all on one line)
-  //    exitcode  ngals  nsuccess_shear  nsuccess_native_fit 
-  //    nfail_range_distortion  nfail_range_fitpsf
-  //    nfail_edge_1  nfail_npix<10_1
-  //    nfail_native_fit  nfail_too_small
-  //    nfail_edge_2  nfail_npix<10_2
-  //    nfail_tmv_error  nfail_other_error
-  //    nfail_size_measurement  nfail_shear_measurement
+  ShearLog log(logfile,shear_file,des_qa); 
 
   try {
-
-    // Setup debugging
-    if (params.keyExists("verbose") && int(params["verbose"]) > 0) {
-      if (params.keyExists("debug_file") || params.keyExists("debug_ext")) {
-	dbgout = new std::ofstream(Name(params,"debug").c_str());
-      }
-      else dbgout = &std::cout;
-      if (int(params["verbose"]) > 1) XDEBUG = true;
-    }
-
-#ifdef _OPENMP
-    if (params.keyExists("omp_num_threads")) {
-      int num_threads = params["omp_num_threads"];
-      omp_set_num_threads(num_threads);
-    }
-#endif
-
-    dbg<<"Config params = \n"<<params<<std::endl;
-
     DoMeasureShear(params,log);
-    if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}
-
-    return EXIT_SUCCESS; // = 0 typically.  Defined in <cstdlib>
   }
 #if 0
   // Change to 1 to let gdb see where the program bombed out.
@@ -186,24 +124,21 @@ int main(int argc, char **argv) try
     //else return EXIT_SUCCESS;
   }
 #endif
+
+  if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}
+  return EXIT_SUCCESS; // = 0 typically.  Defined in <cstdlib>
 }
 catch (std::exception& e)
 {
-  dbg<<"Caught \n"<<e.what()<<std::endl;
-  dbg<<"outside of the normal try..catch block.";
-  dbg<<"Unable to write to the log file.\n";
-  std::cerr<<"Caught \n"<<e.what()<<std::endl;
-  std::cerr<<"outside of the normal try..catch block.";
-  std::cerr<<"Unable to write to the log file.\n";
-  std::cout<<"STATUS5BEG Catastrophic error: "<<e.what()<<" STATUS5END\n";
+  std::cerr<<"Fatal error: Caught \n"<<e.what()<<std::endl;
+  if (des_qa) 
+    std::cout<<"STATUS5BEG Fatal error: "<<e.what()<<" STATUS5END\n";
   return EXIT_FAILURE;
 }
 catch (...)
 {
-  dbg<<"Cought an exception outside of the normal try..catch block.";
-  dbg<<"Unable to write to the log file.\n";
-  std::cerr<<"Cought an exception outside of the normal try..catch block.";
-  std::cerr<<"Unable to write to the log file.\n";
-  std::cout<<"STATUS5BEG Catastrophic error: Caught unknown exception STATUS5END\n";
+  std::cerr<<"Fatal error: Cought an exception.\n";
+  if (des_qa) 
+    std::cout<<"STATUS5BEG Fatal error: unknown exception STATUS5END\n";
   return EXIT_FAILURE;
 }

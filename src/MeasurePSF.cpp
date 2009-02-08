@@ -1,22 +1,11 @@
 
-#include <iostream>
-#ifdef _OPENMP
-#include <omp.h>
-#endif
-
-#include "ConfigFile.h"
-#include "TMV.h"
-#include "dbg.h"
-#include "Name.h"
 #include "Image.h"
 #include "FittedPSF.h"
 #include "Transformation.h"
 #include "Log.h"
 #include "PSFCatalog.h"
 #include "BVec.h"
-
-std::ostream* dbgout = 0;
-bool XDEBUG = false;
+#include "BasicSetup.h"
 
 static void DoMeasurePSF(ConfigFile& params, PSFLog& log) 
 {
@@ -28,19 +17,21 @@ static void DoMeasurePSF(ConfigFile& params, PSFLog& log)
   Transformation trans(params);
 
   // Read star catalog info
-  StarCatalog starcat(params,"stars_");
+  StarCatalog starcat(params);
 
   // Create PSFCatalog from StarCatalog
-  PSFCatalog psfcat(starcat,params,"psf_");
+  PSFCatalog psfcat(starcat,params);
 
   // Estimate the scale size to use for shapelet decompositions
   double sigma_p = psfcat.EstimateSigma(im,weight_im.get(),trans);
 
   // Do the actual PSF measurements
-  psfcat.MeasurePSF(im,weight_im.get(),trans,sigma_p,log);
+  int npsf = psfcat.MeasurePSF(im,weight_im.get(),trans,sigma_p,log);
 
   // Write PSF catalog to file
   psfcat.Write();
+
+  if (npsf == 0) throw std::runtime_error("No successful PSF measurements");
 
   // MJ -- Should we make a FittedPSFLog?  Are there parameters here that
   //       we want to ingest into a DB meta-table?
@@ -48,7 +39,7 @@ static void DoMeasurePSF(ConfigFile& params, PSFLog& log)
   //       FittedPSF calculation, since the fittedpsf file is not ingested.
 
   // Fit the PSF with a polynomial:
-  FittedPSF fitpsf(psfcat,params,"fitpsf_");
+  FittedPSF fitpsf(psfcat,params);
 
   // Write fitted psf to file
   fitpsf.Write();
@@ -58,64 +49,18 @@ static void DoMeasurePSF(ConfigFile& params, PSFLog& log)
 
 int main(int argc, char **argv) try 
 {
-  // Read parameters
-  if (argc < 2) {
-    std::cout<<"STATUS5BEG Invalid command line for measurepsf. STATUS5END"<<std::endl;
-    std::cerr<<"Usage: measurepsf configfile [param=value ...]\n";
-    std::cerr<<"The first parameter is the configuration file that has \n";
-    std::cerr<<"all the parameters for this run. \n";
-    std::cerr<<"These values may be modified on the command line by \n";
-    std::cerr<<"entering param/value pais as param=value. \n";
-    std::cerr<<"Note: root is not usuallly given in the parameter file, \n";
-    std::cerr<<"so the normal command line would be something like:\n";
-    std::cerr<<"measurepsf measurepsf.config root=img123\n";
-    return EXIT_FAILURE;
-  }
-  ConfigFile params(argv[1]);
-  for(int k=2;k<argc;k++) params.Append(argv[k]);
+  ConfigFile params;
+  if (BasicSetup(argc,argv,params,"measurepsf")) return EXIT_FAILURE;
 
+  // Setup Log
   std::string logfile = ""; // Default is to stdout
   if (params.keyExists("log_file") || params.keyExists("log_ext"))
     logfile = Name(params,"log");
-
-  std::string logdelim = "  ";
-  if (params.keyExists("log_delim")) logdelim = params["log_delim"];
-
   std::string psf_file=Name(params,"psf");
-  PSFLog log(logfile,psf_file); 
-  // This automatically writes its output when it goes out of scope
-  // whether that is naturally in after an exception is caught.
-  // Log output is:  (all on one line)
-  //    exitcode  nstars  nsuccess 
-  //    nfail_range_distortion
-  //    nfail_edge  nfail_npix<10
-  //    nfail_tmv_error  nfail_other_error
-  //    nfail_psf_measurement
-
+  PSFLog log(logfile,psf_file,des_qa); 
 
   try {
-    // Setup debugging
-    if (params.keyExists("verbose") && int(params["verbose"]) > 0) {
-      if (params.keyExists("debug_file") || params.keyExists("debug_ext")) {
-	dbgout = new std::ofstream(Name(params,"debug").c_str());
-      }
-      else dbgout = &std::cout;
-      if (int(params["verbose"]) > 1) XDEBUG = true;
-    }
-
-#ifdef _OPENMP
-    if (params.keyExists("omp_num_threads")) {
-      int num_threads = params["omp_num_threads"];
-      omp_set_num_threads(num_threads);
-    }
-#endif
-
-    dbg<<"Config params = \n"<<params<<std::endl;
-
     DoMeasurePSF(params,log);
-
-    if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}
-    return EXIT_SUCCESS;
   }
 #if 0
   // Change to 1 to let gdb see where the program bombed out.
@@ -191,24 +136,21 @@ int main(int argc, char **argv) try
     //else return EXIT_SUCCESS;
   }
 #endif
+
+  if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}
+  return EXIT_SUCCESS;
 }
 catch (std::exception& e)
 {
-  dbg<<"Caught \n"<<e.what()<<std::endl;
-  dbg<<"outside of the normal try..catch block.";
-  dbg<<"Unable to write to the log file.\n";
-  std::cerr<<"Caught \n"<<e.what()<<std::endl;
-  std::cerr<<"outside of the normal try..catch block.";
-  std::cerr<<"Unable to write to the log file.\n";
-  std::cout<<"STATUS5BEG Catastrophic error: "<<e.what()<<" STATUS5END\n";
+  std::cerr<<"Fatal error: Caught \n"<<e.what()<<std::endl;
+  if (des_qa) 
+    std::cout<<"STATUS5BEG Fatal error: "<<e.what()<<" STATUS5END\n";
   return EXIT_FAILURE;
 }
 catch (...)
 {
-  dbg<<"Cought an exception outside of the normal try..catch block.";
-  dbg<<"Unable to write to the log file.\n";
-  std::cerr<<"Cought an exception outside of the normal try..catch block.";
-  std::cerr<<"Unable to write to the log file.\n";
-  std::cout<<"STATUS5BEG Catastrophic error: Caught unknown exception STATUS5END\n";
+  std::cerr<<"Fatal error: Cought an exception.\n";
+  if (des_qa)
+    std::cout<<"STATUS5BEG Fatal error: unknown exception STATUS5END\n";
   return EXIT_FAILURE;
 }

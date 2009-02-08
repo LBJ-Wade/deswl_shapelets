@@ -21,11 +21,13 @@ class StarCatalog
 {
   public:
     // Make from incat
+    // fs_prefix is the prefix of the keywords for the 
+    // parameters used by the findstars algorithm.
     StarCatalog(const InputCatalog& incat,
-	ConfigFile& configfile, std::string key_prefix = "");
+	ConfigFile& configfile, std::string fs_prefix = "stars_");
 
     // Read in from file
-    StarCatalog(ConfigFile& configfile, std::string key_prefix = "");
+    StarCatalog(ConfigFile& configfile, std::string fs_prefix = "stars_");
 
     size_t size() const { return id.size(); }
     void Read();

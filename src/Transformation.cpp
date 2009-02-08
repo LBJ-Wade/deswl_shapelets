@@ -25,18 +25,13 @@ Transformation::Transformation(const ConfigFile& params) :
   Assert(params.keyExists("dist_method"));
 
   if (params["dist_method"] == "SCALE") {
-    Assert(params.keyExists("pixel_scale"));
-    double pixel_scale = params["pixel_scale"];
+    double pixel_scale = params.get("pixel_scale");
     SetToScale(pixel_scale);
   } else if (params["dist_method"] == "JACOBIAN") {
-    Assert(params.keyExists("dudx"));
-    Assert(params.keyExists("dudy"));
-    Assert(params.keyExists("dvdx"));
-    Assert(params.keyExists("dvdy"));
-    double dudx = params["dudx"];
-    double dudy = params["dudy"];
-    double dvdx = params["dvdx"];
-    double dvdy = params["dvdy"];
+    double dudx = params.get("dudx");
+    double dudy = params.get("dudy");
+    double dvdx = params.get("dvdx");
+    double dvdy = params.get("dvdy");
     SetToJacobian(dudx,dudy,dvdx,dvdy);
   } else if (params["dist_method"] == "FUNC2D") {
     std::string distfile = Name(params,"dist",true);
@@ -46,8 +41,7 @@ Transformation::Transformation(const ConfigFile& params) :
     xdbg<<"Done read distortion "<<distfile<<std::endl;
   } else if (params["dist_method"] == "WCS") {
     std::string distfile = Name(params,"dist",true);
-    int hdu = 1;
-    if (params.keyExists("dist_hdu")) hdu = params["dist_hdu"];
+    int hdu = params.read("dist_hdu",1);
     ReadWCS(distfile,hdu);
     xdbg<<"Done read WCS distortion "<<distfile<<std::endl;
   } else {

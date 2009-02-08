@@ -18,6 +18,19 @@ class FitsException : public std::runtime_error {
     FitsException(std::string m) : std::runtime_error(m) {};
 };
 
+// This encapsulates the fitsio type codes
+// I am only including the ones that I think will be used.
+// If you need to add more, make sure you add the appropriate
+// functionality to the places where this is used.
+enum Type_FITS {
+  XSTRING = TSTRING,
+  XSHORT=TSHORT, 
+  XINT = TINT,
+  XLONG = TLONG,
+  XFLOAT = TFLOAT,
+  XDOUBLE = TDOUBLE
+};
+    
 class FitsFile
 {
   public:
@@ -29,30 +42,33 @@ class FitsFile
     void Close();
     // Read a binary fits column
 
-    void ReadScalarCol(std::string colname, int coltype, void* dptr,
-	LONGLONG nrows);
-    void ReadCell(std::string colname, int coltype, void* dptr,
-	LONGLONG row, LONGLONG nel);
+    void ReadScalarCol(std::string colname, Type_FITS coltype, void* dptr,
+	long nrows);
+    void ReadCell(std::string colname, Type_FITS coltype, void* dptr,
+	long row, long nel);
 
-#ifdef ConfigFile_H
-    void WriteParKey(const ConfigFile& params, std::string name, int type);
-#endif
-
-    void ReadKey(std::string name, int dtype, void* dptr);
-    void WriteKey(std::string name, int datatype, const void* value,
+    void ReadKey(std::string name, Type_FITS dtype, void* dptr);
+    void WriteKey(std::string name, Type_FITS datatype, const void* value,
 	std::string comment);
-    void WriteColumn(int datatype, int colnum,
-	LONGLONG firstrow, LONGLONG firstel, LONGLONG nel, const void* data);
+    void WriteColumn(Type_FITS datatype, int colnum,
+	long firstrow, long firstel, long nel, const void* data);
 
+    // names gives the name of each field.
+    // nelem gives the number of elements in each field.
+    // types gives the type of data in each field.
+    // units gives the unit value for each field.
     void CreateBinaryTable(
-	LONGLONG nrows,
+	long nrows,
 	const std::vector<std::string>& names,
-	const std::vector<std::string>& types,
+	const std::vector<int>& nelem,
+	const std::vector<Type_FITS>& types,
 	const std::vector<std::string>& units);
+    // The same, but as C-arrays with nfields being the number of fields.
     void CreateBinaryTable(
-	LONGLONG nrows, int nfields,
+	long nrows, int nfields,
 	const std::string* names,
-	const std::string* types,
+	const int* nelem,
+	const Type_FITS* types,
 	const std::string* units);
 
     long ReadLongKey(std::string name);

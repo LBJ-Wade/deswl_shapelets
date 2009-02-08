@@ -12,19 +12,25 @@ template <class T> inline void SWAP(T& a, T& b) { T temp = a; a = b; b = temp; }
 template <class T>
 Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im)
 {
-  int image_hdu = 1;
-  if (params.keyExists("image_hdu")) image_hdu = params["image_hdu"];
+  int image_hdu = params.read("image_hdu",1);
   ReadFits(Name(params,"image",true),image_hdu);
   xdbg<<"Opened image "<<Name(params,"image",true)<<std::endl;
 
   // Load weight image (if necessary)
   if (params["noise_method"] == "WEIGHT_IMAGE") {
-    int weight_hdu = 1;
-    if (params.keyExists("weight_hdu")) weight_hdu = params["weight_hdu"];
+    int weight_hdu = params.read("weight_hdu",1);
     weight_im.reset(
 	new Image<T>(Name(params,"weight",true),weight_hdu));
     dbg<<"Opened weight image.\n";
   }
+}
+
+template <class T>
+Image<T>::Image(const ConfigFile& params)
+{
+  int image_hdu = params.read("image_hdu",1);
+  ReadFits(Name(params,"image",true),image_hdu);
+  xdbg<<"Opened image "<<Name(params,"image",true)<<std::endl;
 }
 
 template <class T> 

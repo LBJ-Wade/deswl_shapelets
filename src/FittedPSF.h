@@ -16,14 +16,15 @@ class FittedPSF {
   public :
 
     // Make from PSFCatalog
-    FittedPSF(const PSFCatalog& psfcat,
-	const ConfigFile& params, std::string key_prefix);
+    FittedPSF(const PSFCatalog& psfcat, const ConfigFile& params);
 
     // Read from file
-    FittedPSF(const ConfigFile& params, std::string key_prefix);
+    FittedPSF(const ConfigFile& params);
 
-    int GetOrder() const { return psforder; }
+    int GetPSFOrder() const { return psforder; }
+    int GetPSFSize() const { return (psforder+1)*(psforder+2)/2; }
     int GetFitOrder() const { return fitorder; }
+    int GetFitSize() const { return fitsize; }
     int GetNpca() const { return npca; }
     double GetSigma() const { return sigma; }
 
@@ -64,7 +65,6 @@ class FittedPSF {
 	const tmv::VectorView<double>& b) const;
 
     const ConfigFile& params;
-    std::string prefix;
 
     int psforder;
     double sigma;

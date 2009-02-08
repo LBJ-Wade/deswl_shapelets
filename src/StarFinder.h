@@ -40,6 +40,8 @@ class StarFinder
     void RoughlyFitBrightStars(const std::vector<PotentialStar*>& objlist,
 	Function2D<double> *f,double *outsigma);
 
+    void SetParams(const ConfigFile& params, std::string key_prefix,
+	bool mustexist=false);
 
     double minsize;         // The min and max size to consider
     double maxsize;

@@ -197,14 +197,22 @@ void Ellipse::CrudeMeasure(const std::vector<Pixel>& pix, double sigma)
   // S is now 2 exp(2mu) sigma^2 / (1 + exp(2mu))
   xdbg<<"S = "<<S<<std::endl;
   double exp2mu = S / 2. / (sig2*sig2);
+  xdbg<<"exp2mu/(1+exp2mu) = "<<exp2mu<<std::endl;
   // It's actually exp(2mu) / (1+exp(2mu)) at this point
-  exp2mu = 1./(1./exp2mu-1.);
+  if (exp2mu < 0.2)
+    exp2mu = 0.25;
+  else if (exp2mu < 0.8)
+    exp2mu = 1./(1./exp2mu-1.); // Now it is really exp(2mu)
+  else 
+    // The above formula is unstable, and probably inappropriate, since
+    // we probably have a failure of our model approximation.
+    // So just multiply it by 5 -- the correct factor for exp2mu = 0.8
+    exp2mu *= 5.;
   xdbg<<"exp2mu = "<<exp2mu<<std::endl;
-  // Now it is really exp(2mu)
   if (exp2mu <= 0.) exp2mu = 1.;
 
   double m = log(exp2mu)/2.;
-  xdbg<<"m = "<<m<<std::endl;
+  xdbg<<"mu = "<<m<<std::endl;
 
   zc += zc1 * (1.+exp2mu);
   m += mu;
@@ -275,11 +283,28 @@ void Ellipse::CrudeMeasure(const std::vector<Pixel>& pix, double sigma)
   s.Solve(x,f);
   xdbg<<"After 2nd CrudeSolver: x = "<<x<<std::endl;
 
-  if (!fixcen) cen = std::complex<double>(x[0],x[1]);
-  if (!fixmu) mu = x[2];
+  std::complex<double> newcen(x[0],x[1]);
+  double newmu = x[2];
+
+  if (std::abs(newcen-cen) > 2.) {
+    dbg<<"Warning: large centroid shift in CrudeMeasure\n";
+    dbg<<"Old centroid = "<<cen<<", new centroid = "<<newcen<<std::endl;
+    newcen = cen + 2.*(newcen - cen)/std::abs(newcen-cen);
+    dbg<<"Scaling back to "<<newcen<<std::endl;
+  }
+
+  if (std::abs(newmu-mu) > 2.) {
+    dbg<<"Warning: large scale change in CrudeMeasure\n";
+    dbg<<"Old mu = "<<mu<<", new mu = "<<newmu<<std::endl;
+    newmu = mu + 2.*(newmu - mu)/std::abs(newmu-mu);
+    dbg<<"Scaling back to "<<newmu<<std::endl;
+  }
   
-  xdbg<<"Crude cen = "<<cen<<std::endl;
-  xdbg<<"Crude mu = "<<mu<<std::endl;
+  xdbg<<"Crude cen = "<<newcen<<std::endl;
+  xdbg<<"Crude mu = "<<newmu<<std::endl;
+
+  if (!fixcen) cen = newcen;
+  if (!fixmu) mu = newmu;
 }
 
 void Ellipse::PeakCentroid(const std::vector<Pixel>& pix, double maxr)

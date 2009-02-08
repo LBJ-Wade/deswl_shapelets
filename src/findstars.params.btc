@@ -1,0 +1,10 @@
+ecol		14
+minmag		18
+maxmag		24
+maxoutmag	21
+ndivx		3
+ndivy		3
+starsperbin	15
+fitorder	3
+fitsigclip	4
+maxrefititer	5

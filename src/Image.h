@@ -30,6 +30,7 @@ template <class T> class Image {
 	    rhs.itsm->SubMatrix(x1,x2,y1,y2))),
       itsm(new tmv::MatrixView<T>(sourcem->View())) {}
 
+    Image(const ConfigFile& params);
     Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im);
 
     ~Image() {}

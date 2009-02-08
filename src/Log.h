@@ -9,7 +9,8 @@ class Log
 {
   public :
 
-    Log(std::string logfile="", std::string fits_file="");
+    Log(std::string logfile="", std::string fits_file="", 
+	bool desqa=false);
     virtual ~Log();
 
     void NoWriteLog(); // Don't write the log on deletion.
@@ -31,7 +32,8 @@ class ShearLog : public Log
 {
   public :
 
-    ShearLog(std::string logfile="", std::string fits_file="");
+    ShearLog(std::string logfile="", std::string fits_file="", 
+	bool desqa=false);
     virtual ~ShearLog();
 
     virtual void WriteLog() const;
@@ -56,6 +58,8 @@ class ShearLog : public Log
     }
 
     int ngals;
+    int ngoodin;
+    int ngood;
     int nf_range1;
     int nf_range2;
     int nf_small;
@@ -67,6 +71,7 @@ class ShearLog : public Log
     int nf_mu;
     int ns_gamma;
     int nf_gamma;
+    int ns_good;
 
 };
 
@@ -74,7 +79,8 @@ class PSFLog : public Log
 {
   public :
 
-    PSFLog(std::string logfile="", std::string fits_file="");
+    PSFLog(std::string logfile="", std::string fits_file="", 
+	bool desqa=false);
     virtual ~PSFLog();
 
     virtual void WriteLog() const;
@@ -93,11 +99,14 @@ class PSFLog : public Log
     }
 
     int nstars;
+    int ngoodin;
+    int ngood;
     int nf_range;
     int nf_tmverror;
     int nf_othererror;
     int ns_psf;
     int nf_psf;
+    int ns_good;
 
 };
 
@@ -105,7 +114,8 @@ class FindStarsLog : public Log
 {
   public :
 
-    FindStarsLog(std::string _logfile="", std::string _fits_file="");
+    FindStarsLog(std::string _logfile="", std::string _fits_file="", 
+	bool desqa=false);
     virtual ~FindStarsLog();
 
     virtual void WriteLog() const;

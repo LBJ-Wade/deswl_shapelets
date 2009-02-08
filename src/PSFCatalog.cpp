@@ -9,6 +9,7 @@
 #include "Ellipse.h"
 #include "Params.h"
 #include "Name.h"
+#include "Form.h"
 
 //#define SINGLESTAR 18
 //#define NSTARS 10
@@ -20,8 +21,8 @@ static void MeasureSinglePSF(
     Position cen, const Image<double>& im, double sky,
     const Transformation& trans,
     double noise, double gain, const Image<double>* weight_im,
-    double sigma_p, double psfap, int psforder, PSFLog& log,
-    BVec& psf, double& nu, long& flag)
+    double sigma_p, double psfap, int psforder, bool desqa,
+    PSFLog& log, BVec& psf, double& nu, long& flag)
 {
   try {
     // We don't need to save skypos.  We just want to catch the range
@@ -52,7 +53,8 @@ static void MeasureSinglePSF(
     ell.CrudeMeasure(pix[0],sigma_p);
     tmv::Matrix<double> cov(psf.size(),psf.size());
 
-    if (ell.Measure(pix,psforder,sigma_p,false,0,&psf,&cov)) {
+    long flag1=0;
+    if (ell.Measure(pix,psforder,sigma_p,false,flag1,desqa,0,&psf,&cov)) {
       xdbg<<"psf = "<<psf<<std::endl;
       nu = psf[0] / std::sqrt(cov(0,0));
       //nu = 1.;
@@ -95,16 +97,9 @@ double PSFCatalog::EstimateSigma(const Image<double>& im,
 
   // Calculate a good value of sigma to use:
   // (For this calculation, psfap is psf_aperture * 1 arcsec.)
-  double gain = 0.;
-  if (params.keyExists("gain")) gain = params["gain"];
-  double psfap = params["psf_aperture"];
+  double gain = params.read("gain",0.);
+  double psfap = params.get("psf_aperture");
   dbg<<"psfap = "<<psfap<<std::endl;
-
-  // Current value of sigma_p is taken as initial guess
-  std::vector<double> sigmas(pos.size(),sigma_p);
-
-  // Make new flags vector, rather than propagate flags to catalog.
-  std::vector<long> flags(pos.size(),0);
 
   int nstars = pos.size();
   double meanmu = 0.;
@@ -112,7 +107,7 @@ double PSFCatalog::EstimateSigma(const Image<double>& im,
 #ifdef _OPENMP
 #pragma omp parallel for schedule(guided) reduction(+ : meanmu) reduction(+ : count)
 #endif
-  for (int i=0; i<nstars; i++) if (!flags[i]) {
+  for (int i=0; i<nstars; i++) {
     dbg<<"use i = "<<i<<std::endl;
 
     try {
@@ -122,6 +117,15 @@ double PSFCatalog::EstimateSigma(const Image<double>& im,
 	  sigma,
 	  im, pos[i], sky[i], noise[i], gain, weight_im, 
 	  trans, psfap, flag1);
+      if (flag1) continue;
+      if (!(sigma > 0)) {
+	xdbg<<"initial sigma_p = "<<sigma_p<<std::endl;
+	xdbg<<"pos = "<<pos[i]<<", sky = "<<sky[i]<<std::endl;
+	xdbg<<"noise = "<<noise[i]<<", gain = "<<gain<<std::endl;
+	xdbg<<"psfap = "<<psfap<<", flag1 = "<<flag1<<std::endl;
+	xdbg<<"--> sigma = "<<sigma<<std::endl;
+      }
+      Assert(sigma > 0);
       meanmu += log(sigma);
       count++;
     } catch (...) {
@@ -150,18 +154,11 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
     const Transformation& trans, double sigma_p, PSFLog& log)
 {
   // Read some needed parameters
-
-  Assert(params.keyExists("psf_order"));
-  int psforder = params["psf_order"];
-
-  bool output_dots=false;
-  if (params.keyExists("output_dots")) output_dots=true;
-
-  double gain = 0.;
-  if (params.keyExists("gain")) gain = params["gain"];
-
-  Assert(params.keyExists("psf_aperture"));
-  double psfap = params["psf_aperture"];
+  int psforder = params.get("psf_order");
+  bool output_dots = params.read("output_dots",false);
+  bool desqa = params.read("des_qa",false);
+  double gain = params.read("image_gain",0.);
+  double psfap = params.get("psf_aperture");
   dbg<<"psfap = "<<psfap<<std::endl;
   psfap *= sigma_p;  // arcsec
   dbg<<"psfap => "<<psfap<<std::endl;
@@ -180,6 +177,8 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
 #ifdef SINGLESTAR
   log.nstars = 1;
 #endif
+  log.ngoodin = std::count(flags.begin(),flags.end(),0);
+  dbg<<log.ngoodin<<"/"<<log.nstars<<" stars with no input flags\n";
 
   // Main loop to measure psf shapelets:
 #ifdef _OPENMP
@@ -192,7 +191,7 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
 #ifdef _OPENMP
 #pragma omp for schedule(guided)
 #endif
-      for(int i=0;i<nstars;i++) {
+      for(int i=0;i<nstars;i++) if (!flags[i]) {
 #ifdef STARTAT
 	if (i < STARTAT) continue;
 #endif
@@ -213,12 +212,12 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
 	// Start with an error code of unknown failure, in case
 	// something happens that I don't detect as an error.
 	flags[i] = UNKNOWN_FAILURE;
-	Assert(i<pos.size());
-	Assert(i<sky.size());
-	Assert(i<noise.size());
-	Assert(i<psf.size());
-	Assert(i<nu.size());
-	Assert(i<flags.size());
+	Assert(i<int(pos.size()));
+	Assert(i<int(sky.size()));
+	Assert(i<int(noise.size()));
+	Assert(i<int(psf.size()));
+	Assert(i<int(nu.size()));
+	Assert(i<int(flags.size()));
 	dbg<<"Before MeasureSinglePSF1"<<std::endl;
 	long flag1 = 0;
 	MeasureSinglePSF(
@@ -227,7 +226,7 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
 	    // Noise values:
 	    noise[i], gain, weight_im,
 	    // Parameters:
-	    sigma_p, psfap, psforder,
+	    sigma_p, psfap, psforder, desqa,
 	    // Log information
 	    log1,
 	    // Ouput value:
@@ -259,23 +258,24 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
   }
 #endif
 
-  int nsuccess = log.ns_psf;
-  dbg<<nsuccess<<" successful star measurements, ";
-  dbg<<nstars-nsuccess<<" unsuccessful\n";
+  dbg<<log.ns_psf<<" successful star measurements, ";
+  dbg<<nstars-log.ns_psf<<" unsuccessful\n";
+  log.ngood = std::count(flags.begin(),flags.end(),0);
+  dbg<<log.ngood<<" with no flags\n";
 
   if (output_dots) {
     std::cerr
       <<std::endl
-      <<"Success rate: "<<nsuccess<<"/"<<nstars
+      <<"Success rate: "<<log.ns_psf<<"/"<<log.ngoodin
+      <<"  # with no flags: "<<log.ngood
       <<std::endl;
   }
 
-  return nsuccess;
+  return log.ns_psf;
 }
 
 PSFCatalog::PSFCatalog(const StarCatalog& starcat,
-    const ConfigFile& _params, std::string key_prefix) :
-  params(_params), prefix(key_prefix)
+    const ConfigFile& _params) : params(_params)
 {
   dbg<<"Create PSFCatalog\n";
   dbg<<"ntot = "<<starcat.id.size()<<std::endl;
@@ -285,7 +285,7 @@ PSFCatalog::PSFCatalog(const StarCatalog& starcat,
   id.reserve(nstars);
   pos.reserve(nstars);
   flags.reserve(nstars);
-  for (size_t i=0; i<starcat.id.size(); i++) {
+  for (size_t i=0; i<starcat.size(); i++) {
     if (starcat.isastar[i]) {
       id.push_back( starcat.id[i] );
       pos.push_back( starcat.pos[i] );
@@ -297,9 +297,15 @@ PSFCatalog::PSFCatalog(const StarCatalog& starcat,
   Assert(id.size() == nstars);
   dbg<<"nstars = "<<id.size()<<std::endl;
 
+  // Fix flags to only have INPUT_FLAG set.
+  // i.e. Ignore any flags set by StarCatalog.
+  for (size_t i=0; i<size(); i++) {
+    flags[i] &= INPUT_FLAG;
+  }
+
   // Set up a default psf vector for output when an object measurement
   // fails
-  long psf_order = params.get(prefix + "order");
+  long psf_order = params.get("psf_order");
   BVec psf_default(psf_order,1.);
   for (size_t i=0; i<psf_default.size(); i++) {
     psf_default[i] = DEFVALNEG;
@@ -318,8 +324,7 @@ PSFCatalog::PSFCatalog(const StarCatalog& starcat,
   Assert(psf.size() == size());
 }
 
-PSFCatalog::PSFCatalog(const ConfigFile& _params, std::string key_prefix) :
-  params(_params), prefix(key_prefix)
+PSFCatalog::PSFCatalog(const ConfigFile& _params) : params(_params)
 {
   Read();
 
@@ -348,80 +353,76 @@ void PSFCatalog::WriteFits(std::string file) const
   std::stringstream coeff_form;
   coeff_form << ncoeff << "d";
 
-  std::string id_col=params.get(prefix + "id_col");
-  std::string x_col=params.get(prefix + "x_col");
-  std::string y_col=params.get(prefix + "y_col");
-  std::string sky_col=params.get(prefix + "sky_col");
-  std::string noise_col=params.get(prefix + "noise_col");
-  std::string flags_col=params.get(prefix + "flags_col");
-  std::string nu_col=params.get(prefix + "nu_col");
-  std::string order_col=params.get(prefix + "order_col");
-  std::string sigma_col=params.get(prefix + "sigma_col");
-  std::string coeffs_col=params.get(prefix + "coeffs_col");
+  std::string id_col=params.get("psf_id_col");
+  std::string x_col=params.get("psf_x_col");
+  std::string y_col=params.get("psf_y_col");
+  std::string sky_col=params.get("psf_sky_col");
+  std::string noise_col=params.get("psf_noise_col");
+  std::string flags_col=params.get("psf_flags_col");
+  std::string nu_col=params.get("psf_nu_col");
+  std::string order_col=params.get("psf_order_col");
+  std::string sigma_col=params.get("psf_sigma_col");
+  std::string coeffs_col=params.get("psf_coeffs_col");
 
   const int nfields=10;
   std::string table_cols[nfields] = {
     id_col,
-    x_col,
-    y_col,
+    x_col, y_col,
     sky_col,
     noise_col,
     flags_col,
     nu_col,
-    order_col,
-    sigma_col,
-    coeffs_col,
+    order_col, sigma_col, coeffs_col
   };
-  std::string table_types[nfields] = {
-    "1j", // id
-    "1d", // x
-    "1d", // y
-    "1d", // sky
-    "1d", // noise
-    "1i", // flags
-    "1d", // nu
-    "1j", // order
-    "1d", // sigma
-    coeff_form.str()
+  int table_nelem[nfields] = {
+    1,1,1,1,1,1,1,1,1,
+    ncoeff
+  };
+  Type_FITS table_types[nfields] = {
+    XLONG,
+    XDOUBLE, XDOUBLE,
+    XDOUBLE,
+    XDOUBLE,
+    XLONG,
+    XDOUBLE,
+    XLONG, XDOUBLE, XDOUBLE
   };
   std::string table_units[nfields] = {
     "None",
-    "Pixels",
-    "Pixels",
+    "Pixels", "Pixels",
     "ADU",
     "ADU^2",
     "None",
     "None",
-    "None",
-    "Arcsec",
-    "None"
+    "None", "Arcsec", "None"
   };
 
   // Create a binary table
-  fits.CreateBinaryTable(size(),nfields,table_cols,table_types,table_units);
+  fits.CreateBinaryTable(size(),nfields,
+      table_cols,table_nelem,table_types,table_units);
 
   // Write the header keywords
-  fits.WriteParKey(params, "version", TSTRING);
-  fits.WriteParKey(params, "noise_method", TSTRING);
-  fits.WriteParKey(params, "dist_method", TSTRING);
+  WriteParKey("version");
+  WriteParKey("noise_method");
+  WriteParKey("dist_method");
 
-  fits.WriteParKey(params, prefix + "aperture", TDOUBLE);
-  fits.WriteParKey(params, prefix + "order", TLONG);
-  fits.WriteParKey(params, prefix + "seeing_est", TDOUBLE);
+  WriteParKey("psf_aperture");
+  WriteParKey("psf_order");
+  WriteParKey("psf_seeing_est");
 
-  fits.WriteColumn(TLONG, 1, 1, 1, size(), &id[0]);
+  fits.WriteColumn(XLONG, 1, 1, 1, size(), &id[0]);
   std::vector<double> x(pos.size());
   std::vector<double> y(pos.size());
   for(size_t i=0;i<pos.size();i++) { 
     x[i] = pos[i].GetX();
     y[i] = pos[i].GetY();
   }
-  fits.WriteColumn(TDOUBLE, 2, 1, 1, size(), &x[0]);
-  fits.WriteColumn(TDOUBLE, 3, 1, 1, size(), &y[0]);
-  fits.WriteColumn(TDOUBLE, 4, 1, 1, size(), &sky[0]);
-  fits.WriteColumn(TDOUBLE, 5, 1, 1, size(), &noise[0]);
-  fits.WriteColumn(TLONG, 6, 1, 1, size(), &flags[0]);
-  fits.WriteColumn(TDOUBLE, 7, 1, 1, size(), &nu[0]);
+  fits.WriteColumn(XDOUBLE, 2, 1, 1, size(), &x[0]);
+  fits.WriteColumn(XDOUBLE, 3, 1, 1, size(), &y[0]);
+  fits.WriteColumn(XDOUBLE, 4, 1, 1, size(), &sky[0]);
+  fits.WriteColumn(XDOUBLE, 5, 1, 1, size(), &noise[0]);
+  fits.WriteColumn(XLONG, 6, 1, 1, size(), &flags[0]);
+  fits.WriteColumn(XDOUBLE, 7, 1, 1, size(), &nu[0]);
   
   // Now we have to loop through each psf decomposition and write
   // separately.  This is pretty dumb.
@@ -429,9 +430,9 @@ void PSFCatalog::WriteFits(std::string file) const
     size_t row = i+1;
     long b_order = psf[i].GetOrder();
     double b_sigma = psf[i].GetSigma();
-    fits.WriteColumn(TLONG, 8, row, 1, 1, &b_order);
-    fits.WriteColumn(TDOUBLE, 9, row, 1, 1, &b_sigma);
-    fits.WriteColumn(TDOUBLE, 10, row, 1, ncoeff, psf[i].cptr());
+    fits.WriteColumn(XLONG, 8, row, 1, 1, &b_order);
+    fits.WriteColumn(XDOUBLE, 9, row, 1, 1, &b_sigma);
+    fits.WriteColumn(XDOUBLE, 10, row, 1, ncoeff, psf[i].cptr());
   }
 }
 
@@ -450,6 +451,8 @@ void PSFCatalog::WriteAscii(std::string file, std::string delim) const
     throw std::runtime_error("Error opening psf file");
   }
 
+  Form hexform; hexform.hex().trail(0);
+
   for(size_t i=0;i<size();i++) {
     fout
       << id[i] << delim
@@ -457,7 +460,7 @@ void PSFCatalog::WriteAscii(std::string file, std::string delim) const
       << pos[i].GetY() << delim
       << sky[i] << delim
       << noise[i] << delim
-      << flags[i] << delim
+      << hexform(flags[i]) << delim
       << nu[i] << delim
       << psf[i].GetOrder() << delim
       << psf[i].GetSigma();
@@ -469,23 +472,41 @@ void PSFCatalog::WriteAscii(std::string file, std::string delim) const
 
 void PSFCatalog::Write() const
 {
-  std::string file = Name(params,"psf");
-  dbg<<"Writing to psf file: "<<file<<std::endl;
+  std::vector<std::string> files = MultiName(params, "psf");  
 
-  if (file.find("fits") != std::string::npos) {
-    WriteFits(file);
-  } else {
-    std::string delim = "  ";
-    if (params.keyExists(prefix + "delim")) delim = params[prefix + "delim"];
-    WriteAscii(file,delim);
+  for(size_t i=0; i<files.size(); ++i) {
+    const std::string& file = files[i];
+    dbg<<"Writing psf catalog to file: "<<file<<std::endl;
+
+    bool fitsio = false;
+    if (params.keyExists("psf_io")) {
+      std::vector<std::string> ios = params["psf_io"];
+      Assert(ios.size() == files.size());
+      fitsio = (ios[i] == "FITS");
+    }
+    else if (file.find("fits") != std::string::npos) 
+      fitsio = true;
+
+    if (fitsio) {
+      WriteFits(file);
+    } else {
+      std::string delim = "  ";
+      if (params.keyExists("psf_delim")) {
+	std::vector<std::string> delims = params["psf_delim"];
+	Assert(delims.size() == files.size());
+	delim = delims[i];
+      }
+      else if (file.find("csv") != std::string::npos) delim = ",";
+      WriteAscii(file,delim);
+    }
   }
-  dbg<<"Done Write\n";
+  dbg<<"Done Write PSFCatalog\n";
 }
 
 void PSFCatalog::ReadFits(std::string file)
 {
   int hdu = 2;
-  if (params.keyExists(prefix + "hdu")) hdu = params[prefix + "hdu"];
+  if (params.keyExists("psf_hdu")) hdu = params["psf_hdu"];
 
   FitsFile fits(file);
 
@@ -493,52 +514,52 @@ void PSFCatalog::ReadFits(std::string file)
   fits.GotoHDU(hdu);
 
   long nrows=0;
-  fits.ReadKey("NAXIS2", TLONG, &nrows);
+  fits.ReadKey("NAXIS2", XLONG, &nrows);
 
   dbg<<"  nrows = "<<nrows<<std::endl;
   if (nrows <= 0) {
     throw std::runtime_error("nrows must be > 0");
   }
 
-  std::string id_col=params.get(prefix + "id_col");
-  std::string x_col=params.get(prefix + "x_col");
-  std::string y_col=params.get(prefix + "y_col");
-  std::string sky_col=params.get(prefix + "sky_col");
-  std::string noise_col=params.get(prefix + "noise_col");
-  std::string flags_col=params.get(prefix + "flags_col");
-  std::string nu_col=params.get(prefix + "nu_col");
-  std::string order_col=params.get(prefix + "order_col");
-  std::string sigma_col=params.get(prefix + "sigma_col");
-  std::string coeffs_col=params.get(prefix + "coeffs_col");
+  std::string id_col=params.get("psf_id_col");
+  std::string x_col=params.get("psf_x_col");
+  std::string y_col=params.get("psf_y_col");
+  std::string sky_col=params.get("psf_sky_col");
+  std::string noise_col=params.get("psf_noise_col");
+  std::string flags_col=params.get("psf_flags_col");
+  std::string nu_col=params.get("psf_nu_col");
+  std::string order_col=params.get("psf_order_col");
+  std::string sigma_col=params.get("psf_sigma_col");
+  std::string coeffs_col=params.get("psf_coeffs_col");
 
   dbg<<"Reading columns"<<std::endl;
   dbg<<"  "<<id_col<<std::endl;
   id.resize(nrows);
-  fits.ReadScalarCol(id_col,TLONG,&id[0], nrows);
+  fits.ReadScalarCol(id_col,XLONG,&id[0], nrows);
 
   dbg<<"  "<<x_col<<"  "<<y_col<<std::endl;
   pos.resize(nrows);
   std::vector<double> x(nrows);
   std::vector<double> y(nrows);
-  fits.ReadScalarCol(x_col,TDOUBLE,&x[0], nrows);
-  fits.ReadScalarCol(y_col,TDOUBLE,&y[0], nrows);
+  fits.ReadScalarCol(x_col,XDOUBLE,&x[0], nrows);
+  fits.ReadScalarCol(y_col,XDOUBLE,&y[0], nrows);
   for(long i=0;i<nrows;++i) pos[i] = Position(x[i],y[i]);
 
   dbg<<"  "<<sky_col<<std::endl;
   sky.resize(nrows,0);
-  fits.ReadScalarCol(sky_col,TDOUBLE,&sky[0], nrows);
+  fits.ReadScalarCol(sky_col,XDOUBLE,&sky[0], nrows);
 
   dbg<<"  "<<noise_col<<std::endl;
   noise.resize(nrows,0);
-  fits.ReadScalarCol(noise_col,TDOUBLE,&noise[0], nrows);
+  fits.ReadScalarCol(noise_col,XDOUBLE,&noise[0], nrows);
 
   dbg<<"  "<<flags_col<<std::endl;
   flags.resize(nrows,0);
-  fits.ReadScalarCol(flags_col,TLONG,&flags[0], nrows);
+  fits.ReadScalarCol(flags_col,XLONG,&flags[0], nrows);
 
   dbg<<"  "<<nu_col<<std::endl;
   nu.resize(nrows,0);
-  fits.ReadScalarCol(nu_col,TDOUBLE,&nu[0], nrows);
+  fits.ReadScalarCol(nu_col,XDOUBLE,&nu[0], nrows);
 
   // gotta loop for this one
   psf.reserve(nrows);
@@ -546,11 +567,11 @@ void PSFCatalog::ReadFits(std::string file)
     size_t row=i+1;
     double b_sigma;
     long b_order;
-    fits.ReadCell(order_col,TLONG,&b_order,row,1);
-    fits.ReadCell(sigma_col,TDOUBLE,&b_sigma,row,1);
+    fits.ReadCell(order_col,XLONG,&b_order,row,1);
+    fits.ReadCell(sigma_col,XDOUBLE,&b_sigma,row,1);
     psf.push_back(BVec(b_order,b_sigma));
     int ncoeff=(b_order+1)*(b_order+2)/2;
-    fits.ReadCell(coeffs_col,TDOUBLE,psf[i].ptr(),row,ncoeff);
+    fits.ReadCell(coeffs_col,XDOUBLE,psf[i].ptr(),row,ncoeff);
   }
 }
 
@@ -561,8 +582,12 @@ void PSFCatalog::ReadAscii(std::string file, std::string delim)
     throw std::runtime_error("Error opening psf file");
   }
 
+  id.clear(); pos.clear(); sky.clear(); noise.clear(); flags.clear();
+  nu.clear(); psf.clear();
+
   if (delim == "  ") {
-    long id1,flag,b_order;
+    ConvertibleString flag;
+    long id1,b_order;
     double x,y,sky1,noise1,nu1,b_sigma;
     while ( fin
 	>> id1
@@ -626,11 +651,18 @@ void PSFCatalog::Read()
   // It is an input here, but it is in the output_prefix directory.
   dbg<< "Reading PSF cat from file: " << file << std::endl;
 
-  if (file.find("fits") != std::string::npos) {
+  bool fitsio = false;
+  if (params.keyExists("psf_io")) 
+    fitsio = (params["psf_io"] == "FITS");
+  else if (file.find("fits") != std::string::npos) 
+    fitsio = true;
+
+  if (fitsio) {
     ReadFits(file);
   } else {
     std::string delim = "  ";
-    if (params.keyExists(prefix + "delim")) delim = params[prefix + "delim"];
+    if (params.keyExists("psf_delim")) delim = params["psf_delim"];
+    else if (file.find("csv") != std::string::npos) delim = ",";
     ReadAscii(file,delim);
   }
   dbg<<"Done Read PSFCatalog\n";

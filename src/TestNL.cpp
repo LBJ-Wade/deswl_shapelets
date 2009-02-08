@@ -287,7 +287,7 @@ int main() try
     NonLinear2 nlin(1.e-2);
     SETMETHOD(nlin);
 #ifdef USEBEST
-    nlin.method = NLSolver::Newton;
+    nlin.method = NLSolver::LM;
 #endif
     //double x0a[] = {-1., -2.};
     tmv::Vector<double> x(2);
