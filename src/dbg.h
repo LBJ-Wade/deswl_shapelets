@@ -24,11 +24,20 @@ extern bool XDEBUG;
   #define dbg if (false) (*dbgout)
   #define xdbg if (false) (*dbgout)
   #define xxdbg if (false) (*dbgout)
+  #define ompdbg if (false) (*dbgout)
+  #define ompxdbg if (false) (*dbgout)
   #define Assert(x)
 #else
   #define dbg if (dbgout) (*dbgout)
   #define xdbg if (dbgout && XDEBUG) (*dbgout)
   #define xxdbg if (false) (*dbgout)
+#ifdef _OPENMP
+  #define ompdbg if (false) (*dbgout)
+  #define ompxdbg if (false) (*dbgout)
+#else
+  #define ompdbg if (dbgout) (*dbgout)
+  #define ompxdbg if (dbgout && XDEBUG) (*dbgout)
+#endif
   #define Assert(x) \
     do { if(!(x)) { \
       dbg << "Error - Assert " #x " failed"<<std::endl; \

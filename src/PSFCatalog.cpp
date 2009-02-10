@@ -17,7 +17,7 @@
 //#define ENDAT 95
 
 
-static void MeasureSinglePSF(
+void MeasureSinglePSF(
     Position cen, const Image<double>& im, double sky,
     const Transformation& trans,
     double noise, double gain, const Image<double>* weight_im,
@@ -51,9 +51,10 @@ static void MeasureSinglePSF(
     ell.FixMu();
     ell.PeakCentroid(pix[0],psfap/3.);
     ell.CrudeMeasure(pix[0],sigma_p);
-    tmv::Matrix<double> cov(psf.size(),psf.size());
 
+    tmv::Matrix<double> cov(psf.size(),psf.size());
     long flag1=0;
+
     if (ell.Measure(pix,psforder,sigma_p,false,flag1,desqa,0,&psf,&cov)) {
       xdbg<<"psf = "<<psf<<std::endl;
       nu = psf[0] / std::sqrt(cov(0,0));
@@ -107,8 +108,8 @@ double PSFCatalog::EstimateSigma(const Image<double>& im,
 #ifdef _OPENMP
 #pragma omp parallel for schedule(guided) reduction(+ : meanmu) reduction(+ : count)
 #endif
-  for (int i=0; i<nstars; i++) {
-    dbg<<"use i = "<<i<<std::endl;
+  for (int i=0; i<nstars; i++) if (!flags[i]) {
+    ompdbg<<"use i = "<<i<<std::endl;
 
     try {
       double sigma = sigma_p;
@@ -118,14 +119,6 @@ double PSFCatalog::EstimateSigma(const Image<double>& im,
 	  im, pos[i], sky[i], noise[i], gain, weight_im, 
 	  trans, psfap, flag1);
       if (flag1) continue;
-      if (!(sigma > 0)) {
-	xdbg<<"initial sigma_p = "<<sigma_p<<std::endl;
-	xdbg<<"pos = "<<pos[i]<<", sky = "<<sky[i]<<std::endl;
-	xdbg<<"noise = "<<noise[i]<<", gain = "<<gain<<std::endl;
-	xdbg<<"psfap = "<<psfap<<", flag1 = "<<flag1<<std::endl;
-	xdbg<<"--> sigma = "<<sigma<<std::endl;
-      }
-      Assert(sigma > 0);
       meanmu += log(sigma);
       count++;
     } catch (...) {
@@ -180,6 +173,12 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
   log.ngoodin = std::count(flags.begin(),flags.end(),0);
   dbg<<log.ngoodin<<"/"<<log.nstars<<" stars with no input flags\n";
 
+  Assert(nstars<=int(pos.size()));
+  Assert(nstars<=int(sky.size()));
+  Assert(nstars<=int(noise.size()));
+  Assert(nstars<=int(psf.size()));
+  Assert(nstars<=int(nu.size()));
+  Assert(nstars<=int(flags.size()));
   // Main loop to measure psf shapelets:
 #ifdef _OPENMP
 #pragma omp parallel 
@@ -212,13 +211,7 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
 	// Start with an error code of unknown failure, in case
 	// something happens that I don't detect as an error.
 	flags[i] = UNKNOWN_FAILURE;
-	Assert(i<int(pos.size()));
-	Assert(i<int(sky.size()));
-	Assert(i<int(noise.size()));
-	Assert(i<int(psf.size()));
-	Assert(i<int(nu.size()));
-	Assert(i<int(flags.size()));
-	dbg<<"Before MeasureSinglePSF1"<<std::endl;
+	ompdbg<<"Before MeasureSinglePSF1"<<std::endl;
 	long flag1 = 0;
 	MeasureSinglePSF(
 	    // Input data:
@@ -231,14 +224,14 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
 	    log1,
 	    // Ouput value:
 	    psf[i], nu[i], flag1);
-	dbg<<"After MeasureSinglePSF"<<std::endl;
+	ompdbg<<"After MeasureSinglePSF"<<std::endl;
 
 	flags[i] = flag1;
 	if (!flag1) {
-	  dbg<<"Successful psf measurement: "<<psf[i]<<std::endl;
+	  ompdbg<<"Successful psf measurement: "<<psf[i]<<std::endl;
 	}
 	else {
-	  dbg<<"Unsuccessful psf measurement\n"; 
+	  ompdbg<<"Unsuccessful psf measurement\n"; 
 	}
       }
 #ifdef _OPENMP

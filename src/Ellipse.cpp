@@ -72,7 +72,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     // Also, we start by just fitting the centroid.
     if (!fixcen && (!fixgam || !fixmu)) {
 #ifdef _OPENMP
-//#pragma omp critical
+//#pragma omp critical (new_solver)
 #endif
       {
 	if (psf)
@@ -96,7 +96,14 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
       solver->max_iter = 60;
       xdbg<<"Integrating solver, centroid only:\n";
       //if (XDEBUG) if (!solver->TestJ(x,f,dbgout,1.e-5)) exit(1);
-      if (!(solver->Solve(x,f)))
+      bool ret;
+#ifdef _OPENMP
+//#pragma omp critical (solve)
+#endif
+      {
+	ret = solver->Solve(x,f);
+      }
+      if (!ret) 
       {
 	dbg<<"failed integrating solver, centroid - x = "<<x<<std::endl;
 	dbg<<"f = "<<f<<"  Norm(f) = "<<Norm(f)<<std::endl;
@@ -111,7 +118,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     // Next allow the shear and/or mu to be fit as well:
 #ifdef N_FLUX_ATTEMPTS
 #ifdef _OPENMP
-//#pragma omp critical
+//#pragma omp critical (new_solver)
 #endif
     {
       if (psf)
@@ -140,7 +147,12 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     for(int iter = 0; iter < N_FLUX_ATTEMPTS; iter++) {
       xdbg<<"Attempt #"<<iter<<std::endl;
       //if (XDEBUG) if (!solver->TestJ(x,f,dbgout,1.e-5)) exit(1);
-      solver->Solve(x,f);
+#ifdef _OPENMP
+//#pragma omp critical (solve)
+#endif
+      {
+	solver->Solve(x,f);
+      }
       xdbg<<"x => "<<x<<std::endl;
       xdbg<<"f => "<<f<<"  Norm(f) = "<<Norm(f)<<std::endl;
       xdbg<<"b => "<<solver->GetB()<<std::endl;
@@ -149,7 +161,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
 #endif
     // Repeat, but allow flux to change.
 #ifdef _OPENMP
-//#pragma omp critical
+//#pragma omp critical (new_solver)
 #endif
     {
       if (psf)
@@ -163,7 +175,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     xdbg<<"xinit (integ) = "<<x<<std::endl;
     solver->method = NLSolver::Dogleg;
 #ifdef NOTHROW
-      solver->startwithch = false;
+    solver->startwithch = false;
 #endif
     solver->ftol = 1.e-3;
     if (XDEBUG) solver->nlout = dbgout;
@@ -173,7 +185,12 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     xdbg<<"Final Integrating solver:\n";
     //if (XDEBUG) if (!solver->TestJ(x,f,dbgout,1.e-5)) exit(1);
     //solver->verbose = true;
-    solver->Solve(x,f);
+#ifdef _OPENMP
+//#pragma omp critical (solve)
+#endif
+    {
+      solver->Solve(x,f);
+    }
     xdbg<<"Done: x (Integrating) = "<<x<<std::endl;
     xdbg<<"f (integ) = "<<f<<std::endl;
     xdbg<<"b = "<<solver->GetB()<<std::endl;
@@ -194,7 +211,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
   }
   if (!fixcen) {
 #ifdef _OPENMP
-//#pragma omp critical
+//#pragma omp critical (new_solver)
 #endif
     {
       if (psf)
@@ -207,7 +224,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     xdbg<<"xinit = "<<x<<std::endl;
     solver->method = NLSolver::Dogleg;
 #ifdef NOTHROW
-      solver->startwithch = false;
+    solver->startwithch = false;
 #endif
     solver->ftol = 1.e-3;
     if (XDEBUG) solver->nlout = dbgout;
@@ -215,7 +232,14 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     solver->min_step = 1.e-12;
     solver->max_iter = 50;
     xdbg<<"ML solver centroid:\n";
-    if (!(solver->Solve(x,f))) {
+    bool ret;
+#ifdef _OPENMP
+//#pragma omp critical (solve)
+#endif
+    {
+      ret = solver->Solve(x,f);
+    }
+    if (!ret) {
       dbg<<"ML solver, centroid, failed - x = "<<x<<std::endl;
       dbg<<"f = "<<f<<std::endl;
       dbg<<"b = "<<solver->GetB()<<std::endl;
@@ -257,7 +281,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     }
 
 #ifdef _OPENMP
-//#pragma omp critical
+//#pragma omp critical (new_solver)
 #endif
     {
       if (psf)
@@ -270,7 +294,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     xdbg<<"xinit = "<<x<<std::endl;
     solver->method = NLSolver::Dogleg;
 #ifdef NOTHROW
-      solver->startwithch = false;
+    solver->startwithch = false;
 #endif
     solver->ftol = 1.e-3;
     if (XDEBUG) solver->nlout = dbgout;
@@ -278,7 +302,14 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     solver->min_step = 1.e-12;
     solver->max_iter = 50;
     xdbg<<"ML solver gamma:\n";
-    if (!(solver->Solve(x,f))) {
+    bool ret;
+#ifdef _OPENMP
+//#pragma omp critical (solve)
+#endif
+    {
+      ret = solver->Solve(x,f);
+    }
+    if (!ret) {
       dbg<<"ML solver, gamma, failed - x = "<<x<<std::endl;
       dbg<<"f = "<<f<<std::endl;
       dbg<<"b = "<<solver->GetB()<<std::endl;
@@ -306,7 +337,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
   }
   if (!fixmu) {
 #ifdef _OPENMP
-//#pragma omp critical
+//#pragma omp critical (new_solver)
 #endif
     {
       if (psf)
@@ -319,7 +350,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     xdbg<<"xinit = "<<x<<std::endl;
     solver->method = NLSolver::Dogleg;
 #ifdef NOTHROW
-      solver->startwithch = false;
+    solver->startwithch = false;
 #endif
     solver->ftol = 1.e-3;
     if (XDEBUG) solver->nlout = dbgout;
@@ -327,7 +358,14 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     solver->min_step = 1.e-12;
     solver->max_iter = 50;
     xdbg<<"ML solver mu:\n";
-    if (!(solver->Solve(x,f))) {
+    bool ret;
+#ifdef _OPENMP
+//#pragma omp critical (solve)
+#endif
+    {
+      ret = solver->Solve(x,f);
+    }
+    if (!ret) {
       dbg<<"ML solver, mu, failed - x = "<<x<<std::endl;
       dbg<<"f = "<<f<<std::endl;
       dbg<<"b = "<<solver->GetB()<<std::endl;
@@ -357,7 +395,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     t1 = tp.tv_sec + tp.tv_usec/1.e6;
   }
 #ifdef _OPENMP
-//#pragma omp critical
+//#pragma omp critical (new_solver)
 #endif
   {
     if (psf)
@@ -384,7 +422,12 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
   for(int iter = 0; iter < N_FLUX_ATTEMPTS; iter++) {
     xdbg<<"Attempt #"<<iter<<std::endl;
     //if (XDEBUG) if (!solver->TestJ(x,f,dbgout,1.e-5)) exit(1);
-    solver->Solve(x,f);
+#ifdef _OPENMP
+//#pragma omp critical (solve)
+#endif
+    {
+      solver->Solve(x,f);
+    }
     xdbg<<"x => "<<x<<std::endl;
     xdbg<<"f => "<<f<<"  Norm(f) = "<<Norm(f)<<std::endl;
     xdbg<<"b = "<<solver->GetB()<<std::endl;
@@ -406,7 +449,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
   }
   // Finally allow the flux change as needed.
 #ifdef _OPENMP
-//#pragma omp critical
+//#pragma omp critical (new_solver)
 #endif
   {
     if (psf)
@@ -430,7 +473,14 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
   xdbg<<"Final solver:\n";
   for(int iter = 1;iter<=MAXITER;iter++) {
     //if (XDEBUG) if (!solver->TestJ(x,f,dbgout,1.e-6)) exit(1);
-    if (solver->Solve(x,f,cov)) break;
+    bool ret;
+#ifdef _OPENMP
+//#pragma omp critical (solve)
+#endif
+    {
+      ret = solver->Solve(x,f,cov);
+    }
+    if (ret) break;
     else if (iter == MAXITER) {
       if (dotimings) {
 	gettimeofday(&tp,0);
@@ -484,7 +534,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
 #endif
 
 #ifdef _OPENMP
-//#pragma omp critical
+//#pragma omp critical (new_solver)
 #endif
     {
       if (psf)

@@ -52,7 +52,7 @@ maxrms		0.05	# Max rms of first linear fit.
 
 fitorder	2	# Order of fitted function size(x,y)
 fitsigclip	4.0	# Sigma clip when fitting size(x,y)
-startn2		0.5	# How many objects to start with (as fraction of n)
+startn2		0.3	# How many objects to start with (as fraction of n)
 magstep2	0.10	# Step size in magnitudes 
 miniter2	2	# Min times to step up the magnitude cutoff
 reject2		4.0	# N sigma for rejection 

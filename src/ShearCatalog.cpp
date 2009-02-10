@@ -13,7 +13,6 @@
 #include "Pixel.h"
 #include "Image.h"
 #include "FittedPSF.h"
-#include "TimeVars.h"
 #include "Log.h"
 #include "Params.h"
 #include "Form.h"
@@ -22,7 +21,7 @@
 //#define STARTAT 8000
 //#define ENDAT 200
 
-static void MeasureSingleShear1(
+void MeasureSingleShear1(
     Position cen, const Image<double>& im, double sky,
     const Transformation& trans, const std::vector<BVec>& psf,
     double noise, double gain, const Image<double>* weight_im, 
@@ -260,7 +259,7 @@ static void MeasureSingleShear1(
   // (I'm not convinced that the above covariance matrix is a good estiamte.)
 }
 
-static void MeasureSingleShear(
+void MeasureSingleShear(
     Position cen, const Image<double>& im, double sky,
     const Transformation& trans, const FittedPSF& fitpsf,
     double noise, double gain, const Image<double>* weight_im, 
@@ -421,15 +420,15 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
 	flags[i] = flag1;
 
 	if (!flag1) {
-	  dbg<<"Successful shear measurement: "<<shear[i]<<std::endl;
+	  ompdbg<<"Successful shear measurement: "<<shear[i]<<std::endl;
 	}
 	else {
-	  dbg<<"Unsuccessful shear measurement\n"; 
+	  ompdbg<<"Unsuccessful shear measurement\n"; 
 	}
 
 	if (timing) {
-	  dbg<<"So far: ns = "<<times.ns_gamma<<",  nf = "<<times.nf_native;
-	  dbg<<", "<<times.nf_mu<<", "<<times.nf_gamma<<std::endl;
+	  ompdbg<<"So far: ns = "<<times.ns_gamma<<",  nf = "<<times.nf_native;
+	  ompdbg<<", "<<times.nf_mu<<", "<<times.nf_gamma<<std::endl;
 	}
 
       }

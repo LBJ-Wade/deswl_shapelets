@@ -812,6 +812,7 @@ int main()
     if not CheckLibs(context,['tmv_symband','tmv'],tmv_source_file):
         context.Result(0)
         print 'Error: TMV file failed to link correctly'
+        Exit(1)
 
     context.Result(1)
     return 1

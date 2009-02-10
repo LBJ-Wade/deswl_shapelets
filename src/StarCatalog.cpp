@@ -48,6 +48,7 @@ void CalcSigma(
   double mu = ell.GetMu();
 
   sigma *= exp(mu);
+  Assert(sigma > 0);
 }
 
 
@@ -86,20 +87,22 @@ StarCatalog::StarCatalog(ConfigFile& _params, std::string fs_prefix) :
 void StarCatalog::CalcSizes(const Image<double>& im, 
     const Image<double>* weight_im, const Transformation& trans)
 {
-  double psfap = params.get("psf_aperture"); 
-  double gain = params.read("image_gain",0.);
   Assert(pos.size() == size());
   Assert(sky.size() == size());
   Assert(noise.size() == size());
   Assert(objsize.size() == size());
   Assert(flags.size() == size());
+
   int n = pos.size();
   dbg<<"n = "<<n<<std::endl;
+  double psfap = params.get("psf_aperture"); 
+  double gain = params.read("image_gain",0.);
+
 #ifdef _OPENMP
 #pragma omp parallel for schedule(guided)
 #endif
   for (int i=0; i<n; i++) if (!flags[i]) {
-    dbg<<"use i = "<<i<<std::endl;
+    ompdbg<<"use i = "<<i<<std::endl;
 
     try {
       // Negative value indicates not set yet.  Start with 1 then.
@@ -108,18 +111,18 @@ void StarCatalog::CalcSizes(const Image<double>& im,
 	  objsize[i],
 	  im, pos[i], sky[i], noise[i], gain, weight_im, 
 	  trans, psfap, flags[i]);
-      dbg<<"objsize["<<i<<"]: "<<objsize[i]<<std::endl;
-      dbg<<"flags["<<i<<"]: "<<flags[i]<<std::endl;
+      ompdbg<<"objsize["<<i<<"]: "<<objsize[i]<<std::endl;
+      ompdbg<<"flags["<<i<<"]: "<<flags[i]<<std::endl;
     } catch (tmv::Error& e) {
-      dbg<<"Caught: "<<e<<std::endl;
+      ompdbg<<"Caught: "<<e<<std::endl;
       objsize[i] = DEFVALNEG;
       flags[i] |= TMV_EXCEPTION;
     } catch (std::exception& e) {
-      dbg<<"Caught: "<<e.what()<<std::endl;
+      ompdbg<<"Caught: "<<e.what()<<std::endl;
       objsize[i] = DEFVALNEG;
       flags[i] |= STD_EXCEPTION;
     } catch (...) {
-      dbg<<"Caught unknown exception"<<std::endl;
+      ompdbg<<"Caught unknown exception"<<std::endl;
       objsize[i] = DEFVALNEG;
       flags[i] |= UNKNOWN_EXCEPTION;
     }
@@ -438,7 +441,7 @@ void StarCatalog::ReadFits(std::string file)
 
   dbg<<"  "<<isastar_col<<std::endl;
   isastar.resize(nrows);
-  fits.ReadScalarCol(isastar_col,XLONG,&isastar[0], nrows);
+  fits.ReadScalarCol(isastar_col,XINT,&isastar[0], nrows);
 }
 
 void StarCatalog::ReadAscii(std::string file, std::string delim)
