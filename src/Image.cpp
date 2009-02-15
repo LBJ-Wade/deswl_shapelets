@@ -9,11 +9,11 @@
 template <class T> inline T SQR(const T& x) { return x*x; }
 template <class T> inline void SWAP(T& a, T& b) { T temp = a; a = b; b = temp; }
 
-template <class T> inline int BitPix() { return Assert(false), 0; }
+template <class T> inline int BitPix() { return 0; }
 template <> inline int BitPix<double>() { return DOUBLE_IMG; }
 template <> inline int BitPix<float>() { return FLOAT_IMG; }
 
-template <class T> inline int DataType() { return Assert(false), 0; }
+template <class T> inline int DataType() { return 0; }
 template <> inline int DataType<double>() { return TDOUBLE; }
 template <> inline int DataType<float>() { return TFLOAT; }
 
@@ -90,6 +90,7 @@ void Image<T>::ReadFits(std::string filename, int hdu)
   long fpixel[2] = {1,1};
   int anynul;
   xdbg<<"Before read_pix\n";
+  Assert(DataType<T>());
   fits_read_pix(fptr,DataType<T>(),fpixel,long(xmax*ymax),0,
       sourcem->ptr(),&anynul,&fitserr);
   xxdbg<<"done readpix  "<<fitserr<<std::endl;
@@ -133,6 +134,7 @@ void Image<T>::Flush() const
   }
 
   long fpixel[2] = {1,1};
+  Assert(DataType<T>());
   fits_write_pix(fptr,DataType<T>(),fpixel,long(xmax*ymax),
       itsm->ptr(),&fitserr);
   if (fitserr != 0) fits_report_error(stderr,fitserr);
@@ -155,6 +157,7 @@ void Image<T>::Write(std::string _filename) const
   if (fitserr != 0) fits_report_error(stderr,fitserr);
   Assert(fitserr==0);
 
+  Assert(BitPix<T>());
   int bitpix = BitPix<T>();
   int naxes = 2;
   long sizes[2] = { itsm->colsize(), itsm->rowsize() };
@@ -163,6 +166,7 @@ void Image<T>::Write(std::string _filename) const
   Assert(fitserr==0);
 
   long fpixel[2] = {1,1};
+  Assert(DataType<T>());
   fits_write_pix(fptr,DataType<T>(),fpixel,long(xmax*ymax),
       itsm->ptr(),&fitserr);
   if (fitserr != 0) fits_report_error(stderr,fitserr);
@@ -312,4 +316,3 @@ T Image<T>::Median() const
 }
 
 template class Image<double>;
-template class Image<float>;
