@@ -281,7 +281,7 @@ static void ReadWCSFits(const std::string& filename, int hdu,
   Assert(cd.rowsize() == 2);
   Assert(cd.colsize() == 2);
 
-  xdbg<<"starting read fits\n";
+  xdbg<<"starting read wcs from fits\n";
 
   int status=0;
   fitsfile *fitsptr;
@@ -343,6 +343,7 @@ static void ReadWCSFits(const std::string& filename, int hdu,
       std::cerr << "fits error: "<<errmsg<<std::endl;
     throw std::runtime_error("fits errors");
   }
+  xdbg<<"Done reading wcs from fits."<<std::endl;
 }
 
 static void ReCenterDistortion(tmv::Matrix<double>& a, 
@@ -420,6 +421,7 @@ static void ReCenterDistortion(tmv::Matrix<double>& a,
 static void ReadTANFits(const std::string& filename, int hdu,
     std::vector<tmv::Matrix<double> >& pv)
 {
+  xdbg<<"Start read TAN specific wcs parameters."<<std::endl;
   int status=0;
   fitsfile *fitsptr;
 
@@ -434,21 +436,27 @@ static void ReadTANFits(const std::string& filename, int hdu,
   xdbg<<"Moved to hdu "<<hdu<<std::endl;
 
   char pvstr[10] = "PV1_1";
+  xdbg<<"pvstr = "<<pvstr<<std::endl;
   for(int pvnum=0; pvnum<=1; pvnum++) {
+    xdbg<<"pvnum = "<<pvnum<<std::endl;
     Assert(pvnum < int(pv.size()));
     Assert(pv[pvnum].colsize() >= 4);
     Assert(pv[pvnum].rowsize() >= 4);
     pv[pvnum].Zero();
+    xdbg<<"pv.zero = "<<pv[pvnum]<<std::endl;
 
     pvstr[2]='1'+pvnum;
     pvstr[5] = '\0';
     int k = 0;
+    xdbg<<"pvstr = "<<pvstr<<std::endl;
     for(int n=0;n<4;++n) {
+      xdbg<<"n = "<<n<<std::endl;
       for(int i=n,j=0;j<=n;--i,++j,++k) {
 	if (k == 3) ++k; // I don't know why they skip 3.
+	xdbg<<"i,j,k = "<<i<<','<<j<<','<<k<<std::endl;
 	if (k < 10) { pvstr[4] = '0'+k; pvstr[5] = '\0'; }
 	else { pvstr[4] = '0'+(k/10); pvstr[5] = '0'+(k%10); pvstr[6] = '\0'; }
-	xdbg<<"Try reading pv key |"<<pvstr<<"|\n";
+	xdbg<<"Try reading pv key |"<<pvstr<<"|"<<std::endl;
 	float temp;
 	if (fits_read_key(fitsptr,TFLOAT,pvstr,&temp,NULL,&status))
 	  dbg<<"Problem reading key: "<<pvstr<<" for n,i,j,k = "<<n<<','<<i<<','<<j<<','<<k<<std::endl;
@@ -472,6 +480,7 @@ static void ReadTANFits(const std::string& filename, int hdu,
       std::cerr << "fits error: "<<errmsg<<std::endl;
     throw std::runtime_error("fits errors");
   }
+  xdbg<<"Done read TAN specific wcs parameters."<<std::endl;
 }
 
 static void ReadTNXFits(const std::string& filename, int hdu,

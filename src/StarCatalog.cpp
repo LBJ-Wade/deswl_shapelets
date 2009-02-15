@@ -85,7 +85,7 @@ StarCatalog::StarCatalog(ConfigFile& _params, std::string fs_prefix) :
 }
 
 void StarCatalog::CalcSizes(const Image<double>& im, 
-    const Image<double>* weight_im, const Transformation& trans)
+    const Image<double>*const weight_im, const Transformation& trans)
 {
   Assert(pos.size() == size());
   Assert(sky.size() == size());
@@ -93,40 +93,45 @@ void StarCatalog::CalcSizes(const Image<double>& im,
   Assert(objsize.size() == size());
   Assert(flags.size() == size());
 
-  int n = pos.size();
+  const int n = pos.size();
   dbg<<"n = "<<n<<std::endl;
   double psfap = params.get("psf_aperture"); 
   double gain = params.read("image_gain",0.);
 
 #ifdef _OPENMP
-#pragma omp parallel for schedule(guided)
+#pragma omp parallel 
+  {
+#pragma omp for schedule(guided)
 #endif
-  for (int i=0; i<n; i++) if (!flags[i]) {
-    ompdbg<<"use i = "<<i<<std::endl;
+    for (int i=0; i<n; i++) if (!flags[i]) {
+      ompdbg<<"use i = "<<i<<std::endl;
 
-    try {
-      // Negative value indicates not set yet.  Start with 1 then.
-      if (objsize[i] <= 0.) objsize[i] = 1.;
-      CalcSigma(
-	  objsize[i],
-	  im, pos[i], sky[i], noise[i], gain, weight_im, 
-	  trans, psfap, flags[i]);
-      ompdbg<<"objsize["<<i<<"]: "<<objsize[i]<<std::endl;
-      ompdbg<<"flags["<<i<<"]: "<<flags[i]<<std::endl;
-    } catch (tmv::Error& e) {
-      ompdbg<<"Caught: "<<e<<std::endl;
-      objsize[i] = DEFVALNEG;
-      flags[i] |= TMV_EXCEPTION;
-    } catch (std::exception& e) {
-      ompdbg<<"Caught: "<<e.what()<<std::endl;
-      objsize[i] = DEFVALNEG;
-      flags[i] |= STD_EXCEPTION;
-    } catch (...) {
-      ompdbg<<"Caught unknown exception"<<std::endl;
-      objsize[i] = DEFVALNEG;
-      flags[i] |= UNKNOWN_EXCEPTION;
+      try {
+	// Negative value indicates not set yet.  Start with 1 then.
+	if (objsize[i] <= 0.) objsize[i] = 1.;
+	CalcSigma(
+	    objsize[i],
+	    im, pos[i], sky[i], noise[i], gain, weight_im, 
+	    trans, psfap, flags[i]);
+	ompdbg<<"objsize["<<i<<"]: "<<objsize[i]<<std::endl;
+	ompdbg<<"flags["<<i<<"]: "<<flags[i]<<std::endl;
+      } catch (tmv::Error& e) {
+	ompdbg<<"Caught: "<<e<<std::endl;
+	objsize[i] = DEFVALNEG;
+	flags[i] |= TMV_EXCEPTION;
+      } catch (std::exception& e) {
+	ompdbg<<"Caught: "<<e.what()<<std::endl;
+	objsize[i] = DEFVALNEG;
+	flags[i] |= STD_EXCEPTION;
+      } catch (...) {
+	ompdbg<<"Caught unknown exception"<<std::endl;
+	objsize[i] = DEFVALNEG;
+	flags[i] |= UNKNOWN_EXCEPTION;
+      }
     }
-  } // End omp parallel for
+#ifdef _OPENMP
+  } // End omp parallel 
+#endif
   dbg<<"Done MeasureSigmas\n";
 }
 

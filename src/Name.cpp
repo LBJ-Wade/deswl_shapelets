@@ -3,6 +3,15 @@
 #include "Name.h"
 #include "dbg.h"
 
+void DoWriteParKey(const ConfigFile& params, FitsFile& fits, std::string key)
+{
+  if (params.keyExists(key))  {
+    fits.WriteKey(params.get(key+"_hname"), XSTRING, 
+	params.get(key).c_str(), params.get(key+"_comment"));
+  }
+}
+
+
 // This function is taken from:
 // http://www.techbytes.ca/techbyte103.html
 bool FileExists(const std::string& strFilename) 

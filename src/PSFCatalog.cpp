@@ -17,6 +17,45 @@
 //#define ENDAT 95
 
 
+void MeasureSinglePSF1(
+    Position cen, const Image<double>& im, double sky,
+    const Transformation& trans,
+    double noise, double gain, const Image<double>* weight_im,
+    double sigma_p, double psfap, int psforder, bool desqa,
+    PSFLog& log, BVec& psf, double& nu, long& flag)
+{
+  std::vector<std::vector<Pixel> > pix(1);
+  GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,psfap,flag);
+
+  int npix = pix[0].size();
+  xdbg<<"npix = "<<npix<<std::endl;
+
+  Ellipse ell;
+  ell.FixGam();
+  ell.FixMu();
+  ell.PeakCentroid(pix[0],psfap/3.);
+  ell.CrudeMeasure(pix[0],sigma_p);
+  tmv::Matrix<double> cov(psf.size(),psf.size());
+
+  long flag1=0;
+  if (ell.Measure(pix,psforder,sigma_p,false,flag1,desqa,0,&psf,&cov)) {
+    xdbg<<"psf = "<<psf<<std::endl;
+    nu = psf[0] / std::sqrt(cov(0,0));
+    //nu = 1.;
+    psf.Normalize();  // Divide by (0,0) element
+    xdbg<<"Normalized psf: "<<psf<<std::endl;
+    log.ns_psf++;
+  }
+  else {
+    xdbg<<"Measurement failed\n";
+    log.nf_psf++;
+    nu = psf[0] / std::sqrt(cov(0,0));
+    psf.Normalize();  // Divide by (0,0) element
+    flag |= MEASURE_PSF_FAILED;
+  }
+
+}
+
 void MeasureSinglePSF(
     Position cen, const Image<double>& im, double sky,
     const Transformation& trans,
@@ -39,38 +78,8 @@ void MeasureSinglePSF(
   }
 
   try {
-
-    std::vector<std::vector<Pixel> > pix(1);
-    GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,psfap,flag);
-
-    int npix = pix[0].size();
-    xdbg<<"npix = "<<npix<<std::endl;
-
-    Ellipse ell;
-    ell.FixGam();
-    ell.FixMu();
-    ell.PeakCentroid(pix[0],psfap/3.);
-    ell.CrudeMeasure(pix[0],sigma_p);
-
-    tmv::Matrix<double> cov(psf.size(),psf.size());
-    long flag1=0;
-
-    if (ell.Measure(pix,psforder,sigma_p,false,flag1,desqa,0,&psf,&cov)) {
-      xdbg<<"psf = "<<psf<<std::endl;
-      nu = psf[0] / std::sqrt(cov(0,0));
-      //nu = 1.;
-      psf.Normalize();  // Divide by (0,0) element
-      xdbg<<"Normalized psf: "<<psf<<std::endl;
-      log.ns_psf++;
-    }
-    else {
-      xdbg<<"Measurement failed\n";
-      log.nf_psf++;
-      nu = psf[0] / std::sqrt(cov(0,0));
-      psf.Normalize();  // Divide by (0,0) element
-      flag |= MEASURE_PSF_FAILED;
-    }
-
+    MeasureSinglePSF1(cen,im,sky,trans,noise,gain,weight_im,
+	sigma_p,psfap,psforder,desqa,log,psf,nu,flag);
   } catch (tmv::Error& e) {
     dbg<<"TMV Error thrown in MeasureSinglePSF\n";
     dbg<<e<<std::endl;
@@ -200,7 +209,7 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
 	XDEBUG = true;
 #endif
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (output)
 #endif
 	{
 	  if (output_dots) { std::cerr<<"."; std::cerr.flush(); }
@@ -235,7 +244,7 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
 	}
       }
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (add_log)
 #endif
       {
 	log += log1;

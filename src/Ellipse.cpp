@@ -117,6 +117,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
 
     // Next allow the shear and/or mu to be fit as well:
 #ifdef N_FLUX_ATTEMPTS
+#if N_FLUX_ATTEMPTS > 0
 #ifdef _OPENMP
 //#pragma omp critical (new_solver)
 #endif
@@ -158,6 +159,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
       xdbg<<"b => "<<solver->GetB()<<std::endl;
       if (Norm(f) < 1.e-2) break;
     } 
+#endif
 #endif
     // Repeat, but allow flux to change.
 #ifdef _OPENMP
@@ -201,9 +203,8 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     }
   }
 
-  // Finally, we should be close enough for the exact solver
-  // to work.
 #if 0
+  // We should be close enough for the exact solver to work.
   // But just to be safe, fit each of centroid, gamma, mu separately first:
   if (dotimings) {
     gettimeofday(&tp,0);
@@ -390,6 +391,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
 
   // Now fit everything, but first time, try to maintain the flux level
 #ifdef N_FLUX_ATTEMPTS
+#if N_FLUX_ATTEMPTS > 0
   if (dotimings) {
     gettimeofday(&tp,0);
     t1 = tp.tv_sec + tp.tv_usec/1.e6;
@@ -441,6 +443,7 @@ bool Ellipse::DoMeasure(const std::vector<std::vector<Pixel> >& pix,
     t2 = tp.tv_sec + tp.tv_usec/1.e6;
     t_fixflux += t2-t1;
   }
+#endif
 #endif
 
   if (dotimings) {

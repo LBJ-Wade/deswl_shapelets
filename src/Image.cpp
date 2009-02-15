@@ -9,11 +9,20 @@
 template <class T> inline T SQR(const T& x) { return x*x; }
 template <class T> inline void SWAP(T& a, T& b) { T temp = a; a = b; b = temp; }
 
+template <class T> inline int BitPix() { return Assert(false), 0; }
+template <> inline int BitPix<double>() { return DOUBLE_IMG; }
+template <> inline int BitPix<float>() { return FLOAT_IMG; }
+
+template <class T> inline int DataType() { return Assert(false), 0; }
+template <> inline int DataType<double>() { return TDOUBLE; }
+template <> inline int DataType<float>() { return TFLOAT; }
+
 template <class T>
 Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im)
 {
-  int image_hdu = params.read("image_hdu",1);
-  ReadFits(Name(params,"image",true),image_hdu);
+  filename = Name(params,"image",true);
+  hdu = params.read("image_hdu",1);
+  ReadFits(filename,hdu);
   xdbg<<"Opened image "<<Name(params,"image",true)<<std::endl;
 
   // Load weight image (if necessary)
@@ -28,19 +37,21 @@ Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im)
 template <class T>
 Image<T>::Image(const ConfigFile& params)
 {
-  int image_hdu = params.read("image_hdu",1);
-  ReadFits(Name(params,"image",true),image_hdu);
+  filename = Name(params,"image",true);
+  hdu = params.read("image_hdu",1);
+  ReadFits(Name(params,"image",true),hdu);
   xdbg<<"Opened image "<<Name(params,"image",true)<<std::endl;
 }
 
 template <class T> 
-Image<T>::Image(const std::string& filename, int hdu) 
+Image<T>::Image(std::string _filename, int _hdu) :
+  filename(_filename), hdu(_hdu)
 {
   ReadFits(filename,hdu);
 }
 
 template <class T> 
-void Image<T>::ReadFits(const std::string& filename, int hdu) 
+void Image<T>::ReadFits(std::string filename, int hdu) 
 {
   xxdbg<<"Start read fitsimage"<<std::endl;
   fitsfile *fptr;
@@ -48,10 +59,12 @@ void Image<T>::ReadFits(const std::string& filename, int hdu)
 
   fits_open_file(&fptr,filename.c_str(),READONLY,&fitserr);
   xxdbg<<"Done open"<<std::endl;
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
   Assert(fitserr==0);
 
   fits_movabs_hdu(fptr,hdu,0,&fitserr);
   xdbg<<"Moved to hdu "<<hdu<<std::endl;
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
   Assert(fitserr==0);
 
   int bitpix, naxes;
@@ -61,8 +74,9 @@ void Image<T>::ReadFits(const std::string& filename, int hdu)
   xxdbg<<"naxes = "<<naxes<<std::endl;
   xxdbg<<"bitpix = "<<bitpix<<std::endl;
   xxdbg<<"FLOAT_IMG = "<<FLOAT_IMG<<std::endl;
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
   Assert(fitserr==0);
-  Assert(bitpix == FLOAT_IMG);
+  //Assert(bitpix == FLOAT_IMG);
   Assert(naxes == 2);
   xxdbg<<"sizes = "<<sizes[0]<<"  "<<sizes[1]<<std::endl;
 
@@ -76,33 +90,86 @@ void Image<T>::ReadFits(const std::string& filename, int hdu)
   long fpixel[2] = {1,1};
   int anynul;
   xdbg<<"Before read_pix\n";
-  fits_read_pix(fptr,TDOUBLE,fpixel,long(xmax*ymax),0,sourcem->ptr(),&anynul,
-      &fitserr);
+  fits_read_pix(fptr,DataType<T>(),fpixel,long(xmax*ymax),0,
+      sourcem->ptr(),&anynul,&fitserr);
   xxdbg<<"done readpix  "<<fitserr<<std::endl;
   xxdbg<<"anynul = "<<anynul<<std::endl;
   xxdbg<<"fitserr = "<<fitserr<<std::endl;
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
   Assert(fitserr==0);
 
   itsm.reset(new tmv::MatrixView<T>(sourcem->View()));
   xxdbg<<"Done make matrixview"<<std::endl;
 
   fits_close_file(fptr, &fitserr);
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
   Assert(fitserr==0);
 }
 
 template <class T> 
-void Image<T>::Flush(const std::string& filename)
+void Image<T>::Flush(std::string _filename, int _hdu) const
 {
+  filename = _filename;
+  hdu = _hdu;
+  Flush();
+}
+
+template <class T> 
+void Image<T>::Flush() const
+{
+  Assert(filename != "");
+
   fitsfile *fptr;
   int fitserr=0;
   fits_open_file(&fptr,filename.c_str(),READWRITE,&fitserr);
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
   Assert(fitserr==0);
 
+  if (hdu != 1) {
+    int hdutype;
+    fits_movabs_hdu(fptr,hdu,&hdutype,&fitserr);
+    if (fitserr != 0) fits_report_error(stderr,fitserr);
+    Assert(fitserr==0);
+  }
+
   long fpixel[2] = {1,1};
-  fits_write_pix(fptr,TDOUBLE,fpixel,long(xmax*ymax),itsm->ptr(),&fitserr);
+  fits_write_pix(fptr,DataType<T>(),fpixel,long(xmax*ymax),
+      itsm->ptr(),&fitserr);
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
   Assert(fitserr==0);
 
   fits_close_file(fptr, &fitserr);
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
+  Assert(fitserr==0);
+}
+
+template <class T> 
+void Image<T>::Write(std::string _filename) const
+{
+  filename = _filename;
+  hdu = 1;
+
+  fitsfile *fptr;
+  int fitserr=0;
+  fits_create_file(&fptr,("!"+filename).c_str(),&fitserr);
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
+  Assert(fitserr==0);
+
+  int bitpix = BitPix<T>();
+  int naxes = 2;
+  long sizes[2] = { itsm->colsize(), itsm->rowsize() };
+  fits_create_img(fptr, bitpix, naxes, sizes, &fitserr);
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
+  Assert(fitserr==0);
+
+  long fpixel[2] = {1,1};
+  fits_write_pix(fptr,DataType<T>(),fpixel,long(xmax*ymax),
+      itsm->ptr(),&fitserr);
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
+  Assert(fitserr==0);
+
+  fits_close_file(fptr, &fitserr);
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
   Assert(fitserr==0);
 }
 

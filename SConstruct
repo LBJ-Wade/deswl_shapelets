@@ -131,7 +131,7 @@ def BasicCCFlags(env):
             if version <= 4.2:
                 env.Append(CCFLAGS=['-fno-strict-aliasing'])
             if env['WARN']:
-                env.Append(CCFLAGS=['-ansi','-pedantic-errors','-Wall','-Werror'])
+                env.Append(CCFLAGS=['-ggdb','-Wall','-Werror'])
     
         elif compiler == 'icpc':
             env.Replace(CCFLAGS=['-O2'])
@@ -187,8 +187,8 @@ def AddOpenMPFlag(env):
             print 'No OpenMP support for g++ versions before ',openmp_mingcc_vers
             return
         flag = ['-fopenmp']
-        ldflag = ['-fopenmp']
-        xlib = ['pthread']
+        ldflag = []
+        xlib = ['gomp','gfortran','pthread']
     elif compiler == 'icpc':
         if version < openmp_minicpc_vers:
             print 'No OpenMP support for icpc versions before ',openmp_minicpc_vers
@@ -406,26 +406,50 @@ int main()
     elif context.env['CXXTYPE'] == 'pgCC':
         threadlib = 'mkl_pgi_thread'
     else:
-        threadlib = 'mkl_gnu_thread'
+        threadlib = ['mkl_gnu_thread']
 
     if context.TryCompile(mkl_source_file,'.cpp'):
-        result = (
-            CheckLibs(context,[],mkl_source_file) or
-            CheckLibs(context,['mkl'],mkl_source_file) or
-            CheckLibs(context,['mkl','pthread'],mkl_source_file) or
-            CheckLibs(context,['mkl','guide','pthread'],mkl_source_file) or
-            CheckLibs(context,['mkl_ia32','guide','pthread'],
-                        mkl_source_file) or
-            CheckLibs(context,['mkl_ia32','mkl_core','mkl_sequential'],
-                        mkl_source_file) or
-            CheckLibs(context,['mkl_intel_lp64','mkl_core',threadlib,
-                        'guide','pthread'],mkl_source_file) or
-            CheckLibs(context,['mkl_intel_lp64','mkl_core','mkl_sequential'],
-                        mkl_source_file) or
-            CheckLibs(context,['mkl_ipf','guide','pthread'],
-                        mkl_source_file) or
-            CheckLibs(context,['mkl_em64t','guide','pthread'],
-                        mkl_source_file) )
+        if context.env['WITH_OPENMP'] :
+            # Then need the correct thread_lib
+            result = (
+                CheckLibs(context,[],mkl_source_file) or
+                CheckLibs(context,['mkl',threadlib],mkl_source_file) or
+                CheckLibs(context,['mkl',threadlib,'pthread'],
+                            mkl_source_file) or
+                CheckLibs(context,['mkl',threadlib,'guide','pthread'],
+                            mkl_source_file) or
+                CheckLibs(context,['mkl_ia32',threadlib,'guide','pthread'],
+                            mkl_source_file) or
+                CheckLibs(context,['mkl_ia32','mkl_core','mkl_sequential',
+                            threadlib],mkl_source_file) or
+                CheckLibs(context,['mkl_intel_lp64','mkl_core',threadlib,
+                            'guide','pthread'],mkl_source_file) or
+                CheckLibs(context,['mkl_intel_lp64','mkl_core',
+                            'mkl_sequential'],mkl_source_file) or
+                CheckLibs(context,['mkl_ipf',threadlib,'guide','pthread'],
+                            mkl_source_file) or
+                CheckLibs(context,['mkl_em64t',threadlib,'guide','pthread'],
+                            mkl_source_file) )
+
+        else:
+            # Else usually don't need thread_lib
+            result = (
+                CheckLibs(context,[],mkl_source_file) or
+                CheckLibs(context,['mkl'],mkl_source_file) or
+                CheckLibs(context,['mkl','pthread'],mkl_source_file) or
+                CheckLibs(context,['mkl','guide','pthread'],mkl_source_file) or
+                CheckLibs(context,['mkl_ia32','guide','pthread'],
+                            mkl_source_file) or
+                CheckLibs(context,['mkl_ia32','mkl_core','mkl_sequential'],
+                            mkl_source_file) or
+                CheckLibs(context,['mkl_intel_lp64','mkl_core',threadlib,
+                            'guide','pthread'],mkl_source_file) or
+                CheckLibs(context,['mkl_intel_lp64','mkl_core',
+                            'mkl_sequential'],mkl_source_file) or
+                CheckLibs(context,['mkl_ipf','guide','pthread'],
+                            mkl_source_file) or
+                CheckLibs(context,['mkl_em64t','guide','pthread'],
+                            mkl_source_file) )
 
         context.Result(result)
 
@@ -1018,6 +1042,7 @@ def DoConfig(env):
     #     main compilation steps.
     if not env['CACHE_LIB']:
         SCons.SConf.SetCacheMode('auto')
+
 
 
 #

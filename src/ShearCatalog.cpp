@@ -388,7 +388,7 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
 	if (i > SINGLEGAL) break;
 #endif
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (output)
 #endif
 	{
 	  if (output_dots) { std::cerr<<"."; std::cerr.flush(); }
@@ -433,7 +433,7 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
 
       }
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (add_log)
 #endif
       { 
 	if (timing) alltimes += times;

@@ -3,22 +3,69 @@
 #include "InputCatalog.h"
 #include "StarFinder.h"
 #include "BasicSetup.h"
+#include <sys/time.h>
 
 static void DoFindStars(ConfigFile& params, FindStarsLog& log)
 {
+  bool timing = params.read("timing",false);
+  timeval tp;
+  double t1=0.,t2=0.;
+
+  if (timing) {
+    gettimeofday(&tp,0);
+    t1 = tp.tv_sec + tp.tv_usec/1.e6;
+  }
+
   // Read image, transformation
   std::auto_ptr<Image<double> > weight_im;
   Image<double> im(params,weight_im);
+
+  if (timing) {
+    gettimeofday(&tp,0);
+    t2 = tp.tv_sec + tp.tv_usec/1.e6;
+    std::cout<<"Time: Open imgae = "<<t2-t1<<std::endl;
+    t1 = t2;
+  }
+
+  // Read distortion function
   Transformation trans(params);
+
+  if (timing) {
+    gettimeofday(&tp,0);
+    t2 = tp.tv_sec + tp.tv_usec/1.e6;
+    std::cout<<"Time: Read Transformation = "<<t2-t1<<std::endl;
+    t1 = t2;
+  }
 
   // Read input catalog
   InputCatalog incat(params,&im);
 
+  if (timing) {
+    gettimeofday(&tp,0);
+    t2 = tp.tv_sec + tp.tv_usec/1.e6;
+    std::cout<<"Time: Read InputCatalog = "<<t2-t1<<std::endl;
+    t1 = t2;
+  }
+
   // Create StarCatalog from InputCatalog
   StarCatalog starcat(incat,params);
 
+  if (timing) {
+    gettimeofday(&tp,0);
+    t2 = tp.tv_sec + tp.tv_usec/1.e6;
+    std::cout<<"Time: Make StarCatalog = "<<t2-t1<<std::endl;
+    t1 = t2;
+  }
+
   // Update the sizes to more robust values
   starcat.CalcSizes(im,weight_im.get(),trans);
+
+  if (timing) {
+    gettimeofday(&tp,0);
+    t2 = tp.tv_sec + tp.tv_usec/1.e6;
+    std::cout<<"Time: CalcSizes = "<<t2-t1<<std::endl;
+    t1 = t2;
+  }
 
   try {
     starcat.FindStars(log);
@@ -36,8 +83,22 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
   }
   dbg<<"After RunFindStars\n";
 
+  if (timing) {
+    gettimeofday(&tp,0);
+    t2 = tp.tv_sec + tp.tv_usec/1.e6;
+    std::cout<<"Time: FindStars = "<<t2-t1<<std::endl;
+    t1 = t2;
+  }
+
   // Write star catalog to file
   starcat.Write();
+
+  if (timing) {
+    gettimeofday(&tp,0);
+    t2 = tp.tv_sec + tp.tv_usec/1.e6;
+    std::cout<<"Time: Write StarCatalog = "<<t2-t1<<std::endl;
+    t1 = t2;
+  }
 
   xdbg<<"Log: \n"<<log<<std::endl;
 }

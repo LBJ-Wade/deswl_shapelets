@@ -19,8 +19,7 @@ void FitsFile::Open(std::string filename, int mode, bool create)
   mFileName=filename;
   if (create && READWRITE == mode) {
     //std::cout<<"Creating file: "<<filename<<std::endl;
-    std::string f = filename;
-    f = "!"+f;
+    std::string f = "!" + filename;
     fits_create_file(&mFptr, f.c_str(), &fitserr);
   } else {
     //std::cout<<"Not Creating file: "<<filename<<" mode,create="<<mode<<","<<create<<std::endl;
@@ -44,6 +43,10 @@ void FitsFile::Close()
 {
   int fitserr=0;
   fits_close_file(mFptr, &fitserr);
+  if (!fitserr==0) {
+    fits_report_error(stderr, fitserr); 
+    throw FitsException("Error closing FITS file: " + mFileName);
+  }
 }
 
 

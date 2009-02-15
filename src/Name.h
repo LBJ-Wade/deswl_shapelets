@@ -5,11 +5,10 @@
 #include <vector>
 #include <stdexcept>
 #include "ConfigFile.h"
+#include "FitsFile.h"
 
-#define WriteParKey(key) \
-  if (params.keyExists(key)) \
-    fits.WriteKey(params.get(std::string(key)+"_hname"), XSTRING, \
-	    params.get(key).c_str(), params.get(std::string(key)+"_comment"))
+void DoWriteParKey(const ConfigFile& params, FitsFile& fits, std::string key);
+#define WriteParKey(key) DoWriteParKey(params,fits,key);
 
 struct file_not_found : public std::runtime_error {
   file_not_found( const std::string& filename = std::string() ) throw() :
