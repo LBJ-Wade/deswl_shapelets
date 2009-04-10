@@ -285,12 +285,12 @@ void FittedPSF::WriteFits(std::string file) const
 
   // dimensions information
   std::stringstream tdim10;
-  tdim10<<"("<<n_shapelet_coeff<<","<<n_shapelet_coeff<<")";
+  tdim10<<"("<<npca<<","<<n_shapelet_coeff<<")";
   fits.WriteKey("TDIM10",XSTRING,tdim10.str().c_str(),
       "dimensions of rot_matrix");
 
   std::stringstream tdim11;
-  tdim11<<"("<<n_fit_coeff<<","<<n_shapelet_coeff<<")";
+  tdim11<<"("<<n_fit_coeff<<","<<npca<<")";
   fits.WriteKey("TDIM11",XSTRING,tdim11.str().c_str(),
       "dimensions of interp_matrix");
 
