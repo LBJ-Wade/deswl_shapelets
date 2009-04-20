@@ -5,7 +5,7 @@
 # your product to get it to work.  Don't forget to run:
 #
 #   svn propset svn:keywords "HeadURL Rev" wl-version 
-#   svn ci -m "setting keywords property to HeadURL" wl_version
+#   svn ci -m "setting keywords property to HeadURL" wl-version
 #
 # once you have added this to your new SVN product 
 #

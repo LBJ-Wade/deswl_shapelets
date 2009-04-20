@@ -12,7 +12,7 @@ import sys
 # Subdirectories containing SConscript files.  We always process src but
 # there are some other optional ones
 src_dir = 'src'
-subdirs=['python','example_config']
+subdirs=['python','example_config','bin']
 
 # Configurations will be saved here so command line options don't
 # have to be sent more than once
@@ -100,13 +100,13 @@ opts.Save(config_file,initial_env)
 Help(opts.GenerateHelpText(initial_env))
 
 def RunInstall(env, targets, subdir):
-    install_dir = os.path.join(env['PREFIX'], subdir)
+    install_dir = os.path.join(env['INSTALL_PREFIX'], subdir)
     env.Alias(target='install',
               source=env.Install(dir=install_dir, source=targets))
 
 def RunUninstall(env, targets, subdir):
     # There is no env.Uninstall method, we must build our own
-    install_dir = os.path.join(env['PREFIX'], subdir)
+    install_dir = os.path.join(env['INSTALL_PREFIX'], subdir)
     deltarget = Delete("$TARGET")
 
     # delete from $prefix/bin/
@@ -1021,8 +1021,8 @@ def DoConfig(env):
     # Figure out what BLAS and/or LAPACK libraries are on the system
     # MJ: I have had bad luck with scons figuring out when the cache
     #     is invalid.  This just forces a check every time.
-    if not env['CACHE_LIB']:
-        SCons.SConf.SetCacheMode('force')
+    #if not env['CACHE_LIB']:
+    #    SCons.SConf.SetCacheMode('force')
     config = env.Configure(custom_tests = {
         'CheckMKL' : CheckMKL ,
         'CheckACML' : CheckACML ,
@@ -1040,8 +1040,8 @@ def DoConfig(env):
     env = config.Finish()
     # MJ: Turn the cache back on now, since we want it for the
     #     main compilation steps.
-    if not env['CACHE_LIB']:
-        SCons.SConf.SetCacheMode('auto')
+    #if not env['CACHE_LIB']:
+    #    SCons.SConf.SetCacheMode('auto')
 
 
 
