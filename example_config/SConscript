@@ -3,17 +3,20 @@
 import os
 Import('env')
 
-cfile=env.File('wl.config')
-#install_subdir = os.path.join('share','wl')
-install_subdir = 'etc'
-targets = [cfile]
+RunInstall = env['_InstallProgram']
+RunUninstall = env['_UninstallProgram']
 
-if 'install' in COMMAND_LINE_TARGETS:
-    RunInstall = env['_InstallProgram']
-    RunInstall(env, targets, install_subdir)
+for fname in ['wl.config','wl_dc4.config']:
 
-if 'uninstall' in COMMAND_LINE_TARGETS:
-    RunUninstall = env['_UninstallProgram']
-    RunUninstall(env, targets, install_subdir)
+    #cfile=env.File('wl.config')
+    cfile=env.File(fname)
+    install_subdir = 'etc'
+    targets = [cfile]
+
+    if 'install' in COMMAND_LINE_TARGETS:
+        RunInstall(env, targets, install_subdir)
+
+    if 'uninstall' in COMMAND_LINE_TARGETS:
+        RunUninstall(env, targets, install_subdir)
 
 
