@@ -68,6 +68,8 @@ void ShearLog::WriteLogToFitsHeader() const
     fits.GotoHDU(2);
 
     // use msexit to differentiate from exit codes for other codes
+	
+	/*
     fits.WriteKey("msexit", XLONG, &exitcode, "Exit code for MeasureShear");
     fits.WriteKey("msnobj", XLONG, &ngals, 
 	"# of objects processed by MeasureShear");
@@ -100,6 +102,44 @@ void ShearLog::WriteLogToFitsHeader() const
 	"# of MeasureShear failures calculating mu");
     fits.WriteKey("nf_gamma", XLONG, &nf_gamma, 
 	"# of MeasureShear failures calculating shear");
+	*/
+
+	// the enumerated type ExitCode sometimes defaults to long
+	int exit=exitcode;
+    fits.WriteKey("msexit", XINT, &exit, "Exit code for MeasureShear");
+    fits.WriteKey("msnobj", XINT, &ngals, 
+	"# of objects processed by MeasureShear");
+    fits.WriteKey("ms_ngoodin", XINT, &ngoodin,
+	"# of objects with no input error flags");
+    fits.WriteKey("ms_ngood", XINT, &ngood,
+	"# of measurements with no error flags");
+    fits.WriteKey("ns_gamma", XINT, &ns_gamma, 
+	"# of successful shear measurements");
+    fits.WriteKey("ns_nativ", XINT, &ns_native, 
+	"# of successful native shapeles measurements");
+
+    fits.WriteKey("nf_rnge1", XINT, &nf_range1, 
+	"# of MeasureShear failures range1");
+    fits.WriteKey("nf_rnge2", XINT, &nf_range2, 
+	"# of MeasureShear failures range2");
+
+    fits.WriteKey("nf_nativ", XINT, &nf_native, 
+	"# of MeasureShear failures native calculations");
+    fits.WriteKey("nf_small", XINT, &nf_small, 
+	"# of MeasureShear failures too small");
+
+    // prefix ms to make unique
+    fits.WriteKey("nf_mstmv", XINT, &nf_tmverror, 
+	"# of MeasureShear failures TMV errors");
+    fits.WriteKey("nf_msoth", XINT, &nf_othererror, 
+	"# of MeasureShear failures unclassified errors");
+
+    fits.WriteKey("nf_mu", XINT, &nf_mu, 
+	"# of MeasureShear failures calculating mu");
+    fits.WriteKey("nf_gamma", XINT, &nf_gamma, 
+	"# of MeasureShear failures calculating shear");
+
+
   } 
   catch(...) 
   { if (exitcode == 0) throw; }
@@ -203,6 +243,8 @@ void PSFLog::WriteLogToFitsHeader() const
     fits.GotoHDU(2);
 
     // use fsexit to differentiate from exit codes for other codes
+	
+	/*
     fits.WriteKey("mpexit", XLONG, &exitcode, "Exit code for MeasurePSF");
     fits.WriteKey("mpnstars", XLONG, &nstars, 
 	"# of PSF star candidates used");
@@ -220,6 +262,30 @@ void PSFLog::WriteLogToFitsHeader() const
 	"# PSF failures due to unclassified errors");
     fits.WriteKey("nf_psf", XLONG, &nf_psf, 
 	"# PSF failures");
+	*/
+
+	
+	// the enumerated type ExitCode sometimes defaults to long
+	int exit=exitcode;
+    fits.WriteKey("mpexit", XINT, &exit, "Exit code for MeasurePSF");
+    fits.WriteKey("mpnstars", XINT, &nstars, 
+	"# of PSF star candidates used");
+    fits.WriteKey("mpgoodin", XINT, &ngoodin,
+	"# of objects with no input error flags");
+    fits.WriteKey("mp_ngood", XINT, &ngood,
+	"# of measurements with no error flags");
+    fits.WriteKey("ns_psf", XINT, &ns_psf, 
+	"# of successful PSF decompositions");
+    fits.WriteKey("nf_range", XINT, &nf_range, 
+	"# PSF failures due to range error");
+    fits.WriteKey("nf_mptmv", XINT, &nf_tmverror, 
+	"# PSF failures due to TMV errors");
+    fits.WriteKey("nf_mpoth", XINT, &nf_othererror, 
+	"# PSF failures due to unclassified errors");
+    fits.WriteKey("nf_psf", XINT, &nf_psf, 
+	"# PSF failures");
+
+
   }
   catch (...)
   { if (exitcode == 0) throw; }
@@ -298,6 +364,8 @@ void FindStarsLog::WriteLogToFitsHeader() const
     // forward each time
 
     // copying out to avoid g++ errors due to const incorrectness
+	
+	/*
     fits.WriteKey("fsexit", XLONG, &exitcode, "Exit code for FindStars");
     fits.WriteKey("fsntot", XLONG, &ntot, 
 	"# of total objects processed in FindStars");
@@ -313,6 +381,27 @@ void FindStarsLog::WriteLogToFitsHeader() const
 	"# of total stars found by FindStars");
     fits.WriteKey("fsnstars", XLONG, &nstars, 
 	"# of good stars found by FindStars");
+	*/
+	
+	// the enumerated type ExitCode sometimes defaults to long
+	int exit=exitcode;
+    fits.WriteKey("fsexit", XINT, &exit, "Exit code for FindStars");
+    fits.WriteKey("fsntot", XINT, &ntot, 
+	"# of total objects processed in FindStars");
+    fits.WriteKey("fsnrflag", XINT, &nr_flag,
+	"# of objects rejected because of input flag");
+    fits.WriteKey("fsnrmag", XINT, &nr_mag,
+	"# of objects rejected because of mag limits");
+    fits.WriteKey("fsnrsize", XINT, &nr_size,
+	"# of objects rejected because of size limits");
+    fits.WriteKey("fsnobj", XINT, &nobj, 
+	"# of objects processed in FindStars");
+    fits.WriteKey("fsnall", XINT, &nallstars,
+	"# of total stars found by FindStars");
+    fits.WriteKey("fsnstars", XINT, &nstars, 
+	"# of good stars found by FindStars");
+
+
   }
   catch(...)
   { if (exitcode == 0) throw; }
