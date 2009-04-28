@@ -11,6 +11,47 @@ void DoWriteParKey(const ConfigFile& params, FitsFile& fits, std::string key)
   }
 }
 
+void WriteIntegerParKey(
+    const ConfigFile& params, 
+    CCfits::Table* table,
+    std::string key)
+{
+  if (params.keyExists(key))  {
+    table->addKey(
+	params.get(key+"_hname"), 
+	(int) params.get(key), 
+	params.get(key+"_comment"));
+  }
+}
+
+void WriteDoubleParKey(
+    const ConfigFile& params, 
+    CCfits::Table* table,
+    std::string key)
+{
+  if (params.keyExists(key))  {
+    table->addKey(
+	params.get(key+"_hname"), 
+	(double) params.get(key), 
+	params.get(key+"_comment"));
+  }
+}
+
+void WriteStringParKey(
+    const ConfigFile& params, 
+    CCfits::Table* table,
+    std::string key)
+{
+  if (params.keyExists(key))  {
+    table->addKey(
+	params.get(key+"_hname"), 
+	params.get(key).c_str(), 
+	params.get(key+"_comment"));
+  }
+}
+
+
+
 
 // This function is taken from:
 // http://www.techbytes.ca/techbyte103.html

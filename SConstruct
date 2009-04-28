@@ -7,6 +7,7 @@
 
 import os
 import sys
+from sys import stdout,stderr
 
 
 # Subdirectories containing SConscript files.  We always process src but
@@ -870,6 +871,11 @@ def DoLibraryAndHeaderChecks(config):
         print 'tmv_symband library not found'
         Exit(1)
 
+    if not config.CheckLibWithHeader('CCfits','CCfits/CCfits.h',
+                                     language='C++'):
+        stdout.write('CCfits library or header not found\n')
+        Exit(1)
+
     # This next section checks for the BLAS and/or LAPACK libraries.
     # It needs to be the same as in the TMV SConstruct file
     # to make sure the correct libraries are linked
@@ -1021,8 +1027,8 @@ def DoConfig(env):
     # Figure out what BLAS and/or LAPACK libraries are on the system
     # MJ: I have had bad luck with scons figuring out when the cache
     #     is invalid.  This just forces a check every time.
-    #if not env['CACHE_LIB']:
-    #    SCons.SConf.SetCacheMode('force')
+    if not env['CACHE_LIB']:
+        SCons.SConf.SetCacheMode('force')
     config = env.Configure(custom_tests = {
         'CheckMKL' : CheckMKL ,
         'CheckACML' : CheckACML ,
@@ -1040,8 +1046,8 @@ def DoConfig(env):
     env = config.Finish()
     # MJ: Turn the cache back on now, since we want it for the
     #     main compilation steps.
-    #if not env['CACHE_LIB']:
-    #    SCons.SConf.SetCacheMode('auto')
+    if not env['CACHE_LIB']:
+        SCons.SConf.SetCacheMode('auto')
 
 
 

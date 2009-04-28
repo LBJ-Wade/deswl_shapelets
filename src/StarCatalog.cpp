@@ -206,6 +206,132 @@ int StarCatalog::FindStars(FindStarsLog& log)
   return count;
 }
 
+#include <CCfits/CCfits>
+void StarCatalog::WriteFitsCCfits(std::string file) const 
+{
+  Assert(id.size() == size());
+  Assert(pos.size() == size());
+  Assert(sky.size() == size());
+  Assert(noise.size() == size());
+  Assert(flags.size() == size());
+  Assert(mag.size() == size());
+  Assert(objsize.size() == size());
+  Assert(isastar.size() == size());
+
+  // ! means overwrite existing file
+  CCfits::FITS fits("!"+file, CCfits::Write);
+
+  // Setup the binary table
+  std::string id_col=params.get("stars_id_col");
+  std::string x_col=params.get("stars_x_col");
+  std::string y_col=params.get("stars_y_col");
+  std::string sky_col=params.get("stars_sky_col");
+  std::string noise_col=params.get("stars_noise_col");
+  std::string flags_col=params.get("stars_flags_col");
+  std::string mag_col=params.get("stars_mag_col");
+  std::string objsize_col=params.get("stars_objsize_col");
+  std::string isastar_col=params.get("stars_isastar_col");
+
+  const int nfields = 9;
+
+  std::vector<string> colnames(nfields);
+  std::vector<string> colfmts(nfields);
+  std::vector<string> colunits(nfields);
+
+  colnames[0] = params["stars_id_col"];
+  colnames[1] = params["stars_x_col"];
+  colnames[2] = params["stars_y_col"];
+  colnames[3] = params["stars_sky_col"];
+  colnames[4] = params["stars_noise_col"];
+  colnames[5] = params["stars_flags_col"];
+  colnames[6] = params["stars_mag_col"];
+  colnames[7] = params["stars_objsize_col"];
+  colnames[8] = params["stars_isastar_col"];
+
+  colfmts[0] = "1J"; // id
+  colfmts[1] = "1D"; // x
+  colfmts[2] = "1D"; // y
+  colfmts[3] = "1D"; // sky
+  colfmts[4] = "1D"; // noise
+  colfmts[5] = "1J"; // flags
+  colfmts[6] = "1E"; // mag
+  colfmts[7] = "1D"; // sigma
+  colfmts[8] = "1J"; // star flag
+
+  colunits[0] = "None";     // id
+  colunits[1] = "pixels";   // x
+  colunits[2] = "pixels";   // y
+  colunits[3] = "ADU";      // sky
+  colunits[4] = "ADU^2";    // noise
+  colunits[5] = "None";     // flags
+  colunits[6] = "mags";     // mag
+  colunits[7] = "Arcsec";   // sigma0
+  colunits[8] = "None";     //star flag
+
+  CCfits::Table* table;
+  table = fits.addTable("findstars",size(),colnames,colfmts,colunits);
+
+  // make vector copies for writing
+  std::vector<double> x(pos.size());
+  std::vector<double> y(pos.size());
+  for(size_t i=0;i<pos.size();i++) {
+    x[i] = pos[i].GetX();
+    y[i] = pos[i].GetY();
+  }
+
+  int startcol=1;
+  table->column(colnames[0]).write(id,startcol);
+  table->column(colnames[1]).write(x,startcol);
+  table->column(colnames[2]).write(y,startcol);
+  table->column(colnames[3]).write(sky,startcol);
+  table->column(colnames[4]).write(noise,startcol);
+  table->column(colnames[5]).write(flags,startcol);
+  table->column(colnames[6]).write(mag,startcol);
+  table->column(colnames[7]).write(objsize,startcol);
+  table->column(colnames[8]).write(isastar,startcol);
+
+  // kind of kludgy but is more flexible then using type numbers or strings
+  double dbl;
+  int intgr;
+  std::string str;
+
+  WriteParKeyCCfits(params, table, "version", str);
+  WriteParKeyCCfits(params, table, "noise_method",str);
+  WriteParKeyCCfits(params, table, "dist_method",str);
+
+  WriteParKeyCCfits(params, table, "stars_minsize", dbl);
+  WriteParKeyCCfits(params, table, "stars_maxsize",dbl);
+  WriteParKeyCCfits(params, table, "stars_minmag",dbl);
+  WriteParKeyCCfits(params, table, "stars_maxmag",dbl);
+  WriteParKeyCCfits(params, table, "stars_ndivx",intgr);
+  WriteParKeyCCfits(params, table, "stars_ndivy",intgr);
+
+  WriteParKeyCCfits(params, table, "stars_startn1",dbl);
+  WriteParKeyCCfits(params, table, "stars_starfrac",dbl);
+  WriteParKeyCCfits(params, table, "stars_magstep1",dbl);
+  WriteParKeyCCfits(params, table, "stars_miniter1",intgr);
+  WriteParKeyCCfits(params, table, "stars_reject1",dbl);
+  WriteParKeyCCfits(params, table, "stars_binsize1",dbl);
+  WriteParKeyCCfits(params, table, "stars_maxratio1",dbl);
+  WriteParKeyCCfits(params, table, "stars_okvalcount",intgr);
+  WriteParKeyCCfits(params, table, "stars_maxrms",dbl);
+  WriteParKeyCCfits(params, table, "stars_starsperbin",intgr);
+
+  WriteParKeyCCfits(params, table, "stars_fitorder",intgr);
+  WriteParKeyCCfits(params, table, "stars_fitsigclip",dbl);
+  WriteParKeyCCfits(params, table, "stars_startn2",dbl);
+  WriteParKeyCCfits(params, table, "stars_magstep2",dbl);
+  WriteParKeyCCfits(params, table, "stars_miniter2",intgr);
+  WriteParKeyCCfits(params, table, "stars_minbinsize",dbl);
+  WriteParKeyCCfits(params, table, "stars_reject2",dbl);
+
+  WriteParKeyCCfits(params, table, "stars_purityratio",dbl);
+  WriteParKeyCCfits(params, table, "stars_maxrefititer",intgr);
+
+}
+
+
+
 void StarCatalog::WriteFits(std::string file) const 
 {
   Assert(id.size() == size());
@@ -369,7 +495,8 @@ void StarCatalog::Write() const
       fitsio = true;
 
     if (fitsio) {
-      WriteFits(file);
+      //WriteFits(file);
+      WriteFitsCCfits(file);
     } else {
       std::string delim = "  ";
       if (params.keyExists("stars_delim")) {
