@@ -12,6 +12,8 @@
 # Written by C. Loomis, Princeton 
 # Modified to include revision number when using the trunk. 
 #			Erin Sheldon BNL
+# Revision numbers not updated unless this file updated, so including
+#	revision doesn not work. Removed.  ES
 #------------------------------------------------------------------------------
 
 # The trailing part of this executable's filename, with respect to the product
@@ -31,7 +33,7 @@ rev=$(echo $svnRev | cut -d' ' -f2)
 # Special case the trunk, which we want to recognize as a version named "trunk"
 svnTag=$(echo "$svnURL" | sed 's,^$HeadURL: .*/trunk/,trunk/,; s, \$$,,' | sed "s,/$MYNAME,,")
 if test "$svnTag" = "trunk"; then
-    echo "trunk.$rev"
+    echo "trunk"
     exit 0
 fi
 
@@ -47,7 +49,7 @@ fi
 # If it doesn't look like a tag, complain
 svnTag=$(echo "$svnURL" | sed 's,^$HeadURL: .*/trunk/,trunk/,; s, \$$,,' | sed "s,/$MYNAME,,")
 if test "$svnTag" = "trunk"; then
-    echo "trunk.$rev"
+    echo "trunk"
     exit 0
 fi
 
