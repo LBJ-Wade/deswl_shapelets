@@ -418,9 +418,6 @@ void PSFCatalog::WriteFitsCCfits(std::string file) const
 
   table->column(colnames[6]).write(nu,startrow);
 
-
-  // Now we have to loop through each psf decomposition and write
-  // separately.  This is pretty dumb.
   for (size_t i=0; i<size(); i++) {
     size_t row = i+1;
     long b_order = psf[i].GetOrder();
