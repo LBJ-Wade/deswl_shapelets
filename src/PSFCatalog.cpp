@@ -395,6 +395,7 @@ void PSFCatalog::WriteFitsCCfits(std::string file) const
   colunits[9] = "None";     // coeffs
 
 
+  dbg<<"Before Create table"<<std::endl;
   CCfits::Table* table;
   table = fits.addTable("psfcat",size(),colnames,colfmts,colunits);
 

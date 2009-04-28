@@ -178,7 +178,8 @@ void FittedPSF::Write() const
       fitsio = true;
 
     if (fitsio) {
-      WriteFits(file);
+      //WriteFits(file);
+      WriteFitsCCfits(file);
     } else {
       WriteAscii(file);
     }
@@ -206,6 +207,145 @@ void FittedPSF::Read()
   }
   dbg<<"Done Read FittedPSF\n";
 }
+
+void FittedPSF::WriteFitsCCfits(std::string file) const
+{
+  dbg<<"Start WriteFits"<<std::endl;
+
+  // ! means overwrite existing file
+  CCfits::FITS fits("!"+file, CCfits::Write);
+
+  dbg<<"Made fits"<<std::endl;
+
+  // Note the actual coeffs may be less than this the way Mike does things
+  // but we will fill the extra with zeros
+  int n_shapelet_coeff = (psforder+1)*(psforder+2)/2;
+  //int n_rot_matrix_max = n_shapelet_coeff*n_shapelet_coeff;
+  int n_rot_matrix = npca*n_shapelet_coeff;
+
+  int n_fit_coeff = (fitorder+1)*(fitorder+2)/2;
+  //int n_interp_matrix_max = n_shapelet_coeff*n_fit_coeff;
+  int n_interp_matrix = npca*n_fit_coeff;
+
+  const int nfields=11;
+
+  std::vector<string> colnames(nfields);
+  std::vector<string> colfmts(nfields);
+  std::vector<string> colunits(nfields);
+
+  colnames[0] = params["fitpsf_psf_order_col"];
+  colnames[1] = params["fitpsf_sigma_col"];
+  colnames[2] = params["fitpsf_fit_order_col"];
+  colnames[3] = params["fitpsf_npca_col"];
+
+  colnames[4] = params["fitpsf_xmin_col"];
+  colnames[5] = params["fitpsf_xmax_col"];
+  colnames[6] = params["fitpsf_ymin_col"];
+  colnames[7] = params["fitpsf_ymax_col"];
+
+  colnames[8] = params["fitpsf_ave_psf_col"];
+  colnames[9] = params["fitpsf_rot_matrix_col"];
+  colnames[10] = params["fitpsf_interp_matrix_col"];
+
+  colfmts[0] = "1J"; // psf order
+  colfmts[1] = "1D"; // sigma
+  colfmts[2] = "1J"; // fit order
+  colfmts[3] = "1J"; // npca
+  colfmts[4] = "1E"; // xmin
+  colfmts[5] = "1E"; // xmax
+  colfmts[6] = "1E"; // ymin
+  colfmts[7] = "1E"; // ymax
+
+  std::stringstream fmt;
+  fmt << n_shapelet_coeff << "D";
+  colfmts[8] = fmt.str(); // average psf shapelets
+  fmt.str("");
+  fmt << n_rot_matrix << "D";
+  colfmts[9] = fmt.str(); // rotation matrix
+  fmt.str("");
+  fmt << n_interp_matrix << "D";
+  colfmts[10] = fmt.str(); // interp matrix
+
+  colunits[0] = "None";     // psf order
+  colunits[1] = "arcsec";   // sigma
+  colunits[2] = "None";     // fit order
+  colunits[3] = "None";     // npca
+  colunits[4] = "pixels";   // xmin
+  colunits[5] = "pixels";   // xmax
+  colunits[6] = "pixels";   // ymin
+  colunits[7] = "pixels";   // ymax
+  colunits[8] = "None";     // avg psf shapelets
+  colunits[9] = "None";     // rot_matrix
+  colunits[10] = "None";    // interp_matrix
+
+
+  int nrows=1;
+  dbg<<"Before Create table"<<std::endl;
+  CCfits::Table* table;
+  table = fits.addTable("fitpsf",nrows,colnames,colfmts,colunits);
+  dbg<<"After Create table"<<std::endl;
+
+
+  // dimensions information
+  dbg<<"Adding dimensional info"<<std::endl;
+  std::stringstream tdim10, tdim11;
+  tdim10<<"("<<npca<<","<<n_shapelet_coeff<<")";
+  tdim11<<"("<<n_fit_coeff<<","<<npca<<")";
+
+  table->addKey("TDIM10",tdim10.str(),"dimensions of rot_matrix");
+  table->addKey("TDIM11",tdim11.str(),"dimensions of interp_matrix");
+
+  // write the data
+  int startrow=1;
+  int nel=1;
+
+  // CCfits write() doesn't allow constant scalar arguments, so we have copy
+  // out.  Might as well be vectors to simplify the signature
+  
+  std::vector<int> l_psforder(1,psforder);
+  std::vector<double> l_sigma(1,sigma);
+  std::vector<int> l_fitorder(1,fitorder);
+  std::vector<int> l_npca(1,npca); 
+  std::vector<double> xmin(1,bounds.GetXMin());
+  std::vector<double> xmax(1,bounds.GetXMax());
+  std::vector<double> ymin(1,bounds.GetYMin());
+  std::vector<double> ymax(1,bounds.GetYMax());
+
+  table->column(colnames[0]).write(l_psforder, startrow);
+  table->column(colnames[1]).write(l_sigma, startrow);
+  table->column(colnames[2]).write(l_fitorder, startrow);
+  table->column(colnames[3]).write(l_npca, startrow);
+  table->column(colnames[4]).write(xmin, startrow);
+  table->column(colnames[5]).write(xmax, startrow);
+  table->column(colnames[6]).write(ymin, startrow);
+  table->column(colnames[7]).write(ymax, startrow);
+
+  double* cptr;
+
+  cptr = (double *) avepsf->cptr();
+  table->column(colnames[8]).write(cptr, n_shapelet_coeff, nrows, startrow);
+  cptr = (double *) V->cptr();
+  table->column(colnames[9]).write(cptr, n_rot_matrix, nrows, startrow);
+  cptr = (double *) f->cptr();
+  table->column(colnames[10]).write(cptr, n_interp_matrix, nrows, startrow);
+
+
+  std::string str;
+  double dbl;
+  int intgr;
+
+  dbg<<"Before Write Par Keys"<<std::endl;
+  WriteParKeyCCfits(params, table, "version", str);
+  WriteParKeyCCfits(params, table, "noise_method", str);
+  WriteParKeyCCfits(params, table, "dist_method", str);
+
+  WriteParKeyCCfits(params, table, "fitpsf_order", intgr);
+  WriteParKeyCCfits(params, table, "fitpsf_pca_thresh", dbl);
+  dbg<<"After Write Par Keys"<<std::endl;
+
+}
+
+
 
 void FittedPSF::WriteFits(std::string file) const
 {
