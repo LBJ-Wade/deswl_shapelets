@@ -8,7 +8,6 @@
 #include "StarFinder.h"
 #include "Bounds.h"
 #include "ConfigFile.h"
-#include "FitsFile.h"
 #include "Image.h"
 #include "Name.h"
 #include "Transformation.h"
@@ -206,8 +205,7 @@ int StarCatalog::FindStars(FindStarsLog& log)
   return count;
 }
 
-#include <CCfits/CCfits>
-void StarCatalog::WriteFitsCCfits(std::string file) const 
+void StarCatalog::WriteFits(std::string file) const 
 {
   Assert(id.size() == size());
   Assert(pos.size() == size());
@@ -284,155 +282,43 @@ void StarCatalog::WriteFitsCCfits(std::string file) const
   int intgr;
   std::string str;
 
-  WriteParKeyCCfits(params, table, "version", str);
-  WriteParKeyCCfits(params, table, "noise_method", str);
-  WriteParKeyCCfits(params, table, "dist_method", str);
+  CCfitsWriteParKey(params, table, "version", str);
+  CCfitsWriteParKey(params, table, "noise_method", str);
+  CCfitsWriteParKey(params, table, "dist_method", str);
 
-  WriteParKeyCCfits(params, table, "stars_minsize", dbl);
-  WriteParKeyCCfits(params, table, "stars_maxsize", dbl);
-  WriteParKeyCCfits(params, table, "stars_minmag", dbl);
-  WriteParKeyCCfits(params, table, "stars_maxmag", dbl);
-  WriteParKeyCCfits(params, table, "stars_ndivx", intgr);
-  WriteParKeyCCfits(params, table, "stars_ndivy", intgr);
+  CCfitsWriteParKey(params, table, "stars_minsize", dbl);
+  CCfitsWriteParKey(params, table, "stars_maxsize", dbl);
+  CCfitsWriteParKey(params, table, "stars_minmag", dbl);
+  CCfitsWriteParKey(params, table, "stars_maxmag", dbl);
+  CCfitsWriteParKey(params, table, "stars_ndivx", intgr);
+  CCfitsWriteParKey(params, table, "stars_ndivy", intgr);
 
-  WriteParKeyCCfits(params, table, "stars_startn1", dbl);
-  WriteParKeyCCfits(params, table, "stars_starfrac", dbl);
-  WriteParKeyCCfits(params, table, "stars_magstep1", dbl);
-  WriteParKeyCCfits(params, table, "stars_miniter1", intgr);
-  WriteParKeyCCfits(params, table, "stars_reject1", dbl);
-  WriteParKeyCCfits(params, table, "stars_binsize1", dbl);
-  WriteParKeyCCfits(params, table, "stars_maxratio1", dbl);
-  WriteParKeyCCfits(params, table, "stars_okvalcount", intgr);
-  WriteParKeyCCfits(params, table, "stars_maxrms", dbl);
-  WriteParKeyCCfits(params, table, "stars_starsperbin", intgr);
+  CCfitsWriteParKey(params, table, "stars_startn1", dbl);
+  CCfitsWriteParKey(params, table, "stars_starfrac", dbl);
+  CCfitsWriteParKey(params, table, "stars_magstep1", dbl);
+  CCfitsWriteParKey(params, table, "stars_miniter1", intgr);
+  CCfitsWriteParKey(params, table, "stars_reject1", dbl);
+  CCfitsWriteParKey(params, table, "stars_binsize1", dbl);
+  CCfitsWriteParKey(params, table, "stars_maxratio1", dbl);
+  CCfitsWriteParKey(params, table, "stars_okvalcount", intgr);
+  CCfitsWriteParKey(params, table, "stars_maxrms", dbl);
+  CCfitsWriteParKey(params, table, "stars_starsperbin", intgr);
 
-  WriteParKeyCCfits(params, table, "stars_fitorder", intgr);
-  WriteParKeyCCfits(params, table, "stars_fitsigclip", dbl);
-  WriteParKeyCCfits(params, table, "stars_startn2", dbl);
-  WriteParKeyCCfits(params, table, "stars_magstep2", dbl);
-  WriteParKeyCCfits(params, table, "stars_miniter2", intgr);
-  WriteParKeyCCfits(params, table, "stars_minbinsize", dbl);
-  WriteParKeyCCfits(params, table, "stars_reject2", dbl);
+  CCfitsWriteParKey(params, table, "stars_fitorder", intgr);
+  CCfitsWriteParKey(params, table, "stars_fitsigclip", dbl);
+  CCfitsWriteParKey(params, table, "stars_startn2", dbl);
+  CCfitsWriteParKey(params, table, "stars_magstep2", dbl);
+  CCfitsWriteParKey(params, table, "stars_miniter2", intgr);
+  CCfitsWriteParKey(params, table, "stars_minbinsize", dbl);
+  CCfitsWriteParKey(params, table, "stars_reject2", dbl);
 
-  WriteParKeyCCfits(params, table, "stars_purityratio", dbl);
-  WriteParKeyCCfits(params, table, "stars_maxrefititer", intgr);
+  CCfitsWriteParKey(params, table, "stars_purityratio", dbl);
+  CCfitsWriteParKey(params, table, "stars_maxrefititer", intgr);
 
 }
 
 
 
-void StarCatalog::WriteFits(std::string file) const 
-{
-  Assert(id.size() == size());
-  Assert(pos.size() == size());
-  Assert(sky.size() == size());
-  Assert(noise.size() == size());
-  Assert(flags.size() == size());
-  Assert(mag.size() == size());
-  Assert(objsize.size() == size());
-  Assert(isastar.size() == size());
-
-  FitsFile fits(file, READWRITE, true);
-
-  // Setup the binary table
-  std::string id_col=params.get("stars_id_col");
-  std::string x_col=params.get("stars_x_col");
-  std::string y_col=params.get("stars_y_col");
-  std::string sky_col=params.get("stars_sky_col");
-  std::string noise_col=params.get("stars_noise_col");
-  std::string flags_col=params.get("stars_flags_col");
-  std::string mag_col=params.get("stars_mag_col");
-  std::string objsize_col=params.get("stars_objsize_col");
-  std::string isastar_col=params.get("stars_isastar_col");
-
-  const int nfields = 9;
-  std::string table_cols[nfields] = {
-    id_col,
-    x_col, y_col,
-    sky_col,
-    noise_col,
-    flags_col,
-    mag_col,
-    objsize_col,
-    isastar_col
-  };
-  int table_nelem[nfields] = {
-    1,1,1,1,1,1,1,1,1
-  };
-  Type_FITS table_types[nfields] = {
-    XLONG,
-    XDOUBLE, XDOUBLE,
-    XDOUBLE,
-    XDOUBLE,
-    XLONG,
-    XFLOAT,
-    XDOUBLE,
-    XINT
-  };
-  std::string table_units[nfields] =  {
-    "None",
-    "pixels", "pixels",
-    "ADU",
-    "ADU^2",
-    "None",
-    "mags",
-    "Arcsec",
-    "None"
-  };
-  fits.CreateBinaryTable(size(),nfields,
-      table_cols,table_nelem,table_types,table_units);
-
-  // Write the header keywords
-  WriteParKey("version");
-  WriteParKey("noise_method");
-  WriteParKey("dist_method");
-
-  WriteParKey("stars_minsize");
-  WriteParKey("stars_maxsize");
-  WriteParKey("stars_minmag");
-  WriteParKey("stars_maxmag");
-  WriteParKey("stars_ndivx");
-  WriteParKey("stars_ndivy");
-
-  WriteParKey("stars_startn1");
-  WriteParKey("stars_starfrac");
-  WriteParKey("stars_magstep1");
-  WriteParKey("stars_miniter1");
-  WriteParKey("stars_reject1");
-  WriteParKey("stars_binsize1");
-  WriteParKey("stars_maxratio1");
-  WriteParKey("stars_okvalcount");
-  WriteParKey("stars_maxrms");
-  WriteParKey("stars_starsperbin");
-
-  WriteParKey("stars_fitorder");
-  WriteParKey("stars_fitsigclip");
-  WriteParKey("stars_startn2");
-  WriteParKey("stars_magstep2");
-  WriteParKey("stars_miniter2");
-  WriteParKey("stars_minbinsize");
-  WriteParKey("stars_reject2");
-
-  WriteParKey("stars_purityratio");
-  WriteParKey("stars_maxrefititer");
-
-  // Write the data
-  fits.WriteColumn(XLONG, 1, 1, 1, size(), &id[0]);
-  std::vector<double> x(pos.size());
-  std::vector<double> y(pos.size());
-  for(size_t i=0;i<pos.size();i++) {
-    x[i] = pos[i].GetX();
-    y[i] = pos[i].GetY();
-  }
-  fits.WriteColumn(XDOUBLE, 2, 1, 1, size(), &x[0]);
-  fits.WriteColumn(XDOUBLE, 3, 1, 1, size(), &y[0]);
-  fits.WriteColumn(XDOUBLE, 4, 1, 1, size(), &sky[0]);
-  fits.WriteColumn(XDOUBLE, 5, 1, 1, size(), &noise[0]);
-  fits.WriteColumn(XLONG, 6, 1, 1, size(), &flags[0]);
-  fits.WriteColumn(XFLOAT, 7, 1, 1, size(), &mag[0]);
-  fits.WriteColumn(XDOUBLE, 8, 1, 1, size(), &objsize[0]);
-  fits.WriteColumn(XINT, 9, 1, 1, size(), &isastar[0]);
-}
 
 void StarCatalog::WriteAscii(std::string file, std::string delim) const 
 {
@@ -484,8 +370,7 @@ void StarCatalog::Write() const
       fitsio = true;
 
     if (fitsio) {
-      //WriteFits(file);
-      WriteFitsCCfits(file);
+      WriteFits(file);
     } else {
       std::string delim = "  ";
       if (params.keyExists("stars_delim")) {
@@ -504,18 +389,19 @@ void StarCatalog::ReadFits(std::string file)
 {
   int hdu = params.read("stars_hdu",2);
 
-  FitsFile fits(file);
+  dbg<<"Opening FITS file at hdu "<<hdu<<std::endl;
+  // true means read all as part of the construction
+  CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
 
-  dbg<<"Moving to HDU #"<<hdu<<std::endl;
-  fits.GotoHDU(hdu);
+  CCfits::ExtHDU& table=fits.extension(hdu-1);
 
-  long nrows=0;
-  fits.ReadKey("NAXIS2", XLONG, &nrows);
+  long nrows=table.rows();
 
   dbg<<"  nrows = "<<nrows<<std::endl;
   if (nrows <= 0) {
     throw std::runtime_error("nrows must be >= 0");
   }
+
 
   std::string id_col=params.get("stars_id_col");
   std::string x_col=params.get("stars_x_col");
@@ -527,43 +413,41 @@ void StarCatalog::ReadFits(std::string file)
   std::string objsize_col=params.get("stars_objsize_col");
   std::string isastar_col=params.get("stars_isastar_col");
 
-  dbg<<"Reading columns"<<std::endl;
-  dbg<<"  "<<id_col<<std::endl;
-  id.resize(nrows);
-  fits.ReadScalarCol(id_col,XLONG,&id[0], nrows);
+  long start=1;
+  long end=nrows;
 
-  dbg<<"  "<<x_col<<"  "<<y_col<<std::endl;
-  pos.resize(nrows);
+  dbg<<"Reading columns"<<std::endl;
+  // will copy these out to positions types
   std::vector<double> x(nrows);
   std::vector<double> y(nrows);
-  fits.ReadScalarCol(x_col,XDOUBLE,&x[0], nrows);
-  fits.ReadScalarCol(y_col,XDOUBLE,&y[0], nrows);
-  for(long i=0;i<nrows;++i) pos[i] = Position(x[i],y[i]);
 
+  dbg<<"  "<<id_col<<std::endl;
+  table.column(id_col).read(id, start, end);
+  dbg<<"  "<<x_col<<"  "<<y_col<<std::endl;
+  table.column(x_col).read(x, start, end);
+  table.column(y_col).read(y, start, end);
   dbg<<"  "<<sky_col<<std::endl;
-  sky.resize(nrows);
-  fits.ReadScalarCol(sky_col,XDOUBLE,&sky[0], nrows);
-
+  table.column(sky_col).read(sky, start, end);
   dbg<<"  "<<noise_col<<std::endl;
-  noise.resize(nrows);
-  fits.ReadScalarCol(noise_col,XDOUBLE,&noise[0], nrows);
-
+  table.column(noise_col).read(noise, start, end);
   dbg<<"  "<<flags_col<<std::endl;
-  flags.resize(nrows);
-  fits.ReadScalarCol(flags_col,XLONG,&flags[0], nrows);
-
+  table.column(flags_col).read(flags, start, end);
   dbg<<"  "<<mag_col<<std::endl;
-  mag.resize(nrows);
-  fits.ReadScalarCol(mag_col,XFLOAT,&mag[0], nrows);
-
+  table.column(mag_col).read(mag, start, end);
   dbg<<"  "<<objsize_col<<std::endl;
-  objsize.resize(nrows);
-  fits.ReadScalarCol(objsize_col,XDOUBLE,&objsize[0], nrows);
-
+  table.column(objsize_col).read(objsize, start, end);
   dbg<<"  "<<isastar_col<<std::endl;
-  isastar.resize(nrows);
-  fits.ReadScalarCol(isastar_col,XINT,&isastar[0], nrows);
+  table.column(isastar_col).read(isastar, start, end);
+
+  pos.resize(nrows);
+  for(long i=0;i<nrows;++i) {
+    pos[i] = Position(x[i],y[i]);
+  }
+
+
 }
+
+
 
 void StarCatalog::ReadAscii(std::string file, std::string delim)
 {

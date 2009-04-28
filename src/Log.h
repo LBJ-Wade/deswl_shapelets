@@ -2,7 +2,7 @@
 #define LOG_H
 
 #include "Params.h"
-#include "FitsFile.h"
+#include <CCfits/CCfits>
 #include <fstream>
 
 class Log 

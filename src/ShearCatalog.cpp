@@ -4,7 +4,6 @@
 
 #include "ShearCatalog.h"
 #include "ConfigFile.h"
-#include "FitsFile.h"
 #include "dbg.h"
 #include "Params.h"
 #include "BVec.h"
@@ -574,7 +573,7 @@ ShearCatalog::ShearCatalog(const ConfigFile& _params) : params(_params)
   Assert(shape.size() == size());
 }
 
-void ShearCatalog::WriteFitsCCfits(std::string file) const
+void ShearCatalog::WriteFits(std::string file) const
 {
   Assert(id.size() == size());
   Assert(pos.size() == size());
@@ -723,169 +722,21 @@ void ShearCatalog::WriteFitsCCfits(std::string file) const
   double dbl;
   int intgr;
 
-  WriteParKeyCCfits(params, table, "version", str);
-  WriteParKeyCCfits(params, table, "noise_method", str);
-  WriteParKeyCCfits(params, table, "dist_method", str);
+  CCfitsWriteParKey(params, table, "version", str);
+  CCfitsWriteParKey(params, table, "noise_method", str);
+  CCfitsWriteParKey(params, table, "dist_method", str);
 
-  WriteParKeyCCfits(params, table, "shear_aperture", dbl);
-  WriteParKeyCCfits(params, table, "shear_max_aperture", dbl);
-  WriteParKeyCCfits(params, table, "shear_gal_order", intgr);
-  WriteParKeyCCfits(params, table, "shear_gal_order2", intgr);
-  WriteParKeyCCfits(params, table, "shear_min_gal_size", dbl);
-  WriteParKeyCCfits(params, table, "shear_f_psf", dbl);
+  CCfitsWriteParKey(params, table, "shear_aperture", dbl);
+  CCfitsWriteParKey(params, table, "shear_max_aperture", dbl);
+  CCfitsWriteParKey(params, table, "shear_gal_order", intgr);
+  CCfitsWriteParKey(params, table, "shear_gal_order2", intgr);
+  CCfitsWriteParKey(params, table, "shear_min_gal_size", dbl);
+  CCfitsWriteParKey(params, table, "shear_f_psf", dbl);
 
 }
 
 
 
-void ShearCatalog::WriteFits(std::string file) const
-{
-  Assert(id.size() == size());
-  Assert(pos.size() == size());
-  Assert(sky.size() == size());
-  Assert(noise.size() == size());
-  Assert(flags.size() == size());
-  Assert(shear.size() == size());
-  Assert(nu.size() == size());
-  Assert(cov.size() == size());
-  Assert(shape.size() == size());
-
-  FitsFile fits(file, READWRITE, true);
-
-  int ncoeff = shape[0].size();
-  dbg<<"ncoeff = "<<ncoeff<<std::endl;
-
-  std::string id_col=params.get("shear_id_col");
-  std::string x_col=params.get("shear_x_col");
-  std::string y_col=params.get("shear_y_col");
-  std::string sky_col=params.get("shear_sky_col");
-  std::string noise_col=params.get("shear_noise_col");
-  std::string flags_col=params.get("shear_flags_col");
-  std::string ra_col=params.get("shear_ra_col");
-  std::string dec_col=params.get("shear_dec_col");
-  std::string shear1_col=params.get("shear_shear1_col");
-  std::string shear2_col=params.get("shear_shear2_col");
-  std::string nu_col=params.get("shear_nu_col");
-  std::string cov00_col=params.get("shear_cov00_col");
-  std::string cov01_col=params.get("shear_cov01_col");
-  std::string cov11_col=params.get("shear_cov11_col");
-  std::string order_col=params.get("shear_order_col");
-  std::string sigma_col=params.get("shear_sigma_col");
-  std::string coeffs_col=params.get("shear_coeffs_col");
-
-  const int nfields=17;
-  std::string table_cols[nfields] = {
-    id_col,
-    x_col, y_col,
-    sky_col,
-    noise_col,
-    flags_col,
-    ra_col, dec_col,
-    shear1_col, shear2_col,
-    nu_col,
-    cov00_col, cov01_col, cov11_col,
-    order_col, sigma_col, coeffs_col,
-  };
-  int table_nelem[nfields] = {
-    1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-    ncoeff
-  };
-  Type_FITS table_types[nfields] = {
-    XLONG,
-    XDOUBLE, XDOUBLE,
-    XDOUBLE,
-    XDOUBLE,
-    XLONG,
-    XDOUBLE, XDOUBLE,
-    XDOUBLE, XDOUBLE,
-    XDOUBLE,
-    XDOUBLE, XDOUBLE, XDOUBLE,
-    XLONG, XDOUBLE, XDOUBLE,
-  };
-  std::string table_units[nfields] = {
-    "None",
-    "Pixels", "Pixels",
-    "ADU",
-    "ADU^2",
-    "None",
-    "Deg", "Deg",
-    "None", "None",
-    "None",
-    "None", "None", "None",
-    "None", "Arcsec", "None"
-  };
-
-  // Create a binary table
-  fits.CreateBinaryTable(size(),nfields,
-      table_cols,table_nelem,table_types,table_units);
-
-  // Write the header keywords
-  WriteParKey("version");
-  WriteParKey("noise_method");
-  WriteParKey("dist_method");
-
-  WriteParKey("shear_aperture");
-  WriteParKey("shear_max_aperture");
-  WriteParKey("shear_gal_order");
-  WriteParKey("shear_gal_order2");
-  WriteParKey("shear_min_gal_size");
-  WriteParKey("shear_f_psf");
-
-  fits.WriteColumn(XLONG, 1, 1, 1, size(), &id[0]);
-
-  std::vector<double> x(size());
-  std::vector<double> y(size());
-  for(size_t i=0;i<size();i++) { 
-    x[i] = pos[i].GetX();
-    y[i] = pos[i].GetY();
-  }
-  fits.WriteColumn(XDOUBLE, 2, 1, 1, size(), &x[0]);
-  fits.WriteColumn(XDOUBLE, 3, 1, 1, size(), &y[0]);
-
-  fits.WriteColumn(XDOUBLE, 4, 1, 1, size(), &sky[0]);
-  fits.WriteColumn(XDOUBLE, 5, 1, 1, size(), &noise[0]);
-  fits.WriteColumn(XLONG, 6, 1, 1, size(), &flags[0]);
-
-  std::vector<double> ra(size());
-  std::vector<double> dec(size());
-  for(size_t i=0;i<size();i++) { 
-    ra[i] = skypos[i].GetX();
-    dec[i] = skypos[i].GetY();
-  }
-  fits.WriteColumn(XDOUBLE, 7, 1, 1, size(), &ra[0]);
-  fits.WriteColumn(XDOUBLE, 8, 1, 1, size(), &dec[0]);
-
-  std::vector<double> shear1(size());
-  std::vector<double> shear2(size());
-  for(size_t i=0;i<size();i++) { 
-    shear1[i] = real(shear[i]);
-    shear2[i] = imag(shear[i]);
-  }
-  fits.WriteColumn(XDOUBLE, 9, 1, 1, size(), &shear1[0]);
-  fits.WriteColumn(XDOUBLE, 10, 1, 1, size(), &shear2[0]);
-  fits.WriteColumn(XDOUBLE, 11, 1, 1, size(), &nu[0]);
-
-  std::vector<double> cov00(size());
-  std::vector<double> cov01(size());
-  std::vector<double> cov11(size());
-  for(size_t i=0;i<size();i++) { 
-    cov00[i] = cov[i](0,0);
-    cov01[i] = cov[i](0,1);
-    cov11[i] = cov[i](1,1);
-  }
-  fits.WriteColumn(XDOUBLE, 12, 1, 1, size(), &cov00[0]);
-  fits.WriteColumn(XDOUBLE, 13, 1, 1, size(), &cov01[0]);
-  fits.WriteColumn(XDOUBLE, 14, 1, 1, size(), &cov11[0]);
-  
-  for (size_t i=0; i<size(); i++) {
-    size_t row = i+1;
-    long b_order = shape[i].GetOrder();
-    double b_sigma = shape[i].GetSigma();
-    fits.WriteColumn(XLONG, 15, row, 1, 1, &b_order);
-    fits.WriteColumn(XDOUBLE, 16, row, 1, 1, &b_sigma);
-    fits.WriteColumn(XDOUBLE, 17, row, 1, ncoeff, shape[i].cptr());
-  }
-}
 
 void ShearCatalog::WriteAscii(std::string file, std::string delim) const
 {
@@ -949,8 +800,7 @@ void ShearCatalog::Write() const
       fitsio = true;
 
     if (fitsio) {
-      //WriteFits(file);
-      WriteFitsCCfits(file);
+      WriteFits(file);
     } else {
       std::string delim = "  ";
       if (params.keyExists("shear_delim")) {
@@ -969,13 +819,13 @@ void ShearCatalog::ReadFits(std::string file)
 {
   int hdu = params.read("shear_hdu",2);
 
-  FitsFile fits(file);
+  dbg<<"Opening FITS file at hdu "<<hdu<<std::endl;
+  // true means read all as part of the construction
+  CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
 
-  dbg<<"Moving to HDU #"<<hdu<<std::endl;
-  fits.GotoHDU(hdu);
+  CCfits::ExtHDU& table=fits.extension(hdu-1);
 
-  long nrows=0;
-  fits.ReadKey("NAXIS2", XLONG, &nrows);
+  long nrows=table.rows();
 
   dbg<<"  nrows = "<<nrows<<std::endl;
   if (nrows <= 0) {
@@ -1000,71 +850,86 @@ void ShearCatalog::ReadFits(std::string file)
   std::string sigma_col=params.get("shear_sigma_col");
   std::string coeffs_col=params.get("shear_coeffs_col");
 
+  long start=1;
+  long end=nrows;
+
   dbg<<"Reading columns"<<std::endl;
   dbg<<"  "<<id_col<<std::endl;
-  id.resize(nrows);
-  fits.ReadScalarCol(id_col,XLONG,&id[0], nrows);
+  table.column(id_col).read(id, start, end);
 
   dbg<<"  "<<x_col<<"  "<<y_col<<std::endl;
   pos.resize(nrows);
-  std::vector<double> x(nrows);
-  std::vector<double> y(nrows);
-  fits.ReadScalarCol(x_col,XDOUBLE,&x[0], nrows);
-  fits.ReadScalarCol(y_col,XDOUBLE,&y[0], nrows);
+  std::vector<double> x;
+  std::vector<double> y;
+  table.column(x_col).read(x, start, end);
+  table.column(y_col).read(y, start, end);
   for(long i=0;i<nrows;++i) pos[i] = Position(x[i],y[i]);
 
   dbg<<"  "<<sky_col<<std::endl;
-  fits.ReadScalarCol(sky_col,XDOUBLE,&sky[0], nrows);
+  table.column(sky_col).read(sky, start, end);
 
   dbg<<"  "<<noise_col<<std::endl;
-  fits.ReadScalarCol(noise_col,XDOUBLE,&noise[0], nrows);
+  table.column(noise_col).read(noise, start, end);
 
   dbg<<"  "<<flags_col<<std::endl;
-  flags.resize(nrows,0);
-  fits.ReadScalarCol(flags_col,XLONG,&flags[0], nrows);
+  table.column(flags_col).read(flags, start, end);
 
   dbg<<"  "<<ra_col<<"  "<<dec_col<<std::endl;
   skypos.resize(nrows);
-  std::vector<double> ra(nrows);
-  std::vector<double> dec(nrows);
-  fits.ReadScalarCol(ra_col,XDOUBLE,&ra[0], nrows);
-  fits.ReadScalarCol(dec_col,XDOUBLE,&dec[0], nrows);
-  for(long i=0;i<nrows;++i) skypos[i] = Position(ra[i],dec[i]);
+  std::vector<double> ra;
+  std::vector<double> dec;
+  table.column(ra_col).read(ra, start, end);
+  table.column(dec_col).read(dec, start, end);
+  for(long i=0;i<nrows;++i) {
+    skypos[i] = Position(ra[i],dec[i]);
+  }
 
   dbg<<"  "<<shear1_col<<"  "<<shear2_col<<std::endl;
   shear.resize(nrows);
-  std::vector<double> shear1(nrows);
-  std::vector<double> shear2(nrows);
-  fits.ReadScalarCol(shear1_col,XDOUBLE,&shear1[0], nrows);
-  fits.ReadScalarCol(shear2_col,XDOUBLE,&shear2[0], nrows);
-  for(long i=0;i<nrows;++i) 
+  std::vector<double> shear1;
+  std::vector<double> shear2;
+  table.column(shear1_col).read(shear1, start, end);
+  table.column(shear2_col).read(shear2, start, end);
+  for(long i=0;i<nrows;++i) {
     shear[i] = std::complex<double>(shear1[i],shear2[i]);
+  }
 
   dbg<<"  "<<nu_col<<std::endl;
-  nu.resize(nrows,0);
-  fits.ReadScalarCol(nu_col,XDOUBLE,&nu[0], nrows);
+  table.column(nu_col).read(nu, start, end);
 
   dbg<<"  "<<cov00_col<<"  "<<cov01_col<<"  "<<cov11_col<<std::endl;
   cov.resize(nrows);
-  std::vector<double> cov00(nrows);
-  std::vector<double> cov01(nrows);
-  std::vector<double> cov11(nrows);
-  fits.ReadScalarCol(cov00_col,XDOUBLE,&cov00[0], nrows);
-  fits.ReadScalarCol(cov01_col,XDOUBLE,&cov01[0], nrows);
-  fits.ReadScalarCol(cov11_col,XDOUBLE,&cov11[0], nrows);
-  for(long i=0;i<nrows;++i) 
+  std::vector<double> cov00;
+  std::vector<double> cov01;
+  std::vector<double> cov11;
+  table.column(cov00_col).read(cov00, start, end);
+  table.column(cov01_col).read(cov01, start, end);
+  table.column(cov11_col).read(cov11, start, end);
+  for(long i=0;i<nrows;++i) {
     cov[i] = tmv::ListInit, cov00[i], cov01[i], cov01[i], cov11[i];
+  }
+
+  // temporary
+  std::vector<double> sigma;
+  std::vector<int> order;
+  table.column(sigma_col).read(sigma, start, end);
+  table.column(order_col).read(order, start, end);
 
   shape.reserve(nrows);
   for (size_t i=0; i<size(); i++) {
     size_t row=i+1;
-    double b_sigma;
-    long b_order;
-    fits.ReadCell(order_col,XLONG,&b_order,row,1);
-    fits.ReadCell(sigma_col,XDOUBLE,&b_sigma,row,1);
-    shape.push_back(BVec(b_order,b_sigma));
-    int ncoeff=(b_order+1)*(b_order+2)/2;
-    fits.ReadCell(coeffs_col,XDOUBLE,shape[i].ptr(),row,ncoeff);
+
+    shape.push_back(BVec(order[i],sigma[i]));
+    int ncoeff=(order[i]+1)*(order[i]+2)/2;
+
+    std::valarray<double> coeffs;
+    table.column(coeffs_col).read(coeffs, row);
+
+    double* ptri = (double* ) shape[i].cptr(); 
+    for (size_t j=0; j<ncoeff; ++j) {
+      ptri[i] = coeffs[i];
+    }
+
   }
 }
 

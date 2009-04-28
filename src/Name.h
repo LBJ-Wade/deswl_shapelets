@@ -5,29 +5,10 @@
 #include <vector>
 #include <stdexcept>
 #include "ConfigFile.h"
-#include "FitsFile.h"
 #include <CCfits/CCfits>
 
-void DoWriteParKey(const ConfigFile& params, FitsFile& fits, std::string key);
-#define WriteParKey(key) DoWriteParKey(params,fits,key);
-void WriteIntegerParKey(
-    const ConfigFile& params, 
-    CCfits::Table* table,
-    std::string key);
-
-void WriteDoubleParKey(
-    const ConfigFile& params, 
-    CCfits::Table* table,
-    std::string key);
-
-void WriteStringParKey(
-    const ConfigFile& params, 
-    CCfits::Table* table,
-    std::string key);
-
-
 template <typename T>
-void WriteParKeyCCfits(
+void CCfitsWriteParKey(
     const ConfigFile& params, 
     CCfits::Table* table,
     std::string key,

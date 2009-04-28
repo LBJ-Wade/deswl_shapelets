@@ -34,8 +34,9 @@ class StarCatalog
     void Write() const;
 
     void ReadFits(std::string file);
+    void ReadFitsOld(std::string file);
     void ReadAscii(std::string file, std::string delim = "  ");
-    void WriteFitsCCfits(std::string file) const;
+    void WriteFitsOld(std::string file) const;
     void WriteFits(std::string file) const;
     void WriteAscii(std::string file, std::string delim = "  ") const;
 

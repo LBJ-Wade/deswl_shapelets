@@ -2,7 +2,6 @@
 #include <sstream>
 
 #include "PSFCatalog.h"
-#include "FitsFile.h"
 #include "dbg.h"
 #include "Params.h"
 #include "Pixel.h"
@@ -339,7 +338,7 @@ PSFCatalog::PSFCatalog(const ConfigFile& _params) : params(_params)
   Assert(psf.size() == size());
 }
 
-void PSFCatalog::WriteFitsCCfits(std::string file) const
+void PSFCatalog::WriteFits(std::string file) const
 {
   Assert(id.size() == size());
   Assert(pos.size() == size());
@@ -433,115 +432,16 @@ void PSFCatalog::WriteFitsCCfits(std::string file) const
   double dbl;
   int intgr;
 
-  WriteParKeyCCfits(params, table, "version", str);
-  WriteParKeyCCfits(params, table, "noise_method", str);
-  WriteParKeyCCfits(params, table, "dist_method", str);
+  CCfitsWriteParKey(params, table, "version", str);
+  CCfitsWriteParKey(params, table, "noise_method", str);
+  CCfitsWriteParKey(params, table, "dist_method", str);
 
-  WriteParKeyCCfits(params, table, "psf_aperture", dbl);
-  WriteParKeyCCfits(params, table, "psf_order", intgr);
-  WriteParKeyCCfits(params, table, "psf_seeing_est", dbl);
+  CCfitsWriteParKey(params, table, "psf_aperture", dbl);
+  CCfitsWriteParKey(params, table, "psf_order", intgr);
+  CCfitsWriteParKey(params, table, "psf_seeing_est", dbl);
 }
 
 
-
-void PSFCatalog::WriteFits(std::string file) const
-{
-  Assert(id.size() == size());
-  Assert(pos.size() == size());
-  Assert(nu.size() == size());
-  Assert(flags.size() == size());
-  Assert(psf.size() == size());
-
-  FitsFile fits(file, READWRITE, true);
-
-  int ncoeff = psf[0].size();
-  dbg<<"ncoeff = "<<ncoeff<<std::endl;
-
-  std::stringstream coeff_form;
-  coeff_form << ncoeff << "d";
-
-  std::string id_col=params.get("psf_id_col");
-  std::string x_col=params.get("psf_x_col");
-  std::string y_col=params.get("psf_y_col");
-  std::string sky_col=params.get("psf_sky_col");
-  std::string noise_col=params.get("psf_noise_col");
-  std::string flags_col=params.get("psf_flags_col");
-  std::string nu_col=params.get("psf_nu_col");
-  std::string order_col=params.get("psf_order_col");
-  std::string sigma_col=params.get("psf_sigma_col");
-  std::string coeffs_col=params.get("psf_coeffs_col");
-
-  const int nfields=10;
-  std::string table_cols[nfields] = {
-    id_col,
-    x_col, y_col,
-    sky_col,
-    noise_col,
-    flags_col,
-    nu_col,
-    order_col, sigma_col, coeffs_col
-  };
-  int table_nelem[nfields] = {
-    1,1,1,1,1,1,1,1,1,
-    ncoeff
-  };
-  Type_FITS table_types[nfields] = {
-    XLONG,
-    XDOUBLE, XDOUBLE,
-    XDOUBLE,
-    XDOUBLE,
-    XLONG,
-    XDOUBLE,
-    XLONG, XDOUBLE, XDOUBLE
-  };
-  std::string table_units[nfields] = {
-    "None",
-    "Pixels", "Pixels",
-    "ADU",
-    "ADU^2",
-    "None",
-    "None",
-    "None", "Arcsec", "None"
-  };
-
-  // Create a binary table
-  fits.CreateBinaryTable(size(),nfields,
-      table_cols,table_nelem,table_types,table_units);
-
-  // Write the header keywords
-  WriteParKey("version");
-  WriteParKey("noise_method");
-  WriteParKey("dist_method");
-
-  WriteParKey("psf_aperture");
-  WriteParKey("psf_order");
-  WriteParKey("psf_seeing_est");
-
-  fits.WriteColumn(XLONG, 1, 1, 1, size(), &id[0]);
-  std::vector<double> x(pos.size());
-  std::vector<double> y(pos.size());
-  for(size_t i=0;i<pos.size();i++) { 
-    x[i] = pos[i].GetX();
-    y[i] = pos[i].GetY();
-  }
-  fits.WriteColumn(XDOUBLE, 2, 1, 1, size(), &x[0]);
-  fits.WriteColumn(XDOUBLE, 3, 1, 1, size(), &y[0]);
-  fits.WriteColumn(XDOUBLE, 4, 1, 1, size(), &sky[0]);
-  fits.WriteColumn(XDOUBLE, 5, 1, 1, size(), &noise[0]);
-  fits.WriteColumn(XLONG, 6, 1, 1, size(), &flags[0]);
-  fits.WriteColumn(XDOUBLE, 7, 1, 1, size(), &nu[0]);
-  
-  // Now we have to loop through each psf decomposition and write
-  // separately.  This is pretty dumb.
-  for (size_t i=0; i<size(); i++) {
-    size_t row = i+1;
-    long b_order = psf[i].GetOrder();
-    double b_sigma = psf[i].GetSigma();
-    fits.WriteColumn(XLONG, 8, row, 1, 1, &b_order);
-    fits.WriteColumn(XDOUBLE, 9, row, 1, 1, &b_sigma);
-    fits.WriteColumn(XDOUBLE, 10, row, 1, ncoeff, psf[i].cptr());
-  }
-}
 
 void PSFCatalog::WriteAscii(std::string file, std::string delim) const
 {
@@ -595,8 +495,7 @@ void PSFCatalog::Write() const
       fitsio = true;
 
     if (fitsio) {
-      //WriteFits(file);
-      WriteFitsCCfits(file);
+      WriteFits(file);
     } else {
       std::string delim = "  ";
       if (params.keyExists("psf_delim")) {
@@ -613,16 +512,18 @@ void PSFCatalog::Write() const
 
 void PSFCatalog::ReadFits(std::string file)
 {
-  int hdu = 2;
-  if (params.keyExists("psf_hdu")) hdu = params["psf_hdu"];
+  int hdu=2;
+  if (params.keyExists("psf_hdu")) {
+    hdu = params.get("psf_hdu");
+  }
 
-  FitsFile fits(file);
+  dbg<<"Opening FITS file at hdu "<<hdu<<std::endl;
+  // true means read all as part of the construction
+  CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
 
-  dbg<<"Moving to HDU #"<<hdu<<std::endl;
-  fits.GotoHDU(hdu);
+  CCfits::ExtHDU& table=fits.extension(hdu-1);
 
-  long nrows=0;
-  fits.ReadKey("NAXIS2", XLONG, &nrows);
+  long nrows=table.rows();
 
   dbg<<"  nrows = "<<nrows<<std::endl;
   if (nrows <= 0) {
@@ -640,46 +541,61 @@ void PSFCatalog::ReadFits(std::string file)
   std::string sigma_col=params.get("psf_sigma_col");
   std::string coeffs_col=params.get("psf_coeffs_col");
 
+  long start=1;
+  long end=nrows;
+
+
   dbg<<"Reading columns"<<std::endl;
   dbg<<"  "<<id_col<<std::endl;
-  id.resize(nrows);
-  fits.ReadScalarCol(id_col,XLONG,&id[0], nrows);
+  table.column(id_col).read(id, start, end);
 
   dbg<<"  "<<x_col<<"  "<<y_col<<std::endl;
   pos.resize(nrows);
-  std::vector<double> x(nrows);
-  std::vector<double> y(nrows);
-  fits.ReadScalarCol(x_col,XDOUBLE,&x[0], nrows);
-  fits.ReadScalarCol(y_col,XDOUBLE,&y[0], nrows);
+  std::vector<double> x;
+  std::vector<double> y;
+  table.column(x_col).read(x, start, end);
+  table.column(y_col).read(y, start, end);
   for(long i=0;i<nrows;++i) pos[i] = Position(x[i],y[i]);
 
   dbg<<"  "<<sky_col<<std::endl;
-  sky.resize(nrows,0);
-  fits.ReadScalarCol(sky_col,XDOUBLE,&sky[0], nrows);
+  table.column(sky_col).read(sky, start, end);
 
   dbg<<"  "<<noise_col<<std::endl;
-  noise.resize(nrows,0);
-  fits.ReadScalarCol(noise_col,XDOUBLE,&noise[0], nrows);
+  table.column(noise_col).read(noise, start, end);
 
   dbg<<"  "<<flags_col<<std::endl;
-  flags.resize(nrows,0);
-  fits.ReadScalarCol(flags_col,XLONG,&flags[0], nrows);
+  table.column(flags_col).read(flags, start, end);
 
   dbg<<"  "<<nu_col<<std::endl;
-  nu.resize(nrows,0);
-  fits.ReadScalarCol(nu_col,XDOUBLE,&nu[0], nrows);
+  table.column(nu_col).read(nu, start, end);
+
+  // these are temporary
+  std::vector<double> sigma;
+  std::vector<long> order;
+
+  dbg<<"  "<<sigma_col<<std::endl;
+  table.column(sigma_col).read(sigma, start, end);
+
+  dbg<<"  "<<order_col<<std::endl;
+  table.column(order_col).read(order, start, end);
+
 
   // gotta loop for this one
   psf.reserve(nrows);
   for (size_t i=0; i<size(); ++i) {
     size_t row=i+1;
-    double b_sigma;
-    long b_order;
-    fits.ReadCell(order_col,XLONG,&b_order,row,1);
-    fits.ReadCell(sigma_col,XDOUBLE,&b_sigma,row,1);
-    psf.push_back(BVec(b_order,b_sigma));
-    int ncoeff=(b_order+1)*(b_order+2)/2;
-    fits.ReadCell(coeffs_col,XDOUBLE,psf[i].ptr(),row,ncoeff);
+
+    psf.push_back(BVec(order[i],sigma[i]));
+    int ncoeff=(order[i]+1)*(order[i]+2)/2;
+    // although we are allowed to write lots of different ways, the
+    // reading is less flexible.  We can *only* read a vector
+    // column into a valarray, period
+    std::valarray<double> coeffs;
+    table.column(coeffs_col).read(coeffs, row);
+    double* ptri = (double* ) psf[i].cptr(); 
+    for (size_t j=0; j<ncoeff; ++j) {
+      ptri[i] = coeffs[i];
+    }
   }
 }
 

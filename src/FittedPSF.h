@@ -36,7 +36,7 @@ class FittedPSF {
     void Write() const;
     void WriteAscii(std::string file) const;
     void WriteFits(std::string file) const;
-    void WriteFitsCCfits(std::string file) const;
+    void WriteFitsOld(std::string file) const;
 
     void Read();
     void ReadAscii(std::string file);

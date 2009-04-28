@@ -1,6 +1,5 @@
 
 #include "FittedPSF.h"
-#include "FitsFile.h"
 #include "TMV.h"
 #include "dbg.h"
 #include "Function2D.h"
@@ -178,8 +177,7 @@ void FittedPSF::Write() const
       fitsio = true;
 
     if (fitsio) {
-      //WriteFits(file);
-      WriteFitsCCfits(file);
+      WriteFits(file);
     } else {
       WriteAscii(file);
     }
@@ -208,7 +206,7 @@ void FittedPSF::Read()
   dbg<<"Done Read FittedPSF\n";
 }
 
-void FittedPSF::WriteFitsCCfits(std::string file) const
+void FittedPSF::WriteFits(std::string file) const
 {
   dbg<<"Start WriteFits"<<std::endl;
 
@@ -335,137 +333,34 @@ void FittedPSF::WriteFitsCCfits(std::string file) const
   int intgr;
 
   dbg<<"Before Write Par Keys"<<std::endl;
-  WriteParKeyCCfits(params, table, "version", str);
-  WriteParKeyCCfits(params, table, "noise_method", str);
-  WriteParKeyCCfits(params, table, "dist_method", str);
+  CCfitsWriteParKey(params, table, "version", str);
+  CCfitsWriteParKey(params, table, "noise_method", str);
+  CCfitsWriteParKey(params, table, "dist_method", str);
 
-  WriteParKeyCCfits(params, table, "fitpsf_order", intgr);
-  WriteParKeyCCfits(params, table, "fitpsf_pca_thresh", dbl);
+  CCfitsWriteParKey(params, table, "fitpsf_order", intgr);
+  CCfitsWriteParKey(params, table, "fitpsf_pca_thresh", dbl);
   dbg<<"After Write Par Keys"<<std::endl;
 
 }
 
 
-
-void FittedPSF::WriteFits(std::string file) const
-{
-  dbg<<"Start WriteFits"<<std::endl;
-
-  FitsFile fits(file, READWRITE, true);
-  dbg<<"Made fits"<<std::endl;
-
-  // Note the actual coeffs may be less than this the way Mike does things
-  // but we will fill the extra with zeros
-  int n_shapelet_coeff = (psforder+1)*(psforder+2)/2;
-  //int n_rot_matrix_max = n_shapelet_coeff*n_shapelet_coeff;
-  int n_rot_matrix = npca*n_shapelet_coeff;
-
-  int n_fit_coeff = (fitorder+1)*(fitorder+2)/2;
-  //int n_interp_matrix_max = n_shapelet_coeff*n_fit_coeff;
-  int n_interp_matrix = npca*n_fit_coeff;
-
-
-  std::string psf_order_col=params.get("fitpsf_psf_order_col");
-  std::string sigma_col=params.get("fitpsf_sigma_col");
-  std::string fit_order_col=params.get("fitpsf_fit_order_col");
-  std::string npca_col=params.get("fitpsf_npca_col");
-
-  std::string xmin_col=params.get("fitpsf_xmin_col");
-  std::string xmax_col=params.get("fitpsf_xmax_col");
-  std::string ymin_col=params.get("fitpsf_ymin_col");
-  std::string ymax_col=params.get("fitpsf_ymax_col");
-
-  std::string ave_psf_col=params.get("fitpsf_ave_psf_col");
-  std::string rot_matrix_col=params.get("fitpsf_rot_matrix_col");
-  std::string interp_matrix_col=params.get("fitpsf_interp_matrix_col");
-
-  dbg<<"Before table_cols"<<std::endl;
-  const int nfields=11;
-  std::string table_cols[nfields] = {
-    psf_order_col,
-    sigma_col,
-    fit_order_col,
-    npca_col,
-    xmin_col, xmax_col, ymin_col, ymax_col,
-    ave_psf_col,
-    rot_matrix_col,
-    interp_matrix_col
-  };
-  int table_nelem[nfields] = {
-    1,1,1,1,1,1,1,1,
-    n_shapelet_coeff, 
-    n_rot_matrix,
-    n_interp_matrix
-  };
-  Type_FITS table_types[nfields] = {
-    XINT,
-    XDOUBLE,
-    XINT,
-    XINT,
-    XFLOAT, XFLOAT, XFLOAT, XFLOAT,
-    XDOUBLE,
-    XDOUBLE,
-    XDOUBLE
-  };
-  std::string table_units[nfields] = {
-    "None",
-    "arcsec",
-    "None",
-    "None",
-    "pixels", "pixels", "pixels", "pixels",
-    "None",
-    "None",
-    "None"
-  };
-
-  dbg<<"Before Create table"<<std::endl;
-  fits.CreateBinaryTable(1,nfields,
-      table_cols,table_nelem,table_types,table_units);
-  dbg<<"After Create table"<<std::endl;
-
-  // dimensions information
-  std::stringstream tdim10;
-  tdim10<<"("<<npca<<","<<n_shapelet_coeff<<")";
-  fits.WriteKey("TDIM10",XSTRING,tdim10.str().c_str(),
-      "dimensions of rot_matrix");
-
-  std::stringstream tdim11;
-  tdim11<<"("<<n_fit_coeff<<","<<npca<<")";
-  fits.WriteKey("TDIM11",XSTRING,tdim11.str().c_str(),
-      "dimensions of interp_matrix");
-
-  WriteParKey("version");
-  WriteParKey("noise_method");
-  WriteParKey("dist_method");
-  WriteParKey("fitpsf_order");
-  WriteParKey("fitpsf_pca_thresh");
-  dbg<<"After Write keys"<<std::endl;
-
-  float xmin = bounds.GetXMin();
-  float xmax = bounds.GetXMax();
-  float ymin = bounds.GetYMin();
-  float ymax = bounds.GetYMax();
-
-  fits.WriteColumn(XINT, 1, 1, 1, 1, &psforder);
-  fits.WriteColumn(XDOUBLE, 2, 1, 1, 1, &sigma);
-  fits.WriteColumn(XINT, 3, 1, 1, 1, &fitorder);
-  fits.WriteColumn(XINT, 4, 1, 1, 1, &npca);
-  fits.WriteColumn(XFLOAT, 5, 1, 1, 1, &xmin);
-  fits.WriteColumn(XFLOAT, 6, 1, 1, 1, &xmax);
-  fits.WriteColumn(XFLOAT, 7, 1, 1, 1, &ymin);
-  fits.WriteColumn(XFLOAT, 8, 1, 1, 1, &ymax);
-  fits.WriteColumn(XDOUBLE, 9, 1, 1, n_shapelet_coeff, avepsf->cptr());
-  fits.WriteColumn(XDOUBLE, 10, 1, 1, n_rot_matrix, V->ptr());
-  fits.WriteColumn(XDOUBLE, 11, 1, 1, n_interp_matrix, f->ptr());
-}
-
 void FittedPSF::ReadFits(std::string file)
 {
-  FitsFile fits(file);
 
-  int hdu = params.read("fitpsf_hdu",2);
-  dbg<<"Moving to HDU #"<<hdu<<std::endl;
-  fits.GotoHDU(hdu);
+  // must do this way because of the const thing
+  int hdu=2;
+  if (params.keyExists("fitpsf_hdu")) {
+    hdu = params.get("fitpsf_hdu");
+  }
+
+  dbg<<"Opening FITS file at hdu "<<hdu<<std::endl;
+  // true means read all as part of the construction
+  CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
+
+  CCfits::ExtHDU& table=fits.extension(hdu-1);
+
+  long nrows=table.rows();
+
 
   // Allocate memory for the columns we will read
   //ResizePSFCat(cat, nrows, psforder);
@@ -484,56 +379,98 @@ void FittedPSF::ReadFits(std::string file)
   std::string rot_matrix_col=params.get("fitpsf_rot_matrix_col");
   std::string interp_matrix_col=params.get("fitpsf_interp_matrix_col");
 
-  int nrows=1;
+  long start=1;
+  long end=1;
 
-  fits.ReadScalarCol(psf_order_col, XINT,  &psforder, nrows);
+  std::vector<int> psforderV;
+  table.column(psf_order_col).read(psforderV, start, end);
+  psforder=psforderV[0];
   xdbg<<"psforder = "<<psforder<<std::endl;
-  fits.ReadScalarCol(sigma_col, XDOUBLE, &sigma, nrows);
+
+  std::vector<double> sigmaV;
+  table.column(sigma_col).read(sigmaV, start, end);
+  sigma=sigmaV[0];
   xdbg<<"sigma = "<<sigma<<std::endl;
-  fits.ReadScalarCol(fit_order_col, XINT, &fitorder, nrows);
+
+  std::vector<int> fitorderV;
+  table.column(fit_order_col).read(fitorderV, start, end);
+  fitorder=fitorderV[0];
   xdbg<<"fitorder = "<<fitorder<<std::endl;
-  fits.ReadScalarCol(npca_col, XINT, &npca, nrows);
+
+  std::vector<int> npcaV;
+  table.column(npca_col).read(npcaV, start, end);
+  npca=npcaV[0];
   xdbg<<"npca = "<<npca<<std::endl;
 
-  float xmin;
-  float xmax;
-  float ymin;
-  float ymax;
+  std::vector<float> xmin;
+  std::vector<float> xmax;
+  std::vector<float> ymin;
+  std::vector<float> ymax;
 
-  fits.ReadScalarCol(xmin_col, XFLOAT, &xmin, nrows);
-  xdbg<<"xmin = "<<xmin<<std::endl;
-  fits.ReadScalarCol(xmax_col, XFLOAT, &xmax, nrows);
-  xdbg<<"xmax = "<<xmax<<std::endl;
-  fits.ReadScalarCol(ymin_col, XFLOAT, &ymin, nrows);
-  xdbg<<"ymin = "<<ymin<<std::endl;
-  fits.ReadScalarCol(ymax_col, XFLOAT, &ymax, nrows);
-  xdbg<<"ymax = "<<ymax<<std::endl;
+  table.column(xmin_col).read(xmin, start, end);
+  xdbg<<"xmin = "<<xmin[0]<<std::endl;
+  table.column(xmax_col).read(xmax, start, end);
+  xdbg<<"xmax = "<<xmax[0]<<std::endl;
+  table.column(ymin_col).read(ymin, start, end);
+  xdbg<<"ymin = "<<ymin[0]<<std::endl;
+  table.column(ymax_col).read(ymax, start, end);
+  xdbg<<"ymax = "<<ymax[0]<<std::endl;
 
-  bounds.SetXMin(xmin);
-  bounds.SetXMax(xmax);
-  bounds.SetYMin(ymin);
-  bounds.SetYMax(ymax);
+  bounds.SetXMin(xmin[0]);
+  bounds.SetXMax(xmax[0]);
+  bounds.SetYMin(ymin[0]);
+  bounds.SetYMax(ymax[0]);
   xdbg<<"bounds = "<<bounds<<std::endl;
+
+
+
+  // vector columns
+  double* dptr=NULL;
+  std::valarray<double> dvec;
 
   avepsf.reset(new BVec(psforder,sigma));
   int n_shapelet_coeff = (psforder+1)*(psforder+2)/2;
   Assert(int(avepsf->size()) == n_shapelet_coeff);
-  fits.ReadCell(ave_psf_col, XDOUBLE, avepsf->ptr(), 1, n_shapelet_coeff);
+
+  dvec.resize(0);
+  table.column(ave_psf_col).read(dvec, 1);
+  dptr=(double*) avepsf->cptr();
+  for (size_t j=0; j<dvec.size(); j++) {
+    dptr[j] = dvec[j];
+  }
   xdbg<<"avepsf = "<<*avepsf<<std::endl;
+
+
 
   int n_rot_matrix = npca*n_shapelet_coeff;
   V.reset(new tmv::Matrix<double,tmv::RowMajor>(npca,avepsf->size()));
   Assert(int(V->LinearView().size()) == n_rot_matrix);
-  fits.ReadCell(rot_matrix_col, XDOUBLE, V->ptr(), 1, n_rot_matrix);
+
+  dvec.resize(0);
+  table.column(rot_matrix_col).read(dvec, 1);
+  dptr=(double*) V->cptr();
+  for (size_t j=0; j<dvec.size(); j++) {
+    dptr[j] = dvec[j];
+  }
   xdbg<<"V = "<<*V<<std::endl;
+
+
 
   fitsize = (fitorder+1)*(fitorder+2)/2;
   xdbg<<"fitsize = "<<fitsize<<std::endl;
   int n_interp_matrix = npca*fitsize;
   f.reset(new tmv::Matrix<double>(fitsize,npca));
   Assert(int(f->LinearView().size()) == n_interp_matrix);
-  fits.ReadCell(interp_matrix_col, XDOUBLE, f->ptr(), 1, n_interp_matrix);
+
+  dvec.resize(0);
+  table.column(interp_matrix_col).read(dvec, 1);
+  dptr=(double*) f->cptr();
+  for (size_t j=0; j<dvec.size(); j++) {
+    dptr[j] = dvec[j];
+  }
   xdbg<<"f = "<<*f<<std::endl;
+
+
 }
 
 void FittedPSF::InterpolateVector(

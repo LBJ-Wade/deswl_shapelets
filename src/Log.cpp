@@ -62,81 +62,47 @@ void ShearLog::WriteLogToFitsHeader() const
   if ("" == fits_file) return;
 
   try {
-    //std::cout<<"Writing log to Shear file: "<<fits_file<<std::endl;
-    bool create=false;
-    FitsFile fits(fits_file.c_str(), READWRITE, create);
-    fits.GotoHDU(2);
 
-    // use msexit to differentiate from exit codes for other codes
-	
-	/*
-    fits.WriteKey("msexit", XLONG, &exitcode, "Exit code for MeasureShear");
-    fits.WriteKey("msnobj", XLONG, &ngals, 
+    // how do get this from params?
+    int hdu = 2;
+    CCfits::FITS fits(fits_file, CCfits::Write, hdu-1);
+
+    CCfits::ExtHDU& table=fits.extension(hdu-1);
+
+
+
+    // the enumerated type ExitCode sometimes defaults to long
+    table.addKey("msexit", (int) exitcode, "Exit code for MeasureShear");
+    table.addKey("msnobj", ngals, 
 	"# of objects processed by MeasureShear");
-    fits.WriteKey("ms_ngoodin", XLONG, &ngoodin,
+    table.addKey("ms_ngoodin", ngoodin,
 	"# of objects with no input error flags");
-    fits.WriteKey("ms_ngood", XLONG, &ngood,
+    table.addKey("ms_ngood", ngood,
 	"# of measurements with no error flags");
-    fits.WriteKey("ns_gamma", XLONG, &ns_gamma, 
+    table.addKey("ns_gamma", ns_gamma, 
 	"# of successful shear measurements");
-    fits.WriteKey("ns_nativ", XLONG, &ns_native, 
+    table.addKey("ns_nativ", ns_native, 
 	"# of successful native shapeles measurements");
 
-    fits.WriteKey("nf_rnge1", XLONG, &nf_range1, 
+    table.addKey("nf_rnge1", nf_range1, 
 	"# of MeasureShear failures range1");
-    fits.WriteKey("nf_rnge2", XLONG, &nf_range2, 
+    table.addKey("nf_rnge2", nf_range2, 
 	"# of MeasureShear failures range2");
 
-    fits.WriteKey("nf_nativ", XLONG, &nf_native, 
+    table.addKey("nf_nativ", nf_native, 
 	"# of MeasureShear failures native calculations");
-    fits.WriteKey("nf_small", XLONG, &nf_small, 
+    table.addKey("nf_small", nf_small, 
 	"# of MeasureShear failures too small");
 
     // prefix ms to make unique
-    fits.WriteKey("nf_mstmv", XLONG, &nf_tmverror, 
+    table.addKey("nf_mstmv", nf_tmverror, 
 	"# of MeasureShear failures TMV errors");
-    fits.WriteKey("nf_msoth", XLONG, &nf_othererror, 
+    table.addKey("nf_msoth", nf_othererror, 
 	"# of MeasureShear failures unclassified errors");
 
-    fits.WriteKey("nf_mu", XLONG, &nf_mu, 
+    table.addKey("nf_mu", nf_mu, 
 	"# of MeasureShear failures calculating mu");
-    fits.WriteKey("nf_gamma", XLONG, &nf_gamma, 
-	"# of MeasureShear failures calculating shear");
-	*/
-
-	// the enumerated type ExitCode sometimes defaults to long
-	int exit=exitcode;
-    fits.WriteKey("msexit", XINT, &exit, "Exit code for MeasureShear");
-    fits.WriteKey("msnobj", XINT, &ngals, 
-	"# of objects processed by MeasureShear");
-    fits.WriteKey("ms_ngoodin", XINT, &ngoodin,
-	"# of objects with no input error flags");
-    fits.WriteKey("ms_ngood", XINT, &ngood,
-	"# of measurements with no error flags");
-    fits.WriteKey("ns_gamma", XINT, &ns_gamma, 
-	"# of successful shear measurements");
-    fits.WriteKey("ns_nativ", XINT, &ns_native, 
-	"# of successful native shapeles measurements");
-
-    fits.WriteKey("nf_rnge1", XINT, &nf_range1, 
-	"# of MeasureShear failures range1");
-    fits.WriteKey("nf_rnge2", XINT, &nf_range2, 
-	"# of MeasureShear failures range2");
-
-    fits.WriteKey("nf_nativ", XINT, &nf_native, 
-	"# of MeasureShear failures native calculations");
-    fits.WriteKey("nf_small", XINT, &nf_small, 
-	"# of MeasureShear failures too small");
-
-    // prefix ms to make unique
-    fits.WriteKey("nf_mstmv", XINT, &nf_tmverror, 
-	"# of MeasureShear failures TMV errors");
-    fits.WriteKey("nf_msoth", XINT, &nf_othererror, 
-	"# of MeasureShear failures unclassified errors");
-
-    fits.WriteKey("nf_mu", XINT, &nf_mu, 
-	"# of MeasureShear failures calculating mu");
-    fits.WriteKey("nf_gamma", XINT, &nf_gamma, 
+    table.addKey("nf_gamma", nf_gamma, 
 	"# of MeasureShear failures calculating shear");
 
 
@@ -237,52 +203,31 @@ void PSFLog::WriteLogToFitsHeader() const
   if ("" == fits_file) return;
 
   try {
-    bool create=false;
-    //std::cout<<"Writing log to PSF file: "<<fits_file<<std::endl;
-    FitsFile fits(fits_file.c_str(), READWRITE, create);
-    fits.GotoHDU(2);
 
-    // use fsexit to differentiate from exit codes for other codes
-	
-	/*
-    fits.WriteKey("mpexit", XLONG, &exitcode, "Exit code for MeasurePSF");
-    fits.WriteKey("mpnstars", XLONG, &nstars, 
-	"# of PSF star candidates used");
-    fits.WriteKey("mpgoodin", XLONG, &ngoodin,
-	"# of objects with no input error flags");
-    fits.WriteKey("mp_ngood", XLONG, &ngood,
-	"# of measurements with no error flags");
-    fits.WriteKey("ns_psf", XLONG, &ns_psf, 
-	"# of successful PSF decompositions");
-    fits.WriteKey("nf_range", XLONG, &nf_range, 
-	"# PSF failures due to range error");
-    fits.WriteKey("nf_mptmv", XLONG, &nf_tmverror, 
-	"# PSF failures due to TMV errors");
-    fits.WriteKey("nf_mpoth", XLONG, &nf_othererror, 
-	"# PSF failures due to unclassified errors");
-    fits.WriteKey("nf_psf", XLONG, &nf_psf, 
-	"# PSF failures");
-	*/
+    // how do get this from params?
+    int hdu = 2;
+    CCfits::FITS fits(fits_file, CCfits::Write, hdu-1);
 
-	
-	// the enumerated type ExitCode sometimes defaults to long
-	int exit=exitcode;
-    fits.WriteKey("mpexit", XINT, &exit, "Exit code for MeasurePSF");
-    fits.WriteKey("mpnstars", XINT, &nstars, 
+    CCfits::ExtHDU& table=fits.extension(hdu-1);
+
+
+    // the enumerated type ExitCode sometimes defaults to long
+    table.addKey("mpexit", (int) exitcode, "Exit code for MeasurePSF");
+    table.addKey("mpnstars", nstars, 
 	"# of PSF star candidates used");
-    fits.WriteKey("mpgoodin", XINT, &ngoodin,
+    table.addKey("mpgoodin", ngoodin,
 	"# of objects with no input error flags");
-    fits.WriteKey("mp_ngood", XINT, &ngood,
+    table.addKey("mp_ngood", ngood,
 	"# of measurements with no error flags");
-    fits.WriteKey("ns_psf", XINT, &ns_psf, 
+    table.addKey("ns_psf", ns_psf, 
 	"# of successful PSF decompositions");
-    fits.WriteKey("nf_range", XINT, &nf_range, 
+    table.addKey("nf_range", nf_range, 
 	"# PSF failures due to range error");
-    fits.WriteKey("nf_mptmv", XINT, &nf_tmverror, 
+    table.addKey("nf_mptmv", nf_tmverror, 
 	"# PSF failures due to TMV errors");
-    fits.WriteKey("nf_mpoth", XINT, &nf_othererror, 
+    table.addKey("nf_mpoth", nf_othererror, 
 	"# PSF failures due to unclassified errors");
-    fits.WriteKey("nf_psf", XINT, &nf_psf, 
+    table.addKey("nf_psf", nf_psf, 
 	"# PSF failures");
 
 
@@ -355,52 +300,28 @@ void FindStarsLog::WriteLogToFitsHeader() const
   if ("" == fits_file) return;
 
   try {
-    bool create=false;
-    //std::cout<<"Writing log to FindStars file: "<<fits_file<<std::endl;
-    FitsFile fits(fits_file.c_str(), READWRITE, create);
-    fits.GotoHDU(2);
 
-    // not efficient since entire file must be resized and all data moved
-    // forward each time
+    // how do get this from params?
+    int hdu = 2;
+    CCfits::FITS fits(fits_file, CCfits::Write, hdu-1);
 
-    // copying out to avoid g++ errors due to const incorrectness
-	
-	/*
-    fits.WriteKey("fsexit", XLONG, &exitcode, "Exit code for FindStars");
-    fits.WriteKey("fsntot", XLONG, &ntot, 
+    CCfits::ExtHDU& table=fits.extension(hdu-1);
+
+    table.addKey("fsexit", (int) exitcode, "Exit code for FindStars");
+    table.addKey("fsntot", ntot, 
 	"# of total objects processed in FindStars");
-    fits.WriteKey("fsnrflag", XLONG, &nr_flag,
+    table.addKey("fsnrflag", nr_flag,
 	"# of objects rejected because of input flag");
-    fits.WriteKey("fsnrmag", XLONG, &nr_mag,
+    table.addKey("fsnrmag", nr_mag,
 	"# of objects rejected because of mag limits");
-    fits.WriteKey("fsnrsize", XLONG, &nr_size,
+    table.addKey("fsnrsize", nr_size,
 	"# of objects rejected because of size limits");
-    fits.WriteKey("fsnobj", XLONG, &nobj, 
+    table.addKey("fsnobj", nobj, 
 	"# of objects processed in FindStars");
-    fits.WriteKey("fsnall", XLONG, &nallstars,
+    table.addKey("fsnall", nallstars,
 	"# of total stars found by FindStars");
-    fits.WriteKey("fsnstars", XLONG, &nstars, 
+    table.addKey("fsnstars", nstars, 
 	"# of good stars found by FindStars");
-	*/
-	
-	// the enumerated type ExitCode sometimes defaults to long
-	int exit=exitcode;
-    fits.WriteKey("fsexit", XINT, &exit, "Exit code for FindStars");
-    fits.WriteKey("fsntot", XINT, &ntot, 
-	"# of total objects processed in FindStars");
-    fits.WriteKey("fsnrflag", XINT, &nr_flag,
-	"# of objects rejected because of input flag");
-    fits.WriteKey("fsnrmag", XINT, &nr_mag,
-	"# of objects rejected because of mag limits");
-    fits.WriteKey("fsnrsize", XINT, &nr_size,
-	"# of objects rejected because of size limits");
-    fits.WriteKey("fsnobj", XINT, &nobj, 
-	"# of objects processed in FindStars");
-    fits.WriteKey("fsnall", XINT, &nallstars,
-	"# of total stars found by FindStars");
-    fits.WriteKey("fsnstars", XINT, &nstars, 
-	"# of good stars found by FindStars");
-
 
   }
   catch(...)

@@ -18,6 +18,7 @@ class InputCatalog
 
     void Read();
     void ReadFits(std::string file);
+    //void ReadFitsOld(std::string file);
     void ReadAscii(std::string file, std::string delim = "  ");
 
     // Leave these public, rather than use Get and Set methods.

@@ -28,7 +28,7 @@ class PSFCatalog
     void ReadFits(std::string file);
     void ReadAscii(std::string file, std::string delim = "  ");
     void WriteFits(std::string file) const;
-    void WriteFitsCCfits(std::string file) const;
+    //void WriteFitsOld(std::string file) const;
     void WriteAscii(std::string file, std::string delim = "  ") const;
 
     double EstimateSigma(const Image<double>& im,

@@ -4,7 +4,6 @@
 #include "Name.h"
 #include "Params.h"
 #include "Image.h"
-#include "FitsFile.h"
 
 enum NOISE_METHOD {VALUE, CATALOG, CATALOG_SIGMA, GAIN_VALUE, GAIN_FITS,
     WEIGHT_IMAGE};
@@ -12,7 +11,8 @@ enum NOISE_METHOD {VALUE, CATALOG, CATALOG_SIGMA, GAIN_VALUE, GAIN_FITS,
 static void ReadGain(const std::string& file, ConfigFile& params)
 {
   xdbg<<"ReadGain: from fits file "<<file<<std::endl;
-  FitsFile fits(file);
+  CCfits::FITS fits(file, CCfits::Read, false);
+
   float gain, rdnoise;
 
   std::vector<std::string> gain_key = params.get("image_gain_key");
@@ -21,20 +21,20 @@ static void ReadGain(const std::string& file, ConfigFile& params)
   for(size_t k=0;k<gain_key.size();k++) {
     xdbg<<"try "<<gain_key[k]<<std::endl;
     try {
-      fits.ReadKey(gain_key[k], XFLOAT, &gain);
+      fits.pHDU().readKey(gain_key[k],gain);
       break;
     } 
-    catch (FitsException)
+    catch (CCfits::FitsException)
     { if (k == gain_key.size()-1) throw; }
   }
 
   for(size_t k=0;k<rdn_key.size();k++) {
     xdbg<<"try "<<rdn_key[k]<<std::endl;
     try {
-      fits.ReadKey(rdn_key[k], XFLOAT, &rdnoise);
+      fits.pHDU().readKey(rdn_key[k], rdnoise);
       break;
     } 
-    catch (FitsException)
+    catch (CCfits::FitsException)
     { if (k == rdn_key.size()-1) throw; }
   }
 
@@ -228,15 +228,16 @@ void InputCatalog::ReadFits(std::string file)
 {
   dbg<< "Reading cat from FITS file: " << file << std::endl;
 
-  FitsFile fits(file);
+  int hdu = params.read("cat_hdu" , 2);
 
-  int hdu = params.read("cat_hdu" , 1);
-  dbg<<"Moving to HDU #"<<hdu<<std::endl;
-  fits.GotoHDU(hdu);
+  dbg<<"Opening FITS file at hdu "<<hdu<<std::endl;
+  // true means read all as part of the construction
+  CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
 
-  // These are not very portable.
-  long nrows=0;
-  fits.ReadKey("NAXIS2", XLONG, &nrows);
+  CCfits::ExtHDU& table=fits.extension(hdu-1);
+
+  long nrows=table.rows();
+
   dbg<<"  nrows = "<<nrows<<std::endl;
   if (nrows <= 0) {
     std::cerr<<"nrows must be > 0"<<std::endl;
@@ -244,28 +245,34 @@ void InputCatalog::ReadFits(std::string file)
   }
 
   // Read each column in turn:
+  //
+  long start=1;
+  long end=nrows;
+
   dbg<<"Reading columns"<<std::endl;
 
-  // ID
-  id.resize(nrows,0);
+
   if (params.keyExists("cat_id_col")) {
-    std::string id_col=params["cat_id_col"];
+    std::string id_col = params["cat_id_col"];
     dbg<<"  "<<id_col<<std::endl;
-    fits.ReadScalarCol(id_col,XLONG,&id[0], nrows);
+    table.column(id_col).read(id, start, end);
   } else {
+    id.resize(nrows);
     for (size_t i=0;i<id.size();i++) id[i] = i+1;
   }
 
+
   // Position (on chip)
+  std::vector<float> pos_x;
+  std::vector<float> pos_y;
   pos.resize(nrows);
   std::string x_col=params.get("cat_x_col");
   std::string y_col=params.get("cat_y_col");
-  std::vector<float> pos_x(nrows);
-  std::vector<float> pos_y(nrows);
   dbg<<"  "<<x_col<<std::endl;
-  fits.ReadScalarCol(x_col,XFLOAT,&pos_x[0], nrows);
+  table.column(x_col).read(pos_x, start, end);
   dbg<<"  "<<y_col<<std::endl;
-  fits.ReadScalarCol(y_col,XFLOAT,&pos_y[0], nrows);
+  table.column(y_col).read(pos_y, start, end);
+
   double x_offset = params.read("cat_x_offset",0.);
   double y_offset = params.read("cat_y_offset",0.);
   for (long i=0; i< nrows; i++) {
@@ -275,75 +282,69 @@ void InputCatalog::ReadFits(std::string file)
 
   // Local sky
   if (params.keyExists("cat_sky_col")) {
-    sky.resize(nrows,0);
     std::string sky_col=params["cat_sky_col"];
     dbg<<"  "<<sky_col<<std::endl;
-    fits.ReadScalarCol(sky_col,XDOUBLE,&sky[0], nrows);
+    table.column(sky_col).read(sky, start, end);
   }
 
   // Magnitude
   if (params.keyExists("cat_mag_col")) {
-    mag.resize(nrows,0);
     std::string mag_col=params["cat_mag_col"];
     dbg<<"  "<<mag_col<<std::endl;
-    fits.ReadScalarCol(mag_col,XFLOAT,&mag[0], nrows);
+    table.column(mag_col).read(mag, start, end);
   }
 
   // Magnitude Error
   if (params.keyExists("cat_mag_err_col")) {
-    mag_err.resize(nrows,0);
     std::string mag_err_col=params["cat_mag_err_col"];
     dbg<<"  "<<mag_err_col<<std::endl;
-    fits.ReadScalarCol(mag_err_col,XFLOAT,&mag_err[0], nrows);
+    table.column(mag_err_col).read(mag_err, start, end);
   }
 
   // Size
   if (params.keyExists("cat_size_col")) {
-    objsize.resize(nrows,0);
     std::string size_col=params["cat_size_col"];
     dbg<<"  "<<size_col<<std::endl;
-    fits.ReadScalarCol(size_col,XDOUBLE,&objsize[0], nrows);
+    table.column(size_col).read(objsize, start, end);
     if (params.keyExists("cat_size2_col")) {
       std::string size2_col=params["cat_size2_col"];
       dbg<<"  "<<size2_col<<std::endl;
       std::vector<double> objsize2(objsize.size());
-      fits.ReadScalarCol(size2_col,XDOUBLE,&objsize2[0], nrows);
+      table.column(size2_col).read(objsize2, start, end);
       for(size_t i=0;i<objsize.size();++i) objsize[i] += objsize2[i];
     }
   }
 
   // Error flags
   if (params.keyExists("cat_flag_col")) {
-    flags.resize(nrows,0);
     std::string flag_col=params["cat_flag_col"];
     dbg<<"  "<<flag_col<<std::endl;
-    fits.ReadScalarCol(flag_col,XLONG,&flags[0], nrows);
+    table.column(flag_col).read(flags, start, end);
   }
 
   // RA
   if (params.keyExists("cat_ra_col")) {
-    ra.resize(nrows,0);
     std::string ra_col=params["cat_ra_col"];
     dbg<<"  "<<ra_col<<std::endl;
-    fits.ReadScalarCol(ra_col,XFLOAT,&ra[0], nrows);
+    table.column(ra_col).read(ra, start, end);
   }
 
   // Declination
   if (params.keyExists("cat_dec_col")) {
-    dec.resize(nrows,0);
     std::string dec_col=params["cat_dec_col"];
     dbg<<"  "<<dec_col<<std::endl;
-    fits.ReadScalarCol(dec_col,XFLOAT,&dec[0], nrows);
+    table.column(dec_col).read(dec, start, end);
   }
 
   // Noise
   if (params.keyExists("cat_noise_col")) {
-    noise.resize(nrows,0);
     std::string noise_col=params["cat_noise_col"];
     dbg<<"  "<<noise_col<<std::endl;
-    fits.ReadScalarCol(noise_col,XDOUBLE,&noise[0], nrows);
+    table.column(noise_col).read(noise, start, end);
   }
 }
+
+
 
 // Helper functino to convert ASCII line into vector of tokens
 static void GetTokens(std::string delim, 
