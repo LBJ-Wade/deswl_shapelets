@@ -339,6 +339,113 @@ PSFCatalog::PSFCatalog(const ConfigFile& _params) : params(_params)
   Assert(psf.size() == size());
 }
 
+void PSFCatalog::WriteFitsCCfits(std::string file) const
+{
+  Assert(id.size() == size());
+  Assert(pos.size() == size());
+  Assert(nu.size() == size());
+  Assert(flags.size() == size());
+  Assert(psf.size() == size());
+
+  // ! means overwrite existing file
+  CCfits::FITS fits("!"+file, CCfits::Write);
+
+  const int nfields = 10;
+
+  std::vector<string> colnames(nfields);
+  std::vector<string> colfmts(nfields);
+  std::vector<string> colunits(nfields);
+
+  colnames[0] = params["psf_id_col"];
+  colnames[1] = params["psf_x_col"];
+  colnames[2] = params["psf_y_col"];
+  colnames[3] = params["psf_sky_col"];
+  colnames[4] = params["psf_noise_col"];
+  colnames[5] = params["psf_flags_col"];
+  colnames[6] = params["psf_nu_col"];
+  colnames[7] = params["psf_order_col"];
+  colnames[8] = params["psf_sigma_col"];
+  colnames[9] = params["psf_coeffs_col"];
+
+  int ncoeff = psf[0].size();
+  dbg<<"ncoeff = "<<ncoeff<<std::endl;
+  std::stringstream coeff_form;
+  coeff_form << ncoeff << "d";
+
+  colfmts[0] = "1J"; //id
+  colfmts[1] = "1D"; //x
+  colfmts[2] = "1D"; //y
+  colfmts[3] = "1D"; //sky
+  colfmts[4] = "1D"; //noise
+  colfmts[5] = "1J"; //flags
+  colfmts[6] = "1D"; //nu
+  colfmts[7] = "1J"; //order
+  colfmts[8] = "1D"; //sigma
+  colfmts[9] = coeff_form.str(); //coeffs
+
+  colunits[0] = "None";     // id
+  colunits[1] = "pixels";   // x
+  colunits[2] = "pixels";   // y
+  colunits[3] = "ADU";      // sky
+  colunits[4] = "ADU^2";    // noise
+  colunits[5] = "None";     // flags
+  colunits[6] = "None";     // nu
+  colunits[7] = "None";     // order
+  colunits[8] = "Arcsec";   // sigma
+  colunits[9] = "None";     // coeffs
+
+
+  CCfits::Table* table;
+  table = fits.addTable("psfcat",size(),colnames,colfmts,colunits);
+
+  // make vector copies for writing
+  std::vector<double> x(pos.size());
+  std::vector<double> y(pos.size());
+  for(size_t i=0;i<pos.size();i++) {
+    x[i] = pos[i].GetX();
+    y[i] = pos[i].GetY();
+  }
+
+  int startrow=1;
+
+  table->column(colnames[0]).write(id,startrow);
+  table->column(colnames[1]).write(x,startrow);
+  table->column(colnames[2]).write(y,startrow);
+  table->column(colnames[3]).write(sky,startrow);
+  table->column(colnames[4]).write(noise,startrow);
+  table->column(colnames[5]).write(flags,startrow);
+
+  table->column(colnames[6]).write(nu,startrow);
+
+
+  // Now we have to loop through each psf decomposition and write
+  // separately.  This is pretty dumb.
+  for (size_t i=0; i<size(); i++) {
+    size_t row = i+1;
+    long b_order = psf[i].GetOrder();
+    double b_sigma = psf[i].GetSigma();
+
+    table->column(colnames[7]).write(&b_order,1,row);
+    table->column(colnames[8]).write(&b_sigma,1,row);
+    double* cptr = (double *) psf[i].cptr();
+    table->column(colnames[9]).write(cptr, ncoeff, 1, row);
+  }
+
+  std::string str;
+  double dbl;
+  int intgr;
+
+  WriteParKeyCCfits(params, table, "version", str);
+  WriteParKeyCCfits(params, table, "noise_method", str);
+  WriteParKeyCCfits(params, table, "dist_method", str);
+
+  WriteParKeyCCfits(params, table, "psf_aperture", dbl);
+  WriteParKeyCCfits(params, table, "psf_order", intgr);
+  WriteParKeyCCfits(params, table, "psf_seeing_est", dbl);
+}
+
+
+
 void PSFCatalog::WriteFits(std::string file) const
 {
   Assert(id.size() == size());
@@ -490,7 +597,8 @@ void PSFCatalog::Write() const
       fitsio = true;
 
     if (fitsio) {
-      WriteFits(file);
+      //WriteFits(file);
+      WriteFitsCCfits(file);
     } else {
       std::string delim = "  ";
       if (params.keyExists("psf_delim")) {

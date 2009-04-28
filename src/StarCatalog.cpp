@@ -221,17 +221,6 @@ void StarCatalog::WriteFitsCCfits(std::string file) const
   // ! means overwrite existing file
   CCfits::FITS fits("!"+file, CCfits::Write);
 
-  // Setup the binary table
-  std::string id_col=params.get("stars_id_col");
-  std::string x_col=params.get("stars_x_col");
-  std::string y_col=params.get("stars_y_col");
-  std::string sky_col=params.get("stars_sky_col");
-  std::string noise_col=params.get("stars_noise_col");
-  std::string flags_col=params.get("stars_flags_col");
-  std::string mag_col=params.get("stars_mag_col");
-  std::string objsize_col=params.get("stars_objsize_col");
-  std::string isastar_col=params.get("stars_isastar_col");
-
   const int nfields = 9;
 
   std::vector<string> colnames(nfields);
@@ -279,54 +268,54 @@ void StarCatalog::WriteFitsCCfits(std::string file) const
     y[i] = pos[i].GetY();
   }
 
-  int startcol=1;
-  table->column(colnames[0]).write(id,startcol);
-  table->column(colnames[1]).write(x,startcol);
-  table->column(colnames[2]).write(y,startcol);
-  table->column(colnames[3]).write(sky,startcol);
-  table->column(colnames[4]).write(noise,startcol);
-  table->column(colnames[5]).write(flags,startcol);
-  table->column(colnames[6]).write(mag,startcol);
-  table->column(colnames[7]).write(objsize,startcol);
-  table->column(colnames[8]).write(isastar,startcol);
+  int startrow=1;
+  table->column(colnames[0]).write(id,startrow);
+  table->column(colnames[1]).write(x,startrow);
+  table->column(colnames[2]).write(y,startrow);
+  table->column(colnames[3]).write(sky,startrow);
+  table->column(colnames[4]).write(noise,startrow);
+  table->column(colnames[5]).write(flags,startrow);
+  table->column(colnames[6]).write(mag,startrow);
+  table->column(colnames[7]).write(objsize,startrow);
+  table->column(colnames[8]).write(isastar,startrow);
 
-  // kind of kludgy but is more flexible then using type numbers or strings
+  // kind of kludgy but is more flexible than using type numbers or strings
   double dbl;
   int intgr;
   std::string str;
 
   WriteParKeyCCfits(params, table, "version", str);
-  WriteParKeyCCfits(params, table, "noise_method",str);
-  WriteParKeyCCfits(params, table, "dist_method",str);
+  WriteParKeyCCfits(params, table, "noise_method", str);
+  WriteParKeyCCfits(params, table, "dist_method", str);
 
   WriteParKeyCCfits(params, table, "stars_minsize", dbl);
-  WriteParKeyCCfits(params, table, "stars_maxsize",dbl);
-  WriteParKeyCCfits(params, table, "stars_minmag",dbl);
-  WriteParKeyCCfits(params, table, "stars_maxmag",dbl);
-  WriteParKeyCCfits(params, table, "stars_ndivx",intgr);
-  WriteParKeyCCfits(params, table, "stars_ndivy",intgr);
+  WriteParKeyCCfits(params, table, "stars_maxsize", dbl);
+  WriteParKeyCCfits(params, table, "stars_minmag", dbl);
+  WriteParKeyCCfits(params, table, "stars_maxmag", dbl);
+  WriteParKeyCCfits(params, table, "stars_ndivx", intgr);
+  WriteParKeyCCfits(params, table, "stars_ndivy", intgr);
 
-  WriteParKeyCCfits(params, table, "stars_startn1",dbl);
-  WriteParKeyCCfits(params, table, "stars_starfrac",dbl);
-  WriteParKeyCCfits(params, table, "stars_magstep1",dbl);
-  WriteParKeyCCfits(params, table, "stars_miniter1",intgr);
-  WriteParKeyCCfits(params, table, "stars_reject1",dbl);
-  WriteParKeyCCfits(params, table, "stars_binsize1",dbl);
-  WriteParKeyCCfits(params, table, "stars_maxratio1",dbl);
-  WriteParKeyCCfits(params, table, "stars_okvalcount",intgr);
-  WriteParKeyCCfits(params, table, "stars_maxrms",dbl);
-  WriteParKeyCCfits(params, table, "stars_starsperbin",intgr);
+  WriteParKeyCCfits(params, table, "stars_startn1", dbl);
+  WriteParKeyCCfits(params, table, "stars_starfrac", dbl);
+  WriteParKeyCCfits(params, table, "stars_magstep1", dbl);
+  WriteParKeyCCfits(params, table, "stars_miniter1", intgr);
+  WriteParKeyCCfits(params, table, "stars_reject1", dbl);
+  WriteParKeyCCfits(params, table, "stars_binsize1", dbl);
+  WriteParKeyCCfits(params, table, "stars_maxratio1", dbl);
+  WriteParKeyCCfits(params, table, "stars_okvalcount", intgr);
+  WriteParKeyCCfits(params, table, "stars_maxrms", dbl);
+  WriteParKeyCCfits(params, table, "stars_starsperbin", intgr);
 
-  WriteParKeyCCfits(params, table, "stars_fitorder",intgr);
-  WriteParKeyCCfits(params, table, "stars_fitsigclip",dbl);
-  WriteParKeyCCfits(params, table, "stars_startn2",dbl);
-  WriteParKeyCCfits(params, table, "stars_magstep2",dbl);
-  WriteParKeyCCfits(params, table, "stars_miniter2",intgr);
-  WriteParKeyCCfits(params, table, "stars_minbinsize",dbl);
-  WriteParKeyCCfits(params, table, "stars_reject2",dbl);
+  WriteParKeyCCfits(params, table, "stars_fitorder", intgr);
+  WriteParKeyCCfits(params, table, "stars_fitsigclip", dbl);
+  WriteParKeyCCfits(params, table, "stars_startn2", dbl);
+  WriteParKeyCCfits(params, table, "stars_magstep2", dbl);
+  WriteParKeyCCfits(params, table, "stars_miniter2", intgr);
+  WriteParKeyCCfits(params, table, "stars_minbinsize", dbl);
+  WriteParKeyCCfits(params, table, "stars_reject2", dbl);
 
-  WriteParKeyCCfits(params, table, "stars_purityratio",dbl);
-  WriteParKeyCCfits(params, table, "stars_maxrefititer",intgr);
+  WriteParKeyCCfits(params, table, "stars_purityratio", dbl);
+  WriteParKeyCCfits(params, table, "stars_maxrefititer", intgr);
 
 }
 
