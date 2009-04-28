@@ -6,6 +6,7 @@
 #include "Legendre2D.h"
 #include "Name.h"
 #include <fstream>
+#include "ExecuteCommand.h"
 
 static tmv::Vector<double> DefinePXY(size_t order, double x,
     double xmin, double xmax)
@@ -284,6 +285,8 @@ void FittedPSF::WriteFits(std::string file) const
   dbg<<"After Create table"<<std::endl;
 
 
+  // Header keywords
+
   // dimensions information
   dbg<<"Adding dimensional info"<<std::endl;
   std::stringstream tdim10, tdim11;
@@ -292,6 +295,31 @@ void FittedPSF::WriteFits(std::string file) const
 
   table->addKey("TDIM10",tdim10.str(),"dimensions of rot_matrix");
   table->addKey("TDIM11",tdim11.str(),"dimensions of interp_matrix");
+
+
+  std::string tmvvers;
+  std::string wlvers;
+  ExecuteCommand("tmv-version", tmvvers, true);
+  ExecuteCommand("wl-version", wlvers, true);
+
+  table->addKey("tmvvers", tmvvers, "version of TMV code");
+  table->addKey("wlvers", wlvers, "version of weak lensing code");
+
+  std::string str;
+  double dbl;
+  int intgr;
+
+  dbg<<"Before Write Par Keys"<<std::endl;
+  //CCfitsWriteParKey(params, table, "version", str);
+  CCfitsWriteParKey(params, table, "noise_method", str);
+  CCfitsWriteParKey(params, table, "dist_method", str);
+
+  CCfitsWriteParKey(params, table, "fitpsf_order", intgr);
+  CCfitsWriteParKey(params, table, "fitpsf_pca_thresh", dbl);
+  dbg<<"After Write Par Keys"<<std::endl;
+
+
+  // data
 
   // write the data
   int startrow=1;
@@ -327,19 +355,6 @@ void FittedPSF::WriteFits(std::string file) const
   cptr = (double *) f->cptr();
   table->column(colnames[10]).write(cptr, n_interp_matrix, nrows, startrow);
 
-
-  std::string str;
-  double dbl;
-  int intgr;
-
-  dbg<<"Before Write Par Keys"<<std::endl;
-  CCfitsWriteParKey(params, table, "version", str);
-  CCfitsWriteParKey(params, table, "noise_method", str);
-  CCfitsWriteParKey(params, table, "dist_method", str);
-
-  CCfitsWriteParKey(params, table, "fitpsf_order", intgr);
-  CCfitsWriteParKey(params, table, "fitpsf_pca_thresh", dbl);
-  dbg<<"After Write Par Keys"<<std::endl;
 
 }
 

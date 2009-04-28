@@ -9,6 +9,7 @@
 #include "Params.h"
 #include "Name.h"
 #include "Form.h"
+#include "ExecuteCommand.h"
 
 //#define SINGLESTAR 18
 //#define NSTARS 10
@@ -398,6 +399,32 @@ void PSFCatalog::WriteFits(std::string file) const
   CCfits::Table* table;
   table = fits.addTable("psfcat",size(),colnames,colfmts,colunits);
 
+
+  // Header keywords
+  std::string str;
+  double dbl;
+  int intgr;
+
+  std::string tmvvers;
+  std::string wlvers;
+  ExecuteCommand("tmv-version", tmvvers, true);
+  ExecuteCommand("wl-version", wlvers, true);
+
+  table->addKey("tmvvers", tmvvers, "version of TMV code");
+  table->addKey("wlvers", wlvers, "version of weak lensing code");
+
+  //CCfitsWriteParKey(params, table, "version", str);
+  CCfitsWriteParKey(params, table, "noise_method", str);
+  CCfitsWriteParKey(params, table, "dist_method", str);
+
+  CCfitsWriteParKey(params, table, "psf_aperture", dbl);
+  CCfitsWriteParKey(params, table, "psf_order", intgr);
+  CCfitsWriteParKey(params, table, "psf_seeing_est", dbl);
+
+
+
+  // Data columns
+
   // make vector copies for writing
   std::vector<double> x(pos.size());
   std::vector<double> y(pos.size());
@@ -428,17 +455,6 @@ void PSFCatalog::WriteFits(std::string file) const
     table->column(colnames[9]).write(cptr, ncoeff, 1, row);
   }
 
-  std::string str;
-  double dbl;
-  int intgr;
-
-  CCfitsWriteParKey(params, table, "version", str);
-  CCfitsWriteParKey(params, table, "noise_method", str);
-  CCfitsWriteParKey(params, table, "dist_method", str);
-
-  CCfitsWriteParKey(params, table, "psf_aperture", dbl);
-  CCfitsWriteParKey(params, table, "psf_order", intgr);
-  CCfitsWriteParKey(params, table, "psf_seeing_est", dbl);
 }
 
 

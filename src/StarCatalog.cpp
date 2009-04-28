@@ -16,6 +16,7 @@
 #include "Ellipse.h"
 #include "Log.h"
 #include "Form.h"
+#include "ExecuteCommand.h"
 
 void CalcSigma(
     double& sigma,
@@ -258,31 +259,22 @@ void StarCatalog::WriteFits(std::string file) const
   CCfits::Table* table;
   table = fits.addTable("findstars",size(),colnames,colfmts,colunits);
 
-  // make vector copies for writing
-  std::vector<double> x(pos.size());
-  std::vector<double> y(pos.size());
-  for(size_t i=0;i<pos.size();i++) {
-    x[i] = pos[i].GetX();
-    y[i] = pos[i].GetY();
-  }
+  // Header Keywords
+  std::string tmvvers;
+  std::string wlvers;
+  ExecuteCommand("tmv-version", tmvvers, true);
+  ExecuteCommand("wl-version", wlvers, true);
 
-  int startrow=1;
-  table->column(colnames[0]).write(id,startrow);
-  table->column(colnames[1]).write(x,startrow);
-  table->column(colnames[2]).write(y,startrow);
-  table->column(colnames[3]).write(sky,startrow);
-  table->column(colnames[4]).write(noise,startrow);
-  table->column(colnames[5]).write(flags,startrow);
-  table->column(colnames[6]).write(mag,startrow);
-  table->column(colnames[7]).write(objsize,startrow);
-  table->column(colnames[8]).write(isastar,startrow);
+  table->addKey("tmvvers", tmvvers, "version of TMV code");
+  table->addKey("wlvers", wlvers, "version of weak lensing code");
+
 
   // kind of kludgy but is more flexible than using type numbers or strings
   double dbl;
   int intgr;
   std::string str;
 
-  CCfitsWriteParKey(params, table, "version", str);
+  //CCfitsWriteParKey(params, table, "version", str);
   CCfitsWriteParKey(params, table, "noise_method", str);
   CCfitsWriteParKey(params, table, "dist_method", str);
 
@@ -314,6 +306,31 @@ void StarCatalog::WriteFits(std::string file) const
 
   CCfitsWriteParKey(params, table, "stars_purityratio", dbl);
   CCfitsWriteParKey(params, table, "stars_maxrefititer", intgr);
+
+
+
+  // Now the data columns
+
+  // make vector copies for writing
+  std::vector<double> x(pos.size());
+  std::vector<double> y(pos.size());
+  for(size_t i=0;i<pos.size();i++) {
+    x[i] = pos[i].GetX();
+    y[i] = pos[i].GetY();
+  }
+
+  int startrow=1;
+  table->column(colnames[0]).write(id,startrow);
+  table->column(colnames[1]).write(x,startrow);
+  table->column(colnames[2]).write(y,startrow);
+  table->column(colnames[3]).write(sky,startrow);
+  table->column(colnames[4]).write(noise,startrow);
+  table->column(colnames[5]).write(flags,startrow);
+  table->column(colnames[6]).write(mag,startrow);
+  table->column(colnames[7]).write(objsize,startrow);
+  table->column(colnames[8]).write(isastar,startrow);
+
+
 
 }
 

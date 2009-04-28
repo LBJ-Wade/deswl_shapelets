@@ -15,6 +15,7 @@
 #include "Log.h"
 #include "Params.h"
 #include "Form.h"
+#include "ExecuteCommand.h"
 
 //#define SINGLEGAL 8146
 //#define STARTAT 8000
@@ -658,6 +659,32 @@ void ShearCatalog::WriteFits(std::string file) const
   CCfits::Table* table;
   table = fits.addTable("shearcat",size(),colnames,colfmts,colunits);
 
+  // Header keywords
+  std::string tmvvers;
+  std::string wlvers;
+  ExecuteCommand("tmv-version", tmvvers, true);
+  ExecuteCommand("wl-version", wlvers, true);
+
+  table->addKey("tmvvers", tmvvers, "version of TMV code");
+  table->addKey("wlvers", wlvers, "version of weak lensing code");
+
+  std::string str;
+  double dbl;
+  int intgr;
+  //CCfitsWriteParKey(params, table, "version", str);
+  CCfitsWriteParKey(params, table, "noise_method", str);
+  CCfitsWriteParKey(params, table, "dist_method", str);
+
+  CCfitsWriteParKey(params, table, "shear_aperture", dbl);
+  CCfitsWriteParKey(params, table, "shear_max_aperture", dbl);
+  CCfitsWriteParKey(params, table, "shear_gal_order", intgr);
+  CCfitsWriteParKey(params, table, "shear_gal_order2", intgr);
+  CCfitsWriteParKey(params, table, "shear_min_gal_size", dbl);
+  CCfitsWriteParKey(params, table, "shear_f_psf", dbl);
+
+
+
+  // data
   // make vector copies for writing
   std::vector<double> x(pos.size());
   std::vector<double> y(pos.size());
@@ -718,20 +745,6 @@ void ShearCatalog::WriteFits(std::string file) const
   }
 
 
-  std::string str;
-  double dbl;
-  int intgr;
-
-  CCfitsWriteParKey(params, table, "version", str);
-  CCfitsWriteParKey(params, table, "noise_method", str);
-  CCfitsWriteParKey(params, table, "dist_method", str);
-
-  CCfitsWriteParKey(params, table, "shear_aperture", dbl);
-  CCfitsWriteParKey(params, table, "shear_max_aperture", dbl);
-  CCfitsWriteParKey(params, table, "shear_gal_order", intgr);
-  CCfitsWriteParKey(params, table, "shear_gal_order2", intgr);
-  CCfitsWriteParKey(params, table, "shear_min_gal_size", dbl);
-  CCfitsWriteParKey(params, table, "shear_f_psf", dbl);
 
 }
 

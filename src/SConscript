@@ -24,7 +24,7 @@ BVec.cpp EllipseSolver.cpp Pixel.cpp Transformation.cpp
 ConfigFile.cpp FittedPSF.cpp CrudeMeasure.cpp Name.cpp
 NLSolver.cpp Log.cpp Ellipse.cpp PsiHelper.cpp 
 FitsFile.cpp Histogram.cpp StarFinder.cpp StarCatalog.cpp
-PSFCatalog.cpp ShearCatalog.cpp InputCatalog.cpp""".split()
+PSFCatalog.cpp ShearCatalog.cpp InputCatalog.cpp ExecuteCommand.cpp""".split()
 
 
 if env['MEM_TEST']:
