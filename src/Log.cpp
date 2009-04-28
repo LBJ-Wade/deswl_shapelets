@@ -4,6 +4,34 @@
 #include <stdexcept>
 #include "Params.h"
 
+void ExecuteCommand(std::string command, std::string& result, bool strip_trailing_newline=false)
+{
+  result.erase();
+  char buffer[256];
+  FILE* stream;
+  stream = popen(command.c_str(),"r");
+  while ( fgets(buffer, 256, stream) != NULL ) {
+    result.append(buffer);
+  }
+  pclose(stream);
+
+  if (strip_trailing_newline) {
+    int len=result.size();
+    if (len > 0) {
+      if (result[len-1] == '\n') {
+	std::string tmp;
+	tmp.resize(len-1);
+	for (int i=0; i<len-1; i++) {
+	  tmp[i] = result[i];
+	}
+	result=tmp;
+      }
+    }
+  }
+
+}
+
+
 Log::Log(std::string _logfile, std::string _fits_file, bool desqa) :
   exitcode(SUCCESS), logout(0), fits_file(_fits_file)
 {
@@ -68,6 +96,14 @@ void ShearLog::WriteLogToFitsHeader() const
     CCfits::FITS fits(fits_file, CCfits::Write, hdu-1);
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
+
+    std::string tmvvers;
+    std::string wlvers;
+    ExecuteCommand("tmv-version", tmvvers, true);
+    ExecuteCommand("wl-version", wlvers, true);
+
+    table.addKey("tmvvers", tmvvers, "version of TMV code");
+    table.addKey("wlvers", wlvers, "version of weak lensing code");
 
 
 
@@ -210,6 +246,15 @@ void PSFLog::WriteLogToFitsHeader() const
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 
+    std::string tmvvers;
+    std::string wlvers;
+    ExecuteCommand("tmv-version", tmvvers, true);
+    ExecuteCommand("wl-version", wlvers, true);
+
+    table.addKey("tmvvers", tmvvers, "version of TMV code");
+    table.addKey("wlvers", wlvers, "version of weak lensing code");
+
+
 
     // the enumerated type ExitCode sometimes defaults to long
     table.addKey("mpexit", (int) exitcode, "Exit code for MeasurePSF");
@@ -307,6 +352,14 @@ void FindStarsLog::WriteLogToFitsHeader() const
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 
+    std::string tmvvers;
+    std::string wlvers;
+    ExecuteCommand("tmv-version", tmvvers, true);
+    ExecuteCommand("wl-version", wlvers, true);
+
+    table.addKey("tmvvers", tmvvers, "version of TMV code");
+    table.addKey("wlvers", wlvers, "version of weak lensing code");
+
     table.addKey("fsexit", (int) exitcode, "Exit code for FindStars");
     table.addKey("fsntot", ntot, 
 	"# of total objects processed in FindStars");
@@ -323,6 +376,8 @@ void FindStarsLog::WriteLogToFitsHeader() const
     table.addKey("fsnstars", nstars, 
 	"# of good stars found by FindStars");
 
+
+    
   }
   catch(...)
   { if (exitcode == 0) throw; }

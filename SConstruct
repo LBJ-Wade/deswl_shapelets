@@ -96,6 +96,7 @@ opts.Add(BoolVariable('MEM_TEST',
 opts.Add(BoolVariable('WARN',
             'Add warning compiler flags, like -Wall', False))
 
+
 opts.Update(initial_env)
 opts.Save(config_file,initial_env)
 Help(opts.GenerateHelpText(initial_env))
