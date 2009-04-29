@@ -12,7 +12,7 @@ void CCfitsWriteParKey(
     const ConfigFile& params, 
     CCfits::Table* table,
     std::string key,
-    T tmpvar)
+    T& tmpvar)
 {
   if (params.keyExists(key))  {
     tmpvar = (T) params.get(key);

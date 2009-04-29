@@ -353,7 +353,7 @@ void StarCatalog::WriteAscii(std::string file, std::string delim) const
     throw std::runtime_error("Error opening stars file");
   }
 
-  Form hexform; hexform.hex().trail(0);
+  //Form hexform; hexform.hex().trail(0);
 
   for (size_t i=0; i<size(); i++) {
     fout 
@@ -362,7 +362,8 @@ void StarCatalog::WriteAscii(std::string file, std::string delim) const
       << pos[i].GetY() << delim
       << sky[i] << delim
       << noise[i] << delim
-      << hexform(flags[i]) << delim
+      //<< hexform(flags[i]) << delim
+      << flags[i] << delim
       << mag[i] << delim
       << objsize[i] << delim
       << isastar[i] << std::endl;

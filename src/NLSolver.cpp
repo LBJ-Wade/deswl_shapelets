@@ -307,8 +307,10 @@ bool NLSolver::Solve_LM(
       xdbg<<"gnew = "<<gnew<<std::endl;
       CHECKG(NormInf(gnew));
 
-      double rho = (Q-Qnew) / (0.5*h*(mu*h-g));
-      xdbg<<"rho = "<<Q-Qnew<<" / "<<0.5*h*(mu*h-g)<<" = "<<rho<<std::endl;
+      // Use g as a temporary for (g - mu*h)
+      g -= mu*h;
+      double rho = (Q-Qnew) / (-0.5*h*g);
+      xdbg<<"rho = "<<Q-Qnew<<" / "<<(-0.5*h*g)<<" = "<<rho<<std::endl;
       mu *= std::max(1./3.,1.-std::pow(2.*rho-1.,3)); nu = 2.;
       xdbg<<"mu *= "<<std::max(1./3.,1.-std::pow(2.*rho-1.,3))<<" = "<<mu<<std::endl;
       A += mu;
@@ -783,8 +785,9 @@ bool NLSolver::Solve_SecantLM(
       gnew = J.Transpose() * f;
       CHECKG(NormInf(g));
 
-      double rho = (Q-Qnew) / (0.5*h*(mu*h-g));
-      xdbg<<"rho = "<<Q-Qnew<<" / "<<0.5*h*(mu*h-g)<<" = "<<rho<<std::endl;
+      g -= mu*h;
+      double rho = (Q-Qnew) / (-0.5*h*g);
+      xdbg<<"rho = "<<Q-Qnew<<" / "<<(-0.5*h*g)<<" = "<<rho<<std::endl;
       mu *= std::max(1./3.,1.-std::pow(2.*rho-1.,3)); nu = 2.;
       xdbg<<"mu = "<<mu<<std::endl;
       A += mu;

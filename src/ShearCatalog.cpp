@@ -939,7 +939,7 @@ void ShearCatalog::ReadFits(std::string file)
     table.column(coeffs_col).read(coeffs, row);
 
     double* ptri = (double* ) shape[i].cptr(); 
-    for (size_t j=0; j<ncoeff; ++j) {
+    for (int j=0; j<ncoeff; ++j) {
       ptri[i] = coeffs[i];
     }
 

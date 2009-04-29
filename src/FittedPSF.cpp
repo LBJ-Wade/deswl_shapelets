@@ -323,7 +323,7 @@ void FittedPSF::WriteFits(std::string file) const
 
   // write the data
   int startrow=1;
-  int nel=1;
+  //int nel=1;
 
   // CCfits write() doesn't allow constant scalar arguments, so we have copy
   // out.  Might as well be vectors to simplify the signature
@@ -374,7 +374,7 @@ void FittedPSF::ReadFits(std::string file)
 
   CCfits::ExtHDU& table=fits.extension(hdu-1);
 
-  long nrows=table.rows();
+  //long nrows=table.rows();
 
 
   // Allocate memory for the columns we will read

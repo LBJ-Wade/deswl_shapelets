@@ -609,7 +609,7 @@ void PSFCatalog::ReadFits(std::string file)
     std::valarray<double> coeffs;
     table.column(coeffs_col).read(coeffs, row);
     double* ptri = (double* ) psf[i].cptr(); 
-    for (size_t j=0; j<ncoeff; ++j) {
+    for (int j=0; j<ncoeff; ++j) {
       ptri[i] = coeffs[i];
     }
   }
