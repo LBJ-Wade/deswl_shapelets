@@ -1,5 +1,5 @@
 # Don't edit these svn properties by hand
-_property_headurl='$HeadURL: $'
+_property_headurl='$HeadURL$'
 
 #_property_rev='$Rev: 1339 $'
 
