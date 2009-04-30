@@ -1,18 +1,37 @@
 # vim: set filetype=python :
 
 import os
+import distutils
+import distutils.sysconfig
+
 Import('env')
 
-pyfile=env.File('wl-run.py')
-install_subdir = 'bin'
-targets = [pyfile]
+# for the /bin directory
+wlrun_file=env.File('wl-run.py')
+
+bin_install_subdir = 'bin'
+bin_targets = [wlrun_file]
+
+
+# for the /lib/pythonX/site-packages directory
+init_file = env.File('__init__.py')
+wlpipe_file = env.File('wlpipe.py')
+
+main_libdir=distutils.sysconfig.get_python_lib()
+pylib_install_subdir = main_libdir.replace(distutils.sysconfig.PREFIX+os.sep,'')
+pylib_install_subdir = os.path.join(pylib_install_subdir, 'deswl')
+pylib_targets = [init_file,wlpipe_file]
+
+
 
 if 'install' in COMMAND_LINE_TARGETS:
     RunInstall = env['_InstallProgram']
-    RunInstall(env, targets, install_subdir)
+    RunInstall(env, bin_targets, bin_install_subdir)
+    RunInstall(env, pylib_targets, pylib_install_subdir)
 
 if 'uninstall' in COMMAND_LINE_TARGETS:
     RunUninstall = env['_UninstallProgram']
-    RunUninstall(env, targets, install_subdir)
+    RunUninstall(env, bin_targets, bin_install_subdir)
+    RunUninstall(env, pylib_targets, pylib_install_subdir)
 
 
