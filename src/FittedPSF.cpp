@@ -6,7 +6,8 @@
 #include "Legendre2D.h"
 #include "Name.h"
 #include <fstream>
-#include "ExecuteCommand.h"
+#include "WlVersion.h"
+#include "TMV.h"
 
 static tmv::Vector<double> DefinePXY(size_t order, double x,
     double xmin, double xmax)
@@ -297,10 +298,8 @@ void FittedPSF::WriteFits(std::string file) const
   table->addKey("TDIM11",tdim11.str(),"dimensions of interp_matrix");
 
 
-  std::string tmvvers;
-  std::string wlvers;
-  ExecuteCommand("tmv-version", tmvvers, true);
-  ExecuteCommand("wl-version", wlvers, true);
+  std::string tmvvers = tmv::TMV_Version();
+  std::string wlvers = WlVersion();
 
   table->addKey("tmvvers", tmvvers, "version of TMV code");
   table->addKey("wlvers", wlvers, "version of weak lensing code");

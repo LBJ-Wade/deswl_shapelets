@@ -16,7 +16,8 @@
 #include "Ellipse.h"
 #include "Log.h"
 #include "Form.h"
-#include "ExecuteCommand.h"
+#include "WlVersion.h"
+#include "TMV.h"
 
 void CalcSigma(
     double& sigma,
@@ -260,10 +261,8 @@ void StarCatalog::WriteFits(std::string file) const
   table = fits.addTable("findstars",size(),colnames,colfmts,colunits);
 
   // Header Keywords
-  std::string tmvvers;
-  std::string wlvers;
-  ExecuteCommand("tmv-version", tmvvers, true);
-  ExecuteCommand("wl-version", wlvers, true);
+  std::string tmvvers = tmv::TMV_Version();
+  std::string wlvers = WlVersion();
 
   table->addKey("tmvvers", tmvvers, "version of TMV code");
   table->addKey("wlvers", wlvers, "version of weak lensing code");

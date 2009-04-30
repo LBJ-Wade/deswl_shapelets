@@ -3,7 +3,7 @@
 std::string WlVersion()
 {
 	std::string badvers="NOTAG: unparseable";
-	std::string thisname="/ccode/test/test_svn_version.cpp";
+	std::string thisname="/src/WlVersion.cpp";
 
 	// this gets automatically updated by svn
 	// don't forget to do svn propset svn:keywords "HeadURL" thisfile

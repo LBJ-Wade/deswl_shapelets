@@ -15,7 +15,8 @@
 #include "Log.h"
 #include "Params.h"
 #include "Form.h"
-#include "ExecuteCommand.h"
+#include "WlVersion.h"
+#include "TMV.h"
 
 //#define SINGLEGAL 8146
 //#define STARTAT 8000
@@ -660,10 +661,8 @@ void ShearCatalog::WriteFits(std::string file) const
   table = fits.addTable("shearcat",size(),colnames,colfmts,colunits);
 
   // Header keywords
-  std::string tmvvers;
-  std::string wlvers;
-  ExecuteCommand("tmv-version", tmvvers, true);
-  ExecuteCommand("wl-version", wlvers, true);
+  std::string tmvvers = tmv::TMV_Version();
+  std::string wlvers = WlVersion();
 
   table->addKey("tmvvers", tmvvers, "version of TMV code");
   table->addKey("wlvers", wlvers, "version of weak lensing code");

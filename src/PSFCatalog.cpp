@@ -9,7 +9,8 @@
 #include "Params.h"
 #include "Name.h"
 #include "Form.h"
-#include "ExecuteCommand.h"
+#include "WlVersion.h"
+#include "TMV.h"
 
 //#define SINGLESTAR 18
 //#define NSTARS 10
@@ -405,10 +406,8 @@ void PSFCatalog::WriteFits(std::string file) const
   double dbl;
   int intgr;
 
-  std::string tmvvers;
-  std::string wlvers;
-  ExecuteCommand("tmv-version", tmvvers, true);
-  ExecuteCommand("wl-version", wlvers, true);
+  std::string tmvvers = tmv::TMV_Version();
+  std::string wlvers = WlVersion();
 
   table->addKey("tmvvers", tmvvers, "version of TMV code");
   table->addKey("wlvers", wlvers, "version of weak lensing code");
