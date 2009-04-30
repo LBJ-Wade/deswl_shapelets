@@ -32,6 +32,9 @@ if 'install' in COMMAND_LINE_TARGETS:
 if 'uninstall' in COMMAND_LINE_TARGETS:
     RunUninstall = env['_UninstallProgram']
     RunUninstall(env, bin_targets, bin_install_subdir)
-    RunUninstall(env, pylib_targets, pylib_install_subdir)
+
+    # remove the directory too
+    pylib_deltargets = pylib_targets + ['']
+    RunUninstall(env, pylib_deltargets, pylib_install_subdir)
 
 
