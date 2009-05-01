@@ -1,3 +1,32 @@
+"""
+    Order of doing things:
+        # create a run name and its configuration
+        GenerateSeRunConfig()
+
+        # For a given run, band generate an input file list.  Also split
+        # it up into chunks for each processor
+        # also write out a python script to run each chunk.  
+        # these go under $DESDATA/runconfig/runname/images-cats-$band-split 
+        
+        GenerateSeRunFileListAndScripts(run, band, rootdir=default_rootdir, badlist=None)
+
+        # each script calls This
+        # run through image list and execute the code
+        ProcessSeRunImageList(serun, executable, 
+                          config_file=default_config, 
+                          imlist_filename=None,
+                          flist=None,
+                          badlist_file=None,
+                          outdir=None,
+                          rootdir=None,
+                          verbose=True,
+                          mohrify=True):
+
+        # you can run a set of scripts for the 8 processors on each machine
+        # with this shell script. Run in the directory with the scripts.
+        run-wlpipe machine_number executable
+
+"""
 import sys
 from sys import stdout,stderr
 import os
@@ -358,7 +387,7 @@ def GenerateSeRunFileListAndScripts(run, band, rootdir=default_rootdir, badlist=
             pyfilename=f.replace('.xml','-'+ex+'.py')
             stdout.write('Writing python script: %s\n' % pyfilename)
             pyfile=open(pyfilename,'w')
-            pyfile.write('from des import wlpipe\n')
+            pyfile.write('from deswl import wlpipe\n')
             pyfile.write('\n')
             pyfile.write('run="%s"\n' % run)
             pyfile.write('ex="%s"\n' % ex)
@@ -376,9 +405,6 @@ def GenerateSeRunFileListAndScripts(run, band, rootdir=default_rootdir, badlist=
             pyfile.write(command+'\n')
             pyfile.close()
 
-
-def GenerateSeRunScripts():
-    pass
 
 def ExtractImageExposureNames(flist):
     allinfo={}
@@ -546,20 +572,6 @@ def ProcessSeImage(executable, config_file, image_filename,
 default_proddir=os.getenv('PRODUCTS_DIR')
 default_config=os.path.join(default_proddir,'local/etc/wl_dc4.config')
 
-def ProcessSeRunImageListQuick():
-    flist_dir='/global/data/DES/runconfig/wlse000000/images-cats-i-split'
-    flist_file=os.path.join(flist_dir, 'images-cats-i-bach00-00.xml')
-
-    flist,rt=xmltools.xml2dict(flist_file,seproot=True)
-    flist=flist['files']
-
-    run="wlse000000"
-    ex="measureshear"
-    conf="/global/data/products/local/etc/wl_dc4.config"
-    ProcessSeRunImageList(run, ex, conf, flist=flist[25], 
-                          rootdir="/scratch/esheldon/DES", 
-                          badlist_file="/global/data/DES/runconfig/wlse000000/images-cats-i-split/badlist.xml")
-
 def ProcessSeRunImageList(serun, executable, 
                           config_file=default_config, 
                           imlist_filename=None,
@@ -664,24 +676,6 @@ def ProcessSeRunImageList(serun, executable,
     tmfinal=time.time()
     ptime(tmfinal-tm0, fobj=stderr)
 
-def ProcessSeRunImageListCheckQuick(ex="measureshear"):
-    from glob import glob
-    flist_dir='/global/data/DES/runconfig/wlse000000/images-cats-i-split'
-    #flist_file=os.path.join(flist_dir, 'images-cats-i-bach00-00.xml')
-    #flist=xmltools.xml2dict(flist_file)
-
-    # do each separately so we can narrow in on problems
-    files=[]
-    files += glob(flist_dir+'/images-cats-i-bach00-*.xml')
-    files += glob(flist_dir+'/images-cats-i-bach01-*.xml')
-    files += glob(flist_dir+'/images-cats-i-bach02-*.xml')
-    files += glob(flist_dir+'/images-cats-i-bach03-*.xml')
-    flist=CombineFileLists(files)
-
-    run="wlse000000"
-    conf="/global/data/products/local/etc/wl_dc4.config"
-    return ProcessSeRunImageListCheck(run, ex, flist=flist)
-
 
 def ProcessSeRunImageListCheck(serun, executable, 
                                imlist_filename=None, 
@@ -767,125 +761,6 @@ def ProcessSeRunImageListCheck(serun, executable,
             badlist.append(tmp_fdict)
     return badlist
 
-
-def CollateSeShear(serun, 
-                   imlist_filename=None, 
-                   flist=None,
-                   outdir=None,
-                   rootdir=None,
-                   printskipped=False,
-                   mohrify=True):
-
-    runconfig_file=RunConfigName(serun)
-    runconfig, roottag = xmltools.xml2dict(runconfig_file,seproot=True)
-
-    # flist takes precedence
-    if flist is None:
-        if imlist_filename is None:
-            raise ValueError,'Either enter flist or imlist_filename'
-        imdict,roottag = xmltools.xml2dict(imlist_filename, seproot=True)
-        flist = imdict['files']
-
-    if type(flist) != type([]):
-        flist=[flist]
-
-    badlist=[]
-    for fdict in flist:
-
-        imfile=fdict['imfile']
-        catfile=fdict['catfile']
-
-        exit_status=None
-        error_found=False
-
-        sefdict=GenerateSeFileNames(serun, imfile, 
-                                    mohrify=mohrify, 
-                                    rootdir=rootdir,
-                                    outdir=outdir)
-
-        # verify here that the outputs exist, exit codes, some other
-        # checks.  Need to case each executable.
-    
-        log=sefdict[execbase+'_log']
-        stdo=sefdict[execbase+'_stdout']
-        stde=sefdict[execbase+'_stderr']
-
-        if execbase == 'findstars':
-            outfiles=[sefdict['stars']]
-        elif execbase == 'measurepsf':
-            outfiles=[sefdict['psf'],sefdict['fitpsf']]
-        elif execbase == 'measureshear':
-            outfiles=[sefdict['shear']]
-        else:
-            raise ValueError,'Unknown executable: %s' % execbase
-
-        skipped=False
-        if not os.path.exists(log):
-            stdout.write('log file is missing: %s\n' % log)
-            error_found=True
-        else:
-            logdata,rootname = xmltools.xml2dict(log,seproot=True)
-            if 'skipped' in logdata:
-                skipped=logdata['skipped']
-            if skipped == 'True':
-                if printskipped:
-                    stdout.write('Image was skipped: %s\n' % imfile)
-            else:
-                exit_status = int(logdata['exit_status'])
-                if exit_status != 0:
-                    stdout.write('In logfile %s\n    Found non-zero exit status: %s for %s on %s\n' % \
-                                 (log,exit_status,execbase,imfile))
-                    error_found=True
-
-        if not skipped:
-            also_must_exist = [stdo, stde] + outfiles
-            for me in also_must_exist:
-                if not os.path.exists(me):
-                    stdout.write('File is missing: %s\n' % me)
-                    error_found=True
-                   
-        if error_found:
-            tmp_fdict=fdict
-            tmp_fdict['exit_status'] = exit_status
-            badlist.append(tmp_fdict)
-    return badlist
-
-
-
-
-def CheckReadFitsFiles(cat_im_list):
-    import es_util as eu
-    i=0
-    for fdict in cat_im_list:
-        catfile=fdict['catfile']
-        imfile=fdict['imfile']
-        stdout.write('-----------------------------------------\n')
-        stdout.write('Reading file %i: %s\n' % (i,imfile))
-        try:
-            t,h = eu.mrdfits(imfile,ext=1)
-        except:
-            stdout.write('Failed to read file\n')
-        i+= 1   
-
-def CheckSomeFiles(run, executable, filepattern, outfile, rootdir=None):
-    from glob import glob
-    f=glob(filepattern)
-    flist=CombineFileLists(f)
-    badlist=ProcessSeRunImageListCheck(run,executable,flist=flist,rootdir=rootdir)
-
-    if len(badlist) > 0:
-        stdout.write('Writing bad list to file: %s\n' % outfile)
-        xmltools.dict2xml({'files':badlist}, outfile, roottag='filelist')
-    else:
-        stdout.write('No bad ones found\n')
-
-def CombineFileLists(fnames):
-    flist=[]
-    for f in fnames:
-        tmp, roottag=xmltools.xml2dict(f, seproot=True)
-        flist += tmp['files']
-
-    return flist
 
 def GetExternalVersion(version_command):
     """
