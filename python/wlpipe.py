@@ -14,7 +14,7 @@
         # run through image list and execute the code
         ProcessSeRunImageList(serun, executable, 
                           config_file=default_config, 
-                          imlist_filename=None,
+                          imlist_file=None,
                           flist=None,
                           badlist_file=None,
                           outdir=None,
@@ -142,14 +142,14 @@ def SelectLatestRedRun(image_list, return_dict=False):
         key = '%s-%02i' % (info['exposurename'], info['ccdnum'])
         if key in kinfo:
             stdout.write('found\n')
-            if info['run'] > kinfo[key]['run']:
-                s='replacing %s > %s\n' % (info['run'],kinfo[key]['run'])
+            if info['redrun'] > kinfo[key]['redrun']:
+                s='replacing %s > %s\n' % (info['redrun'],kinfo[key]['redrun'])
                 stdout.write(s)
-                kinfo[key]['run'] = info['run']
+                kinfo[key]['redrun'] = info['redrun']
                 kinfo[key]['file'] = imfile
         else:
             kinfo[key]={}
-            kinfo[key]['run'] = info['run']
+            kinfo[key]['redrun'] = info['redrun']
             kinfo[key]['file'] = imfile
 
     if return_dict:
@@ -237,7 +237,7 @@ def WlSeName(run, redrun, exposurename, ccdnum, wltype,
 
     wldir = WlSeDir(run, exposurename, rootdir=rootdir)
     name_front = redrun+'_'+os.path.basename(wldir)
-    name = '%s_%s_%02i_%s.%s' % (run,name_front, ccdnum, wltype_use, ext)
+    name = '%s_%s_%02i_%s.%s' % (run,name_front, int(ccdnum), wltype_use, ext)
     fullpath = os.path.join(wldir, name)
     return fullpath
 
@@ -315,7 +315,7 @@ def GenerateSeRunConfig():
     wlvers=GetWlVersion()
     tmvvers=GetTmvVersion()
 
-    runconfig={'run':run, 
+    runconfig={'serun':run, 
                'run_type':run_type,
                'fileclass': fileclass,
                'filetype':filetype,
@@ -356,6 +356,9 @@ def GenerateSeRunFileListAndScripts(run, band, rootdir=default_rootdir, badlist=
     This is very generic, you will also want to do do more finely grained 
     selections, especially when debugging.  In that case it may make more
     sense to run individual files than work in the full framework.
+
+    Note badlist is used as an input to the *processing* of this filelist
+    later, not in building the file list.
     """
 
     runconfig_dir=RunConfigDir(run)
@@ -574,7 +577,7 @@ default_config=os.path.join(default_proddir,'local/etc/wl_dc4.config')
 
 def ProcessSeRunImageList(serun, executable, 
                           config_file=default_config, 
-                          imlist_filename=None,
+                          imlist_file=None,
                           flist=None,
                           badlist_file=None,
                           outdir=None,
@@ -598,9 +601,9 @@ def ProcessSeRunImageList(serun, executable,
 
     # flist takes precedence
     if flist is None:
-        if imlist_filename is None:
-            raise ValueError,'Either enter flist or imlist_filename'
-        imdict,roottag = xmltools.xml2dict(imlist_filename, seproot=True)
+        if imlist_file is None:
+            raise ValueError,'Either enter flist or imlist_file'
+        imdict,roottag = xmltools.xml2dict(imlist_file, seproot=True)
         flist = imdict['files']
 
     if type(flist) != type([]):
@@ -677,90 +680,6 @@ def ProcessSeRunImageList(serun, executable,
     ptime(tmfinal-tm0, fobj=stderr)
 
 
-def ProcessSeRunImageListCheck(serun, executable, 
-                               imlist_filename=None, 
-                               flist=None,
-                               outdir=None,
-                               rootdir=None,
-                               printskipped=False,
-                               mohrify=True):
-
-    runconfig_file=RunConfigName(serun)
-    runconfig, roottag = xmltools.xml2dict(runconfig_file,seproot=True)
-    #VerifyRunConfig(runconfig)
-
-    # flist takes precedence
-    if flist is None:
-        if imlist_filename is None:
-            raise ValueError,'Either enter flist or imlist_filename'
-        imdict,roottag = xmltools.xml2dict(imlist_filename, seproot=True)
-        flist = imdict['files']
-
-    if type(flist) != type([]):
-        flist=[flist]
-
-    execbase=os.path.basename(executable)
-    badlist=[]
-    for fdict in flist:
-
-        imfile=fdict['imfile']
-        catfile=fdict['catfile']
-
-        exit_status=None
-        error_found=False
-
-        sefdict=GenerateSeFileNames(serun, imfile, 
-                                    mohrify=mohrify, 
-                                    rootdir=rootdir,
-                                    outdir=outdir)
-
-        # verify here that the outputs exist, exit codes, some other
-        # checks.  Need to case each executable.
-    
-        log=sefdict[execbase+'_log']
-        stdo=sefdict[execbase+'_stdout']
-        stde=sefdict[execbase+'_stderr']
-
-        if execbase == 'findstars':
-            outfiles=[sefdict['stars']]
-        elif execbase == 'measurepsf':
-            outfiles=[sefdict['psf'],sefdict['fitpsf']]
-        elif execbase == 'measureshear':
-            outfiles=[sefdict['shear']]
-        else:
-            raise ValueError,'Unknown executable: %s' % execbase
-
-        skipped=False
-        if not os.path.exists(log):
-            stdout.write('log file is missing: %s\n' % log)
-            error_found=True
-        else:
-            logdata,rootname = xmltools.xml2dict(log,seproot=True)
-            if 'skipped' in logdata:
-                skipped=logdata['skipped']
-            if skipped == 'True':
-                if printskipped:
-                    stdout.write('Image was skipped: %s\n' % imfile)
-            else:
-                exit_status = int(logdata['exit_status'])
-                if exit_status != 0:
-                    stdout.write('In logfile %s\n    Found non-zero exit status: %s for %s on %s\n' % \
-                                 (log,exit_status,execbase,imfile))
-                    error_found=True
-
-        if not skipped:
-            also_must_exist = [stdo, stde] + outfiles
-            for me in also_must_exist:
-                if not os.path.exists(me):
-                    stdout.write('File is missing: %s\n' % me)
-                    error_found=True
-                   
-        if error_found:
-            tmp_fdict=fdict
-            tmp_fdict['exit_status'] = exit_status
-            badlist.append(tmp_fdict)
-    return badlist
-
 
 def GetExternalVersion(version_command):
     """
@@ -797,7 +716,7 @@ def GenerateSeFileNames(serun, imfile,
     # output file names
     for wltype in se_filetypes:
         name= WlSeName(serun, 
-                       info['run'], 
+                       info['redrun'], 
                        info['exposurename'], 
                        info['ccdnum'], 
                        wltype,
@@ -811,7 +730,7 @@ def GenerateSeFileNames(serun, imfile,
     for executable in se_executables:
         key=executable+'_stdout'
         name = WlSeName(serun, 
-                        info['run'], 
+                        info['redrun'], 
                         info['exposurename'], 
                         info['ccdnum'], 
                         executable,
@@ -824,7 +743,7 @@ def GenerateSeFileNames(serun, imfile,
 
         key=executable+'_stderr'
         name = WlSeName(serun, 
-                        info['run'], 
+                        info['redrun'], 
                         info['exposurename'], 
                         info['ccdnum'], 
                         executable,
@@ -836,7 +755,7 @@ def GenerateSeFileNames(serun, imfile,
 
         key=executable+'_log'
         name = WlSeName(serun, 
-                        info['run'], 
+                        info['redrun'], 
                         info['exposurename'], 
                         info['ccdnum'], 
                         executable+'_log',
@@ -876,7 +795,7 @@ def GetInfoFromImagePath(imfile):
     odict['filename'] = imfile
     odict['root'] = root
     odict['DESDATA'] = DESDATA
-    odict['run'] = fsplit[2]
+    odict['redrun'] = fsplit[2]
     odict['exposurename'] = fsplit[4]
     odict['basename'] = fsplit[5]
 

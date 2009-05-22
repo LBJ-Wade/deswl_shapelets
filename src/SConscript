@@ -45,6 +45,8 @@ measureshear = env.Program('measureshear', 'MeasureShear.cpp')
 
 findstars = env.Program('findstars', 'FindStars.cpp')
 
+multishear = env.Program('multishear', 'MeasureMultiShear.cpp')
+
 fullpipe = env.Program('fullpipe', 'FullPipeline.cpp')
 
 testwl = env.Program('testwl', 'TestWL.cpp')
@@ -53,7 +55,7 @@ testnl = env.Program('testnl', 'TestNL.cpp')
 
 bin_install_dir = os.path.join(env['PREFIX'], 'bin')
 
-bin_targets = [measurepsf, measureshear, findstars, fullpipe]
+bin_targets = [measurepsf, measureshear, findstars, multishear, fullpipe]
 
 if 'install' in COMMAND_LINE_TARGETS:
     env.Alias(target='install',
