@@ -19,12 +19,11 @@ if not (xxdexit == None):
   print '         This is ok if you have not updated findstars.params.default'
 
 
-libwl_files="""Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp
-BVec.cpp EllipseSolver.cpp Pixel.cpp Transformation.cpp
-ConfigFile.cpp FittedPSF.cpp CrudeMeasure.cpp Name.cpp
-NLSolver.cpp Log.cpp Ellipse.cpp PsiHelper.cpp 
-FitsFile.cpp Histogram.cpp StarFinder.cpp StarCatalog.cpp
-PSFCatalog.cpp ShearCatalog.cpp InputCatalog.cpp ExecuteCommand.cpp
+libwl_files="""Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp BVec.cpp
+EllipseSolver.cpp Pixel.cpp Transformation.cpp ConfigFile.cpp FittedPSF.cpp
+CrudeMeasure.cpp Name.cpp NLSolver.cpp Log.cpp Ellipse.cpp PsiHelper.cpp
+FitsFile.cpp Histogram.cpp StarFinder.cpp StarCatalog.cpp PSFCatalog.cpp
+ShearCatalog.cpp InputCatalog.cpp ExecuteCommand.cpp CoaddCatalog.cpp
 WlVersion.cpp""".split()
 
 

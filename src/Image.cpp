@@ -70,15 +70,15 @@ void Image<T>::ReadFits(std::string filename, int hdu)
   int bitpix, naxes;
   long sizes[2];
   fits_get_img_param(fptr, int(2), &bitpix, &naxes, sizes, &fitserr);
-  xxdbg<<"done getimgparam"<<std::endl;
-  xxdbg<<"naxes = "<<naxes<<std::endl;
-  xxdbg<<"bitpix = "<<bitpix<<std::endl;
-  xxdbg<<"FLOAT_IMG = "<<FLOAT_IMG<<std::endl;
+  xdbg<<"done getimgparam"<<std::endl;
+  xdbg<<"naxes = "<<naxes<<std::endl;
+  xdbg<<"bitpix = "<<bitpix<<std::endl;
+  xdbg<<"FLOAT_IMG = "<<FLOAT_IMG<<std::endl;
   if (fitserr != 0) fits_report_error(stderr,fitserr);
   Assert(fitserr==0);
   //Assert(bitpix == FLOAT_IMG);
   Assert(naxes == 2);
-  xxdbg<<"sizes = "<<sizes[0]<<"  "<<sizes[1]<<std::endl;
+  xdbg<<"sizes = "<<sizes[0]<<"  "<<sizes[1]<<std::endl;
 
   xmin = 0;
   xmax = sizes[0];
@@ -93,18 +93,19 @@ void Image<T>::ReadFits(std::string filename, int hdu)
   Assert(DataType<T>());
   fits_read_pix(fptr,DataType<T>(),fpixel,long(xmax*ymax),0,
       sourcem->ptr(),&anynul,&fitserr);
-  xxdbg<<"done readpix  "<<fitserr<<std::endl;
-  xxdbg<<"anynul = "<<anynul<<std::endl;
-  xxdbg<<"fitserr = "<<fitserr<<std::endl;
+  xdbg<<"done readpix  "<<fitserr<<std::endl;
+  xdbg<<"anynul = "<<anynul<<std::endl;
+  xdbg<<"fitserr = "<<fitserr<<std::endl;
   if (fitserr != 0) fits_report_error(stderr,fitserr);
   Assert(fitserr==0);
 
   itsm.reset(new tmv::MatrixView<T>(sourcem->View()));
-  xxdbg<<"Done make matrixview"<<std::endl;
+  xdbg<<"Done make matrixview"<<std::endl;
 
   fits_close_file(fptr, &fitserr);
   if (fitserr != 0) fits_report_error(stderr,fitserr);
   Assert(fitserr==0);
+  xdbg<<"Leaving Image ReadFits"<<std::endl;
 }
 
 template <class T> 

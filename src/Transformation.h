@@ -55,6 +55,8 @@ class Transformation {
     void MakeInverseOf(const Transformation& t2, 
 	const Bounds& bounds, int order);
 
+
+
   private :
 
     std::auto_ptr<Function2D<double> > up;
@@ -63,6 +65,8 @@ class Transformation {
     std::auto_ptr<Function2D<double> > dudyp;
     std::auto_ptr<Function2D<double> > dvdxp;
     std::auto_ptr<Function2D<double> > dvdyp;
+
+
 };
 
 #endif

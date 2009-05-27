@@ -47,6 +47,12 @@ inline int BasicSetup(int argc, char **argv,
   }
 
   // Set root
+  if ( (!params.keyExists("root")) 
+      && params.keyExists("coaddcat_file") ) 
+  {
+    // just so the code doesn't crash
+    params["image_file"] = params["coaddcat_file"];
+  }
   SetRoot(params);
 
   // Finish setting up debugging with names that need root

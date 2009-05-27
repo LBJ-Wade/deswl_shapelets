@@ -3,10 +3,13 @@
 #include "FittedPSF.h"
 #include "TimeVars.h"
 #include "Log.h"
-#include "ShearCatalog.h"
+#include "CoaddCatalog.h"
 #include "InputCatalog.h"
 #include "BasicSetup.h"
 #include <sys/time.h>
+
+#include <iostream>
+#include <fstream>
 
 static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log) 
 {
@@ -14,10 +17,17 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
   timeval tp;
   double t1=0.,t2=0.;
 
+  CoaddCatalog coaddcat(params);
+
+  coaddcat.ReadPixelLists();
+
+  return;
+  /*
   if (timing) {
     gettimeofday(&tp,0);
     t1 = tp.tv_sec + tp.tv_usec/1.e6;
   }
+  */
 
   /*
   // Load image:
@@ -106,8 +116,8 @@ int main(int argc, char **argv) try
   std::string logfile = ""; // Default is to stdout
   if (params.keyExists("log_file") || params.keyExists("log_ext")) 
     logfile = Name(params,"log");
-  std::string shear_file = Name(params,"shear");
-  ShearLog log(logfile,shear_file,des_qa); 
+  std::string multishear_file = Name(params,"multishear");
+  ShearLog log(logfile,multishear_file,des_qa); 
 
   try {
     DoMeasureMultiShear(params,log);
@@ -199,7 +209,7 @@ catch (std::exception& e)
 }
 catch (...)
 {
-  std::cerr<<"Fatal error: Cought an exception.\n";
+  std::cerr<<"Fatal error: Caught an exception.\n";
   if (des_qa) 
     std::cout<<"STATUS5BEG Fatal error: unknown exception STATUS5END\n";
   return EXIT_FAILURE;
