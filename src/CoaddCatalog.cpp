@@ -84,12 +84,25 @@ void CoaddCatalog::ReadPixelLists()
 
   std::string image_file;
   std::string psf_file;
+
+  // these may not be present so I'll define them
   if (!params.keyExists("image_file")) {
     params.Append("image_file=junk");
   }
   if (!params.keyExists("weight_file")) {
     params.Append("weight_file=junk");
   }
+
+  if (!params.keyExists("dist_file")) {
+    params.Append("dist_file=junk");
+  }
+  if (!params.keyExists("dist_hdu")) {
+    params.Append("dist_hdu=junk");
+  }
+  if (!params.keyExists("dist_method")) {
+    params.Append("dist_method=junk");
+  }
+
   if (flistfile.is_open() ) {
     while (! flistfile.eof() ) {
 
@@ -101,6 +114,9 @@ void CoaddCatalog::ReadPixelLists()
 	std::cout<<"  Reading image file: "<<image_file<<"\n";
 	params["image_file"] = image_file;
 	params["weight_file"] = image_file;
+	params["dist_file"] = image_file;
+	params["dist_hdu"] = 2;
+	params["dist_method"] = "WCS";
 
 	std::auto_ptr<Image<double> > weight_im;
 	Image<double> im(params,weight_im);
@@ -118,9 +134,9 @@ void CoaddCatalog::ReadPixelLists()
 	for (int i=0; i<skypos.size(); i++) {
 	  // convert ra/dec to x,y in this image
 	
-	  Position pxy((double)maxi/2.,(double)maxj/2.);
+	  //Position pxy((double)maxi/2.,(double)maxj/2.);
 	  // This only works when we are testing the non-coadd catalog
-	  //Position pxy = pos[i];
+	  Position pxy = pos[i];
 
 	  std::cout<<"("<<skypos[i]<<")  initial: ("<<pxy<<")";
 	  if (!trans.InverseTransform(skypos[i], pxy) ) {
@@ -128,17 +144,17 @@ void CoaddCatalog::ReadPixelLists()
 	  }
 	  std::cout<<" final: ("<<pxy<<")\n";
 
+	  Position skypos_back;
+	  trans.Transform(pxy, skypos_back);
 
-	  //Position skypos_back;
-	  //trans.Transform(pxy, skypos_back);
-
-	  //std::cout<<"skypos in: ("<<skypos[i]<<") out: ("<<skypos_back<<")\n";
+	  std::cout<<"skypos in: ("<<skypos[i]<<") out: ("<<skypos_back<<")\n";
 
 	  double x=pxy.GetX();
 	  double y=pxy.GetY();
 	  if ( (x >= 0) && (x <= maxi) && (y >= 0) && (y <= maxj) ) {
 	    std::cout<<"("<<skypos[i]<<")  x="<<x<<" y="<<y<<"\n";
 	  }
+	  return;
 	}
       }
       // for now only first image

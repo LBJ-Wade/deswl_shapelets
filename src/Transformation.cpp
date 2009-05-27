@@ -283,7 +283,7 @@ static void ReadWCSFits(const std::string& filename, int hdu,
   Assert(cd.rowsize() == 2);
   Assert(cd.colsize() == 2);
 
-  xdbg<<"starting read wcs from fits\n";
+  xdbg<<"starting read wcs from fits "<<filename<<"\n";
 
   int status=0;
   fitsfile *fitsptr;
