@@ -1,5 +1,6 @@
 #include "CoaddCatalog.h"
 
+#define UseInverseTransform
 
 CoaddCatalog::CoaddCatalog(ConfigFile& _params):
   params(_params)
@@ -157,6 +158,11 @@ void CoaddCatalog::GetImagePixelLists()
   std::cout<<"Reading fitted psf\n";
   FittedPSF fitpsf(params);
 
+#ifdef UseInverseTransform
+  Transformation invtrans;
+  Bounds invb = invtrans.MakeInverseOf(trans,im.GetBounds(),4);
+#endif
+
   // loop over the the objects, if the object falls on the image get
   // the pixel list
 
@@ -167,7 +173,19 @@ void CoaddCatalog::GetImagePixelLists()
 
     // convert ra/dec to x,y in this image
 
+#ifdef UseInverseTransform
+    // Figure out a good starting point for the nonlinear solver:
+    Position pxy;
+    std::cout<<"skypos = "<<skypos[i]<<std::endl;
+    if (!invb.Includes(skypos[i])) {
+      dbg<<"skypos "<<skypos[i]<<" not in "<<invb<<std::endl;
+      continue;
+    }
+    invtrans.Transform(skypos[i],pxy);
+    std::cout<<"invtrans(skypos) = "<<pxy<<std::endl;
+#else
     Position pxy((double)maxi/2.,(double)maxj/2.);
+#endif
 
     if (!trans.InverseTransform(skypos[i], pxy) ) {
       throw std::runtime_error("transformation failed");

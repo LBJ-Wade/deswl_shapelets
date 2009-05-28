@@ -217,7 +217,7 @@ bool Transformation::InverseTransform(Position puv, Position& pxy) const
 // MakeInverseOf
 //
 
-void Transformation::MakeInverseOf(const Transformation& t2,
+Bounds Transformation::MakeInverseOf(const Transformation& t2,
     const Bounds& bounds, int order)
 {
   //int ngrid = 5*order;
@@ -253,6 +253,8 @@ void Transformation::MakeInverseOf(const Transformation& t2,
     }
   }
   xdbg<<"newbounds = "<<newbounds<<std::endl;
+  newbounds.AddBorder(10.);
+  xdbg<<"newbounds (add border of 10 pixels) => "<<newbounds<<std::endl;
   up.reset(new Legendre2D<double>(newbounds));
   up->SimpleFit(order,v_pos,v_x,use);
   vp.reset(new Legendre2D<double>(newbounds));
@@ -262,6 +264,8 @@ void Transformation::MakeInverseOf(const Transformation& t2,
   dudyp = up->DFDY();
   dvdxp = vp->DFDX();
   dvdyp = vp->DFDY();
+
+  return newbounds;
 }
 
 

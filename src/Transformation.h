@@ -52,7 +52,8 @@ class Transformation {
     // The resulting transformation will be defined over a square
     // region in (u,v) that corresponds to the region given by
     // bounds in (x,y).
-    void MakeInverseOf(const Transformation& t2, 
+    // It returns the valid bounds for the new inverse transformation.
+    Bounds MakeInverseOf(const Transformation& t2, 
 	const Bounds& bounds, int order);
 
 
