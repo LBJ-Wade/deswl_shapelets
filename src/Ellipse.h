@@ -40,6 +40,8 @@ class Ellipse {
 	BVec* bret=0, tmv::Matrix<double>* bcov=0);
 
     void CrudeMeasure(const std::vector<Pixel>& pix, double sigma);
+    void CrudeMeasure(
+	const std::vector<std::vector<Pixel> >& pix, double sigma);
 
     void PeakCentroid(const std::vector<Pixel>& pix, double maxr);
 

@@ -307,6 +307,19 @@ void Ellipse::CrudeMeasure(const std::vector<Pixel>& pix, double sigma)
   if (!fixmu) mu = newmu;
 }
 
+void Ellipse::CrudeMeasure(
+    const std::vector<std::vector<Pixel> >& pix, double sigma)
+{
+  std::vector<Pixel> allpix;
+  int n = 0;
+  for(int i=0;i<pix.size();i++) n += pix[i].size();
+  allpix.reserve(n);
+  for(int i=0;i<pix.size();i++)
+    for(int j=0;j<pix[i].size();j++)
+      allpix.push_back(pix[i][j]);
+  CrudeMeasure(allpix,sigma);
+}
+
 void Ellipse::PeakCentroid(const std::vector<Pixel>& pix, double maxr)
 {
   double peakI = 0.;
