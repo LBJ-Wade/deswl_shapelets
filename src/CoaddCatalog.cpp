@@ -70,6 +70,9 @@ void CoaddCatalog::ReadCatalog()
   table.column(dec_col).read(dec, start, end);
   for(long i=0;i<nrows;++i) {
     skypos[i] = Position(ra[i],dec[i]);
+    // The convention for Position is to use arcsec for everything.
+    // ra and dec come in as degrees.  So wee need to convert to arcsec.
+    skypos[i] *= 3600.;  // deg -> arcsec
   }
 
 }
@@ -154,7 +157,7 @@ void CoaddCatalog::ReadPixelLists()
 	  if ( (x >= 0) && (x <= maxi) && (y >= 0) && (y <= maxj) ) {
 	    std::cout<<"("<<skypos[i]<<")  x="<<x<<" y="<<y<<"\n";
 	  }
-	  return;
+	  //return;
 	}
       }
       // for now only first image

@@ -18,8 +18,10 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
   double t1=0.,t2=0.;
 
   CoaddCatalog coaddcat(params);
+  dbg<<"Made coaddcat\n";
 
   coaddcat.ReadPixelLists();
+  dbg<<"After ReadPixelLists\n";
 
   return;
   /*

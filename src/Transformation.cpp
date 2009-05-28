@@ -202,7 +202,7 @@ bool Transformation::InverseTransform(Position puv, Position& pxy) const
   solver.method = NLSolver::Dogleg;
   solver.ftol = 1.e-8;
   // E.S.S.
-  //solver.gtol = 0.;
+  solver.gtol = 0.;
   solver.min_step = 1.e-15;
   //solver.nlout = dbgout;
   //solver.verbose = true;
