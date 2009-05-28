@@ -108,7 +108,11 @@ void ShearLog::WriteLogToFitsHeader() const
 
   } 
   catch(...) 
-  { if (exitcode == 0) throw; }
+  {
+    // TODO: Remember to uncomment this when we are actually writing 
+    // the fits file before getting here.
+    //if (exitcode == 0) throw; 
+  }
 
 }
 
