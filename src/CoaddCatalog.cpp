@@ -160,16 +160,16 @@ void CoaddCatalog::ReadPixelLists()
 	  // This only works when we are testing the non-coadd catalog
 	  //Position pxy = pos[i];
 
-	  std::cout<<"("<<skypos[i]<<")  initial: ("<<pxy<<")";
+	  //std::cout<<"("<<skypos[i]<<")  initial: ("<<pxy<<")";
 	  if (!trans.InverseTransform(skypos[i], pxy) ) {
 	    std::cout<<"Transform failed ("<<skypos[i]<<")\n";
 	  }
-	  std::cout<<" final: ("<<pxy<<")\n";
+	  //std::cout<<" final: ("<<pxy<<")\n";
 
 	  Position skypos_back;
 	  trans.Transform(pxy, skypos_back);
 
-	  std::cout<<"skypos in: ("<<skypos[i]<<") out: ("<<skypos_back<<")\n";
+	  //std::cout<<"skypos in: ("<<skypos[i]<<") out: ("<<skypos_back<<")\n";
 
 	  double x=pxy.GetX();
 	  double y=pxy.GetY();
