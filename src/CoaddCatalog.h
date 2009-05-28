@@ -3,13 +3,15 @@
 
 #include <vector>
 #include <string>
+#include "TMV.h"
 #include "Bounds.h"
 #include "ConfigFile.h"
 #include "Image.h"
+#include "Pixel.h"
 #include "Transformation.h"
+#include "FittedPSF.h"
 #include "dbg.h"
 #include <CCfits/CCfits>
-#include "TMV.h"
 
 class CoaddCatalog 
 {
@@ -43,6 +45,12 @@ class CoaddCatalog
   private :
 
     ConfigFile params;
+
+    // For each object, we have a vector with an element for each image it
+    // is found in, and each of those elements is a vector if Pixel
+    std::vector<std::vector<std::vector<Pixel> > > pixlist;
+
+    std::vector<long> getpixlist_flags;
 
 };
 

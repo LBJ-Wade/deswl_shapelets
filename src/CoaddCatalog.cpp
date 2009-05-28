@@ -79,6 +79,10 @@ void CoaddCatalog::ReadCatalog()
 
 void CoaddCatalog::ReadPixelLists()
 {
+
+  pixlist.resize(skypos.size());
+  getpixlist_flags.resize(skypos.size());
+
   // source images and psf files
   std::string srclist = params.get("coadd_srclist");
 
@@ -106,6 +110,10 @@ void CoaddCatalog::ReadPixelLists()
     params.Append("dist_method=junk");
   }
 
+  if (!params.keyExists("fitpsf_file")) {
+    params.Append("fitpsf_file=junk");
+  }
+
   if (flistfile.is_open() ) {
     while (! flistfile.eof() ) {
 
@@ -121,6 +129,10 @@ void CoaddCatalog::ReadPixelLists()
 	params["dist_hdu"] = 2;
 	params["dist_method"] = "WCS";
 
+	params["fitpsf_file"] = psf_file;
+
+	double gal_aperture = params.get("shear_aperture");
+
 	std::auto_ptr<Image<double> > weight_im;
 	Image<double> im(params,weight_im);
 
@@ -131,15 +143,22 @@ void CoaddCatalog::ReadPixelLists()
 	std::cout<<"  Reading distortion\n";
 	Transformation trans(params);
 
+	// read the psf
+	std::cout<<"Reading fitted psf\n";
+	FittedPSF fitpsf(params);
+
 	// loop over the the objects, if the object falls on the image get
 	// the pixel list
 
 	for (int i=0; i<skypos.size(); i++) {
+
+	  long flag=0;
+
 	  // convert ra/dec to x,y in this image
 	
-	  //Position pxy((double)maxi/2.,(double)maxj/2.);
+	  Position pxy((double)maxi/2.,(double)maxj/2.);
 	  // This only works when we are testing the non-coadd catalog
-	  Position pxy = pos[i];
+	  //Position pxy = pos[i];
 
 	  std::cout<<"("<<skypos[i]<<")  initial: ("<<pxy<<")";
 	  if (!trans.InverseTransform(skypos[i], pxy) ) {
@@ -156,6 +175,49 @@ void CoaddCatalog::ReadPixelLists()
 	  double y=pxy.GetY();
 	  if ( (x >= 0) && (x <= maxi) && (y >= 0) && (y <= maxj) ) {
 	    std::cout<<"("<<skypos[i]<<")  x="<<x<<" y="<<y<<"\n";
+
+	    // Calculate the psf from the fitted-psf formula:
+	    std::vector<BVec> psf(1,
+		BVec(fitpsf.GetPSFOrder(), fitpsf.GetSigma()));
+	    try {
+	      dbg<<"for fittedpsf cen = "<<pxy<<std::endl;
+	      psf[0] = fitpsf(pxy);
+	    } catch (Range_error& e) {
+	      dbg<<"fittedpsf range error: \n";
+	      xdbg<<"p = "<<pxy<<", b = "<<e.b<<std::endl;
+	      flag |= FITTEDPSF_EXCEPTION;
+	      return;
+	    }
+
+
+	    double sigma_p=0;
+	    Assert(psf.size() > 0);
+	    for(size_t j=0;j<psf.size();j++) sigma_p += 1./psf[j].GetSigma();
+	    sigma_p = double(psf.size()) / sigma_p;
+
+	    // we are using the weight image so the noise is a dummy variable
+	    // same for gain
+	    double noise = 0.0;
+	    double gain=0.0;
+	    double sigma_obs = 2.*sigma_p;
+	    double galap = gal_aperture * sigma_obs;
+
+	    flag =0;
+	    std::vector<Pixel> tmp_pixlist;
+	    GetPixList(
+		im,
+		tmp_pixlist,
+		pxy,
+		sky[i],noise,
+		gain,weight_im.get(),trans,
+		galap,
+		flag);
+
+	    // make sure not (edge or < 10 pixels) although edge is already
+	    // checked above
+	    if (flag == 0) {
+	      pixlist[i].push_back(tmp_pixlist);
+	    }
 	  }
 	  //return;
 	}

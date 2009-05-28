@@ -204,7 +204,7 @@ bool Transformation::InverseTransform(Position puv, Position& pxy) const
   // E.S.S.
   solver.gtol = 0.;
   solver.min_step = 1.e-15;
-  //solver.nlout = dbgout;
+  solver.nlout = dbgout;
   //solver.verbose = true;
   bool success = solver.Solve(x,f);
   xdbg<<"In inverseTransform, final f = "<<f<<std::endl;
