@@ -23,6 +23,10 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
   coaddcat.ReadPixelLists();
   dbg<<"After ReadPixelLists\n";
 
+  // coaddcat.MeasureShears();
+  //dbg<<"After MeasureShears\n";
+
+
   return;
   /*
   if (timing) {

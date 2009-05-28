@@ -24,6 +24,9 @@ class CoaddCatalog
 
     void ReadCatalog();
     void ReadPixelLists();
+    void ReadFileLists();
+
+    void GetImagePixelLists();
 
     // Leave these public, rather than use Get and Set methods.
     std::vector<long> id;
@@ -51,6 +54,14 @@ class CoaddCatalog
     std::vector<std::vector<std::vector<Pixel> > > pixlist;
 
     std::vector<long> getpixlist_flags;
+
+    // number of images each object was found in
+    std::vector<int> nimages_found;
+    // number of images for which pixels were extracted
+    std::vector<int> nimages_gotpix;
+
+    std::vector<string> image_file_list;
+    std::vector<string> fitpsf_file_list;
 
 };
 
