@@ -7,16 +7,16 @@ Import('env')
 pipe = os.popen("xxd -i fitsparams.config fp.h")
 xxdexit = pipe.close()
 if not (xxdexit == None):
-  print 'Warning: xxd exit status = ',xxdexit
-  print '         Failure making file fp.h.'
-  print '         This is ok if you have not updated fitsparams.config'
+    print 'Warning: xxd exit status = ',xxdexit
+    print '         Failure making file fp.h.'
+    print '         This is ok if you have not updated fitsparams.config'
 
 pipe = os.popen("xxd -i findstars.params.default fspd.h")
 xxdexit = pipe.close()
 if not (xxdexit == None):
-  print 'Warning: xxd exit status = ',xxdexit
-  print '         Failure making file fspd.h.'
-  print '         This is ok if you have not updated findstars.params.default'
+    print 'Warning: xxd exit status = ',xxdexit
+    print '         Failure making file fspd.h.'
+    print '         This is ok if you have not updated findstars.params.default'
 
 
 libwl_files="""Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp BVec.cpp

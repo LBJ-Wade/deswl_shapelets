@@ -293,6 +293,7 @@ static void ReadWCSFits(const std::string& filename, int hdu,
   fitsfile *fitsptr;
   char temp[80];
 
+  dbg<<"Reading WCS from file: "<<filename<<std::endl;
   if (fits_open_file(&fitsptr,filename.c_str(),READONLY,&status))
     dbg<<"fits open file: "<<status<<std::endl;
   if (status) throw std::runtime_error(

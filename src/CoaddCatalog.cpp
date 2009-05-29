@@ -59,6 +59,7 @@ void CoaddCatalog::ReadCatalog()
 
   //dbg<<"  "<<noise_col<<std::endl;
   //table.column(noise_col).read(noise, start, end);
+  noise.resize(nrows,0);
 
   dbg<<"  "<<flags_col<<std::endl;
   table.column(flags_col).read(flags, start, end);
@@ -108,24 +109,39 @@ void CoaddCatalog::ReadFileLists()
 
 }
 
+void CoaddCatalog::Resize(int n)
+{
+  pixlist.clear();
+
+  pixlist.resize(n);
+
+  input_flags.resize(n,0);
+  nimages_found.resize(n, 0);
+  nimages_gotpix.resize(n, 0);
+
+  shear.resize(n);
+  nu.resize(n);
+  cov.resize(n);
+
+  int gal_order = params.get("shear_gal_order");
+  BVec shape_default(gal_order,1.);
+  shape_default.SetAllTo(DEFVALNEG);
+  shape.resize(n,shape_default);
+
+
+}
+
 void CoaddCatalog::ReadPixelLists()
 {
 
   ReadFileLists();
-
-  pixlist.clear();
-  pixlist.resize(skypos.size());
-
-  getpixlist_flags.resize(skypos.size(),0);
-  nimages_found.resize(skypos.size(), 0);
-  nimages_gotpix.resize(skypos.size(), 0);
 
   // Loop over the files and read pixel lists for each object
   for (int fnum=0; fnum<image_file_list.size(); fnum++) {
     std::string image_file = image_file_list[fnum];
     std::string psf_file = fitpsf_file_list[fnum];
 
-    std::cout<<"  Reading image file: "<<image_file<<"\n";
+    dbg<<"Reading image file: "<<image_file<<"\n";
     params["image_file"] = image_file;
     params["weight_file"] = image_file;
     params["dist_file"] = image_file;
@@ -135,6 +151,7 @@ void CoaddCatalog::ReadPixelLists()
     params["fitpsf_file"] = psf_file;
 
     GetImagePixelLists();
+    dbg<<"\n";
   }
 
 }
@@ -149,13 +166,12 @@ void CoaddCatalog::GetImagePixelLists()
 
   int maxi=im.GetMaxI();
   int maxj=im.GetMaxJ();
-  std::cout<<"MaxI: "<<maxi<<" MaxJ: "<<maxj<<"\n";
+  xdbg<<"MaxI: "<<maxi<<" MaxJ: "<<maxj<<"\n";
 
-  std::cout<<"  Reading distortion\n";
+  // read transformation between ra/dec and x/y
   Transformation trans(params);
 
   // read the psf
-  std::cout<<"Reading fitted psf\n";
   FittedPSF fitpsf(params);
 
 #ifdef UseInverseTransform
@@ -169,6 +185,7 @@ void CoaddCatalog::GetImagePixelLists()
   double noise = 0.0;
   double gain=0.0;
   double gal_aperture = params.get("shear_aperture");
+  dbg<<"Extracting pixel lists\n";
   for (int i=0; i<skypos.size(); i++) {
 
     // convert ra/dec to x,y in this image
@@ -176,13 +193,13 @@ void CoaddCatalog::GetImagePixelLists()
 #ifdef UseInverseTransform
     // Figure out a good starting point for the nonlinear solver:
     Position pxy;
-    std::cout<<"skypos = "<<skypos[i]<<std::endl;
+    xdbg<<"skypos = "<<skypos[i]<<std::endl;
     if (!invb.Includes(skypos[i])) {
-      dbg<<"skypos "<<skypos[i]<<" not in "<<invb<<std::endl;
+      xdbg<<"skypos "<<skypos[i]<<" not in "<<invb<<std::endl;
       continue;
     }
     invtrans.Transform(skypos[i],pxy);
-    std::cout<<"invtrans(skypos) = "<<pxy<<std::endl;
+    xdbg<<"invtrans(skypos) = "<<pxy<<std::endl;
 #else
     Position pxy((double)maxi/2.,(double)maxj/2.);
 #endif
@@ -194,7 +211,7 @@ void CoaddCatalog::GetImagePixelLists()
     double x=pxy.GetX();
     double y=pxy.GetY();
     if ( (x >= 0) && (x <= maxi) && (y >= 0) && (y <= maxj) ) {
-      dbg<<"("<<skypos[i]<<")  x="<<x<<" y="<<y<<"\n";
+      xdbg<<"("<<skypos[i]<<")  x="<<x<<" y="<<y<<"\n";
 
       nimages_found[i]++;
 
@@ -202,12 +219,12 @@ void CoaddCatalog::GetImagePixelLists()
       std::vector<BVec> psf(1,
 	  BVec(fitpsf.GetPSFOrder(), fitpsf.GetSigma()));
       try {
-	dbg<<"for fittedpsf cen = "<<pxy<<std::endl;
+	xdbg<<"for fittedpsf cen = "<<pxy<<std::endl;
 	psf[0] = fitpsf(pxy);
       } catch (Range_error& e) {
-	dbg<<"fittedpsf range error: \n";
+	xdbg<<"fittedpsf range error: \n";
 	xdbg<<"p = "<<pxy<<", b = "<<e.b<<std::endl;
-	getpixlist_flags[i] |= FITTEDPSF_EXCEPTION;
+	input_flags[i] |= FITTEDPSF_EXCEPTION;
 	continue;
       }
 
@@ -233,13 +250,168 @@ void CoaddCatalog::GetImagePixelLists()
 	pixlist[i].push_back(tmp_pixlist);
 	nimages_gotpix[i]++;
       } else {
-	getpixlist_flags[i] |= flag;
+	input_flags[i] |= flag;
       }
     }
-  }
+  } // loop over objects
+  dbg<<"Done extracting pixel lists\n";
 }
 
 void CoaddCatalog::MeasureMultiShears()
 {
+
+}
+
+
+void CoaddCatalog::WriteFits() const
+{
+  std::string file=Name(params, "multishear");
+
+  // ! means overwrite existing file
+  CCfits::FITS fits("!"+file, CCfits::Write);
+
+  const int nfields=20;
+  std::vector<string> colnames(nfields);
+  std::vector<string> colfmts(nfields);
+  std::vector<string> colunits(nfields);
+
+  colnames[0] = params.get("coaddshear_id_col");
+  colnames[1] = params.get("coaddshear_x_col");
+  colnames[2] = params.get("coaddshear_y_col");
+  colnames[3] = params.get("coaddshear_sky_col");
+  colnames[4] = params.get("coaddshear_noise_col");
+  colnames[5] = params.get("coaddshear_flags_col");
+  colnames[6] = params.get("coaddshear_ra_col");
+  colnames[7] = params.get("coaddshear_dec_col");
+  colnames[8] = params.get("coaddshear_shear1_col");
+  colnames[9] = params.get("coaddshear_shear2_col");
+  colnames[10] = params.get("coaddshear_nu_col");
+  colnames[11] = params.get("coaddshear_cov00_col");
+  colnames[12] = params.get("coaddshear_cov01_col");
+  colnames[13] = params.get("coaddshear_cov11_col");
+  colnames[14] = params.get("coaddshear_order_col");
+  colnames[15] = params.get("coaddshear_sigma_col");
+  colnames[16] = params.get("coaddshear_coeffs_col");
+
+  colnames[17] = params.get("coaddshear_nimages_found_col");
+  colnames[18] = params.get("coaddshear_nimages_gotpix_col");
+  colnames[19] = params.get("coaddshear_input_flags_col");
+
+  int ncoeff = shape[0].size();
+  dbg<<"ncoeff = "<<ncoeff<<std::endl;
+  std::stringstream coeff_form;
+  coeff_form << ncoeff << "D";
+  colfmts[16] = coeff_form.str(); // shapelet coeffs
+ 
+  colfmts[0] = "1J"; // id
+  colfmts[1] = "1D"; // x
+  colfmts[2] = "1D"; // y
+  colfmts[3] = "1D"; // sky
+  colfmts[4] = "1D"; // noise
+  colfmts[5] = "1J"; // flags
+  colfmts[6] = "1D"; // ra
+  colfmts[7] = "1D"; // dec
+  colfmts[8] = "1D"; // shear1
+  colfmts[9] = "1D"; // shear2
+  colfmts[10] = "1D"; // nu
+  colfmts[11] = "1D"; // cov00
+  colfmts[12] = "1D"; // cov01
+  colfmts[13] = "1D"; // cov11
+  colfmts[14] = "1J"; // order
+  colfmts[15] = "1D"; // sigma
+
+  colfmts[17] = "1J"; // nimages_found
+  colfmts[18] = "1J"; // nimages_gotpix
+  colfmts[19] = "1J"; // input_flags
+
+
+  dbg<<"Before Create table"<<std::endl;
+  CCfits::Table* table;
+  table = fits.addTable("coadd_shearcat",size(),colnames,colfmts,colunits);
+
+  // Header keywords
+  std::string tmvvers = tmv::TMV_Version();
+  std::string wlvers = WlVersion();
+
+  table->addKey("tmvvers", tmvvers, "version of TMV code");
+  table->addKey("wlvers", wlvers, "version of weak lensing code");
+
+  std::string str;
+  double dbl;
+  int intgr;
+  //CCfitsWriteParKey(params, table, "version", str);
+  CCfitsWriteParKey(params, table, "noise_method", str);
+  CCfitsWriteParKey(params, table, "dist_method", str);
+
+  CCfitsWriteParKey(params, table, "shear_aperture", dbl);
+  CCfitsWriteParKey(params, table, "shear_max_aperture", dbl);
+  CCfitsWriteParKey(params, table, "shear_gal_order", intgr);
+  CCfitsWriteParKey(params, table, "shear_gal_order2", intgr);
+  CCfitsWriteParKey(params, table, "shear_min_gal_size", dbl);
+  CCfitsWriteParKey(params, table, "shear_f_psf", dbl);
+
+  // data
+  // make vector copies for writing
+  std::vector<double> x(pos.size());
+  std::vector<double> y(pos.size());
+  std::vector<double> ra(size());
+  std::vector<double> dec(size());
+  std::vector<double> shear1(size());
+  std::vector<double> shear2(size());
+  std::vector<double> cov00(size());
+  std::vector<double> cov01(size());
+
+  for(size_t i=0;i<pos.size();i++) {
+    x[i] = pos[i].GetX();
+    y[i] = pos[i].GetY();
+  }
+  for(size_t i=0;i<size();i++) { 
+    ra[i] = skypos[i].GetX();
+    dec[i] = skypos[i].GetY();
+  }
+  for(size_t i=0;i<size();i++) { 
+    shear1[i] = real(shear[i]);
+    shear2[i] = imag(shear[i]);
+  }
+  std::vector<double> cov11(size());
+  for(size_t i=0;i<size();i++) { 
+    cov00[i] = cov[i](0,0);
+    cov01[i] = cov[i](0,1);
+    cov11[i] = cov[i](1,1);
+  }
+
+  int startrow=1;
+
+  table->column(colnames[0]).write(id,startrow);
+  table->column(colnames[1]).write(x,startrow);
+  table->column(colnames[2]).write(y,startrow);
+  table->column(colnames[3]).write(sky,startrow);
+  table->column(colnames[4]).write(noise,startrow);
+  table->column(colnames[5]).write(flags,startrow);
+  table->column(colnames[6]).write(ra,startrow);
+  table->column(colnames[7]).write(dec,startrow);
+  table->column(colnames[8]).write(shear1,startrow);
+  table->column(colnames[9]).write(shear2,startrow);
+  table->column(colnames[10]).write(nu,startrow);
+  table->column(colnames[11]).write(cov00,startrow);
+  table->column(colnames[12]).write(cov01,startrow);
+  table->column(colnames[13]).write(cov11,startrow);
+
+  for (size_t i=0; i<size(); i++) {
+    size_t row = i+1;
+    long b_order = shape[i].GetOrder();
+    double b_sigma = shape[i].GetSigma();
+
+    table->column(colnames[14]).write(&b_order,1,row);
+    table->column(colnames[15]).write(&b_sigma,1,row);
+    double* cptr = (double *) shape[i].cptr();
+    table->column(colnames[16]).write(cptr, ncoeff, 1, row);
+
+  }
+
+  table->column(colnames[17]).write(nimages_found,startrow);
+  table->column(colnames[18]).write(nimages_gotpix,startrow);
+  table->column(colnames[19]).write(input_flags,startrow);
+
 
 }

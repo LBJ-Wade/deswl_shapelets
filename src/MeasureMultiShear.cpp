@@ -18,11 +18,14 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
   double t1=0.,t2=0.;
 
   CoaddCatalog coaddcat(params);
+  coaddcat.Resize(coaddcat.skypos.size());
   dbg<<"Made coaddcat\n";
 
   coaddcat.ReadPixelLists();
   dbg<<"After ReadPixelLists\n";
 
+  coaddcat.WriteFits();
+  dbg<<"After WriteFits\n";
   // coaddcat.MeasureShears();
   //dbg<<"After MeasureShears\n";
 
