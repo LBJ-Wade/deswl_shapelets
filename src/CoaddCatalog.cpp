@@ -99,7 +99,7 @@ void CoaddCatalog::ReadFileLists()
 	fitpsf_file_list.push_back(psf_filename);
 
       } else {
-	throw std::runtime_error("Failed to read from file");
+	throw std::runtime_error("Failed to read from source list file");
       }
     }
   }
@@ -237,4 +237,9 @@ void CoaddCatalog::GetImagePixelLists()
       }
     }
   }
+}
+
+void CoaddCatalog::MeasureMultiShears()
+{
+
 }

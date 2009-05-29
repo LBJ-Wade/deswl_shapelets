@@ -28,6 +28,8 @@ class CoaddCatalog
 
     void GetImagePixelLists();
 
+    void MeasureMultiShears();
+
     // Leave these public, rather than use Get and Set methods.
     std::vector<long> id;
     std::vector<Position> pos;
