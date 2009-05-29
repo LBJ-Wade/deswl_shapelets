@@ -13,9 +13,9 @@
 
 static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log) 
 {
-  bool timing = params.read("timing",false);
-  timeval tp;
-  double t1=0.,t2=0.;
+  //bool timing = params.read("timing",false);
+  //timeval tp;
+  //double t1=0.,t2=0.;
 
   CoaddCatalog coaddcat(params);
   coaddcat.Resize(coaddcat.skypos.size());
@@ -24,11 +24,11 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
   coaddcat.ReadPixelLists();
   dbg<<"After ReadPixelLists\n";
 
+  coaddcat.MeasureMultiShears(log);
+  dbg<<"After MeasureShears\n";
+
   coaddcat.WriteFits();
   dbg<<"After WriteFits\n";
-  // coaddcat.MeasureShears();
-  //dbg<<"After MeasureShears\n";
-
 
   return;
   /*

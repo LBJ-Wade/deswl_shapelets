@@ -312,10 +312,10 @@ void Ellipse::CrudeMeasure(
 {
   std::vector<Pixel> allpix;
   int n = 0;
-  for(int i=0;i<pix.size();i++) n += pix[i].size();
+  for(size_t i=0;i<pix.size();i++) n += pix[i].size();
   allpix.reserve(n);
-  for(int i=0;i<pix.size();i++)
-    for(int j=0;j<pix[i].size();j++)
+  for(size_t i=0;i<pix.size();i++)
+    for(size_t j=0;j<pix[i].size();j++)
       allpix.push_back(pix[i][j]);
   CrudeMeasure(allpix,sigma);
 }

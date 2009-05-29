@@ -20,4 +20,8 @@ void GetPixList(const Image<double>& im, std::vector<Pixel>& pix,
     const Image<double>* wt_im, const Transformation& trans,
     double aperture, long& flag);
 
+void GetSubPixList(std::vector<Pixel>& pix,
+    const std::vector<Pixel>& allpix,
+    const Position cen, double aperture, long& flag);
+
 #endif

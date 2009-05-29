@@ -80,3 +80,20 @@ void GetPixList(const Image<double>& im, std::vector<Pixel>& pix,
   if (pix.size() < 10) flag |= LT10PIX;
 }
 
+void GetSubPixList(std::vector<Pixel>& pix, const std::vector<Pixel>& allpix,
+    const Position cen, double aperture, long& flag)
+{
+  // Select a subset of allpix that are within the given aperture
+  xdbg<<"Start GetSubPixList\n";
+
+  double apsq = aperture*aperture;
+
+  pix.clear();
+  for(size_t i=0;i<allpix.size();++i) 
+  {
+    if (std::norm(allpix[i].z - cen) < apsq)
+      pix.push_back(allpix[i]);
+  }
+  xdbg<<"done: npix = "<<pix.size()<<std::endl;
+  if (pix.size() < 10) flag |= LT10PIX;
+}

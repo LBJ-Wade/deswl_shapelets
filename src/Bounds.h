@@ -25,6 +25,8 @@ class Position
     operator std::complex<double>() { return z; }
     std::complex<double> operator-(const Position& p2) const 
     { return z - p2.z; }
+    std::complex<double> operator-(const std::complex<double>& z2) const 
+    { return z - z2; }
     Position& operator*=(double x) 
     { z *= x; return *this; }
     Position& operator/=(double x) 
@@ -43,6 +45,10 @@ class Position
     std::complex<double> z;
 
 }; // Position
+
+inline std::complex<double> operator-(
+    const std::complex<double>& z1, const Position& p2)
+{ return (p2-z1); }
 
 inline std::ostream& operator<<(std::ostream& os, const Position& pos)
 { pos.Write(os); return os; }

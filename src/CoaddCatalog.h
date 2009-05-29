@@ -21,8 +21,10 @@ class CoaddCatalog
   public :
 
     CoaddCatalog(ConfigFile& _params);
+    ~CoaddCatalog();
 
     size_t size() const { return pos.size(); }
+    size_t NImages() const { return fitpsf.size(); }
 
     void ReadCatalog();
     void Resize(int n);
@@ -32,7 +34,7 @@ class CoaddCatalog
 
     void GetImagePixelLists();
 
-    void MeasureMultiShears();
+    int MeasureMultiShears(ShearLog& log);
 
     void WriteFits() const;
 
@@ -51,6 +53,11 @@ class CoaddCatalog
 
     std::vector<float> mag;
     std::vector<float> mag_err;
+
+    // These next two have length NImages(), rather than size()
+    // (aka the number of objects)
+    std::vector<const Transformation*> trans;
+    std::vector<const FittedPSF*> fitpsf;
 
     //
     // shear data
@@ -77,6 +84,10 @@ class CoaddCatalog
     // For each object, we have a vector with an element for each image it
     // is found in, and each of those elements is a vector if Pixel
     std::vector<std::vector<std::vector<Pixel> > > pixlist;
+    // Which image index corresponds to each pixel list?
+    std::vector<std::vector<int> > image_indexlist;
+    // The skypos projected back onto the source image
+    std::vector<std::vector<Position> > image_cenlist;
 
     std::vector<string> image_file_list;
     std::vector<string> fitpsf_file_list;
