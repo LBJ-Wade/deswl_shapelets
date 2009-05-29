@@ -14,6 +14,8 @@
 
 #define UseInverseTransform
 
+//#define OnlyNImages 10
+
 CoaddCatalog::CoaddCatalog(ConfigFile& _params):
   params(_params)
 {
@@ -88,11 +90,13 @@ void CoaddCatalog::ReadCatalog()
   table.column(flags_col).read(flags, start, end);
 
   dbg<<"  "<<ra_col<<"  "<<dec_col<<std::endl;
-  skypos.resize(nrows);
+
   std::vector<double> ra;
   std::vector<double> dec;
   table.column(ra_col).read(ra, start, end);
   table.column(dec_col).read(dec, start, end);
+
+  skypos.resize(nrows);
   for(long i=0;i<nrows;++i) {
     skypos[i] = Position(ra[i],dec[i]);
     // The convention for Position is to use arcsec for everything.
@@ -135,11 +139,13 @@ void CoaddCatalog::ReadFileLists()
 void CoaddCatalog::Resize(int n)
 {
   pixlist.clear();
-
   pixlist.resize(n);
 
   image_indexlist.clear();
-  image_indexlist.resize(skypos.size());
+  image_indexlist.resize(n);
+
+  image_cenlist.clear();
+  image_cenlist.resize(n);
 
   input_flags.resize(n,0);
   nimages_found.resize(n, 0);
@@ -178,6 +184,10 @@ void CoaddCatalog::ReadPixelLists()
 
     GetImagePixelLists();
     dbg<<"\n";
+
+#ifdef OnlyNImages
+    if (fnum + 1 >= OnlyNImages) break;
+#endif
   }
 
 }
@@ -280,10 +290,16 @@ void CoaddCatalog::GetImagePixelLists()
       GetPixList(
 	  im,tmp_pixlist,pxy,
 	  sky[i],noise,gain,weight_im.get(),trans1,max_aperture,flag);
+      xdbg<<"Got pixellist, flag = "<<flag<<std::endl;
 
       // make sure not (edge or < 10 pixels) although edge is already
       // checked above
       if (flag == 0) {
+	dbg<<"i = "<<i<<", pixlist.size = "<<pixlist.size()<<std::endl;
+	Assert(i < pixlist.size());
+	Assert(i < image_indexlist.size());
+	Assert(i < image_cenlist.size());
+	Assert(i < nimages_gotpix.size());
 	pixlist[i].push_back(tmp_pixlist);
 	image_indexlist[i].push_back(image_index);
 	image_cenlist[i].push_back(pxy);
@@ -291,6 +307,9 @@ void CoaddCatalog::GetImagePixelLists()
       } else {
 	input_flags[i] |= flag;
       }
+      xdbg<<"added pixlist to main list\n";
+    } else {
+      xdbg<<"x,y not in valid bounds\n";
     }
   } // loop over objects
   dbg<<"Done extracting pixel lists\n";
@@ -313,6 +332,13 @@ void MeasureMultiShear1(
   //      In which case most of the overlap between this and 
   //      MeasureSingleShear1 would not have to be duplicated.
 
+  dbg<<"Start MeasureMultiShear1:\n";
+  dbg<<"cen = "<<cen<<std::endl;
+  dbg<<"allpix.size = "<<allpix.size()<<std::endl;
+  for(size_t i=0;i<allpix.size();++i)
+    dbg<<"allpix["<<i<<"].size = "<<allpix[i].size()<<std::endl;
+  dbg<<"psf.size = "<<psf.size()<<std::endl;
+
   // Find harmonic mean of psf sizes:
   // MJ: Is it correct to use the harmonic mean of sigma^2?
   double sigma_p = 0.;
@@ -333,7 +359,7 @@ void MeasureMultiShear1(
   std::vector<std::vector<Pixel> > pix(allpix.size());
   int npix = 0;
   for(size_t i=0;i<pix.size();++i) {
-    GetSubPixList(pix[i],allpix[i],cen,galap,flag);
+    GetSubPixList(pix[i],allpix[i],galap,flag);
     npix += pix[i].size();
   }
   xdbg<<"npix = "<<npix<<std::endl;
@@ -399,7 +425,7 @@ void MeasureMultiShear1(
 
   npix = 0;
   for(size_t i=0;i<pix.size();++i) {
-    GetSubPixList(pix[i],allpix[i],cen,galap,flag);
+    GetSubPixList(pix[i],allpix[i],galap,flag);
     npix += pix[i].size();
   }
 
@@ -562,7 +588,7 @@ void MeasureMultiShear(
   Assert(fitpsf.size() > 0);
   // Calculate the psf from the fitted-psf formula:
   int psforder = fitpsf[0]->GetPSFOrder();
-  int psfsigma = fitpsf[0]->GetSigma();
+  double psfsigma = fitpsf[0]->GetSigma();
   for(size_t k=1;k<fitpsf.size();++k) 
     // The psforder should be the same in all the FittedPSF's,
     // but the sigma's are allowed to vary.
@@ -602,6 +628,8 @@ void MeasureMultiShear(
     dbg<<e<<std::endl;
     log.nf_tmverror++;
     flag |= TMV_EXCEPTION;
+  } catch (std::runtime_error) {
+    throw;
   } catch (...) {
     dbg<<"unkown exception in MeasureSingleShear\n";
     log.nf_othererror++;
@@ -662,6 +690,7 @@ int CoaddCatalog::MeasureMultiShears(ShearLog& log)
 	if (i < SINGLEGAL) continue;
 	if (i > SINGLEGAL) break;
 #endif
+
 #ifdef _OPENMP
 #pragma omp critical (output)
 #endif
@@ -671,10 +700,18 @@ int CoaddCatalog::MeasureMultiShears(ShearLog& log)
 	  dbg<<"pos[i] = "<<pos[i]<<std::endl;
 	}
 
+	if (pixlist[i].size() == 0) 
+	{
+	  dbg<<"no valid single epoch images.\n";
+	  flags[i] = NO_SINGLE_EPOCH_IMAGES;
+	  continue;
+	}
+
 	// Start with an error code of unknown failure, in case
 	// something happens that I don't detect as an error.
 	flags[i] = UNKNOWN_FAILURE;
 	long flag1 = 0;
+
 	MeasureMultiShear(
 	    // Input data:
 	    skypos[i], pixlist[i], image_indexlist[i], image_cenlist[i],

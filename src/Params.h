@@ -29,6 +29,7 @@
 #define SHAPE_LOCAL_MIN         0x40000
 #define SHAPE_POOR_FIT          0x80000
 #define SHEAR_BAD_COVAR         0x100000
+#define NO_SINGLE_EPOCH_IMAGES	0x200000
 
 
 //

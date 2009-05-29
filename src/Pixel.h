@@ -22,6 +22,6 @@ void GetPixList(const Image<double>& im, std::vector<Pixel>& pix,
 
 void GetSubPixList(std::vector<Pixel>& pix,
     const std::vector<Pixel>& allpix,
-    const Position cen, double aperture, long& flag);
+    double aperture, long& flag);
 
 #endif
