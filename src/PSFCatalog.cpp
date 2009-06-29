@@ -109,7 +109,7 @@ double PSFCatalog::EstimateSigma(const Image<double>& im,
   // Calculate a good value of sigma to use:
   // (For this calculation, psfap is psf_aperture * 1 arcsec.)
   double gain = params.read("gain",0.);
-  double psfap = params.get("psf_aperture");
+  double psfap = params.read<double>("psf_aperture");
   dbg<<"psfap = "<<psfap<<std::endl;
 
   int nstars = pos.size();
@@ -142,7 +142,7 @@ double PSFCatalog::EstimateSigma(const Image<double>& im,
     msgout<<"nstars = "<<nstars<<", but only "<<count<<" successful measurements.\n";
     std::string msg = msgout.str();
     dbg<<msg<<std::endl;
-    throw std::runtime_error(msg);
+    throw ProcessingError(msg);
   }
   meanmu /= count;
   xdbg<<"meanmu = "<<meanmu<<std::endl;
@@ -157,11 +157,11 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
     const Transformation& trans, double sigma_p, PSFLog& log)
 {
   // Read some needed parameters
-  int psforder = params.get("psf_order");
+  int psforder = params.read<int>("psf_order");
   bool output_dots = params.read("output_dots",false);
   bool desqa = params.read("des_qa",false);
   double gain = params.read("image_gain",0.);
-  double psfap = params.get("psf_aperture");
+  double psfap = params.read<double>("psf_aperture");
   dbg<<"psfap = "<<psfap<<std::endl;
   psfap *= sigma_p;  // arcsec
   dbg<<"psfap => "<<psfap<<std::endl;
@@ -308,7 +308,7 @@ PSFCatalog::PSFCatalog(const StarCatalog& starcat,
 
   // Set up a default psf vector for output when an object measurement
   // fails
-  long psf_order = params.get("psf_order");
+  long psf_order = params.read<long>("psf_order");
   BVec psf_default(psf_order,1.);
   for (size_t i=0; i<psf_default.size(); i++) {
     psf_default[i] = DEFVALNEG;
@@ -453,10 +453,7 @@ void PSFCatalog::WriteFits(std::string file) const
     double* cptr = (double *) psf[i].cptr();
     table->column(colnames[9]).write(cptr, ncoeff, 1, row);
   }
-
 }
-
-
 
 void PSFCatalog::WriteAscii(std::string file, std::string delim) const
 {
@@ -470,7 +467,7 @@ void PSFCatalog::WriteAscii(std::string file, std::string delim) const
 
   std::ofstream fout(file.c_str());
   if (!fout) {
-    throw std::runtime_error("Error opening psf file");
+    throw WriteError("Error opening psf file"+file);
   }
 
   Form hexform; hexform.hex().trail(0);
@@ -509,17 +506,29 @@ void PSFCatalog::Write() const
     else if (file.find("fits") != std::string::npos) 
       fitsio = true;
 
-    if (fitsio) {
-      WriteFits(file);
-    } else {
-      std::string delim = "  ";
-      if (params.keyExists("psf_delim")) {
-	std::vector<std::string> delims = params["psf_delim"];
-	Assert(delims.size() == files.size());
-	delim = delims[i];
+    try
+    {
+      if (fitsio) {
+	WriteFits(file);
+      } else {
+	std::string delim = "  ";
+	if (params.keyExists("psf_delim")) {
+	  std::vector<std::string> delims = params["psf_delim"];
+	  Assert(delims.size() == files.size());
+	  delim = delims[i];
+	}
+	else if (file.find("csv") != std::string::npos) delim = ",";
+	WriteAscii(file,delim);
       }
-      else if (file.find("csv") != std::string::npos) delim = ",";
-      WriteAscii(file,delim);
+    }
+    catch (std::runtime_error& e)
+    {
+      throw WriteError("Error writing to "+file+" -- caught error\n" +
+	  e.what());
+    }
+    catch (...)
+    {
+      throw WriteError("Error writing to "+file+" -- caught unknown error");
     }
   }
   dbg<<"Done Write PSFCatalog\n";
@@ -529,7 +538,7 @@ void PSFCatalog::ReadFits(std::string file)
 {
   int hdu=2;
   if (params.keyExists("psf_hdu")) {
-    hdu = params.get("psf_hdu");
+    hdu = params.read<int>("psf_hdu");
   }
 
   dbg<<"Opening FITS file at hdu "<<hdu<<std::endl;
@@ -542,7 +551,7 @@ void PSFCatalog::ReadFits(std::string file)
 
   dbg<<"  nrows = "<<nrows<<std::endl;
   if (nrows <= 0) {
-    throw std::runtime_error("nrows must be > 0");
+    throw ReadError("PSFCatalog found to have 0 rows.  Must have > 0 rows.");
   }
 
   std::string id_col=params.get("psf_id_col");
@@ -618,7 +627,7 @@ void PSFCatalog::ReadAscii(std::string file, std::string delim)
 {
   std::ifstream fin(file.c_str());
   if (!fin) {
-    throw std::runtime_error("Error opening psf file");
+    throw ReadError("Error opening psf file"+file);
   }
 
   id.clear(); pos.clear(); sky.clear(); noise.clear(); flags.clear();
@@ -654,8 +663,7 @@ void PSFCatalog::ReadAscii(std::string file, std::string delim)
       // Since I don't really expect a multicharacter delimiter to
       // be used ever, I'm just going to throw an exception here 
       // if we do need it, and I can write the workaround then.
-      throw std::runtime_error(
-	  "ReadAscii delimiter must be a single character");
+      throw ParameterError("ReadAscii delimiter must be a single character");
     }
     char d = delim[0];
     ConvertibleString temp;
@@ -696,13 +704,29 @@ void PSFCatalog::Read()
   else if (file.find("fits") != std::string::npos) 
     fitsio = true;
 
-  if (fitsio) {
-    ReadFits(file);
-  } else {
-    std::string delim = "  ";
-    if (params.keyExists("psf_delim")) delim = params["psf_delim"];
-    else if (file.find("csv") != std::string::npos) delim = ",";
-    ReadAscii(file,delim);
+  if (!FileExists(file))
+  {
+    throw FileNotFound(file);
+  }
+  try 
+  {
+    if (fitsio) {
+      ReadFits(file);
+    } else {
+      std::string delim = "  ";
+      if (params.keyExists("psf_delim")) delim = params["psf_delim"];
+      else if (file.find("csv") != std::string::npos) delim = ",";
+      ReadAscii(file,delim);
+    }
+  }
+  catch (std::runtime_error& e)
+  {
+    throw ReadError("Error reading from "+file+" -- caught error\n" +
+	e.what());
+  }
+  catch (...)
+  {
+    throw ReadError("Error reading from "+file+" -- caught unknown error");
   }
   dbg<<"Done Read PSFCatalog\n";
 }

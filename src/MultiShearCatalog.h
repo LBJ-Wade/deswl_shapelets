@@ -1,5 +1,5 @@
-#ifndef CoaddCatalog_H
-#define CoaddCatalog_H
+#ifndef MultiShearCatalog_H
+#define MultiShearCatalog_H
 
 #include <vector>
 #include <string>
@@ -15,56 +15,43 @@
 #include "Name.h"
 #include "WlVersion.h"
 
-class CoaddCatalog 
+class MultiShearCatalog 
 {
 
   public :
 
-    CoaddCatalog(ConfigFile& _params);
-    ~CoaddCatalog();
+    MultiShearCatalog(const CoaddCatalog& coaddcat, const ConfigFile& params);
+    MultiShearCatalog(const ConfigFile& params);
+    ~MultiShearCatalog();
 
     size_t size() const { return skypos.size(); }
-    //size_t NImages() const { return fitpsf.size(); }
+    size_t NImages() const { return fitpsf.size(); }
 
-    void ReadCatalog();
-#if 0
     void Resize(int n);
 
-    void ReadPixelLists();
+    // Read the srclist file
     void ReadFileLists();
 
+    // Get pixel lists for the component images/catalogs
     void GetImagePixelLists();
 
+    // Measure the shears
     int MeasureMultiShears(ShearLog& log);
 
-    void WriteFits() const;
-#endif
+    // Write output
+    void Write() const;
+    void WriteFits(std::string file) const;
+    void WriteAscii(std::string file, std::string delim = "  ") const;
 
-    // Leave these public, rather than use Get and Set methods.
-    std::vector<long> id;
-    std::vector<Position> pos;
-    std::vector<Position> skypos;
+    // Read from file
+    void Read();
+    void ReadFits(std::string file);
+    void ReadAscii(std::string file, std::string delim = "  ");
 
-    std::vector<double> sky;
-    std::vector<double> noise;
-
-    std::vector<long> flags;
-
-    std::vector<float> ra;
-    std::vector<float> dec;
-
-    std::vector<float> mag;
-    std::vector<float> mag_err;
-
-#if 0
     // These next two have length NImages(), rather than size()
     // (aka the number of objects)
     std::vector<const Transformation*> trans;
     std::vector<const FittedPSF*> fitpsf;
-
-    //
-    // shear data
-    // 
 
     // flags related to i/o and psf interpolation
     std::vector<long> input_flags;
@@ -74,17 +61,23 @@ class CoaddCatalog
     // number of images for which pixels were extracted
     std::vector<int> nimages_gotpix;
 
+    std::vector<long> id;
+    std::vector<Position> skypos;
+    std::vector<double> sky;
+    std::vector<double> noise;
+    std::vector<long> flags;
+
     std::vector<std::complex<double> > shear;
     std::vector<double> nu;
     std::vector<tmv::SmallMatrix<double,2,2> > cov;
     std::vector<BVec> shape;
-#endif
 
   private :
 
-    const ConfigFile& params;
+    // We copy the parameter info, since we mess around with the parameters
+    // to set all the file names of the component images.
+    ConfigFile params;
 
-#if 0
     // For each object, we have a vector with an element for each image it
     // is found in, and each of those elements is a vector if Pixel
     std::vector<std::vector<std::vector<Pixel> > > pixlist;
@@ -95,7 +88,7 @@ class CoaddCatalog
 
     std::vector<string> image_file_list;
     std::vector<string> fitpsf_file_list;
-#endif
+
 
 };
 

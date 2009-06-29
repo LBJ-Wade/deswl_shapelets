@@ -20,6 +20,13 @@ bool XDEBUG=false;
 extern std::ostream* dbgout;
 extern bool XDEBUG;
 
+struct AssertFailure :
+  public std::runtime_error
+{
+  AssertFailure(const char* e) : std::runtime_error(
+      std::string("Error - Assert ") + e + " failed") {}
+};
+
 #ifdef NDEBUG
   #define dbg if (false) (*dbgout)
   #define xdbg if (false) (*dbgout)
@@ -42,14 +49,8 @@ extern bool XDEBUG;
     do { if(!(x)) { \
       dbg << "Error - Assert " #x " failed"<<std::endl; \
       dbg << "on line "<<__LINE__<<" in file "<<__FILE__<<std::endl; \
-      throw std::runtime_error("Error - Assert " #x " failed"); } \
+      throw AssertFailure(#x); } \
     } while(false)
 #endif
-
-inline void myerror(const char *s,const char *s2 = "")
-{
-  dbg << "Error: " << s << ' ' << s2 << std::endl;
-  throw std::runtime_error(std::string("Error: ") + s + ' ' + s2);
-}
 
 #endif

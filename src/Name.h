@@ -3,9 +3,9 @@
 
 #include <string>
 #include <vector>
-#include <stdexcept>
 #include "ConfigFile.h"
 #include <CCfits/CCfits>
+#include "Params.h"
 
 template <typename T>
 void CCfitsWriteParKey(
@@ -15,20 +15,24 @@ void CCfitsWriteParKey(
     T& tmpvar)
 {
   if (params.keyExists(key))  {
-    tmpvar = (T) params.get(key);
-    table->addKey(
-	params.get(key+"_hname"), 
-	tmpvar,
-	params.get(key+"_comment"));
+    try {
+      tmpvar = params.get(key);
+      table->addKey(
+	  params.get(key+"_hname"), 
+	  tmpvar,
+	  params.get(key+"_comment"));
+    }
+    catch (ConvertibleStringError& e)
+    {
+      throw ConfigFile_ParameterError(key,e.what());
+    }
+  }
+  else {
+    throw ParameterError("Error: the key, " + key +
+	", is not in the parameter file");
   }
 }
 
-
-struct file_not_found : public std::runtime_error {
-  file_not_found( const std::string& filename = std::string() ) throw() :
-    std::runtime_error(std::string("Error: file ") + filename
-	+ " not found") {} 
-};
 
 void SetRoot(ConfigFile& params);
 

@@ -1,5 +1,6 @@
 #include "TMV.h"
 #include "TMV_Sym.h"
+#include <stdexcept>
 
 // The class NLSolver is designed as a base class.  Therefore, you should
 // define a class with your particular function as a derived class of

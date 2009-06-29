@@ -40,8 +40,9 @@ static void SetPRow(size_t fitorder, Position pos, const Bounds& bounds,
 }
 
 FittedPSF::FittedPSF(const PSFCatalog& psfcat, const ConfigFile& _params) :
-  params(_params), psforder(params.get("psf_order")),
-  fitorder(params.get("fitpsf_order")), fitsize((fitorder+1)*(fitorder+2)/2)
+  params(_params), psforder(params.read<int>("psf_order")),
+  fitorder(params.read<int>("fitpsf_order")),
+  fitsize((fitorder+1)*(fitorder+2)/2)
 {
   xdbg<<"FittedPSF constructor\n";
   // Do a polynomial fit of the psf shapelet vectors
@@ -141,7 +142,7 @@ void FittedPSF::ReadAscii(std::string file)
 {
   std::ifstream fin(file.c_str());
   if (!fin) {
-    throw std::runtime_error("Error opening fitpsf file");
+    throw ReadError("Error opening fitpsf file"+file);
   }
 
   xdbg<<"Reading FittedPSF:\n";
@@ -159,6 +160,9 @@ void FittedPSF::ReadAscii(std::string file)
   f.reset(new tmv::Matrix<double>(fitsize,npca));
   fin >> *f;
   xxdbg<<"f = "<<*f<<std::endl;
+  if (!fin) {
+    throw ReadError("Error reading fitpsf file"+file);
+  }
 }
 
 void FittedPSF::Write() const
@@ -364,7 +368,7 @@ void FittedPSF::ReadFits(std::string file)
   // must do this way because of the const thing
   int hdu=2;
   if (params.keyExists("fitpsf_hdu")) {
-    hdu = params.get("fitpsf_hdu");
+    hdu = params.read<int>("fitpsf_hdu");
   }
 
   dbg<<"Opening FITS file at hdu "<<hdu<<std::endl;

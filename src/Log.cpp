@@ -1,7 +1,6 @@
 
 #include "Log.h"
 #include <iostream>
-#include <stdexcept>
 #include "Params.h"
 
 
@@ -14,7 +13,7 @@ Log::Log(std::string _logfile, std::string _fits_file, bool desqa) :
     } else {
       logout = new std::ofstream(_logfile.c_str(),std::ios_base::app);
       if (!logout) {
-	throw std::runtime_error(
+	throw WriteError(
 	    std::string("Error: Unable to open logfile ") + _logfile
 	    + " for append output");
       }
@@ -24,15 +23,15 @@ Log::Log(std::string _logfile, std::string _fits_file, bool desqa) :
 
 Log::~Log() 
 {
+#if 0
+  this->WriteLog();
+  this->WriteLogToFitsHeader();
   // I thought this would work, but it doesn't. The reason is a bit subtle.  
   // Basically, the destructors get called in order from most derived 
   // up to the base.
   // So by this point, the derived portions have already been deleted,
   // so the derived implementations of these functions are already gone.
   // The solution is to put this same thing in each derived destructor.
-#if 0
-  this->WriteLog();
-  this->WriteLogToFitsHeader();
 #endif
   NoWriteLog(); // deletes logout
 }
@@ -62,8 +61,8 @@ void ShearLog::WriteLogToFitsHeader() const
 
   if ("" == fits_file) return;
 
-  try {
-
+  try 
+  {
     // how do get this from params?
     int hdu = 2;
     CCfits::FITS fits(fits_file, CCfits::Write, hdu-1);
@@ -104,13 +103,14 @@ void ShearLog::WriteLogToFitsHeader() const
 	"# of MeasureShear failures calculating mu");
     table.addKey("nf_gamma", nf_gamma, 
 	"# of MeasureShear failures calculating shear");
-
-
   } 
   catch(...) 
   {
     // TODO: Remember to uncomment this when we are actually writing 
     // the fits file before getting here.
+    //throw WriteError("Error writing ShearLog to the Fits file header info.");
+
+    // This was the old line.  Why only if exitcode==0?
     //if (exitcode == 0) throw; 
   }
 
@@ -237,7 +237,12 @@ void PSFLog::WriteLogToFitsHeader() const
 
   }
   catch (...)
-  { if (exitcode == 0) throw; }
+  { 
+    throw WriteError("Error writing PSFLog to the Fits file header info.");
+
+    // This was the old line.  Why only if exitcode==0?
+    //if (exitcode == 0) throw; 
+  }
 }
 
 void PSFLog::WriteLog() const
@@ -331,7 +336,13 @@ void FindStarsLog::WriteLogToFitsHeader() const
     
   }
   catch(...)
-  { if (exitcode == 0) throw; }
+  { 
+    throw WriteError(
+	"Error writing FindStarsLog to the Fits file header info.");
+
+    // This was the old line.  Why only if exitcode==0?
+    //if (exitcode == 0) throw; 
+  }
 }
 
 void FindStarsLog::WriteLog() const

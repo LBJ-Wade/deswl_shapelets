@@ -1,11 +1,23 @@
 #ifndef Transformation_H
 #define Transformation_H
 
+#include <stdexcept>
 #include "Function2D.h"
 #include "Bounds.h"
 #include "TMV.h"
 #include "TMV_Small.h"
 #include "ConfigFile.h"
+
+// Only thrown by InverseTransform.
+// All of the other errors that can happen are either 
+// ReadError or ConfigFile_ParameterError
+struct TransformationError :
+  public std::runtime_error
+{
+  TransformationError(std::string err) throw() : 
+    std::runtime_error(err) {}
+  ~TransformationError() throw() {}
+};
 
 class Transformation {
 

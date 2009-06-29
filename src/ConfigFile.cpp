@@ -14,7 +14,7 @@ ConfigFile::ConfigFile( std::string filename, std::string delimiter,
 #ifdef NOTHROW
   { std::cerr<<"File not found: "<<filename<<std::endl; exit(1); }
 #else
-    throw file_not_found( filename ); 
+    throw ConfigFile_FileNotFound(filename);
 #endif
 
   in >> (*this);
@@ -44,7 +44,7 @@ void ConfigFile::Load( std::string filename, std::string delimiter,
 #ifdef NOTHROW
   { std::cerr<<"File not found: "<<filename<<std::endl; exit(1); }
 #else
-    throw file_not_found( filename ); 
+    throw ConfigFile_FileNotFound(filename);
 #endif
 
   in >> (*this);
@@ -70,7 +70,7 @@ ConvertibleString ConfigFile::get( const std::string& key ) const
 #ifdef NOTHROW
   { std::cerr<<"Key not found: "<<key2<<std::endl; exit(1); return key; }
 #else
-    throw key_not_found(key2);
+    throw ConfigFile_KeyNotFound(key2);
 #endif
   else return p->second;
 }

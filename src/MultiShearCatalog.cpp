@@ -1,8 +1,5 @@
-
-#include <fstream>
-#include <iostream>
-
-#include "ShearCatalog.h"
+#include "CoaddCatalog.h"
+#include "Ellipse.h"
 #include "ConfigFile.h"
 #include "dbg.h"
 #include "Params.h"
@@ -13,19 +10,273 @@
 #include "Image.h"
 #include "FittedPSF.h"
 #include "Log.h"
-#include "Params.h"
+#include "TimeVars.h"
+#include "MultiShearCatalog.h"
 #include "Form.h"
-#include "WlVersion.h"
-#include "TMV.h"
 
-//#define SINGLEGAL 8146
-//#define STARTAT 8000
-//#define ENDAT 200
+#define UseInverseTransform
 
-void MeasureSingleShear1(
-    Position cen, const Image<double>& im, double sky,
-    const Transformation& trans, const std::vector<BVec>& psf,
-    double noise, double gain, const Image<double>* weight_im, 
+//#define OnlyNImages 10
+
+MultiShearCatalog::MultiShearCatalog(
+    const CoaddCatalog& coaddcat, const ConfigFile& _params) :
+  id(coaddcat.id), skypos(coaddcat.skypos), sky(coaddcat.sky),
+  noise(coaddcat.noise), flags(coaddcat.flags), params(_params)
+{
+  Resize(coaddcat.size());
+
+  // Fix flags to only have INPUT_FLAG set.
+  // (I don't think this is necessary, but just in case.)
+  for (size_t i=0; i<size(); i++) {
+    flags[i] &= INPUT_FLAG;
+  }
+
+  // TODO: A lot of the parameter names that are coadd_* probably 
+  // should be changed to multishear_*.  e.g. srclist
+
+  // Read the names of the component image and catalog files from
+  // the srclist file (given as params.coadd_srclist)
+  ReadFileLists();
+
+  // Loop over the files and read pixel lists for each object.
+  // The Transformation and FittedPSF constructors get the name
+  // information from the parameter file, so we use that to set the 
+  // names of each component image here.
+  for (size_t fnum=0; fnum<image_file_list.size(); fnum++) {
+    std::string image_file = image_file_list[fnum];
+    std::string psf_file = fitpsf_file_list[fnum];
+
+    dbg<<"Reading image file: "<<image_file<<"\n";
+    params["image_file"] = image_file;
+    params["weight_file"] = image_file;
+    params["dist_file"] = image_file;
+    params["dist_hdu"] = 2;
+    params["dist_method"] = "WCS";
+
+    params["fitpsf_file"] = psf_file;
+
+    GetImagePixelLists();
+    dbg<<"\n";
+
+#ifdef OnlyNImages
+    if (fnum + 1 >= OnlyNImages) break;
+#endif
+  }
+}
+
+MultiShearCatalog::MultiShearCatalog(const ConfigFile& _params) :
+  params(_params)
+{
+  Read();
+}
+
+MultiShearCatalog::~MultiShearCatalog()
+{
+  for(size_t k=0;k<trans.size();++k) {
+    if (trans[k]) delete(trans[k]);
+  }
+  for(size_t k=0;k<fitpsf.size();++k) {
+    if (fitpsf[k]) delete(fitpsf[k]);
+  }
+}
+
+// ReadFileLists reads the srclist file specified in params
+// and reads the names of the images and fitpsf 
+void MultiShearCatalog::ReadFileLists()
+{
+  std::string file = params.get("coadd_srclist");
+  if (!FileExists(file))
+  {
+    throw FileNotFound(file);
+  }
+
+  try 
+  {
+    dbg<<"Opening coadd srclist\n";
+    std::ifstream flist(file.c_str(), std::ios::in);
+    if (!flist)
+    {
+      throw ReadError("Unable to open source list file " + file);
+    }
+
+    image_file_list.clear();
+    fitpsf_file_list.clear();
+
+    std::string image_filename;
+    std::string psf_filename;
+    while (flist >> image_filename >> psf_filename) 
+    {
+      image_file_list.push_back(image_filename);
+      fitpsf_file_list.push_back(psf_filename);
+    }
+  }
+  catch (std::runtime_error& e)
+  {
+    throw ReadError("Error reading from "+file+" -- caught error\n" +
+	e.what());
+  }
+  catch (...)
+  {
+    throw ReadError("Error reading from "+file+" -- caught unknown error");
+  }
+
+  Assert(image_file_list.size() == fitpsf_file_list.size());
+}
+
+void MultiShearCatalog::Resize(int n)
+{
+  pixlist.clear();
+  pixlist.resize(n);
+
+  image_indexlist.clear();
+  image_indexlist.resize(n);
+
+  image_cenlist.clear();
+  image_cenlist.resize(n);
+
+  input_flags.resize(n,0);
+  nimages_found.resize(n, 0);
+  nimages_gotpix.resize(n, 0);
+
+  shear.resize(n);
+  nu.resize(n);
+  cov.resize(n);
+
+  int gal_order = params.read<int>("shear_gal_order");
+  BVec shape_default(gal_order,1.);
+  shape_default.SetAllTo(DEFVALNEG);
+  shape.resize(n,shape_default);
+}
+
+// Get pixel lists from the file specified in params
+void MultiShearCatalog::GetImagePixelLists()
+{
+  std::auto_ptr<Image<double> > weight_im;
+  Image<double> im(params,weight_im);
+
+  int maxi=im.GetMaxI();
+  int maxj=im.GetMaxJ();
+  xdbg<<"MaxI: "<<maxi<<" MaxJ: "<<maxj<<"\n";
+
+  // read transformation between ra/dec and x/y
+  trans.push_back(new Transformation(params));
+  const Transformation& trans1 = *trans.back();
+
+  // read the psf
+  fitpsf.push_back(new FittedPSF(params));
+  const FittedPSF& fitpsf1 = *fitpsf.back();
+
+  // which image index is this one?
+  int image_index = fitpsf.size()-1;
+
+#ifdef UseInverseTransform
+  Transformation invtrans;
+  Bounds invb = invtrans.MakeInverseOf(trans1,im.GetBounds(),4);
+#endif
+
+  // we are using the weight image so the noise and gain are 
+  // dummy variables
+  double noise = 0.0;
+  double gain=0.0;
+  // We always use the maximum aperture size here, since we don't know
+  // how big the galaxy is yet, so we don't know what galap will be.
+  double max_aperture = params.read<double>("shear_max_aperture");
+
+  dbg<<"Extracting pixel lists\n";
+  // loop over the the objects, if the object falls on the image get
+  // the pixel list
+  for (size_t i=0; i<skypos.size(); ++i) {
+
+    // convert ra/dec to x,y in this image
+
+#ifdef UseInverseTransform
+    // Figure out a good starting point for the nonlinear solver:
+    Position pxy;
+    xdbg<<"skypos = "<<skypos[i]<<std::endl;
+    if (!invb.Includes(skypos[i])) {
+      xdbg<<"skypos "<<skypos[i]<<" not in "<<invb<<std::endl;
+      continue;
+    }
+    invtrans.Transform(skypos[i],pxy);
+    xdbg<<"invtrans(skypos) = "<<pxy<<std::endl;
+#else
+    Position pxy((double)maxi/2.,(double)maxj/2.);
+#endif
+
+    if (!trans1.InverseTransform(skypos[i], pxy) ) {
+      std::stringstream err;
+      err << "InverseTransform failed for position "<<skypos[i]<<".";
+      dbg << "InverseTransform failed for position "<<skypos[i]<<".\n";
+      dbg << "Initial guess was "<<pxy<<".\n";
+      throw TransformationError(err.str());
+    }
+
+    double x=pxy.GetX();
+    double y=pxy.GetY();
+    if ( (x >= 0) && (x <= maxi) && (y >= 0) && (y <= maxj) ) {
+      xdbg<<"("<<skypos[i]<<")  x="<<x<<" y="<<y<<"\n";
+
+      nimages_found[i]++;
+
+      // We don't actually need the psf here.  But we want to check
+      // to make sure fitpsf(pxy) doesn't throw an exception:
+      BVec psf1(fitpsf1.GetPSFOrder(), fitpsf1.GetSigma());
+      try {
+	psf1 = fitpsf1(pxy);
+      } catch (Range_error& e) {
+	xdbg<<"fittedpsf range error: \n";
+	xdbg<<"p = "<<pxy<<", b = "<<e.b<<std::endl;
+	input_flags[i] |= FITTEDPSF_EXCEPTION;
+	continue;
+      }
+
+      // Make sure the use of trans in GetPixList won't throw:
+      try {
+	// We don't need to save skypos.  We just want to catch the range
+	// error here, so we don't need to worry about it for dudx, etc.
+	Position skypos1;
+	trans1.Transform(pxy,skypos1);
+      } catch (Range_error& e) {
+	dbg<<"distortion range error: \n";
+	xdbg<<"p = "<<pxy<<", b = "<<e.b<<std::endl;
+	input_flags[i] |= TRANSFORM_EXCEPTION;
+	continue;
+      }
+
+      long flag = 0;
+      std::vector<Pixel> tmp_pixlist;
+      GetPixList(
+	  im,tmp_pixlist,pxy,
+	  sky[i],noise,gain,weight_im.get(),trans1,max_aperture,flag);
+      xdbg<<"Got pixellist, flag = "<<flag<<std::endl;
+
+      // make sure not (edge or < 10 pixels) although edge is already
+      // checked above
+      if (flag == 0) {
+	dbg<<"i = "<<i<<", pixlist.size = "<<pixlist.size()<<std::endl;
+	Assert(i < pixlist.size());
+	Assert(i < image_indexlist.size());
+	Assert(i < image_cenlist.size());
+	Assert(i < nimages_gotpix.size());
+	pixlist[i].push_back(tmp_pixlist);
+	image_indexlist[i].push_back(image_index);
+	image_cenlist[i].push_back(pxy);
+	nimages_gotpix[i]++;
+      } else {
+	input_flags[i] |= flag;
+      }
+      xdbg<<"added pixlist to main list\n";
+    } else {
+      xdbg<<"x,y not in valid bounds\n";
+    }
+  } // loop over objects
+  dbg<<"Done extracting pixel lists\n";
+}
+
+void MeasureMultiShear1(
+    const Position& cen, 
+    const std::vector<std::vector<Pixel> > allpix,
+    const std::vector<BVec>& psf,
     double gal_aperture, double max_aperture,
     int gal_order, int gal_order2,
     double f_psf, double min_gal_size, bool desqa,
@@ -34,11 +285,23 @@ void MeasureSingleShear1(
     tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
     long& flag)
 {
+  //TODO: This function is too long.  It should really be broken 
+  //      up in to smaller units...
+  //      In which case most of the overlap between this and 
+  //      MeasureSingleShear1 would not have to be duplicated.
+
+  dbg<<"Start MeasureMultiShear1:\n";
+  dbg<<"cen = "<<cen<<std::endl;
+  dbg<<"allpix.size = "<<allpix.size()<<std::endl;
+  for(size_t i=0;i<allpix.size();++i)
+    dbg<<"allpix["<<i<<"].size = "<<allpix[i].size()<<std::endl;
+  dbg<<"psf.size = "<<psf.size()<<std::endl;
+
   // Find harmonic mean of psf sizes:
   // MJ: Is it correct to use the harmonic mean of sigma^2?
   double sigma_p = 0.;
   Assert(psf.size() > 0);
-  for(size_t i=0;i<psf.size();i++) sigma_p += 1./psf[i].GetSigma();
+  for(size_t i=0;i<psf.size();++i) sigma_p += 1./psf[i].GetSigma();
   sigma_p = double(psf.size()) / sigma_p;
 
   // We start with a native fit using sigma = 2*sigma_p:
@@ -51,14 +314,17 @@ void MeasureSingleShear1(
   }
   xdbg<<"sigma_obs = "<<sigma_obs<<", sigma_p = "<<sigma_p<<std::endl;
 
-  std::vector<std::vector<Pixel> > pix(1);
-  GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,galap,flag);
-  int npix = pix[0].size();
+  std::vector<std::vector<Pixel> > pix(allpix.size());
+  int npix = 0;
+  for(size_t i=0;i<pix.size();++i) {
+    GetSubPixList(pix[i],allpix[i],galap,flag);
+    npix += pix[i].size();
+  }
   xdbg<<"npix = "<<npix<<std::endl;
 
   Ellipse ell;
   ell.FixGam();
-  ell.CrudeMeasure(pix[0],sigma_obs);
+  ell.CrudeMeasure(pix,sigma_obs);
   xdbg<<"Crude Measure: centroid = "<<ell.GetCen()<<", mu = "<<ell.GetMu()<<std::endl;
   //double mu_1 = ell.GetMu();
 
@@ -115,9 +381,12 @@ void MeasureSingleShear1(
   //xdbg<<"After native fit #2:\n";
   //xdbg<<"Mu = "<<ell.GetMu()<<std::endl;
 
-  pix[0].clear();
-  GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,galap,flag);
-  npix = pix[0].size();
+  npix = 0;
+  for(size_t i=0;i<pix.size();++i) {
+    GetSubPixList(pix[i],allpix[i],galap,flag);
+    npix += pix[i].size();
+  }
+
   xdbg<<"npix = "<<npix<<std::endl;
   double sigpsq = pow(sigma_p,2);
   double sigma = pow(sigma_obs,2) - sigpsq;
@@ -256,14 +525,17 @@ void MeasureSingleShear1(
   //dbg<<"       gamma = "<<shear<<std::endl;
 
   // Finally measure the variance of the shear
-  // TODO
+  // TODO: Write function to directly measure shear variance
+  // And also the BJ02 sigma_0 value.
   // (I'm not convinced that the above covariance matrix is a good estiamte.)
 }
 
-void MeasureSingleShear(
-    Position cen, const Image<double>& im, double sky,
-    const Transformation& trans, const FittedPSF& fitpsf,
-    double noise, double gain, const Image<double>* weight_im, 
+void MeasureMultiShear(
+    const Position& cen, 
+    const std::vector<std::vector<Pixel> >& pix,
+    const std::vector<int>& image_index,
+    const std::vector<Position>& image_cen,
+    const std::vector<const FittedPSF*>& fitpsf,
     double gal_aperture, double max_aperture,
     int gal_order, int gal_order2,
     double f_psf, double min_gal_size, bool desqa,
@@ -272,45 +544,35 @@ void MeasureSingleShear(
     tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
     long& flag)
 {
-  // Get coordinates of the galaxy, and convert to sky coordinates
-  try {
-    // We don't need to save skypos.  We just want to catch the range
-    // error here, so we don't need to worry about it for dudx, etc.
-    Position skypos;
-    trans.Transform(cen,skypos);
-    dbg<<"skypos = "<<skypos<<std::endl;
-  } catch (Range_error& e) {
-    dbg<<"distortion range error: \n";
-    xdbg<<"p = "<<cen<<", b = "<<e.b<<std::endl;
-    if (times) times->nf_range1++;
-    log.nf_range1++;
-    flag |= TRANSFORM_EXCEPTION;
-    return;
-  }
-
+  Assert(fitpsf.size() > 0);
   // Calculate the psf from the fitted-psf formula:
-  std::vector<BVec> psf(1,
-      BVec(fitpsf.GetPSFOrder(), fitpsf.GetSigma()));
+  int psforder = fitpsf[0]->GetPSFOrder();
+  double psfsigma = fitpsf[0]->GetSigma();
+  for(size_t k=1;k<fitpsf.size();++k) 
+    // The psforder should be the same in all the FittedPSF's,
+    // but the sigma's are allowed to vary.
+    Assert(fitpsf[k]->GetPSFOrder() == psforder);
+  std::vector<BVec> psf(pix.size(), BVec(psforder, psfsigma));
   try {
-    dbg<<"for fittedpsf cen = "<<cen<<std::endl;
-    psf[0] = fitpsf(cen);
+    for(size_t i=0;i<pix.size();++i) {
+      int k = image_index[i];
+      psf[i] = (*fitpsf[k])(image_cen[i]);
+    }
   } catch (Range_error& e) {
-    dbg<<"fittedpsf range error: \n";
-    xdbg<<"p = "<<cen<<", b = "<<e.b<<std::endl;
-    if (times) times->nf_range2++;
-    log.nf_range2++;
+    // This shouldn't happen.  We already checked that fitpsf(cen) and
+    // trans(cen) don't throw above in GetImagePixelLists
+    dbg<<"Unexpected range error in MeasureMultiShear: \n";
+    dbg<<"p = "<<e.p<<", b = "<<e.b<<std::endl;
     flag |= FITTEDPSF_EXCEPTION;
-    return;
+    throw;
   }
 
   // Do the real meat of the calculation:
   dbg<<"measure single shear cen = "<<cen<<std::endl;
   try { 
-    MeasureSingleShear1(
+    MeasureMultiShear1(
 	// Input data:
-	cen, im, sky, trans, psf,
-	// Noise variables:
-	noise, gain, weight_im, 
+	cen, pix, psf,
 	// Parameters:
 	gal_aperture, max_aperture, gal_order, gal_order2, 
 	f_psf, min_gal_size, desqa,
@@ -325,6 +587,8 @@ void MeasureSingleShear(
     dbg<<e<<std::endl;
     log.nf_tmverror++;
     flag |= TMV_EXCEPTION;
+  } catch (std::runtime_error) {
+    throw;
   } catch (...) {
     dbg<<"unkown exception in MeasureSingleShear\n";
     log.nf_othererror++;
@@ -333,11 +597,9 @@ void MeasureSingleShear(
 
 }
 
-int ShearCatalog::MeasureShears(const Image<double>& im,
-    const Image<double>* weight_im, const Transformation& trans,
-    const FittedPSF& fitpsf, ShearLog& log)
+int MultiShearCatalog::MeasureMultiShears(ShearLog& log)
 {
-  int ngals = pos.size();
+  int ngals = skypos.size();
   dbg<<"ngals = "<<ngals<<std::endl;
 
   // Read some needed parameters
@@ -346,7 +608,6 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
   int gal_order = params.read<int>("shear_gal_order");
   int gal_order2 = params.read("shear_gal_order2",gal_order);
   double f_psf = params.read<double>("shear_f_psf");
-  double gain = params.read("image_gain",0.);
   double min_gal_size = params.read<double>("shear_min_gal_size");
   bool desqa = params.read("des_qa",false);
   bool output_dots = params.read("output_dots",false);
@@ -380,7 +641,7 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
 #ifdef _OPENMP
 #pragma omp for schedule(dynamic)
 #endif
-      for(int i=0;i<ngals;i++) if (!flags[i]) {
+      for(int i=0;i<ngals;++i) if (!flags[i]) {
 #ifdef STARTAT
 	if (i < STARTAT) continue;
 #endif
@@ -388,26 +649,33 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
 	if (i < SINGLEGAL) continue;
 	if (i > SINGLEGAL) break;
 #endif
+
 #ifdef _OPENMP
 #pragma omp critical (output)
 #endif
 	{
 	  if (output_dots) { std::cerr<<"."; std::cerr.flush(); }
 	  dbg<<"galaxy "<<i<<":\n";
-	  dbg<<"pos[i] = "<<pos[i]<<std::endl;
+	  dbg<<"pos[i] = "<<skypos[i]<<std::endl;
+	}
+
+	if (pixlist[i].size() == 0) 
+	{
+	  dbg<<"no valid single epoch images.\n";
+	  flags[i] = NO_SINGLE_EPOCH_IMAGES;
+	  continue;
 	}
 
 	// Start with an error code of unknown failure, in case
 	// something happens that I don't detect as an error.
 	flags[i] = UNKNOWN_FAILURE;
 	long flag1 = 0;
-	MeasureSingleShear(
+
+	MeasureMultiShear(
 	    // Input data:
-	    pos[i], im, sky[i], trans, 
+	    skypos[i], pixlist[i], image_indexlist[i], image_cenlist[i],
 	    // Fitted PSF
 	    fitpsf,
-	    // Noise variables:
-	    noise[i], gain, weight_im, 
 	    // Parameters:
 	    gal_aperture, max_aperture, gal_order, gal_order2, 
 	    f_psf, min_gal_size, desqa,
@@ -476,144 +744,89 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
   return log.ns_gamma;
 }
 
-ShearCatalog::ShearCatalog(const InputCatalog& incat,
-    const Transformation& trans, const ConfigFile& _params) :
-  id(incat.id), pos(incat.pos), sky(incat.sky), noise(incat.noise),
-  flags(incat.flags), params(_params)
+void MultiShearCatalog::Write() const
 {
-  dbg<<"Create ShearCatalog\n";
+  std::vector<std::string> files = MultiName(params, "multishear");
 
-  // Fix flags to only have INPUT_FLAG set.
-  // (I don't think this is necessary, but just in case.)
-  for (size_t i=0; i<size(); i++) {
-    flags[i] &= INPUT_FLAG;
-  }
+  for(size_t i=0; i<files.size(); ++i) {
+    const std::string& file = files[i];
+    dbg<<"Writing multishear catalog to file: "<<file<<std::endl;
 
-  // Calculate sky positions
-  Position skypos_default(DEFVALNEG,DEFVALNEG);
-  if (incat.ra.size() == 0 || incat.dec.size() == 0) {
-    skypos.resize(size(),skypos_default);
-    for(size_t i=0;i<size();i++) {
-      try {
-	trans.Transform(pos[i],skypos[i]);
-	skypos[i] /= 3600.; // arcsec -> degrees
-      } catch (Range_error& e) {
-	xdbg<<"distortion range error\n";
-	xdbg<<"p = "<<pos[i]<<", b = "<<e.b<<std::endl;
-      }                       
+    bool fitsio = false;
+    if (params.keyExists("multishear_io")) {
+      std::vector<std::string> ios = params["multishear_io"];
+      Assert(ios.size() == files.size());
+      fitsio = (ios[i] == "FITS");
     }
-  } else {
-    Assert(incat.ra.size() == size());
-    Assert(incat.dec.size() == size());
-    skypos.resize(size());
-    for(size_t i=0;i<size();++i) {
-      skypos[i] = Position(incat.ra[i],incat.dec[i]);
-    }
+    else if (file.find("fits") != std::string::npos)
+      fitsio = true;
 
-    xdbg<<"Check transformation:\n";
-    double rmserror = 0.;
-    int count = 0;
-    for(size_t i=0;i<size();i++) {
-      try {
-	Position temp;
-	trans.Transform(pos[i],temp);
-	temp /= 3600.; // arcsec -> degrees
-	xdbg<<pos[i]<<"  "<<skypos[i]<<"  "<<temp;
-	xdbg<<"  "<<temp-skypos[i]<<std::endl;
-	rmserror += std::norm(temp-skypos[i]);
-	count++;
-      } catch (Range_error& e) {
-	xdbg<<"distortion range error\n";
-	xdbg<<"p = "<<pos[i]<<", b = "<<e.b<<std::endl;
+    try
+    {
+      if (fitsio) {
+	WriteFits(file);
+      } else {
+	std::string delim = "  ";
+	if (params.keyExists("multishear_delim")) {
+	  std::vector<std::string> delims = params["multishear_delim"];
+	  Assert(delims.size() == files.size());
+	  delim = delims[i];
+	}
+	else if (file.find("csv") != std::string::npos) delim = ",";
+	WriteAscii(file,delim);
       }
     }
-    rmserror /= count;
-    rmserror = std::sqrt(rmserror);
-    xdbg<<"rms error = "<<rmserror*3600.<<" arcsec\n";
-    if (rmserror > 0.1) {
-      std::cout<<"STATUS3BEG Warning: Positions from WCS transformation have rms error of "<<rmserror<<" arcsec relative to ra, dec in catalog. STATUS3END"<<std::endl;
+    catch (std::runtime_error& e)
+    {
+      throw WriteError("Error writing to "+file+" -- caught error\n" +
+	  e.what());
+    }
+    catch (...)
+    {
+      throw WriteError("Error writing to "+file+" -- caught unknown error");
     }
   }
-
-  shear.resize(id.size(),std::complex<double>(DEFVALPOS,DEFVALPOS));
-  nu.resize(id.size(),DEFVALNEG);
-
-  tmv::SmallMatrix<double,2,2> cov_default;
-  cov_default = tmv::ListInit, DEFVALPOS, 0, 0, DEFVALPOS;
-  cov.resize(id.size(),cov_default);
-
-  int gal_order = params.read<int>("shear_gal_order");
-  BVec shape_default(gal_order,1.);
-  shape_default.SetAllTo(DEFVALNEG);
-  shape.resize(id.size(),shape_default);
-
-  Assert(id.size() == size());
-  Assert(pos.size() == size());
-  Assert(sky.size() == size());
-  Assert(noise.size() == size());
-  Assert(flags.size() == size());
-  Assert(skypos.size() == size());
-  Assert(shear.size() == size());
-  Assert(nu.size() == size());
-  Assert(cov.size() == size());
-  Assert(shape.size() == size());
+  dbg<<"Done Write ShearCatalog\n";
 }
 
-ShearCatalog::ShearCatalog(const ConfigFile& _params) : params(_params)
+void MultiShearCatalog::WriteFits(std::string file) const
 {
-  Read();
-
-  Assert(id.size() == size());
-  Assert(pos.size() == size());
-  Assert(sky.size() == size());
-  Assert(noise.size() == size());
-  Assert(flags.size() == size());
-  Assert(skypos.size() == size());
-  Assert(shear.size() == size());
-  Assert(nu.size() == size());
-  Assert(cov.size() == size());
-  Assert(shape.size() == size());
-}
-
-void ShearCatalog::WriteFits(std::string file) const
-{
-  Assert(id.size() == size());
-  Assert(pos.size() == size());
-  Assert(sky.size() == size());
-  Assert(noise.size() == size());
-  Assert(flags.size() == size());
-  Assert(shear.size() == size());
-  Assert(nu.size() == size());
-  Assert(cov.size() == size());
-  Assert(shape.size() == size());
-
   // ! means overwrite existing file
   CCfits::FITS fits("!"+file, CCfits::Write);
 
-
-  const int nfields=17;
+  const int nfields=20;
   std::vector<string> colnames(nfields);
   std::vector<string> colfmts(nfields);
   std::vector<string> colunits(nfields);
 
-  colnames[0] = params.get("shear_id_col");
-  colnames[1] = params.get("shear_x_col");
-  colnames[2] = params.get("shear_y_col");
-  colnames[3] = params.get("shear_sky_col");
-  colnames[4] = params.get("shear_noise_col");
-  colnames[5] = params.get("shear_flags_col");
-  colnames[6] = params.get("shear_ra_col");
-  colnames[7] = params.get("shear_dec_col");
-  colnames[8] = params.get("shear_shear1_col");
-  colnames[9] = params.get("shear_shear2_col");
-  colnames[10] = params.get("shear_nu_col");
-  colnames[11] = params.get("shear_cov00_col");
-  colnames[12] = params.get("shear_cov01_col");
-  colnames[13] = params.get("shear_cov11_col");
-  colnames[14] = params.get("shear_order_col");
-  colnames[15] = params.get("shear_sigma_col");
-  colnames[16] = params.get("shear_coeffs_col");
+  colnames[0] = params.get("multishear_id_col");
+  colnames[1] = params.get("multishear_x_col");
+  colnames[2] = params.get("multishear_y_col");
+  colnames[3] = params.get("multishear_sky_col");
+  colnames[4] = params.get("multishear_noise_col");
+  colnames[5] = params.get("multishear_flags_col");
+  colnames[6] = params.get("multishear_ra_col");
+  colnames[7] = params.get("multishear_dec_col");
+  colnames[8] = params.get("multishear_shear1_col");
+  colnames[9] = params.get("multishear_shear2_col");
+  colnames[10] = params.get("multishear_nu_col");
+  colnames[11] = params.get("multishear_cov00_col");
+  colnames[12] = params.get("multishear_cov01_col");
+  colnames[13] = params.get("multishear_cov11_col");
+  colnames[14] = params.get("multishear_order_col");
+  colnames[15] = params.get("multishear_sigma_col");
+  colnames[16] = params.get("multishear_coeffs_col");
 
+  colnames[17] = params.get("multishear_nimages_found_col");
+  colnames[18] = params.get("multishear_nimages_gotpix_col");
+  colnames[19] = params.get("multishear_input_flags_col");
+
+  int ncoeff = shape[0].size();
+  dbg<<"ncoeff = "<<ncoeff<<std::endl;
+  std::stringstream coeff_form;
+  coeff_form << ncoeff << "D";
+  colfmts[16] = coeff_form.str(); // shapelet coeffs
+ 
   colfmts[0] = "1J"; // id
   colfmts[1] = "1D"; // x
   colfmts[2] = "1D"; // y
@@ -631,34 +844,14 @@ void ShearCatalog::WriteFits(std::string file) const
   colfmts[14] = "1J"; // order
   colfmts[15] = "1D"; // sigma
 
+  colfmts[17] = "1J"; // nimages_found
+  colfmts[18] = "1J"; // nimages_gotpix
+  colfmts[19] = "1J"; // input_flags
 
-  int ncoeff = shape[0].size();
-  dbg<<"ncoeff = "<<ncoeff<<std::endl;
-  std::stringstream coeff_form;
-  coeff_form << ncoeff << "D";
-  colfmts[16] = coeff_form.str(); // shapelet coeffs
-
-  colunits[0] = "None";   // id
-  colunits[1] = "Pixels"; // x
-  colunits[2] = "Pixels"; // y
-  colunits[3] = "ADU";    // sky
-  colunits[4] = "ADU^2";  // noise
-  colunits[5] = "None";   // flags
-  colunits[6] = "Deg";    // ra
-  colunits[7] = "Deg";    // dec
-  colunits[8] = "None";   // shear1
-  colunits[9] = "None";   // shear2
-  colunits[10] = "None";  // nu
-  colunits[11] = "None";  // cov00
-  colunits[12] = "None";  // cov01
-  colunits[13] = "None";  // cov11
-  colunits[14] = "None";  // order
-  colunits[15] = "Arcsec";// sigma
-  colunits[16] = "None";  // coeffs
 
   dbg<<"Before Create table"<<std::endl;
   CCfits::Table* table;
-  table = fits.addTable("shearcat",size(),colnames,colfmts,colunits);
+  table = fits.addTable("coadd_shearcat",size(),colnames,colfmts,colunits);
 
   // Header keywords
   std::string tmvvers = tmv::TMV_Version();
@@ -681,12 +874,8 @@ void ShearCatalog::WriteFits(std::string file) const
   CCfitsWriteParKey(params, table, "shear_min_gal_size", dbl);
   CCfitsWriteParKey(params, table, "shear_f_psf", dbl);
 
-
-
   // data
   // make vector copies for writing
-  std::vector<double> x(pos.size());
-  std::vector<double> y(pos.size());
   std::vector<double> ra(size());
   std::vector<double> dec(size());
   std::vector<double> shear1(size());
@@ -694,10 +883,6 @@ void ShearCatalog::WriteFits(std::string file) const
   std::vector<double> cov00(size());
   std::vector<double> cov01(size());
 
-  for(size_t i=0;i<pos.size();i++) {
-    x[i] = pos[i].GetX();
-    y[i] = pos[i].GetY();
-  }
   for(size_t i=0;i<size();i++) { 
     ra[i] = skypos[i].GetX();
     dec[i] = skypos[i].GetY();
@@ -713,12 +898,9 @@ void ShearCatalog::WriteFits(std::string file) const
     cov11[i] = cov[i](1,1);
   }
 
-
   int startrow=1;
 
   table->column(colnames[0]).write(id,startrow);
-  table->column(colnames[1]).write(x,startrow);
-  table->column(colnames[2]).write(y,startrow);
   table->column(colnames[3]).write(sky,startrow);
   table->column(colnames[4]).write(noise,startrow);
   table->column(colnames[5]).write(flags,startrow);
@@ -740,21 +922,28 @@ void ShearCatalog::WriteFits(std::string file) const
     table->column(colnames[15]).write(&b_sigma,1,row);
     double* cptr = (double *) shape[i].cptr();
     table->column(colnames[16]).write(cptr, ncoeff, 1, row);
+
   }
+
+  table->column(colnames[17]).write(nimages_found,startrow);
+  table->column(colnames[18]).write(nimages_gotpix,startrow);
+  table->column(colnames[19]).write(input_flags,startrow);
 }
 
-void ShearCatalog::WriteAscii(std::string file, std::string delim) const
+void MultiShearCatalog::WriteAscii(std::string file, std::string delim) const
 {
   Assert(id.size() == size());
-  Assert(pos.size() == size());
+  Assert(skypos.size() == size());
   Assert(sky.size() == size());
   Assert(noise.size() == size());
   Assert(flags.size() == size());
-  Assert(skypos.size() == size());
   Assert(shear.size() == size());
   Assert(nu.size() == size());
   Assert(cov.size() == size());
   Assert(shape.size() == size());
+  Assert(nimages_found.size() == size());
+  Assert(nimages_gotpix.size() == size());
+  Assert(input_flags.size() == size());
 
   std::ofstream fout(file.c_str());
   if (!fout) {
@@ -766,13 +955,11 @@ void ShearCatalog::WriteAscii(std::string file, std::string delim) const
   for(size_t i=0;i<size();i++) {
     fout
       << id[i] << delim
-      << pos[i].GetX() << delim
-      << pos[i].GetY() << delim
+      << skypos[i].GetX() << delim
+      << skypos[i].GetY() << delim
       << sky[i] << delim
       << noise[i] << delim
       << hexform(flags[i]) << delim
-      << skypos[i].GetX() << delim
-      << skypos[i].GetY() << delim
       << real(shear[i]) << delim
       << imag(shear[i]) << delim
       << nu[i] << delim
@@ -780,61 +967,60 @@ void ShearCatalog::WriteAscii(std::string file, std::string delim) const
       << cov[i](0,1) << delim
       << cov[i](1,1) << delim
       << shape[i].GetOrder() << delim
-      << shape[i].GetSigma();
+      << shape[i].GetSigma() << delim
+      << nimages_found[i] << delim
+      << nimages_gotpix[i] << delim
+      << input_flags[i];
     for(size_t j=0;j<shape[i].size();++j)
       fout << delim << shape[i][j];
     fout << std::endl;
   }
 }
 
-void ShearCatalog::Write() const
+void MultiShearCatalog::Read()
 {
-  std::vector<std::string> files = MultiName(params, "shear");  
+  std::string file = Name(params,"multishear",false,true);
+  // false,true = input_prefix=false, mustexist=true.
+  // It is an input here, but it is in the output_prefix directory.
+  dbg<< "Reading Shear cat from file: " << file << std::endl;
 
-  for(size_t i=0; i<files.size(); ++i) {
-    const std::string& file = files[i];
-    dbg<<"Writing shear catalog to file: "<<file<<std::endl;
+  bool fitsio = false;
+  if (params.keyExists("multishear_io"))
+    fitsio = (params["multishear_io"] == "FITS");
+  else if (file.find("fits") != std::string::npos)
+    fitsio = true;
 
-    bool fitsio = false;
-    if (params.keyExists("shear_io")) {
-      std::vector<std::string> ios = params["shear_io"];
-      Assert(ios.size() == files.size());
-      fitsio = (ios[i] == "FITS");
-    }
-    else if (file.find("fits") != std::string::npos) 
-      fitsio = true;
-
-    try
-    {
-      if (fitsio) {
-	WriteFits(file);
-      } else {
-	std::string delim = "  ";
-	if (params.keyExists("shear_delim")) {
-	  std::vector<std::string> delims = params["shear_delim"];
-	  Assert(delims.size() == files.size());
-	  delim = delims[i];
-	}
-	else if (file.find("csv") != std::string::npos) delim = ",";
-	WriteAscii(file,delim);
-      }
-    }
-    catch (std::runtime_error& e)
-    {
-      throw WriteError("Error writing to "+file+" -- caught error\n" +
-	  e.what());
-    }
-    catch (...)
-    {
-      throw WriteError("Error writing to "+file+" -- caught unknown error");
+  if (!FileExists(file))
+  {
+    throw FileNotFound(file);
+  }
+  try
+  {
+    if (fitsio) {
+      ReadFits(file);
+    } else {
+      std::string delim = "  ";
+      if (params.keyExists("multishear_delim")) delim = 
+	params["multishear_delim"];
+      else if (file.find("csv") != std::string::npos) delim = ",";
+      ReadAscii(file,delim);
     }
   }
-  dbg<<"Done Write ShearCatalog\n";
+  catch (std::runtime_error& e)
+  {
+    throw ReadError("Error reading from "+file+" -- caught error\n" +
+	e.what());
+  }
+  catch (...)
+  {
+    throw ReadError("Error reading from "+file+" -- caught unknown error");
+  }
+  dbg<<"Done Read ShearCatalog\n";
 }
 
-void ShearCatalog::ReadFits(std::string file)
+void MultiShearCatalog::ReadFits(std::string file)
 {
-  int hdu = params.read("shear_hdu",2);
+  int hdu = params.read("multishear_hdu",2);
 
   dbg<<"Opening FITS file at hdu "<<hdu<<std::endl;
   // true means read all as part of the construction
@@ -849,23 +1035,24 @@ void ShearCatalog::ReadFits(std::string file)
     throw ReadError("ShearCatalog found to have 0 rows.  Must have > 0 rows.");
   }
 
-  std::string id_col=params.get("shear_id_col");
-  std::string x_col=params.get("shear_x_col");
-  std::string y_col=params.get("shear_y_col");
-  std::string sky_col=params.get("shear_sky_col");
-  std::string noise_col=params.get("shear_noise_col");
-  std::string flags_col=params.get("shear_flags_col");
-  std::string ra_col=params.get("shear_ra_col");
-  std::string dec_col=params.get("shear_dec_col");
-  std::string shear1_col=params.get("shear_shear1_col");
-  std::string shear2_col=params.get("shear_shear2_col");
-  std::string nu_col=params.get("shear_nu_col");
-  std::string cov00_col=params.get("shear_cov00_col");
-  std::string cov01_col=params.get("shear_cov01_col");
-  std::string cov11_col=params.get("shear_cov11_col");
-  std::string order_col=params.get("shear_order_col");
-  std::string sigma_col=params.get("shear_sigma_col");
-  std::string coeffs_col=params.get("shear_coeffs_col");
+  std::string id_col=params.get("multishear_id_col");
+  std::string ra_col=params.get("multishear_ra_col");
+  std::string dec_col=params.get("multishear_dec_col");
+  std::string sky_col=params.get("multishear_sky_col");
+  std::string noise_col=params.get("multishear_noise_col");
+  std::string flags_col=params.get("multishear_flags_col");
+  std::string shear1_col=params.get("multishear_shear1_col");
+  std::string shear2_col=params.get("multishear_shear2_col");
+  std::string nu_col=params.get("multishear_nu_col");
+  std::string cov00_col=params.get("multishear_cov00_col");
+  std::string cov01_col=params.get("multishear_cov01_col");
+  std::string cov11_col=params.get("multishear_cov11_col");
+  std::string order_col=params.get("multishear_order_col");
+  std::string sigma_col=params.get("multishear_sigma_col");
+  std::string coeffs_col=params.get("multishear_coeffs_col");
+  std::string nimages_found_col=params.get("multishear_nimages_found_col");
+  std::string nimages_gotpix_col=params.get("multishear_nimages_gotpix_col");
+  std::string input_flags_col=params.get("multishear_input_flags_col");
 
   long start=1;
   long end=nrows;
@@ -874,13 +1061,13 @@ void ShearCatalog::ReadFits(std::string file)
   dbg<<"  "<<id_col<<std::endl;
   table.column(id_col).read(id, start, end);
 
-  dbg<<"  "<<x_col<<"  "<<y_col<<std::endl;
-  pos.resize(nrows);
-  std::vector<double> x;
-  std::vector<double> y;
-  table.column(x_col).read(x, start, end);
-  table.column(y_col).read(y, start, end);
-  for(long i=0;i<nrows;++i) pos[i] = Position(x[i],y[i]);
+  dbg<<"  "<<ra_col<<"  "<<dec_col<<std::endl;
+  skypos.resize(nrows);
+  std::vector<double> ra;
+  std::vector<double> dec;
+  table.column(ra_col).read(ra, start, end);
+  table.column(dec_col).read(dec, start, end);
+  for(long i=0;i<nrows;++i) skypos[i] = Position(ra[i],dec[i]);
 
   dbg<<"  "<<sky_col<<std::endl;
   table.column(sky_col).read(sky, start, end);
@@ -890,16 +1077,6 @@ void ShearCatalog::ReadFits(std::string file)
 
   dbg<<"  "<<flags_col<<std::endl;
   table.column(flags_col).read(flags, start, end);
-
-  dbg<<"  "<<ra_col<<"  "<<dec_col<<std::endl;
-  skypos.resize(nrows);
-  std::vector<double> ra;
-  std::vector<double> dec;
-  table.column(ra_col).read(ra, start, end);
-  table.column(dec_col).read(dec, start, end);
-  for(long i=0;i<nrows;++i) {
-    skypos[i] = Position(ra[i],dec[i]);
-  }
 
   dbg<<"  "<<shear1_col<<"  "<<shear2_col<<std::endl;
   shear.resize(nrows);
@@ -926,6 +1103,7 @@ void ShearCatalog::ReadFits(std::string file)
     cov[i] = tmv::ListInit, cov00[i], cov01[i], cov01[i], cov11[i];
   }
 
+  dbg<<"  "<<sigma_col<<"  "<<order_col<<std::endl;
   // temporary
   std::vector<double> sigma;
   std::vector<int> order;
@@ -942,37 +1120,47 @@ void ShearCatalog::ReadFits(std::string file)
     std::valarray<double> coeffs;
     table.column(coeffs_col).read(coeffs, row);
 
-    double* ptri = (double* ) shape[i].cptr(); 
+    double* ptri = (double* ) shape[i].cptr();
     for (int j=0; j<ncoeff; ++j) {
       ptri[i] = coeffs[i];
     }
   }
+
+  dbg<<"  "<<nimages_found_col<<std::endl;
+  table.column(nimages_found_col).read(nimages_found, start, end);
+
+  dbg<<"  "<<nimages_gotpix_col<<std::endl;
+  table.column(nimages_gotpix_col).read(nimages_gotpix, start, end);
+
+  dbg<<"  "<<input_flags_col<<std::endl;
+  table.column(input_flags_col).read(input_flags, start, end);
 }
 
-void ShearCatalog::ReadAscii(std::string file, std::string delim)
+void MultiShearCatalog::ReadAscii(std::string file, std::string delim)
 {
   std::ifstream fin(file.c_str());
   if (!fin) {
     throw ReadError("Error opening stars file"+file);
   }
 
-  id.clear(); pos.clear(); sky.clear(); noise.clear(); flags.clear();
-  skypos.clear(); shear.clear(); nu.clear(); cov.clear(); shape.clear();
+  id.clear(); skypos.clear(); sky.clear(); noise.clear(); flags.clear();
+  shear.clear(); nu.clear(); cov.clear(); shape.clear();
+  nimages_found.clear(); nimages_gotpix.clear(); input_flags.clear();
 
   if (delim == "  ") {
     ConvertibleString flag;
-    long id1,b_order;
-    double x,y,sky1,noise1,ra,dec,s1,s2,nu1,c00,c01,c11,b_sigma;
-    while ( fin >> id1 >> x >> y >> sky1 >> noise1 >> 
-	flag >> ra >> dec >> s1 >> s2 >> nu1 >>
-	c00 >> c01 >> c11 >> b_order >> b_sigma )
+    long id1,b_order,nfound,ngotpix,inflag;
+    double ra,dec,sky1,noise1,s1,s2,nu1,c00,c01,c11,b_sigma;
+    while ( fin >> id1 >> ra >> dec >> sky1 >> noise1 >>
+	flag >> s1 >> s2 >> nu1 >>
+	c00 >> c01 >> c11 >> b_order >> b_sigma >>
+	nfound >> ngotpix >> inflag )
     {
       id.push_back(id1);
-      pos.push_back(Position(x,y));
+      skypos.push_back(Position(ra,dec));
       sky.push_back(sky1);
       noise.push_back(noise1);
       flags.push_back(flag);
-      skypos.push_back(Position(ra,dec));
       shear.push_back(std::complex<double>(s1,s2));
       nu.push_back(nu1);
       cov.push_back(tmv::SmallMatrix<double,2,2>());
@@ -980,6 +1168,9 @@ void ShearCatalog::ReadAscii(std::string file, std::string delim)
       shape.push_back(BVec(b_order,b_sigma));
       for(size_t j=0;j<shape.back().size();++j)
 	fin >> shape.back()[j];
+      nimages_found.push_back(nfound);
+      nimages_gotpix.push_back(ngotpix);
+      input_flags.push_back(inflag);
     }
   } else {
     if (delim.size() > 1) {
@@ -991,20 +1182,17 @@ void ShearCatalog::ReadAscii(std::string file, std::string delim)
     }
     char d = delim[0];
     long b_order;
-    double x,y,ra,dec,s1,s2,b_sigma,c00,c01,c11;
+    double ra,dec,s1,s2,b_sigma,c00,c01,c11;
     ConvertibleString temp;
     while (getline(fin,temp,d))
     {
       id.push_back(temp);
-      getline(fin,temp,d); x = temp;
-      getline(fin,temp,d); y = temp;
-      pos.push_back(Position(x,y));
-      getline(fin,temp,d); sky.push_back(temp);
-      getline(fin,temp,d); noise.push_back(temp);
-      getline(fin,temp,d); flags.push_back(temp);
       getline(fin,temp,d); ra = temp;
       getline(fin,temp,d); dec = temp;
       skypos.push_back(Position(ra,dec));
+      getline(fin,temp,d); sky.push_back(temp);
+      getline(fin,temp,d); noise.push_back(temp);
+      getline(fin,temp,d); flags.push_back(temp);
       getline(fin,temp,d); s1 = temp;
       getline(fin,temp,d); s2 = temp;
       shear.push_back(std::complex<double>(s1,s2));
@@ -1021,47 +1209,10 @@ void ShearCatalog::ReadAscii(std::string file, std::string delim)
 	getline(fin,temp,d); shape.back()[j] = temp;
       }
       getline(fin,temp); shape.back()[shape.back().size()-1] = temp;
+      nimages_found.push_back(temp);
+      nimages_gotpix.push_back(temp);
+      input_flags.push_back(temp);
     }
   }
-}
-
-void ShearCatalog::Read()
-{
-  std::string file = Name(params,"shear",false,true);
-  // false,true = input_prefix=false, mustexist=true.
-  // It is an input here, but it is in the output_prefix directory.
-  dbg<< "Reading Shear cat from file: " << file << std::endl;
-
-  bool fitsio = false;
-  if (params.keyExists("shear_io")) 
-    fitsio = (params["shear_io"] == "FITS");
-  else if (file.find("fits") != std::string::npos) 
-    fitsio = true;
-
-  if (!FileExists(file))
-  {
-    throw FileNotFound(file);
-  }
-  try
-  {
-    if (fitsio) {
-      ReadFits(file);
-    } else {
-      std::string delim = "  ";
-      if (params.keyExists("shear_delim")) delim = params["shear_delim"];
-      else if (file.find("csv") != std::string::npos) delim = ",";
-      ReadAscii(file,delim);
-    }
-  }
-  catch (std::runtime_error& e)
-  {
-    throw ReadError("Error reading from "+file+" -- caught error\n" +
-	e.what());
-  }
-  catch (...)
-  {
-    throw ReadError("Error reading from "+file+" -- caught unknown error");
-  }
-  dbg<<"Done Read ShearCatalog\n";
 }
 

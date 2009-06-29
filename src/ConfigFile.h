@@ -54,6 +54,42 @@
 #include <stdexcept>
 #include <limits>
 
+//
+// Errors that can be thrown by classes in this file:
+//
+
+struct ConvertibleStringError :
+  public std::runtime_error
+{
+  ConvertibleStringError(std::string err) throw() : 
+    std::runtime_error(err) {}
+  ~ConvertibleStringError() throw() {}
+};
+
+struct ConfigFile_FileNotFound : 
+  public std::runtime_error 
+{
+  ConfigFile_FileNotFound( const std::string& filename ) throw() :
+    std::runtime_error("ConfigFile error: file "+filename+" not found") {} 
+};
+
+struct ConfigFile_KeyNotFound : 
+  public std::runtime_error 
+{
+  // thrown only by T read(key) variant of read(), and T get(key)
+  ConfigFile_KeyNotFound( const std::string& keyname ) throw() :
+    std::runtime_error("ConfigFile error: key "+keyname+" not found") {} 
+};
+
+struct ConfigFile_ParameterError :
+  public std::runtime_error 
+{
+  ConfigFile_ParameterError( 
+      const std::string& keyname, const std::string& e2 ) throw() :
+    std::runtime_error("ConfigFile error: Could not convert entry for key "+
+	keyname+" to given type.\nCaught error: \n"+e2) {} 
+};
+
 #ifdef __INTEL_COMPILER
 #pragma warning (disable : 444)
 // Disable "destructor for base class ... is not virtual"
@@ -65,7 +101,7 @@
 //    data elements that need to be cleaned up by a destructor.
 // B) I can't find a way to avoid inheriting from std::string.  When I
 //    instead keep a string variable, then I can't find a way to 
-//    make string = ConvertibleString work correctly.
+//    make assignment from ConvertibleString to string work correctly.
 //    The operator T() technique that we use for all other types
 //    fails, since the compiler can't disambiguate which string
 //    assignment operator to use this with.
@@ -149,7 +185,7 @@ class ConvertibleString : public std::string
 #ifndef NOTHROW
       { std::cerr<<err<<std::endl; exit(1); }
 #else
-	throw std::runtime_error(err);
+	throw ConvertibleStringError(err);
 #endif
       return temp;
     }
@@ -172,7 +208,7 @@ class ConvertibleString : public std::string
 #ifdef NOTHROW
 	{ std::cerr<<err<<std::endl; exit(1); return std::vector<T>(); }
 #else
-	throw std::runtime_error(err);
+	throw ConvertibleStringError(err);
 #endif
 	else if ((*this)[i1] == '}') {
 	  // Then "{  }"
@@ -188,14 +224,14 @@ class ConvertibleString : public std::string
 #ifdef NOTHROW
 	  { std::cerr<<err<<std::endl; exit(1); }
 #else
-	  throw std::runtime_error(err);
+	  throw ConvertibleStringError(err);
 #endif
 	  ss >> temp[0];
 	  if (!ss) 
 #ifdef NOTHROW
 	  { std::cerr<<err<<std::endl; exit(1); }
 #else
-	  throw std::runtime_error(err);
+	  throw ConvertibleStringError(err);
 #endif
 	  for(size_t i=1;i<temp.size();++i) {
 	    ss >> ch;
@@ -203,14 +239,14 @@ class ConvertibleString : public std::string
 #ifdef NOTHROW
 	    { std::cerr<<err<<std::endl; exit(1); }
 #else
-	    throw std::runtime_error(err);
+	    throw ConvertibleStringError(err);
 #endif
 	    ss >> temp[i];
 	    if (!ss) 
 #ifdef NOTHROW
 	    { std::cerr<<err<<std::endl; exit(1); }
 #else
-	    throw std::runtime_error(err);
+	    throw ConvertibleStringError(err);
 #endif
 	  }
 	  ss >> ch;
@@ -218,7 +254,7 @@ class ConvertibleString : public std::string
 #ifdef NOTHROW
 	    { std::cerr<<err<<std::endl; exit(1); }
 #else
-	    throw std::runtime_error(err);
+	    throw ConvertibleStringError(err);
 #endif
 	  return temp;
 	}
@@ -261,7 +297,7 @@ template <> inline ConvertibleString::operator bool() const
     std::cerr<<err<<std::endl; exit(1);
     return false;
 #else
-    throw std::runtime_error(err);
+    throw ConvertibleStringError(err);
 #endif
   }
 }
@@ -296,7 +332,6 @@ class ConfigFile
     // Search for key and read value or optional default value
     ConvertibleString& getnocheck( const std::string& key );
     ConvertibleString get( const std::string& key ) const;
-
 
     inline ConvertibleString& operator[]( const std::string& key )
     { return getnocheck(key); }
@@ -337,20 +372,6 @@ class ConfigFile
   protected:
     static void trim( std::string& s );
 
-    // Exception types
-  public:
-    struct file_not_found : public std::runtime_error {
-      file_not_found( const std::string& filename = std::string() ) throw() :
-	std::runtime_error(std::string("ConfigFile error: file ") + filename
-	    + " not found") {} 
-    };
-
-    struct key_not_found : public std::runtime_error { 
-      // thrown only by T read(key) variant of read()
-      key_not_found( const std::string& keyname = std::string() ) throw() :
-	std::runtime_error(std::string("ConfigFile error: key ") + keyname
-	    + " not found") {} 
-    };
 };
 
 inline std::ostream& operator<<( std::ostream& os, const ConfigFile& cf )
@@ -366,12 +387,22 @@ T ConfigFile::read( const std::string& key ) const
   trim(key2);
   mapci p = myContents.find(key2);
   if( p == myContents.end() ) 
+  {
 #ifdef NOTHROW
-  { std::cerr<<"Key not found: "<<key2<<std::endl; exit(1); }
+    std::cerr<<"Key not found: "<<key2<<std::endl; exit(1); 
 #else
-    throw key_not_found(key2);
+    throw ConfigFile_KeyNotFound(key2);
 #endif
-  return p->second;
+  }
+  T ret;
+  try {
+    ret = p->second;
+  }
+  catch (ConvertibleStringError& e)
+  {
+    throw ConfigFile_ParameterError(key2,e.what());
+  }
+  return ret;
 }
 
 
@@ -384,7 +415,17 @@ T ConfigFile::read( const std::string& key, const T& value ) const
   trim(key2);
   mapci p = myContents.find(key2);
   if( p == myContents.end() ) return value;
-  return p->second;
+  else {
+    T ret;
+    try {
+      ret = p->second;
+    }
+    catch (ConvertibleStringError& e)
+    {
+      throw ConfigFile_ParameterError(key2,e.what());
+    }
+    return ret;
+  }
 }
 
 
@@ -398,7 +439,16 @@ bool ConfigFile::readInto( T& var, const std::string& key ) const
   trim(key2);
   mapci p = myContents.find(key2);
   bool found = ( p != myContents.end() );
-  if( found ) var = static_cast<T>( p->second );
+  if( found )
+  {
+    try {
+      var = p->second;
+    }
+    catch (ConvertibleStringError& e)
+    {
+      throw ConfigFile_ParameterError(key2,e.what());
+    }
+  }
   return found;
 }
 
@@ -413,7 +463,16 @@ bool ConfigFile::readInto( T& var, const std::string& key, const T& value ) cons
   trim(key2);
   mapci p = myContents.find(key2);
   bool found = ( p != myContents.end() );
-  if( found ) var = p->second;
+  if( found ) 
+  {
+    try {
+      var = p->second;
+    }
+    catch (ConvertibleStringError& e)
+    {
+      throw ConfigFile_ParameterError(key2,e.what());
+    }
+  }
   else var = value;
   return found;
 }

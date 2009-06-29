@@ -96,7 +96,7 @@ void StarCatalog::CalcSizes(const Image<double>& im,
 
   const int n = pos.size();
   dbg<<"n = "<<n<<std::endl;
-  double psfap = params.get("psf_aperture"); 
+  double psfap = params.read<double>("psf_aperture"); 
   double gain = params.read("image_gain",0.);
 
 #ifdef _OPENMP
@@ -329,12 +329,7 @@ void StarCatalog::WriteFits(std::string file) const
   table->column(colnames[7]).write(objsize,startrow);
   table->column(colnames[8]).write(isastar,startrow);
 
-
-
 }
-
-
-
 
 void StarCatalog::WriteAscii(std::string file, std::string delim) const 
 {
@@ -349,7 +344,7 @@ void StarCatalog::WriteAscii(std::string file, std::string delim) const
 
   std::ofstream fout(file.c_str());
   if (!fout) {
-    throw std::runtime_error("Error opening stars file");
+    throw WriteError("Error opening stars file"+file);
   }
 
   //Form hexform; hexform.hex().trail(0);
@@ -367,6 +362,7 @@ void StarCatalog::WriteAscii(std::string file, std::string delim) const
       << objsize[i] << delim
       << isastar[i] << std::endl;
   }
+
 }
 
 void StarCatalog::Write() const 
@@ -386,17 +382,29 @@ void StarCatalog::Write() const
     else if (file.find("fits") != std::string::npos) 
       fitsio = true;
 
-    if (fitsio) {
-      WriteFits(file);
-    } else {
-      std::string delim = "  ";
-      if (params.keyExists("stars_delim")) {
-	std::vector<std::string> delims = params["stars_delim"];
-	Assert(delims.size() == files.size());
-	delim = delims[i];
+    try 
+    {
+      if (fitsio) {
+	WriteFits(file);
+      } else {
+	std::string delim = "  ";
+	if (params.keyExists("stars_delim")) {
+	  std::vector<std::string> delims = params["stars_delim"];
+	  Assert(delims.size() == files.size());
+	  delim = delims[i];
+	}
+	else if (file.find("csv") != std::string::npos) delim = ",";
+	WriteAscii(file,delim);
       }
-      else if (file.find("csv") != std::string::npos) delim = ",";
-      WriteAscii(file,delim);
+    }
+    catch (std::runtime_error& e)
+    { 
+      throw WriteError("Error writing to "+file+" -- caught error\n" + 
+	  e.what());
+    }
+    catch (...)
+    { 
+      throw WriteError("Error writing to "+file+" -- caught unknown error");
     }
   }
   dbg<<"Done Write StarCatalog\n";
@@ -416,7 +424,7 @@ void StarCatalog::ReadFits(std::string file)
 
   dbg<<"  nrows = "<<nrows<<std::endl;
   if (nrows <= 0) {
-    throw std::runtime_error("nrows must be >= 0");
+    throw ReadError("StarCatalog found to have 0 rows.  Must have > 0 rows.");
   }
 
 
@@ -461,16 +469,13 @@ void StarCatalog::ReadFits(std::string file)
     pos[i] = Position(x[i],y[i]);
   }
 
-
 }
-
-
 
 void StarCatalog::ReadAscii(std::string file, std::string delim)
 {
   std::ifstream fin(file.c_str());
   if (!fin) {
-    throw std::runtime_error("Error opening stars file");
+    throw ReadError("Error opening stars file"+file);
   }
 
   id.clear(); pos.clear(); sky.clear(); noise.clear(); flags.clear();
@@ -498,8 +503,7 @@ void StarCatalog::ReadAscii(std::string file, std::string delim)
       // Since I don't really expect a multicharacter delimiter to
       // be used ever, I'm just going to throw an exception here 
       // if we do need it, and I can write the workaround then.
-      throw std::runtime_error(
-	  "ReadAscii delimiter must be a single character");
+      throw ParameterError("ReadAscii delimiter must be a single character");
     }
     char d = delim[0];
     dbg<<"Reading with delimeter "<<d<<std::endl;
@@ -537,13 +541,29 @@ void StarCatalog::Read()
   else if (file.find("fits") != std::string::npos) 
     fitsio = true;
 
-  if (fitsio) {
-    ReadFits(file);
-  } else {
-    std::string delim = "  ";
-    if (params.keyExists("stars_delim")) delim = params["stars_delim"];
-    else if (file.find("csv") != std::string::npos) delim = ",";
-    ReadAscii(file,delim);
+  if (!FileExists(file))
+  {
+    throw FileNotFound(file);
+  }
+  try 
+  {
+    if (fitsio) {
+      ReadFits(file);
+    } else {
+      std::string delim = "  ";
+      if (params.keyExists("stars_delim")) delim = params["stars_delim"];
+      else if (file.find("csv") != std::string::npos) delim = ",";
+      ReadAscii(file,delim);
+    }
+  }
+  catch (std::runtime_error& e)
+  { 
+    throw ReadError("Error reading from "+file+" -- caught error\n" + 
+	e.what());
+  }
+  catch (...)
+  { 
+    throw ReadError("Error reading from "+file+" -- caught unknown error");
   }
   dbg<<"Done Read StarCatalog\n";
 }

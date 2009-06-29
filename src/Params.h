@@ -1,6 +1,8 @@
 #ifndef PARAMS_H
 #define PARAMS_H
 
+#include <stdexcept>
+
 // Default value for 
 #define DEFVALPOS 9999
 #define DEFVALNEG -9999
@@ -32,19 +34,64 @@
 #define NO_SINGLE_EPOCH_IMAGES	0x200000
 
 
+// Errors specific to the weak lensing code
+
+struct FileNotFound : 
+  public std::runtime_error 
+{
+  FileNotFound(const std::string& filename) throw() :
+    std::runtime_error("Error: file "+filename+" not found") {} 
+};
+
+struct ParameterError:
+  public std::runtime_error 
+{
+  ParameterError(const std::string& msg) throw() : std::runtime_error(msg) {}
+};
+
+struct ReadError:
+  public std::runtime_error 
+{
+  ReadError(const std::string& msg) throw() : std::runtime_error(msg) {}
+};
+
+struct WriteError:
+  public std::runtime_error 
+{
+  WriteError(const std::string& msg) throw() : std::runtime_error(msg) {}
+};
+
+struct ProcessingError:
+  public std::runtime_error 
+{
+  ProcessingError(const std::string& msg) throw() : std::runtime_error(msg) {}
+};
+
+// Errors that may be thrown by the weak lensing code, but 
+// defined in other files
+
+// ConfigFile_FileNotFound    -- Treat as FileNotFound
+// ConfigFile_KeyNotFound     -- Treat as ParameterError
+// ConfigFile_ParameterError  -- Treat as ParameterError
+// StarFinderError            -- Treat as ProcessingError
+// AssertFailure              -- Treat as ProcessingError
+// tmv::Error                 -- Treat as ProcessingError
+// std::exception             -- Treat as ProcessingError
+
+
+
 //
 // Exit codes
 //
+
 enum ExitCode { 
-  SUCCESS			= 0,
-  FAILURE			= 1,
-  FAILURE_FILE_NOT_FOUND	= 2,
-  FAILURE_TMV_ERROR		= 3,
-  FAILURE_CONFIGFILE_ERROR	= 4,
-  FAILURE_STD_EXCEPTION		= 5,
-  FAILURE_READ_ERROR            = 6,
-  FAILURE_FORMAT_ERROR          = 7,
-  FAILURE_STARFINDER_ERROR      = 8
+  SUCCESS = 0,
+  FAILURE,
+  FAILURE_FILE_NOT_FOUND,
+  FAILURE_PARAMETER_ERROR,
+  FAILURE_READ_ERROR,
+  FAILURE_WRITE_ERROR,
+  FAILURE_PROCESSING_ERROR,
 };
 
 inline const char* Text(const ExitCode& code)
@@ -53,12 +100,10 @@ inline const char* Text(const ExitCode& code)
     case SUCCESS : return "SUCCESS";
     case FAILURE : return "FAILURE";
     case FAILURE_FILE_NOT_FOUND : return "FAILURE_FILE_NOT_FOUND";
-    case FAILURE_TMV_ERROR : return "FAILURE_TMV_ERROR";
-    case FAILURE_CONFIGFILE_ERROR : return "FAILURE_CONFIGFILE_ERROR";
-    case FAILURE_STD_EXCEPTION : return "FAILURE_STD_EXCEPTION";
+    case FAILURE_PARAMETER_ERROR : return "FAILURE_PARAMETER_ERROR";
     case FAILURE_READ_ERROR : return "FAILURE_READ_ERROR";
-    case FAILURE_FORMAT_ERROR : return "FAILURE_FORMAT_ERROR";
-    case FAILURE_STARFINDER_ERROR : return "FAILURE_FORMAT_ERROR";
+    case FAILURE_WRITE_ERROR : return "FAILURE_WRITE_ERROR";
+    case FAILURE_PROCESSING_ERROR : return "FAILURE_PROCESSING_ERROR";
     default : return "UNKNOWN";
   }
 }
@@ -67,14 +112,12 @@ inline int Status(ExitCode code)
 {
   switch (code) {
     case SUCCESS : return 2;
-    case FAILURE : return 5;
+    case FAILURE : return 4;
     case FAILURE_FILE_NOT_FOUND : return 5;
-    case FAILURE_TMV_ERROR : return 4;
-    case FAILURE_CONFIGFILE_ERROR : return 5;
-    case FAILURE_STD_EXCEPTION : return 4;
+    case FAILURE_PARAMETER_ERROR : return 5;
     case FAILURE_READ_ERROR : return 5;
-    case FAILURE_FORMAT_ERROR : return 5;
-    case FAILURE_STARFINDER_ERROR : return 4;
+    case FAILURE_WRITE_ERROR : return 4;
+    case FAILURE_PROCESSING_ERROR : return 4;
     default : return 0;
   }
 }

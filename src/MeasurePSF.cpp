@@ -90,7 +90,7 @@ static void DoMeasurePSF(ConfigFile& params, PSFLog& log)
     t1 = t2;
   }
 
-  if (npsf == 0) throw std::runtime_error("No successful PSF measurements");
+  if (npsf == 0) throw ProcessingError("No successful PSF measurements");
 
   // MJ -- Should we make a FittedPSFLog?  Are there parameters here that
   //       we want to ingest into a DB meta-table?
@@ -130,84 +130,17 @@ int main(int argc, char **argv) try
   if (params.keyExists("log_file") || params.keyExists("log_ext"))
     logfile = Name(params,"log");
   std::string psf_file=Name(params,"psf");
-  PSFLog log(logfile,psf_file,des_qa); 
+  std::auto_ptr<PSFLog> log (
+      new PSFLog(logfile,psf_file,des_qa)); 
 
   try {
-    DoMeasurePSF(params,log);
+    DoMeasurePSF(params,*log);
   }
 #if 0
   // Change to 1 to let gdb see where the program bombed out.
   catch(int) {}
 #else
-  catch (file_not_found& e)
-  {
-    dbg<<"Caught \n"<<e.what()<<std::endl;
-    std::cerr<<"Caught \n"<<e.what()<<std::endl;
-    log.exitcode = FAILURE_FILE_NOT_FOUND;
-    log.extraexitinfo = e.what();
-    //if (Status(log.exitcode)==5) 
-    return EXIT_FAILURE;
-    //else return EXIT_SUCCESS;
-  }
-  catch (ConfigFile::file_not_found& e)
-  {
-    dbg<<"Caught \n"<<e.what()<<std::endl;
-    std::cerr<<"Caught \n"<<e.what()<<std::endl;
-    log.exitcode = FAILURE_CONFIGFILE_ERROR;
-    log.extraexitinfo = e.what();
-    //if (Status(log.exitcode)==5) 
-    return EXIT_FAILURE;
-    //else return EXIT_SUCCESS;
-  }
-  catch (ConfigFile::key_not_found& e)
-  {
-    dbg<<"Caught \n"<<e.what()<<std::endl;
-    std::cerr<<"Caught \n"<<e.what()<<std::endl;
-    log.exitcode = FAILURE_CONFIGFILE_ERROR;
-    log.extraexitinfo = e.what();
-    //if (Status(log.exitcode)==5) 
-    return EXIT_FAILURE;
-    //else return EXIT_SUCCESS;
-  }
-  catch (tmv::Error& e)
-  {
-    dbg<<"Caught \n"<<e<<std::endl;
-    std::cerr<<"Caught \n"<<e<<std::endl;
-    log.exitcode = FAILURE_TMV_ERROR;
-    log.extraexitinfo = e.what();
-    //if (Status(log.exitcode)==5) 
-    return EXIT_FAILURE;
-    //else return EXIT_SUCCESS;
-  }
-  catch (std::exception& e)
-  {
-    dbg<<"Caught \n"<<e.what()<<std::endl;
-    std::cerr<<"Caught \n"<<e.what()<<std::endl;
-    log.exitcode = FAILURE_STD_EXCEPTION;
-    log.extraexitinfo = e.what();
-    //if (Status(log.exitcode)==5) 
-    return EXIT_FAILURE;
-    //else return EXIT_SUCCESS;
-  }
-  catch (ExitCode e)
-  { 
-    dbg<<"Caught ExitCode "<<e<<std::endl;
-    std::cerr<<"Caught ExitCode "<<e<<std::endl;
-    log.exitcode = e;
-    //if (Status(log.exitcode)==5) 
-    return EXIT_FAILURE;
-    //else return EXIT_SUCCESS;
-  }
-  catch (...)
-  {
-    dbg<<"Caught Unknown error\n";
-    std::cerr<<"Caught Unknown error\n";
-    log.exitcode = FAILURE;
-    log.extraexitinfo = "Caught unknown exception";
-    //if (Status(log.exitcode)==5) 
-    return EXIT_FAILURE;
-    //else return EXIT_SUCCESS;
-  }
+  CATCHALL
 #endif
 
   if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}

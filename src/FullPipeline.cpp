@@ -34,11 +34,11 @@ static void DoFullPipeline(ConfigFile& params,
 
   try {
     starcat.FindStars(static_cast<FindStarsLog&>(*log));
-  } catch(StarFinderException& e) {
+  } catch(StarFinderError& e) {
     // Need to catch this here, so we can write the output file
     // with the sizes, even though we haven't figured out which 
     // objects are stars.
-    dbg<<"Caught StarFinderException: "<<e.what()<<std::endl;  
+    dbg<<"Caught StarFinderError: "<<e.what()<<std::endl;  
     starcat.Write();
     throw;
   } catch (...) {
@@ -115,73 +115,7 @@ int main(int argc, char **argv) try
   // Change to 1 to let gdb see where the program bombed out.
   catch(int) {}
 #else
-  catch (file_not_found& e)
-  {
-    dbg<<"Caught \n"<<e.what()<<std::endl;
-    std::cerr<<"Caught \n"<<e.what()<<std::endl;
-    if (log.get()) {
-      log->exitcode = FAILURE_FILE_NOT_FOUND;
-      log->extraexitinfo = e.what();
-    }
-    return EXIT_FAILURE;
-  }
-  catch (ConfigFile::file_not_found& e)
-  {
-    dbg<<"Caught \n"<<e.what()<<std::endl;
-    std::cerr<<"Caught \n"<<e.what()<<std::endl;
-    if (log.get()) {
-      log->exitcode = FAILURE_CONFIGFILE_ERROR;
-      log->extraexitinfo = e.what();
-    }
-    return EXIT_FAILURE;
-  }
-  catch (ConfigFile::key_not_found& e)
-  {
-    dbg<<"Caught \n"<<e.what()<<std::endl;
-    std::cerr<<"Caught \n"<<e.what()<<std::endl;
-    if (log.get()) {
-      log->exitcode = FAILURE_CONFIGFILE_ERROR;
-      log->extraexitinfo = e.what();
-    }
-    return EXIT_FAILURE;
-  }
-  catch (tmv::Error& e)
-  {
-    dbg<<"Caught \n"<<e<<std::endl;
-    std::cerr<<"Caught \n"<<e<<std::endl;
-    if (log.get()) {
-      log->exitcode = FAILURE_TMV_ERROR;
-      log->extraexitinfo = e.what();
-    }
-    return EXIT_FAILURE;
-  }
-  catch (std::exception& e)
-  {
-    dbg<<"Caught \n"<<e.what()<<std::endl;
-    std::cerr<<"Caught \n"<<e.what()<<std::endl;
-    if (log.get()) {
-      log->exitcode = FAILURE_STD_EXCEPTION;
-      log->extraexitinfo = e.what();
-    }
-    return EXIT_FAILURE;
-  }
-  catch (ExitCode e)
-  { 
-    dbg<<"Caught ExitCode "<<e<<std::endl;
-    std::cerr<<"Caught ExitCode "<<e<<std::endl;
-    if (log.get()) log->exitcode = e;
-    return EXIT_FAILURE;
-  }
-  catch (...)
-  {
-    dbg<<"Caught Unknown error\n";
-    std::cerr<<"Caught Unknown error\n";
-    if (log.get()) {
-      log->exitcode = FAILURE;
-      log->extraexitinfo = "Caught unknown exception";
-    }
-    return EXIT_FAILURE;
-  }
+  CATCHALL
 #endif
 
   if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}

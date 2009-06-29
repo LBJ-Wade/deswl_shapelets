@@ -1,13 +1,14 @@
 
-#include "Transformation.h"
 #include "TMV.h"
+#include <fitsio.h>
+
+#include "Transformation.h"
 #include "TMV_Small.h"
 #include "dbg.h"
-#include  <fitsio.h>
 #include "Legendre2D.h"
 #include "NLSolver.h"
 #include "Name.h"
-#include <stdexcept>
+#include "Params.h"
 
 const double PI = 4.*atan(1.);
 
@@ -24,29 +25,32 @@ Transformation::Transformation(const ConfigFile& params) :
 {
   Assert(params.keyExists("dist_method"));
 
-  if (params["dist_method"] == "SCALE") {
-    double pixel_scale = params.get("pixel_scale");
+  std::string dist_method = params.get("dist_method");
+
+  if (dist_method == "SCALE") {
+    double pixel_scale = params.read<double>("pixel_scale");
     SetToScale(pixel_scale);
-  } else if (params["dist_method"] == "JACOBIAN") {
-    double dudx = params.get("dudx");
-    double dudy = params.get("dudy");
-    double dvdx = params.get("dvdx");
-    double dvdy = params.get("dvdy");
+  } else if (dist_method == "JACOBIAN") {
+    double dudx = params.read<double>("dudx");
+    double dudy = params.read<double>("dudy");
+    double dvdx = params.read<double>("dvdx");
+    double dvdy = params.read<double>("dvdy");
     SetToJacobian(dudx,dudy,dvdx,dvdy);
-  } else if (params["dist_method"] == "FUNC2D") {
-    std::string distfile = Name(params,"dist",true);
-    std::ifstream distin(distfile.c_str());
+  } else if (dist_method == "FUNC2D") {
+    std::string dist_file = Name(params,"dist",true);
+    std::ifstream distin(dist_file.c_str());
     Assert(distin);
     ReadFunc2D(distin);
-    xdbg<<"Done read distortion "<<distfile<<std::endl;
-  } else if (params["dist_method"] == "WCS") {
-    std::string distfile = Name(params,"dist",true);
+    xdbg<<"Done read distortion "<<dist_file<<std::endl;
+  } else if (dist_method == "WCS") {
+    std::string dist_file = Name(params,"dist",true);
     int hdu = params.read("dist_hdu",1);
-    ReadWCS(distfile,hdu);
-    xdbg<<"Done read WCS distortion "<<distfile<<std::endl;
+    ReadWCS(dist_file,hdu);
+    xdbg<<"Done read WCS distortion "<<dist_file<<std::endl;
   } else {
-    dbg<<"Unknown transformation method\n";
-    throw std::runtime_error("Unknown distortion method");
+    dbg<<"Unknown transformation method: "<<dist_method<<std::endl;
+    throw ParameterError(
+	"Unknown distortion method: "+dist_method);
   }
 }
 
@@ -83,7 +87,16 @@ void Transformation::SetToJacobian(
 
 void Transformation::ReadFunc2D(std::istream& is) 
 {
-  is >> up >> vp;
+  try {
+    is >> up >> vp;
+  }
+  catch (std::exception& e)
+  {
+    dbg<<"In ReadFunc2D: caught error "<<e.what()<<std::endl;
+    throw ReadError(
+	std::string("Error reading Func2D format transformation.\n") +
+	"Caught error: "+ e.what());
+  }
   dudxp = up->DFDX();
   dudyp = up->DFDY();
   dvdxp = vp->DFDX();
@@ -92,10 +105,18 @@ void Transformation::ReadFunc2D(std::istream& is)
 
 void Transformation::WriteFunc2D(std::ostream& os) const
 {
-  os << *up << std::endl;
-  os << *vp << std::endl;
+  try {
+    os << *up << std::endl;
+    os << *vp << std::endl;
+  }
+  catch (std::exception& e)
+  {
+    dbg<<"In WriteFunc2D: caught error "<<e.what()<<std::endl;
+    throw WriteError(
+	std::string("Error writing Func2D format transformation.\n") +
+	"Caught error: "+ e.what());
+  }
 }
-
 
 // 
 // Basic routines to apply the transformation
@@ -208,7 +229,7 @@ bool Transformation::InverseTransform(Position puv, Position& pxy) const
   //solver.verbose = true;
   bool success = solver.Solve(x,f);
   xdbg<<"In inverseTransform, final f = "<<f<<std::endl;
-  pxy = Position(x[0],x[1]);
+  if (success) pxy = Position(x[0],x[1]);
   return success;
 }
 
@@ -289,6 +310,7 @@ static void ReadWCSFits(const std::string& filename, int hdu,
 
   xdbg<<"starting read wcs from fits "<<filename<<"\n";
 
+  // TODO: Use CCFits
   int status=0;
   fitsfile *fitsptr;
   char temp[80];
@@ -296,12 +318,13 @@ static void ReadWCSFits(const std::string& filename, int hdu,
   dbg<<"Reading WCS from file: "<<filename<<std::endl;
   if (fits_open_file(&fitsptr,filename.c_str(),READONLY,&status))
     dbg<<"fits open file: "<<status<<std::endl;
-  if (status) throw std::runtime_error(
-      std::string("opening fits file: ") + filename);
+  if (status) throw ReadError(
+      "opening fits file for transformation: "+filename);
 
   if (fits_movabs_hdu(fitsptr,hdu,0,&status))
     dbg<<"fits moveabs hdu: "<<status<<std::endl;
-  if (status) throw std::runtime_error("Changing hdu");
+  if (status) throw ReadError(
+      "Error changing hdu in transformation fits file: "+filename);
   xdbg<<"Moved to hdu "<<hdu<<std::endl;
 
   if (fits_read_key(fitsptr,TSTRING,(char*)"CTYPE1",temp,NULL,&status))
@@ -312,7 +335,8 @@ static void ReadWCSFits(const std::string& filename, int hdu,
     wcstype = TNX;
   } else {
     dbg << "ctype = "<<temp<<std::endl;
-    throw std::runtime_error("ctype1 is not as expected");
+    throw ReadError(
+	std::string("Error ctype1 (")+temp+") is not as expected");
   }
 
   if (fits_read_key(fitsptr,TSTRING,(char*)"CTYPE2",temp,NULL,&status))
@@ -320,7 +344,8 @@ static void ReadWCSFits(const std::string& filename, int hdu,
   if ((wcstype == TAN && std::string(temp) != "DEC--TAN") ||
       (wcstype == TNX && std::string(temp) != "DEC--TNX")) {
     dbg << "ctype = "<<temp<<std::endl;
-    throw std::runtime_error("ctype2 is not as expected");
+    throw ReadError(
+	std::string("Error ctype2 (")+temp+") is not as expected");
   }
  
   if (fits_read_key(fitsptr,TDOUBLE,(char*)"CRVAL1",&crval[0],NULL,&status))
@@ -348,7 +373,7 @@ static void ReadWCSFits(const std::string& filename, int hdu,
     std::cerr << "fits error status "<<status<<" = "<<errmsg<<std::endl;
     while (fits_read_errmsg(errmsg))
       std::cerr << "fits error: "<<errmsg<<std::endl;
-    throw std::runtime_error("fits errors");
+    throw ReadError("Fits errors encountered reading WCS transformation");
   }
   xdbg<<"Done reading wcs from fits."<<std::endl;
 }
@@ -434,12 +459,13 @@ static void ReadTANFits(const std::string& filename, int hdu,
 
   if (fits_open_file(&fitsptr,filename.c_str(),READONLY,&status))
     dbg<<"fits open file: "<<status<<std::endl;
-  if (status) throw std::runtime_error(
-      std::string("opening fits file: ") + filename);
+    throw ReadError("Opening fits file "+filename+" for TAN Transformation");
 
   if (fits_movabs_hdu(fitsptr,hdu,0,&status))
     dbg<<"fits moveabs hdu: "<<status<<std::endl;
-  if (status) throw std::runtime_error("Changing hdu");
+  if (status)
+    throw ReadError(
+	"Changing hdu in fits file "+filename+" for Transformation read");
   xdbg<<"Moved to hdu "<<hdu<<std::endl;
 
   char pvstr[10] = "PV1_1";
@@ -485,7 +511,7 @@ static void ReadTANFits(const std::string& filename, int hdu,
     std::cerr << "fits error status "<<status<<" = "<<errmsg<<std::endl;
     while (fits_read_errmsg(errmsg))
       std::cerr << "fits error: "<<errmsg<<std::endl;
-    throw std::runtime_error("fits errors");
+    throw ReadError("Fits errors encountered reading WCS transformation");
   }
   xdbg<<"Done read TAN specific wcs parameters."<<std::endl;
 }
@@ -499,12 +525,14 @@ static void ReadTNXFits(const std::string& filename, int hdu,
 
   if (fits_open_file(&fitsptr,filename.c_str(),READONLY,&status))
     dbg<<"fits open file: "<<status<<std::endl;
-  if (status) throw std::runtime_error(
-      std::string("opening fits file: ") + filename);
+  if (status) 
+    throw ReadError("Opening fits file "+filename+" for TNX Transformation");
 
   if (fits_movabs_hdu(fitsptr,hdu,0,&status))
     dbg<<"fits moveabs hdu: "<<status<<std::endl;
-  if (status) throw std::runtime_error("Changing hdu");
+  if (status) 
+    throw ReadError(
+	"Changing hdu in fits file "+filename+" for Transformation read");
   xdbg<<"Moved to hdu "<<hdu<<std::endl;
 
   char wat[10] = "WAT0_001";
@@ -535,7 +563,7 @@ static void ReadTNXFits(const std::string& filename, int hdu,
     std::cerr << "fits error status "<<status<<" = "<<errmsg<<std::endl;
     while (fits_read_errmsg(errmsg))
       std::cerr << "fits error: "<<errmsg<<std::endl;
-    throw std::runtime_error("fits errors");
+    throw ReadError("Fits errors encountered reading WCS transformation");
   }
 }
 
@@ -580,7 +608,8 @@ static Function2D<double>* TNXConvert(const std::string& wcsstr,
     else if (crossterms == TNX_XHALF) 
       if (j+1+xorder > maxorder) xorder1--;
   }
-  if (!wcsin) throw std::runtime_error("reading wat line");
+  if (!wcsin) 
+    throw ReadError("Error reading wat line for WCS transformation");
   
   // This next bit is only right if we have a polynomial function
   Assert(functype == TNX_POLYNOMIAL);
@@ -593,7 +622,7 @@ static Function2D<double>* TNXConvert(const std::string& wcsstr,
   switch(functype) {
     case TNX_CHEBYSHEV:
       xdbg<<"cheby\n";
-      throw std::runtime_error("No Chebyshev functions");
+      throw ReadError("Error TNX_CHEBYSHEV not implemented yet.");
       //f = new Cheby2D<double>(b,a);
       //break;
     case TNX_LEGENDRE:
@@ -605,7 +634,7 @@ static Function2D<double>* TNXConvert(const std::string& wcsstr,
       f = new Polynomial2D<double>(a);
       break;
     default:
-      throw std::runtime_error("Unknown TNX surface type");
+      throw ReadError( "Unknown TNX surface type");
   }
   xdbg<<"done WCSConvert\n";
 
@@ -689,7 +718,7 @@ void Transformation::ReadWCS(std::string fitsfile, int hdu)
     vp.reset(TNXConvert(latstr,cd,crpix));
   }
   else {
-    throw std::runtime_error("Unknown wcs type");
+    throw ReadError( "Unknown WCS type");
   }
   
   // These are just the distortion terms so far. 

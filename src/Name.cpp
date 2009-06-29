@@ -2,6 +2,7 @@
 #include <sys/stat.h> 
 #include "Name.h"
 #include "dbg.h"
+#include "Params.h"
 
 
 // This function is taken from:
@@ -58,7 +59,7 @@ void SetRoot(ConfigFile& params)
       }
     }
     if (!found) {
-      throw(std::runtime_error(std::string("image file ")+image_file+
+      throw(ParameterError("image file "+image_file+
 	    " does not end with "+params["image_ext"]));
     }
 
@@ -98,7 +99,7 @@ std::string Name(const ConfigFile& params, const std::string& what,
   if (params.keyExists((what+"_file"))) {
     name = params[what+"_file"];
     if (mustexist) {
-      if (!FileExists(name)) throw file_not_found(name);
+      if (!FileExists(name)) throw FileNotFound(name);
     }
   } else {
     Assert(params.keyExists("root"));
@@ -126,7 +127,7 @@ std::string Name(const ConfigFile& params, const std::string& what,
 	    name = pre + root + ext[j];
 	    allnames += name;
 	  }
-	  throw file_not_found(allnames);
+	  throw FileNotFound(allnames);
 	}
       } else {
 	break;

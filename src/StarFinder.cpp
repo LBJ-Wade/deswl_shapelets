@@ -382,7 +382,7 @@ std::vector<PotentialStar*> StarFinder::GetPeakList(
       std::ostringstream err;
       err<<"Couldn't find a stellar peak.  ";
       err<<"All the objects seem to be basically the same size.";
-      throw StarFinderException(err.str());
+      throw StarFinderError(err.str());
     }
     valley1 = valley1_new;
     xdbg<<"new valley1 = "<<valley1<<" ("<<hist[valley1]<<")\n";
@@ -594,7 +594,7 @@ void StarFinder::FitStellarSizes(Function2D<double> *f, size_t order,
     std::ostringstream err;
     err<<"Not enough stars to do fit.  ";
     err<<"Increase starsperbin or decrease fitorder.";
-    throw StarFinderException(err.str());
+    throw StarFinderError(err.str());
   }
 
   // Do the fit.
@@ -636,7 +636,7 @@ void StarFinder::RoughlyFitBrightStars(
   if (3*five-1 >= brightlist.size()) {
     std::ostringstream err;
     err<<"Too few objects in brightlist.  Increase startn1.";
-    throw StarFinderException(err.str());
+    throw StarFinderError(err.str());
   }
   Assert(3*five-1<brightlist.size());
   size_t peakstart = 0;

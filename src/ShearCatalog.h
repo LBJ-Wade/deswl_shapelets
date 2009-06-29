@@ -26,13 +26,14 @@ class ShearCatalog
     ShearCatalog(const ConfigFile& _params);
 
     size_t size() const { return id.size(); }
-    void Read();
-    void Write() const;
 
-    void ReadFits(std::string file);
-    void ReadAscii(std::string file, std::string delim = "  ");
+    void Write() const;
     void WriteFits(std::string file) const;
     void WriteAscii(std::string file, std::string delim = "  ") const;
+
+    void Read();
+    void ReadFits(std::string file);
+    void ReadAscii(std::string file, std::string delim = "  ");
 
     int MeasureShears(const Image<double>& im,
 	const Image<double>* weight_im, const Transformation& trans,

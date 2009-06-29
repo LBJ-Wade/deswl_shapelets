@@ -83,3 +83,105 @@ inline int BasicSetup(int argc, char **argv,
   return 0;
 }
 
+#define CATCHALL \
+catch (FileNotFound& e) \
+{ \
+  dbg<<"Caught \n"<<e.what()<<std::endl; \
+  std::cerr<<"Caught \n"<<e.what()<<std::endl; \
+  if (log.get()) { \
+    log->exitcode = FAILURE_FILE_NOT_FOUND; \
+    log->extraexitinfo = e.what(); \
+  } \
+  return EXIT_FAILURE; \
+} \
+catch (ParameterError& e) \
+{ \
+  dbg<<"Caught \n"<<e.what()<<std::endl; \
+  std::cerr<<"Caught \n"<<e.what()<<std::endl; \
+  if (log.get()) { \
+    log->exitcode = FAILURE_PROCESSING_ERROR; \
+    log->extraexitinfo = e.what(); \
+  } \
+  return EXIT_FAILURE; \
+}  \
+catch (ReadError& e) \
+{ \
+  dbg<<"Caught \n"<<e.what()<<std::endl; \
+  std::cerr<<"Caught \n"<<e.what()<<std::endl; \
+  if (log.get()) { \
+    log->exitcode = FAILURE_READ_ERROR; \
+    log->extraexitinfo = e.what(); \
+  } \
+  return EXIT_FAILURE; \
+} \
+catch (WriteError& e) \
+{ \
+  dbg<<"Caught \n"<<e.what()<<std::endl; \
+  std::cerr<<"Caught \n"<<e.what()<<std::endl; \
+  if (log.get()) { \
+    log->exitcode = FAILURE_WRITE_ERROR; \
+    log->extraexitinfo = e.what(); \
+  } \
+  return EXIT_FAILURE; \
+} \
+catch (ProcessingError& e) \
+{ \
+  dbg<<"Caught \n"<<e.what()<<std::endl; \
+  std::cerr<<"Caught \n"<<e.what()<<std::endl; \
+  if (log.get()) { \
+    log->exitcode = FAILURE_PROCESSING_ERROR; \
+    log->extraexitinfo = e.what(); \
+  } \
+  return EXIT_FAILURE; \
+} \
+catch (ConfigFile_FileNotFound& e) \
+{ \
+  dbg<<"Caught \n"<<e.what()<<std::endl; \
+  std::cerr<<"Caught \n"<<e.what()<<std::endl; \
+  if (log.get()) { \
+    log->exitcode = FAILURE_FILE_NOT_FOUND; \
+    log->extraexitinfo = e.what(); \
+  } \
+  return EXIT_FAILURE; \
+} \
+catch (ConfigFile_KeyNotFound& e) \
+{ \
+  dbg<<"Caught \n"<<e.what()<<std::endl; \
+  std::cerr<<"Caught \n"<<e.what()<<std::endl; \
+  if (log.get()) { \
+    log->exitcode = FAILURE_PARAMETER_ERROR; \
+    log->extraexitinfo = e.what(); \
+  } \
+  return EXIT_FAILURE; \
+} \
+catch (tmv::Error& e) \
+{ \
+  dbg<<"Caught \n"<<e<<std::endl; \
+  std::cerr<<"Caught \n"<<e<<std::endl; \
+  if (log.get()) { \
+    log->exitcode = FAILURE_PROCESSING_ERROR; \
+    log->extraexitinfo = e.what(); \
+  } \
+  return EXIT_FAILURE; \
+} \
+catch (std::exception& e) \
+{ \
+  dbg<<"Caught \n"<<e.what()<<std::endl; \
+  std::cerr<<"Caught \n"<<e.what()<<std::endl; \
+  if (log.get()) { \
+    log->exitcode = FAILURE_PROCESSING_ERROR; \
+    log->extraexitinfo = e.what(); \
+  } \
+  return EXIT_FAILURE; \
+} \
+catch (...) \
+{ \
+  dbg<<"Caught Unknown error\n"; \
+  std::cerr<<"Caught Unknown error\n"; \
+  if (log.get()) { \
+    log->exitcode = FAILURE; \
+    log->extraexitinfo = "Caught unknown exception"; \
+  } \
+  return EXIT_FAILURE; \
+}
+

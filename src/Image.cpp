@@ -54,6 +54,7 @@ template <class T>
 void Image<T>::ReadFits(std::string filename, int hdu) 
 {
   xxdbg<<"Start read fitsimage"<<std::endl;
+  // TODO: Use CCFits
   fitsfile *fptr;
   int fitserr=0;
 

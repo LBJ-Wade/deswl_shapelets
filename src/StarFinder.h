@@ -3,13 +3,16 @@
 #define StarFinder_H
 
 #include <vector>
+#include <stdexcept>
 #include "ConfigFile.h"
 #include "Function2D.h"
 #include "PotentialStar.h"
 
-class StarFinderException : public std::runtime_error {
+class StarFinderError : 
+  public std::runtime_error 
+{
   public:
-    StarFinderException(std::string m) : std::runtime_error(m) {};
+    StarFinderError(std::string m) : std::runtime_error(m) {};
 };
 
 class StarFinder

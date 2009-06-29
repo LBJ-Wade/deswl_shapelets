@@ -10,13 +10,19 @@ enum NOISE_METHOD {VALUE, CATALOG, CATALOG_SIGMA, GAIN_VALUE, GAIN_FITS,
 
 static void ReadGain(const std::string& file, ConfigFile& params)
 {
+  if (!FileExists(file))
+  {
+    throw FileNotFound(file);
+  }
   xdbg<<"ReadGain: from fits file "<<file<<std::endl;
   CCfits::FITS fits(file, CCfits::Read, false);
 
   float gain, rdnoise;
 
-  std::vector<std::string> gain_key = params.get("image_gain_key");
-  std::vector<std::string> rdn_key = params.get("image_readnoise_key");
+  std::vector<std::string> gain_key = 
+    params.read<std::vector<std::string> >("image_gain_key");
+  std::vector<std::string> rdn_key =
+    params.read<std::vector<std::string> >("image_readnoise_key");
 
   for(size_t k=0;k<gain_key.size();k++) {
     xdbg<<"try "<<gain_key[k]<<std::endl;
@@ -25,7 +31,10 @@ static void ReadGain(const std::string& file, ConfigFile& params)
       break;
     } 
     catch (CCfits::FitsException)
-    { if (k == gain_key.size()-1) throw; }
+    {
+      if (k == gain_key.size()-1)
+	throw ReadError("Error reading gain from Fits file "+file);
+    }
   }
 
   for(size_t k=0;k<rdn_key.size();k++) {
@@ -35,7 +44,10 @@ static void ReadGain(const std::string& file, ConfigFile& params)
       break;
     } 
     catch (CCfits::FitsException)
-    { if (k == rdn_key.size()-1) throw; }
+    { 
+      if (k == rdn_key.size()-1) 
+	throw ReadError("Error reading read_noise from Fits file "+file);
+    }
   }
 
   params["image_gain"] = gain;
@@ -46,45 +58,47 @@ InputCatalog::InputCatalog(ConfigFile& _params, const Image<double>* im) :
   params(_params)
 {
   // Setup noise calculation:
-  Assert(params.keyExists("noise_method"));
   NOISE_METHOD nm;
   double noise_value=0.;
   double gain=0.;
   double readnoise=0.;
   
-  if (params["noise_method"] == "VALUE") {
+  std::string noise_method = params.get("noise_method");
+  if (noise_method == "VALUE") {
     nm = VALUE;
-    noise_value = params.get("noise");
+    noise_value = params.read<double>("noise");
   } 
-  else if (params["noise_method"] == "CATALOG") {
+  else if (noise_method == "CATALOG") {
     nm = CATALOG;
     Assert(params.keyExists("cat_noise_col"));
   }
-  else if (params["noise_method"] == "CATALOG_SIGMA") {
+  else if (noise_method == "CATALOG_SIGMA") {
     nm = CATALOG_SIGMA;
     Assert(params.keyExists("cat_noise_col"));
   }
-  else if (params["noise_method"] == "GAIN_VALUE") {
+  else if (noise_method == "GAIN_VALUE") {
     nm = GAIN_VALUE;
-    gain = params.get("image_gain");
-    readnoise = params.get("image_readnoise");
+    gain = params.read<double>("image_gain");
+    readnoise = params.read<double>("image_readnoise");
     dbg<<"gain, readnoise = "<<gain<<"  "<<readnoise<<std::endl;
   } 
-  else if (params["noise_method"] == "GAIN_FITS") {
+  else if (noise_method == "GAIN_FITS") {
+    // _params, not params, since we need a non-const version,
+    // and the params object we store as a const reference.
     ReadGain(Name(params,"image",true),_params);
     xdbg<<"Read gain = "<<params["image_gain"]<<
       ", rdn = "<<params["image_readnoise"]<<std::endl;
-    gain = params.get("image_gain");
-    readnoise = params.get("image_readnoise");
+    gain = params.read<double>("image_gain");
+    readnoise = params.read<double>("image_readnoise");
     nm = GAIN_VALUE;
     dbg<<"gain, readnoise = "<<gain<<"  "<<readnoise<<std::endl;
   } 
-  else if (params["noise_method"] == "WEIGHT_IMAGE") {
+  else if (noise_method == "WEIGHT_IMAGE") {
     nm = WEIGHT_IMAGE;
     Assert(params.keyExists("weight_ext") || params.keyExists("weight_file"));
   }
   else {
-    throw std::runtime_error("Unknown noise method");
+    throw ParameterError("Unknown noise method "+noise_method);
   }
 
   // Read catalog from fits or ascii file as appropriate
@@ -102,12 +116,12 @@ InputCatalog::InputCatalog(ConfigFile& _params, const Image<double>* im) :
       glob_sky = params["cat_globalsky"];
     }
     else {
-      std::auto_ptr<Image<double> > im1;
-      if (!im) {
-	im1.reset(new Image<double>(params));
-	im = im1.get();
+      if (im) {
+	glob_sky = im->Median();
+      } else {
+	Image<double> im1(params);
+	glob_sky = im1.Median();
       }
-      glob_sky = im->Median();
       dbg<<"Found global sky from image median value.\n";
     }
     dbg<<"Set global value of sky to "<<glob_sky<<std::endl;
@@ -213,13 +227,29 @@ void InputCatalog::Read()
   else if (file.find("fits") != std::string::npos) 
     fitsio = true;
 
-  if (fitsio) {
-    ReadFits(file);
-  } else {
-    std::string delim = "  ";
-    if (params.keyExists("cat_delim")) delim = params["cat_delim"];
-    else if (file.find("csv") != std::string::npos) delim = ",";
-    ReadAscii(file,delim);
+  if (!FileExists(file))
+  {
+    throw FileNotFound(file);
+  }
+  try
+  {
+    if (fitsio) {
+      ReadFits(file);
+    } else {
+      std::string delim = "  ";
+      if (params.keyExists("cat_delim")) delim = params["cat_delim"];
+      else if (file.find("csv") != std::string::npos) delim = ",";
+      ReadAscii(file,delim);
+    }
+  }
+  catch (std::runtime_error& e)
+  {
+    throw ReadError("Error reading from "+file+" -- caught error\n" +
+	e.what());
+  }
+  catch (...)
+  {
+    throw ReadError("Error reading from "+file+" -- caught unknown error");
   }
   dbg<<"Done Read InputCatalog\n";
 }
@@ -240,8 +270,7 @@ void InputCatalog::ReadFits(std::string file)
 
   dbg<<"  nrows = "<<nrows<<std::endl;
   if (nrows <= 0) {
-    std::cerr<<"nrows must be > 0"<<std::endl;
-    throw FAILURE_FORMAT_ERROR;
+    throw ReadError("InputCatalog found to have 0 rows.  Must have > 0 rows.");
   }
 
   // Read each column in turn:
@@ -344,8 +373,6 @@ void InputCatalog::ReadFits(std::string file)
   }
 }
 
-
-
 // Helper functino to convert ASCII line into vector of tokens
 static void GetTokens(std::string delim, 
     std::string line, std::vector<ConvertibleString>& tokens)
@@ -360,7 +387,7 @@ static void GetTokens(std::string delim,
       // Since I don't really expect a multicharacter delimiter to
       // be used ever, I'm just going to throw an exception here 
       // if we do need it, and I can write the workaround then.
-      throw std::runtime_error(
+      throw ParameterError(
 	  "ReadAscii delimiter must be a single character");
     }
     char d = delim[0];
@@ -376,14 +403,14 @@ void InputCatalog::ReadAscii(std::string file, std::string delim)
 {
   std::ifstream catin(file.c_str());
   if (!catin) {
-    throw std::runtime_error("Error opening input catalog file");
+    throw ReadError("Error opening input catalog file"+file);
   }
   xdbg<<"Opened catalog "<<file<<std::endl;
 
   // x,y is required
   std::string line;
-  size_t x_col = params.get("cat_x_col");
-  size_t y_col = params.get("cat_y_col");
+  size_t x_col = params.read<size_t>("cat_x_col");
+  size_t y_col = params.read<size_t>("cat_y_col");
 
   // Set column numbers for optional columns
   size_t id_col = params.read("cat_id_col",0);
