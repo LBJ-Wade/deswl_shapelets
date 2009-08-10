@@ -182,10 +182,27 @@ void FittedPSF::Write() const
     else if (file.find("fits") != std::string::npos) 
       fitsio = true;
 
-    if (fitsio) {
-      WriteFits(file);
-    } else {
-      WriteAscii(file);
+    try
+    {
+      if (fitsio) {
+	WriteFits(file);
+      } else {
+	WriteAscii(file);
+      }
+    }
+    catch (CCfits::FitsException& e)
+    {
+      throw WriteError("Error writing to "+file+" -- caught error\n" +
+	  e.message());
+    }
+    catch (std::exception& e)
+    {
+      throw WriteError("Error writing to "+file+" -- caught error\n" +
+	  e.what());
+    }
+    catch (...)
+    {
+      throw WriteError("Error writing to "+file+" -- caught unknown error");
     }
   }
   dbg<<"Done Write FittedPSF\n";
@@ -204,10 +221,31 @@ void FittedPSF::Read()
   else if (file.find("fits") != std::string::npos) 
     fitsio = true;
 
-  if (fitsio) {
-    ReadFits(file);
-  } else {
-    ReadAscii(file);
+  if (!FileExists(file))
+  {
+    throw FileNotFound(file);
+  }
+  try 
+  {
+    if (fitsio) {
+      ReadFits(file);
+    } else {
+      ReadAscii(file);
+    }
+  }
+  catch (CCfits::FitsException& e)
+  {
+    throw ReadError("Error reading from "+file+" -- caught error\n" +
+	e.message());
+  }
+  catch (std::exception& e)
+  {
+    throw ReadError("Error reading from "+file+" -- caught error\n" +
+	e.what());
+  }
+  catch (...)
+  {
+    throw ReadError("Error reading from "+file+" -- caught unknown error");
   }
   dbg<<"Done Read FittedPSF\n";
 }
@@ -357,14 +395,10 @@ void FittedPSF::WriteFits(std::string file) const
   table->column(colnames[9]).write(cptr, n_rot_matrix, nrows, startrow);
   cptr = (double *) f->cptr();
   table->column(colnames[10]).write(cptr, n_interp_matrix, nrows, startrow);
-
-
 }
-
 
 void FittedPSF::ReadFits(std::string file)
 {
-
   // must do this way because of the const thing
   int hdu=2;
   if (params.keyExists("fitpsf_hdu")) {
@@ -487,8 +521,6 @@ void FittedPSF::ReadFits(std::string file)
     dptr[j] = dvec[j];
   }
   xdbg<<"f = "<<*f<<std::endl;
-
-
 }
 
 void FittedPSF::InterpolateVector(

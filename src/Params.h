@@ -2,6 +2,7 @@
 #define PARAMS_H
 
 #include <stdexcept>
+#include "ConfigFile.h"
 
 // Default value for 
 #define DEFVALPOS 9999
@@ -108,16 +109,16 @@ inline const char* Text(const ExitCode& code)
   }
 }
 
-inline int Status(ExitCode code)
+inline int Status(ExitCode code, const ConfigFile& params)
 {
   switch (code) {
-    case SUCCESS : return 2;
-    case FAILURE : return 4;
-    case FAILURE_FILE_NOT_FOUND : return 5;
-    case FAILURE_PARAMETER_ERROR : return 5;
-    case FAILURE_READ_ERROR : return 5;
-    case FAILURE_WRITE_ERROR : return 4;
-    case FAILURE_PROCESSING_ERROR : return 4;
+    case SUCCESS : return params.read("success_status",2);
+    case FAILURE : return params.read("failure_status",4);
+    case FAILURE_FILE_NOT_FOUND : return params.read("file_not_found_status",5);
+    case FAILURE_PARAMETER_ERROR : return params.read("parameter_error_status",5);
+    case FAILURE_READ_ERROR : return params.read("read_error_status",5);
+    case FAILURE_WRITE_ERROR : return params.read("write_error_status",4);
+    case FAILURE_PROCESSING_ERROR : return params.read("processing_error_status",4);
     default : return 0;
   }
 }

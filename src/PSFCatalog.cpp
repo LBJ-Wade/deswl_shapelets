@@ -195,7 +195,7 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
   {
     try {
 #endif
-      PSFLog log1;  // Just for this thread
+      PSFLog log1(params);  // Just for this thread
       log1.NoWriteLog();
 #ifdef _OPENMP
 #pragma omp for schedule(guided)
@@ -521,7 +521,12 @@ void PSFCatalog::Write() const
 	WriteAscii(file,delim);
       }
     }
-    catch (std::runtime_error& e)
+    catch (CCfits::FitsException& e)
+    {
+      throw WriteError("Error writing to "+file+" -- caught error\n" +
+	  e.message());
+    }
+    catch (std::exception& e)
     {
       throw WriteError("Error writing to "+file+" -- caught error\n" +
 	  e.what());
@@ -719,7 +724,12 @@ void PSFCatalog::Read()
       ReadAscii(file,delim);
     }
   }
-  catch (std::runtime_error& e)
+  catch (CCfits::FitsException& e)
+  {
+    throw ReadError("Error reading from "+file+" -- caught error\n" +
+	e.message());
+  }
+  catch (std::exception& e)
   {
     throw ReadError("Error reading from "+file+" -- caught error\n" +
 	e.what());

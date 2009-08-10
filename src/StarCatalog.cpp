@@ -397,7 +397,12 @@ void StarCatalog::Write() const
 	WriteAscii(file,delim);
       }
     }
-    catch (std::runtime_error& e)
+    catch (CCfits::FitsException& e)
+    {
+      throw WriteError("Error writing to "+file+" -- caught error\n" +
+	  e.message());
+    }
+    catch (std::exception& e)
     { 
       throw WriteError("Error writing to "+file+" -- caught error\n" + 
 	  e.what());
@@ -556,7 +561,12 @@ void StarCatalog::Read()
       ReadAscii(file,delim);
     }
   }
-  catch (std::runtime_error& e)
+  catch (CCfits::FitsException& e)
+  {
+    throw ReadError("Error reading from "+file+" -- caught error\n" +
+	e.message());
+  }
+  catch (std::exception& e)
   { 
     throw ReadError("Error reading from "+file+" -- caught error\n" + 
 	e.what());

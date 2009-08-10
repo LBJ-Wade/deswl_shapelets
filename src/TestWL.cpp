@@ -1736,7 +1736,7 @@ int main(int argc, char **argv) try
   // Find stars
   StarCatalog starcat(incat,params,"");
   //starcat.CalcSizes(im,weight_im.get(),trans);
-  FindStarsLog fslog("testfs.log");
+  FindStarsLog fslog(params,"testfs.log");
   int nstars = starcat.FindStars(fslog);
   dbg<<fslog<<std::endl;
   Test(nstars >= 240,"Find Stars");
@@ -1772,7 +1772,7 @@ int main(int argc, char **argv) try
   // Measure PSF
   PSFCatalog psfcat(starcat,params);
   double sigma_p = psfcat.EstimateSigma(im,weight_im.get(),trans);
-  PSFLog psflog("testpsf.log");
+  PSFLog psflog(params,"testpsf.log");
   int npsf = psfcat.MeasurePSF(im,weight_im.get(),trans,sigma_p,psflog);
   dbg<<psflog<<std::endl;
   // There are 244 stars in the file, but depending on the exact parameters,
@@ -1854,7 +1854,7 @@ int main(int argc, char **argv) try
 
   // Measure shears
   ShearCatalog shearcat(incat,trans,params);
-  ShearLog shearlog("testshear.log");
+  ShearLog shearlog(params,"testshear.log");
   int nshear = shearcat.MeasureShears(im,weight_im.get(),trans,fitpsf,shearlog);
   dbg<<shearlog<<std::endl;
   // There are 4557 galaxies in the file without error codes.

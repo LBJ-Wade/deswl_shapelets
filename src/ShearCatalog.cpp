@@ -375,7 +375,7 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
     try {
 #endif
       OverallFitTimes times; // just for this thread
-      ShearLog log1; // just for this thread
+      ShearLog log1(params); // just for this thread
       log1.NoWriteLog();
 #ifdef _OPENMP
 #pragma omp for schedule(dynamic)
@@ -819,7 +819,12 @@ void ShearCatalog::Write() const
 	WriteAscii(file,delim);
       }
     }
-    catch (std::runtime_error& e)
+    catch (CCfits::FitsException& e)
+    {
+      throw WriteError("Error writing to "+file+" -- caught error\n" +
+	  e.message());
+    }
+    catch (std::exception& e)
     {
       throw WriteError("Error writing to "+file+" -- caught error\n" +
 	  e.what());
@@ -1053,7 +1058,12 @@ void ShearCatalog::Read()
       ReadAscii(file,delim);
     }
   }
-  catch (std::runtime_error& e)
+  catch (CCfits::FitsException& e)
+  {
+    throw ReadError("Error reading from "+file+" -- caught error\n" +
+	e.message());
+  }
+  catch (std::exception& e)
   {
     throw ReadError("Error reading from "+file+" -- caught error\n" +
 	e.what());

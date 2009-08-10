@@ -4,13 +4,14 @@
 #include "Params.h"
 #include <CCfits/CCfits>
 #include <fstream>
+#include "ConfigFile.h"
 
 class Log 
 {
   public :
 
-    Log(std::string logfile="", std::string fits_file="", 
-	bool desqa=false);
+    Log(const ConfigFile& params,
+	std::string logfile="", std::string fits_file="");
     virtual ~Log();
 
     void NoWriteLog(); // Don't write the log on deletion.
@@ -23,6 +24,7 @@ class Log
 
   protected :
 
+    const ConfigFile& params;
     std::ostream* logout;
     std::string fits_file;
 
@@ -32,8 +34,8 @@ class ShearLog : public Log
 {
   public :
 
-    ShearLog(std::string logfile="", std::string fits_file="", 
-	bool desqa=false);
+    ShearLog(const ConfigFile& params,
+	std::string logfile="", std::string fits_file="");
     virtual ~ShearLog();
 
     virtual void WriteLog() const;
@@ -79,8 +81,8 @@ class PSFLog : public Log
 {
   public :
 
-    PSFLog(std::string logfile="", std::string fits_file="", 
-	bool desqa=false);
+    PSFLog(const ConfigFile& params,
+	std::string logfile="", std::string fits_file="");
     virtual ~PSFLog();
 
     virtual void WriteLog() const;
@@ -114,8 +116,8 @@ class FindStarsLog : public Log
 {
   public :
 
-    FindStarsLog(std::string _logfile="", std::string _fits_file="", 
-	bool desqa=false);
+    FindStarsLog(const ConfigFile& params,
+	std::string logfile="", std::string fits_file="");
     virtual ~FindStarsLog();
 
     virtual void WriteLog() const;

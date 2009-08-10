@@ -114,7 +114,7 @@ int main(int argc, char **argv) try
     logfile = Name(params,"log");
   std::string stars_file=Name(params,"stars");
   std::auto_ptr<FindStarsLog> log (
-      new FindStarsLog(logfile,stars_file,des_qa)); 
+      new FindStarsLog(params,logfile,stars_file)); 
 
   try {
     DoFindStars(params,*log);
@@ -132,16 +132,12 @@ int main(int argc, char **argv) try
 catch (std::exception& e)
 {
   std::cerr<<"Fatal error: Caught \n"<<e.what()<<std::endl;
-  if (des_qa)
-    std::cout<<"STATUS5BEG Fatal error: "<<e.what()<<" STATUS5END\n";
+  std::cout<<"STATUS5BEG Fatal error: "<<e.what()<<" STATUS5END\n";
   return EXIT_FAILURE;
 }
 catch (...)
 {
   std::cerr<<"Fatal error: Cought an exception.\n";
-  if (des_qa)
-    std::cout<<"STATUS5BEG Fatal error: unknown exception STATUS5END\n";
+  std::cout<<"STATUS5BEG Fatal error: unknown exception STATUS5END\n";
   return EXIT_FAILURE;
-
-
 }

@@ -13,7 +13,6 @@
 
 std::ostream* dbgout = 0;
 bool XDEBUG = false;
-bool des_qa = false;
 
 // Some things that are done at the beginning of each executable
 inline int BasicSetup(int argc, char **argv,
@@ -37,7 +36,6 @@ inline int BasicSetup(int argc, char **argv,
   params.setComment("#");
   params.Load(argv[1]);
   for(int k=2;k<argc;k++) params.Append(argv[k]);
-  des_qa = params.read("des_qa",false);
 
   // Setup debugging - first ignore names that use root.
   if (params.read("verbose",0) > 0) {

@@ -131,7 +131,7 @@ int main(int argc, char **argv) try
     logfile = Name(params,"log");
   std::string psf_file=Name(params,"psf");
   std::auto_ptr<PSFLog> log (
-      new PSFLog(logfile,psf_file,des_qa)); 
+      new PSFLog(params,logfile,psf_file)); 
 
   try {
     DoMeasurePSF(params,*log);
@@ -149,14 +149,12 @@ int main(int argc, char **argv) try
 catch (std::exception& e)
 {
   std::cerr<<"Fatal error: Caught \n"<<e.what()<<std::endl;
-  if (des_qa) 
-    std::cout<<"STATUS5BEG Fatal error: "<<e.what()<<" STATUS5END\n";
+  std::cout<<"STATUS5BEG Fatal error: "<<e.what()<<" STATUS5END\n";
   return EXIT_FAILURE;
 }
 catch (...)
 {
   std::cerr<<"Fatal error: Cought an exception.\n";
-  if (des_qa)
-    std::cout<<"STATUS5BEG Fatal error: unknown exception STATUS5END\n";
+  std::cout<<"STATUS5BEG Fatal error: unknown exception STATUS5END\n";
   return EXIT_FAILURE;
 }

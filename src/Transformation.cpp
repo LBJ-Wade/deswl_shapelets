@@ -459,6 +459,7 @@ static void ReadTANFits(const std::string& filename, int hdu,
 
   if (fits_open_file(&fitsptr,filename.c_str(),READONLY,&status))
     dbg<<"fits open file: "<<status<<std::endl;
+  if (status)
     throw ReadError("Opening fits file "+filename+" for TAN Transformation");
 
   if (fits_movabs_hdu(fitsptr,hdu,0,&status))

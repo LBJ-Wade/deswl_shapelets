@@ -4,9 +4,11 @@
 #include "Params.h"
 
 
-Log::Log(std::string _logfile, std::string _fits_file, bool desqa) :
-  exitcode(SUCCESS), logout(0), fits_file(_fits_file)
+Log::Log(const ConfigFile& _params,
+    std::string _logfile, std::string _fits_file) :
+  exitcode(SUCCESS), params(_params), logout(0), fits_file(_fits_file)
 {
+  bool desqa = params.read("des_qa",false);
   if (desqa) {
     if (_logfile == "") {
       logout = &std::cout;
@@ -44,8 +46,9 @@ void Log::NoWriteLog()
   logout = 0;
 }
 
-ShearLog::ShearLog(std::string _logfile, std::string _fits_file, bool desqa) :
-  Log(_logfile,_fits_file,desqa),
+ShearLog::ShearLog(const ConfigFile& params,
+    std::string _logfile, std::string _fits_file) : 
+  Log(params,_logfile,_fits_file),
   ngals(0), ngoodin(0), ngood(0), nf_range1(0), nf_range2(0), nf_small(0),
   nf_tmverror(0), nf_othererror(0), ns_native(0), nf_native(0),
   ns_mu(0), nf_mu(0), ns_gamma(0), nf_gamma(0)
@@ -63,12 +66,10 @@ void ShearLog::WriteLogToFitsHeader() const
 
   try 
   {
-    // how do get this from params?
-    int hdu = 2;
+    int hdu = this->params.read("shear_hdu",2);
     CCfits::FITS fits(fits_file, CCfits::Write, hdu-1);
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
-
 
     // the enumerated type ExitCode sometimes defaults to long
     table.addKey("msexit", (int) exitcode, "Exit code for MeasureShear");
@@ -116,16 +117,16 @@ void ShearLog::WriteLogToFitsHeader() const
 
 }
 
-inline std::string StatusText1(ExitCode exitcode)
+inline std::string StatusText1(ExitCode exitcode, const ConfigFile& params)
 { 
   return std::string("STATUS") +
-    char('0'+Status(exitcode)) +
+    char('0'+Status(exitcode,params)) +
     std::string("BEG"); 
 }
-inline std::string StatusText2(ExitCode exitcode)
+inline std::string StatusText2(ExitCode exitcode, const ConfigFile& params)
 {
   return std::string("STATUS") +
-    char('0'+Status(exitcode)) +
+    char('0'+Status(exitcode,params)) +
     std::string("END");
 }
 
@@ -135,12 +136,12 @@ void ShearLog::WriteLog() const
     // Emit logging information
     if (exitcode) {
       *logout << 
-	StatusText1(exitcode)<<" "<<
+	StatusText1(exitcode,this->params)<<" "<<
 	Text(exitcode)<<" "<<
 	extraexitinfo<<" ";
       if (fits_file != "")
 	*logout << " (Name="<<fits_file<<") ";
-      *logout<< StatusText2(exitcode)<<std::endl;
+      *logout<< StatusText2(exitcode,this->params)<<std::endl;
     } else {
       std::string name = "measureshear";
       if (fits_file != "") name = fits_file;
@@ -192,8 +193,9 @@ void ShearLog::Write(std::ostream& os) const
   os<<"N_Error: Other caught = "<<nf_othererror<<std::endl;
 }
 
-PSFLog::PSFLog(std::string _logfile, std::string _fits_file, bool desqa) :
-  Log(_logfile,_fits_file,desqa),
+PSFLog::PSFLog(const ConfigFile& params,
+    std::string _logfile, std::string _fits_file) :
+  Log(params,_logfile,_fits_file),
   nstars(0), ngoodin(0), ngood(0), nf_range(0),
   nf_tmverror(0), nf_othererror(0), ns_psf(0), nf_psf(0) {}
 
@@ -206,14 +208,12 @@ void PSFLog::WriteLogToFitsHeader() const
 {
   if ("" == fits_file) return;
 
-  try {
-
-    // how do get this from params?
-    int hdu = 2;
+  try 
+  {
+    int hdu = this->params.read("psf_hdu",2);
     CCfits::FITS fits(fits_file, CCfits::Write, hdu-1);
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
-
 
     // the enumerated type ExitCode sometimes defaults to long
     table.addKey("mpexit", (int) exitcode, "Exit code for MeasurePSF");
@@ -251,12 +251,12 @@ void PSFLog::WriteLog() const
     // Emit logging information
     if (exitcode) {
       *logout << 
-	StatusText1(exitcode)<<" "<<
+	StatusText1(exitcode,this->params)<<" "<<
 	Text(exitcode)<<" "<<
 	extraexitinfo<<" ";
       if (fits_file != "")
 	*logout << " (Name="<<fits_file<<") ";
-      *logout<< StatusText2(exitcode)<<std::endl;
+      *logout<< StatusText2(exitcode,this->params)<<std::endl;
     } else {
       std::string name = "measurepsf";
       if (fits_file != "") name = fits_file;
@@ -293,9 +293,9 @@ void PSFLog::Write(std::ostream& os) const
 }
 
 
-FindStarsLog::FindStarsLog(std::string _logfile, std::string _fits_file, 
-    bool desqa) :
-  Log(_logfile,_fits_file,desqa),
+FindStarsLog::FindStarsLog(const ConfigFile& params,
+    std::string _logfile, std::string _fits_file) : 
+  Log(params,_logfile,_fits_file),
   ntot(0), nr_flag(0), nr_mag(0), nr_size(0),
   nobj(0), nallstars(0), nstars(0) {}
 
@@ -308,14 +308,14 @@ void FindStarsLog::WriteLogToFitsHeader() const
 {
   if ("" == fits_file) return;
 
-  try {
-
-    // how do get this from params?
-    int hdu = 2;
+  try 
+  {
+    int hdu = this->params.read("stars_hdu",2);
     CCfits::FITS fits(fits_file, CCfits::Write, hdu-1);
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 
+    // the enumerated type ExitCode sometimes defaults to long
     table.addKey("fsexit", (int) exitcode, "Exit code for FindStars");
     table.addKey("fsntot", ntot, 
 	"# of total objects processed in FindStars");
@@ -351,12 +351,12 @@ void FindStarsLog::WriteLog() const
     // Emit logging information
     if (exitcode) {
       *logout << 
-	StatusText1(exitcode)<<" "<<
+	StatusText1(exitcode,this->params)<<" "<<
 	Text(exitcode)<<" "<<
 	extraexitinfo<<" ";
       if (fits_file != "")
 	*logout << " (Name="<<fits_file<<") ";
-      *logout<< StatusText2(exitcode)<<std::endl;
+      *logout<< StatusText2(exitcode,this->params)<<std::endl;
     } else {
       std::string name = "findstars";
       if (fits_file != "") name = fits_file;

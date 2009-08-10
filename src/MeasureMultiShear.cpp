@@ -40,7 +40,7 @@ int main(int argc, char **argv) try
     logfile = Name(params,"log");
   std::string multishear_file = Name(params,"multishear");
   std::auto_ptr<ShearLog> log (
-      new ShearLog(logfile,multishear_file,des_qa)); 
+      new ShearLog(params,logfile,multishear_file)); 
 
   try {
     DoMeasureMultiShear(params,*log);
@@ -58,14 +58,12 @@ int main(int argc, char **argv) try
 catch (std::exception& e)
 {
   std::cerr<<"Fatal error: Caught \n"<<e.what()<<std::endl;
-  if (des_qa) 
-    std::cout<<"STATUS5BEG Fatal error: "<<e.what()<<" STATUS5END\n";
+  std::cout<<"STATUS5BEG Fatal error: "<<e.what()<<" STATUS5END\n";
   return EXIT_FAILURE;
 }
 catch (...)
 {
   std::cerr<<"Fatal error: Caught an exception.\n";
-  if (des_qa) 
-    std::cout<<"STATUS5BEG Fatal error: unknown exception STATUS5END\n";
+  std::cout<<"STATUS5BEG Fatal error: unknown exception STATUS5END\n";
   return EXIT_FAILURE;
 }

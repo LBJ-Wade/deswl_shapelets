@@ -110,7 +110,7 @@ void MultiShearCatalog::ReadFileLists()
       fitpsf_file_list.push_back(psf_filename);
     }
   }
-  catch (std::runtime_error& e)
+  catch (std::exception& e)
   {
     throw ReadError("Error reading from "+file+" -- caught error\n" +
 	e.what());
@@ -587,7 +587,7 @@ void MeasureMultiShear(
     dbg<<e<<std::endl;
     log.nf_tmverror++;
     flag |= TMV_EXCEPTION;
-  } catch (std::runtime_error) {
+  } catch (std::exception) {
     throw;
   } catch (...) {
     dbg<<"unkown exception in MeasureSingleShear\n";
@@ -636,7 +636,7 @@ int MultiShearCatalog::MeasureMultiShears(ShearLog& log)
     try {
 #endif
       OverallFitTimes times; // just for this thread
-      ShearLog log1; // just for this thread
+      ShearLog log1(params); // just for this thread
       log1.NoWriteLog();
 #ifdef _OPENMP
 #pragma omp for schedule(dynamic)
@@ -776,7 +776,12 @@ void MultiShearCatalog::Write() const
 	WriteAscii(file,delim);
       }
     }
-    catch (std::runtime_error& e)
+    catch (CCfits::FitsException& e)
+    {
+      throw WriteError("Error writing to "+file+" -- caught error\n" +
+	  e.message());
+    }
+    catch (std::exception& e)
     {
       throw WriteError("Error writing to "+file+" -- caught error\n" +
 	  e.what());
@@ -1006,7 +1011,12 @@ void MultiShearCatalog::Read()
       ReadAscii(file,delim);
     }
   }
-  catch (std::runtime_error& e)
+  catch (CCfits::FitsException& e)
+  {
+    throw ReadError("Error reading from "+file+" -- caught error\n" +
+	e.message());
+  }
+  catch (std::exception& e)
   {
     throw ReadError("Error reading from "+file+" -- caught error\n" +
 	e.what());

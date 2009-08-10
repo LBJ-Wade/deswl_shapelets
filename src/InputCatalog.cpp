@@ -30,10 +30,11 @@ static void ReadGain(const std::string& file, ConfigFile& params)
       fits.pHDU().readKey(gain_key[k],gain);
       break;
     } 
-    catch (CCfits::FitsException)
+    catch (CCfits::FitsException& e)
     {
       if (k == gain_key.size()-1)
-	throw ReadError("Error reading gain from Fits file "+file);
+	throw ReadError("Error reading gain from Fits file "+file+
+	    "\nCCfits error message: \n"+e.message());
     }
   }
 
@@ -43,10 +44,11 @@ static void ReadGain(const std::string& file, ConfigFile& params)
       fits.pHDU().readKey(rdn_key[k], rdnoise);
       break;
     } 
-    catch (CCfits::FitsException)
+    catch (CCfits::FitsException& e)
     { 
       if (k == rdn_key.size()-1) 
-	throw ReadError("Error reading read_noise from Fits file "+file);
+	throw ReadError("Error reading read_noise from Fits file "+file+
+	    "\nCCfits error message: \n"+e.message());
     }
   }
 
@@ -242,7 +244,12 @@ void InputCatalog::Read()
       ReadAscii(file,delim);
     }
   }
-  catch (std::runtime_error& e)
+  catch (CCfits::FitsException& e)
+  {
+    throw ReadError("Error reading from "+file+" -- caught error\n" +
+	e.message());
+  }
+  catch (std::exception& e)
   {
     throw ReadError("Error reading from "+file+" -- caught error\n" +
 	e.what());

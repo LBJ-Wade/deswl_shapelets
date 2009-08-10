@@ -14,7 +14,7 @@
 static void DoFullPipeline(ConfigFile& params,
     std::string logfile, std::auto_ptr<Log>& log)
 {
-  log.reset(new FindStarsLog(logfile,Name(params,"stars")));
+  log.reset(new FindStarsLog(params,logfile,Name(params,"stars")));
 
   // Load image:
   std::auto_ptr<Image<double> > weight_im;
@@ -53,7 +53,7 @@ static void DoFullPipeline(ConfigFile& params,
 
   xdbg<<"FindStarsLog: \n"<<*log<<std::endl;
 
-  log.reset(new PSFLog(logfile,Name(params,"psf")));
+  log.reset(new PSFLog(params,logfile,Name(params,"psf")));
 
   // Create PSFCatalog from StarCatalog
   PSFCatalog psfcat(starcat,params);
@@ -81,7 +81,7 @@ static void DoFullPipeline(ConfigFile& params,
 
   xdbg<<"PSFLog: \n"<<*log<<std::endl;
 
-  log.reset(new ShearLog(logfile,Name(params,"shear")));
+  log.reset(new ShearLog(params,logfile,Name(params,"shear")));
 
   // Create shear catalog
   ShearCatalog shearcat(incat,trans,params);
@@ -124,15 +124,13 @@ int main(int argc, char **argv) try
 catch (std::exception& e)
 {
   std::cerr<<"Fatal error: Caught \n"<<e.what()<<std::endl;
-  if (des_qa) 
-    std::cout<<"STATUS5BEG Fatal error: "<<e.what()<<" STATUS5END\n";
+  std::cout<<"STATUS5BEG Fatal error: "<<e.what()<<" STATUS5END\n";
   return EXIT_FAILURE;
 }
 catch (...)
 {
   std::cerr<<"Fatal error: Cought an exception.\n";
-  if (des_qa)
-    std::cout<<"STATUS5BEG Fatal error: unknown exception STATUS5END\n";
+  std::cout<<"STATUS5BEG Fatal error: unknown exception STATUS5END\n";
   return EXIT_FAILURE;
 }
 
