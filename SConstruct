@@ -96,6 +96,9 @@ opts.Add(BoolVariable('MEM_TEST',
 opts.Add(BoolVariable('WARN',
             'Add warning compiler flags, like -Wall', False))
 
+opts.Add(BoolVariable('WITH_UPS',
+            'Install the ups directory under PREFIX/ups',False))
+
 
 opts.Update(initial_env)
 opts.Save(config_file,initial_env)
@@ -1077,6 +1080,9 @@ if not GetOption('help'):
     env['__readfunc'] = ReadFileList
     env['_InstallProgram'] = RunInstall
     env['_UninstallProgram'] = RunUninstall
+
+    if env['WITH_UPS']:
+        subdirs += ['ups']
 
     # subdirectores to process.  We process src by default
     script_files = [os.path.join(src_dir,'SConscript')]

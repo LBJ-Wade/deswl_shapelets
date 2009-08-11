@@ -1,0 +1,31 @@
+# vim: set filetype=python :
+
+import os
+import distutils
+Import('env')
+
+RunInstall = env['_InstallProgram']
+RunUninstall = env['_UninstallProgram']
+
+# Create the table file
+main_libdir=distutils.sysconfig.get_python_lib()
+this_libdir = main_libdir.replace(distutils.sysconfig.PREFIX+os.sep,'')
+
+fobj=open('wl.table','w')
+fobj.write('envPrepend(PATH,${PRODUCT_DIR}/bin)\n')
+fobj.write('envPrepend(PYTHON_PATH,${PRODUCT_DIR}/'+this_libdir+')\n')
+fobj.close()
+
+for fname in ['wl.table']:
+
+    cfile=env.File(fname)
+    install_subdir = 'ups'
+    targets = [cfile]
+
+    if 'install' in COMMAND_LINE_TARGETS:
+        RunInstall(env, targets, install_subdir)
+
+    if 'uninstall' in COMMAND_LINE_TARGETS:
+        RunUninstall(env, targets, install_subdir)
+
+
