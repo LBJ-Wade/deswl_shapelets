@@ -97,7 +97,7 @@ opts.Add(BoolVariable('WARN',
             'Add warning compiler flags, like -Wall', False))
 
 opts.Add(BoolVariable('WITH_UPS',
-            'Install the ups directory under PREFIX/ups',False))
+            'Create ups/wl.table.  Install the ups directory under PREFIX/ups',False))
 
 
 opts.Update(initial_env)
