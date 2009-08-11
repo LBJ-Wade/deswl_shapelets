@@ -1,4 +1,5 @@
 
+#include <valarray>
 #include "Image.h"
 #include "FittedPSF.h"
 #include "TimeVars.h"
@@ -12,14 +13,57 @@
 
 static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log) 
 {
+  bool output_dots = params.read("output_dots",false);
+
   CoaddCatalog coaddcat(params);
   dbg<<"Made coaddcat\n";
 
   MultiShearCatalog shearcat(coaddcat,params);
   dbg<<"Made multishearcat\n";
+  dbg<<"Total bounds are "<<shearcat.skybounds<<std::endl;
+  dbg<<"Area = "<<shearcat.skybounds.Area()/3600.<<" square arcmin\n";
+  dbg<<" = "<<shearcat.skybounds.Area()/3600./3600.<<" square degrees\n";
 
-  int nshear = shearcat.MeasureMultiShears(log);
-  dbg<<"After MeasureShears\n";
+  log.ngals = shearcat.size();
+  log.ngoodin = std::count(shearcat.flags.begin(),shearcat.flags.end(),0);
+  dbg<<log.ngoodin<<"/"<<log.ngals<<" galaxies with no input flags\n";
+
+  long nshear = 0;
+  double section_size = params.get("coaddcat_section_size");
+  section_size *= 60.; // arcmin -> arcsec
+  std::vector<Bounds> section_bounds = shearcat.SplitBounds(section_size);
+  for(size_t i=0;i<section_bounds.size();++i) 
+  {
+    dbg<<"Starting section "<<(i+1)<<"/"<<section_bounds.size()<<std::endl;
+    dbg<<section_bounds[i]<<std::endl;
+    if (output_dots)
+    {
+      std::cerr<<"Starting section ";
+      std::cerr<<(i+1)<<"/"<<section_bounds.size()<<std::endl;
+    }
+    shearcat.GetPixels(section_bounds[i]);
+
+    long nshear1 = shearcat.MeasureMultiShears(section_bounds[i],log);
+    if (output_dots) std::cerr<<std::endl;
+
+    nshear += nshear1;
+    dbg<<"After MeasureShears: nshear = "<<nshear1<<"  "<<nshear<<std::endl;
+  }
+
+  dbg<<"Done: "<<log.ns_gamma<<" successful shear measurements, ";
+  dbg<<(log.ngoodin-log.ns_gamma)<<" unsuccessful, ";
+  dbg<<(log.ngals-log.ngoodin)<<" with input flags\n";
+  log.ngood = std::count(shearcat.flags.begin(),shearcat.flags.end(),0);
+  dbg<<log.ngood<<" successful measurements with no measurement flags.\n";
+
+  if (output_dots) 
+  {
+    std::cerr
+      <<std::endl
+      <<"Success rate: "<<log.ns_gamma<<"/"<<log.ngoodin
+      <<"  # with no flags: "<<log.ngood
+      <<std::endl;
+  }
 
   shearcat.Write();
   dbg<<"After Write\n";
@@ -42,7 +86,8 @@ int main(int argc, char **argv) try
   std::auto_ptr<ShearLog> log (
       new ShearLog(params,logfile,multishear_file)); 
 
-  try {
+  try 
+  {
     DoMeasureMultiShear(params,*log);
   }
 #if 0

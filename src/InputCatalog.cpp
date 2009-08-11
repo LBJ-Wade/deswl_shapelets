@@ -1,4 +1,8 @@
 
+#include <valarray>
+#include "TMV.h"
+#include <CCfits/CCfits>
+
 #include "InputCatalog.h"
 #include "dbg.h"
 #include "Name.h"
@@ -258,6 +262,9 @@ void InputCatalog::Read()
   {
     throw ReadError("Error reading from "+file+" -- caught unknown error");
   }
+  // Update the bounds:
+  for(size_t i=0;i<pos.size();++i) bounds += pos[i];
+
   dbg<<"Done Read InputCatalog\n";
 }
 

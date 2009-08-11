@@ -282,7 +282,7 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
   // Typically, these large values end up with overflows, which 
   // lead to nans and/or inf's in the resulting f.
   // Use 2 x the previous value;
-  xxdbg<<"x = "<<x<<std::endl;
+  xdbg<<"x = "<<x<<std::endl;
   if (NormInf(x-xinit) > 4.) 
   {
     xdbg<<"ES::F large diversion:\n";
@@ -290,7 +290,7 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
     xdbg<<"x = "<<x<<std::endl;
     xdbg<<"Norm(x-xinit) = "<<Norm(x-xinit)<<std::endl;
     f = b.SubVector(0,6);
-    if (flux == 0.) flux = b(0);;
+    if (flux == 0.) flux = b(0);
     f /= flux;
     if (useflux) f(0) -= 1.;
     f *= 2.;
@@ -303,7 +303,7 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
   double mu = x[4];
   // Also guard against gsq > 1, since it leads to nan's with the sqrt(1-gsq)
   // factor below.
-  if (gsq > 0.99 || (mu < -2. && Norm(x-xinit) > 0.3))
+  if (gsq > 0.99 || (mu < -3. && Norm(x-xinit) > 0.3))
   {
     xdbg<<"ES::F bad gsq or mu value:\n";
     xdbg<<"gsq = "<<gsq<<std::endl;
@@ -311,7 +311,7 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
     xdbg<<"xinit = "<<xinit<<std::endl;
     xdbg<<"x = "<<x<<std::endl;
     f = b.SubVector(0,6);
-    if (flux == 0.) flux = b(0);;
+    if (flux == 0.) flux = b(0);
     f /= flux;
     if (useflux) f(0) -= 1.;
     f *= 2.;
@@ -370,13 +370,13 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
     b = I/A;
   }
 
-  xxdbg<<"b = "<<b<<std::endl;
+  xdbg<<"b = "<<b<<std::endl;
   f = b.SubVector(0,6);
-  if (flux == 0.) flux = b(0);;
+  if (flux == 0.) flux = b(0);
   f /= flux;
   if (useflux) f(0) -= 1.;
-  xxdbg<<"f = "<<f<<std::endl;
-  xxdbg<<"Done EllipseSolver DoF\n";
+  xdbg<<"f = "<<f<<std::endl;
+  xdbg<<"Done EllipseSolver DoF\n";
 }
 
 void ESImpl::F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const

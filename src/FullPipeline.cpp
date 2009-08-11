@@ -1,4 +1,5 @@
 
+#include <valarray>
 #include "Image.h"
 #include "Transformation.h"
 #include "InputCatalog.h"

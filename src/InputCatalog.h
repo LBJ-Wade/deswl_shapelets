@@ -37,6 +37,8 @@ class InputCatalog
     std::vector<float> dec;
     std::vector<double> noise;
 
+    Bounds bounds;
+
   private :
 
     const ConfigFile& params;

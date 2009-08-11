@@ -132,21 +132,21 @@
 // ---------------------------------------------------------------------------------------------------------------------------------
 
 #ifdef	STRESS_TEST
-static	const	unsigned int	hashBits               = 12;
+static	const	size_t	hashBits               = 12;
 static		bool		randomWipe             = true;
 static		bool		alwaysValidateAll      = true;
 static		bool		alwaysLogAll           = true;
 static		bool		alwaysWipeAll          = true;
 static		bool		cleanupLogOnFirstRun   = true;
-static	const	unsigned int	paddingSize            = 1024; // An extra 8K per allocation!
+static	const	size_t	paddingSize            = 1024; // An extra 8K per allocation!
 #else
-static	const	unsigned int	hashBits               = 12;
+static	const	size_t	hashBits               = 12;
 static		bool		randomWipe             = false;
 static		bool		alwaysValidateAll      = false;
 static		bool		alwaysLogAll           = false;
 static		bool		alwaysWipeAll          = true;
 static		bool		cleanupLogOnFirstRun   = true;
-static	const	unsigned int	paddingSize            = 4;
+static	const	size_t	paddingSize            = 4;
 #endif
 
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -203,13 +203,13 @@ static		unsigned int	releasedPattern        = 0xdeadbeef; // Fill pattern for de
 // Other locals
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-static	const	unsigned int	hashSize               = 1 << hashBits;
+static	const	size_t	hashSize               = 1 << hashBits;
 static	const	char		*allocationTypes[]     = {"Unknown",
   "new",     "new[]",  "malloc",   "calloc",
   "realloc", "delete", "delete[]", "free"};
 static		sAllocUnit	*hashTable[hashSize];
 static		sAllocUnit	*reservoir;
-static		unsigned int	currentAllocationCount = 0;
+static		size_t	currentAllocationCount = 0;
 static		unsigned int	breakOnAllocationCount = 0;
 static		sMStats		stats;
 static	const	char		*sourceFile            = "??";
@@ -302,7 +302,7 @@ static	sAllocUnit	*findAllocUnit(const void *reportedAddress)
   // addresses will be on four-, eight- or even sixteen-byte boundaries. If we didn't do this, the hash index would not have
   // very good coverage.
 
-  unsigned int	hashIndex = ((unsigned int) reportedAddress >> 4) & (hashSize - 1);
+  size_t	hashIndex = ((size_t) reportedAddress >> 4) & (hashSize - 1);
   sAllocUnit	*ptr = hashTable[hashIndex];
   while(ptr)
   {
@@ -454,17 +454,17 @@ static	void	dumpAllocations(FILE *fp)
   fprintf(fp, "------ ---------- ---------- ---------- ---------- ---------- -------- ------- ------- --------------------------------------------------- \r\n");
 
 
-  for (unsigned int i = 0; i < hashSize; i++)
+  for (size_t i = 0; i < hashSize; i++)
   {
     sAllocUnit *ptr = hashTable[i];
     while(ptr)
     {
       fprintf(fp, "%06u 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X %-8s    %c       %c    %s\r\n",
 	  ptr->allocationNumber,
-	  (unsigned int) ptr->reportedAddress, 
-	  (unsigned int) ptr->reportedSize,
-	  (unsigned int) ptr->actualAddress,
-	  (unsigned int) ptr->actualSize,
+	  (size_t) ptr->reportedAddress, 
+	  (size_t) ptr->reportedSize,
+	  (size_t) ptr->actualAddress,
+	  (size_t) ptr->actualSize,
 	  m_calcUnused(ptr),
 	  allocationTypes[ptr->allocationType],
 	  ptr->breakOnDealloc ? 'Y':'N',
@@ -1019,7 +1019,7 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
 
     // Insert the new allocation into the hash table
 
-    unsigned int	hashIndex = ((unsigned int) au->reportedAddress >> 4) & (hashSize - 1);
+    size_t	hashIndex = ((size_t) au->reportedAddress >> 4) & (hashSize - 1);
     if (hashTable[hashIndex]) hashTable[hashIndex]->prev = au;
     au->next = hashTable[hashIndex];
     au->prev = NULL;
@@ -1197,13 +1197,13 @@ void	*m_reallocator(const char *sourceFile, const unsigned int sourceLine, const
 
     // The reallocation may cause the address to change, so we should relocate our allocation unit within the hash table
 
-    unsigned int	hashIndex = (unsigned int) -1;
+    size_t	hashIndex = (size_t) -1;
     if (oldReportedAddress != au->reportedAddress)
     {
       // Remove this allocation unit from the hash table
 
       {
-	unsigned int	hashIndex2 = ((unsigned int) oldReportedAddress >> 4) & (hashSize - 1);
+	size_t	hashIndex2 = ((size_t) oldReportedAddress >> 4) & (hashSize - 1);
 	if (hashTable[hashIndex2] == au)
 	{
 	  hashTable[hashIndex2] = hashTable[hashIndex2]->next;
@@ -1217,7 +1217,7 @@ void	*m_reallocator(const char *sourceFile, const unsigned int sourceLine, const
 
       // Re-insert it back into the hash table
 
-      hashIndex = ((unsigned int) au->reportedAddress >> 4) & (hashSize - 1);
+      hashIndex = ((size_t) au->reportedAddress >> 4) & (hashSize - 1);
       if (hashTable[hashIndex]) hashTable[hashIndex]->prev = au;
       au->next = hashTable[hashIndex];
       au->prev = NULL;
@@ -1344,7 +1344,7 @@ void	m_deallocator(const char *sourceFile, const unsigned int sourceLine, const 
 
     // Remove this allocation unit from the hash table
 
-    unsigned int	hashIndex = ((unsigned int) au->reportedAddress >> 4) & (hashSize - 1);
+    size_t	hashIndex = ((size_t) au->reportedAddress >> 4) & (hashSize - 1);
     if (hashTable[hashIndex] == au)
     {
       hashTable[hashIndex] = au->next;
@@ -1454,7 +1454,7 @@ bool	m_validateAllAllocUnits()
 
   unsigned int	errors = 0;
   unsigned int	allocCount = 0;
-  for (unsigned int i = 0; i < hashSize; i++)
+  for (size_t i = 0; i < hashSize; i++)
   {
     sAllocUnit	*ptr = hashTable[i];
     while(ptr)
@@ -1517,7 +1517,7 @@ unsigned int	m_calcAllUnused()
   // Just go through each allocation unit in the hash table and count the unused RAM
 
   unsigned int	total = 0;
-  for (unsigned int i = 0; i < hashSize; i++)
+  for (size_t i = 0; i < hashSize; i++)
   {
     sAllocUnit	*ptr = hashTable[i];
     while(ptr)

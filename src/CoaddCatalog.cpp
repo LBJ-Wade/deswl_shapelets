@@ -1,3 +1,8 @@
+
+#include <valarray>
+#include "TMV.h"
+#include <CCfits/CCfits>
+
 #include "CoaddCatalog.h"
 #include "Ellipse.h"
 #include "ConfigFile.h"
@@ -5,7 +10,6 @@
 #include "Params.h"
 #include "BVec.h"
 #include "Ellipse.h"
-#include "TMV.h"
 #include "Pixel.h"
 #include "Image.h"
 #include "FittedPSF.h"
@@ -98,12 +102,15 @@ void CoaddCatalog::ReadCatalog()
     table.column(ra_col).read(ra, start, end);
     table.column(dec_col).read(dec, start, end);
 
+    xdbg<<"list of coaddcatalog: (id, pos, flag)\n";
     skypos.resize(nrows);
     for(long i=0;i<nrows;++i) {
       skypos[i] = Position(ra[i],dec[i]);
       // The convention for Position is to use arcsec for everything.
       // ra and dec come in as degrees.  So wee need to convert to arcsec.
       skypos[i] *= 3600.;  // deg -> arcsec
+      skybounds += skypos[i];
+      xdbg<<id[i]<<"  "<<skypos[i]<<"  "<<flags[i]<<std::endl;
     }
   }
   catch (CCfits::FitsException& e)

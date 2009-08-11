@@ -1,5 +1,8 @@
 
 #include <sstream>
+#include <valarray>
+#include "TMV.h"
+#include <CCfits/CCfits>
 
 #include "PSFCatalog.h"
 #include "dbg.h"
@@ -10,7 +13,7 @@
 #include "Name.h"
 #include "Form.h"
 #include "WlVersion.h"
-#include "TMV.h"
+#include "WriteParKey.h"
 
 //#define SINGLESTAR 18
 //#define NSTARS 10
@@ -39,7 +42,8 @@ void MeasureSinglePSF1(
   tmv::Matrix<double> cov(psf.size(),psf.size());
 
   long flag1=0;
-  if (ell.Measure(pix,psforder,sigma_p,false,flag1,desqa,0,&psf,&cov)) {
+  if (ell.Measure(pix,psforder,sigma_p,false,flag1,desqa,0,&psf,&cov)) 
+  {
     xdbg<<"psf = "<<psf<<std::endl;
     nu = psf[0] / std::sqrt(cov(0,0));
     //nu = 1.;
@@ -47,7 +51,8 @@ void MeasureSinglePSF1(
     xdbg<<"Normalized psf: "<<psf<<std::endl;
     log.ns_psf++;
   }
-  else {
+  else 
+  {
     xdbg<<"Measurement failed\n";
     log.nf_psf++;
     nu = psf[0] / std::sqrt(cov(0,0));
@@ -64,13 +69,16 @@ void MeasureSinglePSF(
     double sigma_p, double psfap, int psforder, bool desqa,
     PSFLog& log, BVec& psf, double& nu, long& flag)
 {
-  try {
+  try 
+  {
     // We don't need to save skypos.  We just want to catch the range
     // error here, so we don't need to worry about it for dudx, etc.
     Position skypos;
     trans.Transform(cen,skypos);
     dbg<<"skypos = "<<skypos<<std::endl;
-  } catch (Range_error& e) {
+  } 
+  catch (Range_error& e) 
+  {
     xdbg<<"skip: transformation range error: \n";
     xdbg<<"p = "<<cen<<", b = "<<e.b<<std::endl;
     log.nf_range++;
@@ -78,15 +86,20 @@ void MeasureSinglePSF(
     return;
   }
 
-  try {
+  try 
+  {
     MeasureSinglePSF1(cen,im,sky,trans,noise,gain,weight_im,
 	sigma_p,psfap,psforder,desqa,log,psf,nu,flag);
-  } catch (tmv::Error& e) {
+  } 
+  catch (tmv::Error& e) 
+  {
     dbg<<"TMV Error thrown in MeasureSinglePSF\n";
     dbg<<e<<std::endl;
     log.nf_tmverror++;
     flag |= TMV_EXCEPTION;
-  } catch (...) {
+  } 
+  catch (...) 
+  {
     dbg<<"unkown exception in MeasureSinglePSF\n";
     log.nf_othererror++;
     flag |= UNKNOWN_EXCEPTION;
@@ -98,7 +111,8 @@ double PSFCatalog::EstimateSigma(const Image<double>& im,
 {
   // Initial sigma_p for shapelet measurements
   double sigma_p = 1.;
-  if (params.keyExists("psf_seeing_est")) {
+  if (params.keyExists("psf_seeing_est")) 
+  {
     double seeing = params["psf_seeing_est"];
     // seeing is given as FWHM
     // for a gaussian 0.5 = exp(-((FWHM/2)/sigma)^2/2)
@@ -118,10 +132,12 @@ double PSFCatalog::EstimateSigma(const Image<double>& im,
 #ifdef _OPENMP
 #pragma omp parallel for schedule(guided) reduction(+ : meanmu) reduction(+ : count)
 #endif
-  for (int i=0; i<nstars; i++) if (!flags[i]) {
+  for (int i=0; i<nstars; i++) if (!flags[i]) 
+  {
     ompdbg<<"use i = "<<i<<std::endl;
 
-    try {
+    try 
+    {
       double sigma = sigma_p;
       long flag1 = 0; // Ignore flags set by CalcSigma
       CalcSigma(
@@ -131,12 +147,15 @@ double PSFCatalog::EstimateSigma(const Image<double>& im,
       if (flag1) continue;
       meanmu += log(sigma);
       count++;
-    } catch (...) {
+    } 
+    catch (...) 
+    {
       // Ignore errors -- just don't add to meanmu
     }
   } // End omp parallel for
 
-  if (count < nstars/3) {
+  if (count < nstars/3) 
+  {
     std::ostringstream msgout;
     msgout<<"Too many objects were rejected. \n";
     msgout<<"nstars = "<<nstars<<", but only "<<count<<" successful measurements.\n";
@@ -193,14 +212,16 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
 #ifdef _OPENMP
 #pragma omp parallel 
   {
-    try {
+    try 
+    {
 #endif
       PSFLog log1(params);  // Just for this thread
       log1.NoWriteLog();
 #ifdef _OPENMP
 #pragma omp for schedule(guided)
 #endif
-      for(int i=0;i<nstars;i++) if (!flags[i]) {
+      for(int i=0;i<nstars;i++) if (!flags[i]) 
+      {
 #ifdef STARTAT
 	if (i < STARTAT) continue;
 #endif
@@ -237,10 +258,12 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
 	ompdbg<<"After MeasureSinglePSF"<<std::endl;
 
 	flags[i] = flag1;
-	if (!flag1) {
+	if (!flag1) 
+	{
 	  ompdbg<<"Successful psf measurement: "<<psf[i]<<std::endl;
 	}
-	else {
+	else 
+	{
 	  ompdbg<<"Unsuccessful psf measurement\n"; 
 	}
       }
@@ -266,7 +289,8 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
   log.ngood = std::count(flags.begin(),flags.end(),0);
   dbg<<log.ngood<<" with no flags\n";
 
-  if (output_dots) {
+  if (output_dots) 
+  {
     std::cerr
       <<std::endl
       <<"Success rate: "<<log.ns_psf<<"/"<<log.ngoodin
@@ -288,8 +312,10 @@ PSFCatalog::PSFCatalog(const StarCatalog& starcat,
   id.reserve(nstars);
   pos.reserve(nstars);
   flags.reserve(nstars);
-  for (size_t i=0; i<starcat.size(); i++) {
-    if (starcat.isastar[i]) {
+  for (size_t i=0; i<starcat.size(); i++) 
+  {
+    if (starcat.isastar[i]) 
+    {
       id.push_back( starcat.id[i] );
       pos.push_back( starcat.pos[i] );
       sky.push_back( starcat.sky[i] );
@@ -302,7 +328,8 @@ PSFCatalog::PSFCatalog(const StarCatalog& starcat,
 
   // Fix flags to only have INPUT_FLAG set.
   // i.e. Ignore any flags set by StarCatalog.
-  for (size_t i=0; i<size(); i++) {
+  for (size_t i=0; i<size(); i++) 
+  {
     flags[i] &= INPUT_FLAG;
   }
 
@@ -310,7 +337,8 @@ PSFCatalog::PSFCatalog(const StarCatalog& starcat,
   // fails
   long psf_order = params.read<long>("psf_order");
   BVec psf_default(psf_order,1.);
-  for (size_t i=0; i<psf_default.size(); i++) {
+  for (size_t i=0; i<psf_default.size(); i++) 
+  {
     psf_default[i] = DEFVALNEG;
   }
   double nu_default = DEFVALNEG;
@@ -427,7 +455,8 @@ void PSFCatalog::WriteFits(std::string file) const
   // make vector copies for writing
   std::vector<double> x(pos.size());
   std::vector<double> y(pos.size());
-  for(size_t i=0;i<pos.size();i++) {
+  for(size_t i=0;i<pos.size();i++) 
+  {
     x[i] = pos[i].GetX();
     y[i] = pos[i].GetY();
   }
@@ -443,7 +472,8 @@ void PSFCatalog::WriteFits(std::string file) const
 
   table->column(colnames[6]).write(nu,startrow);
 
-  for (size_t i=0; i<size(); i++) {
+  for (size_t i=0; i<size(); i++) 
+  {
     size_t row = i+1;
     long b_order = psf[i].GetOrder();
     double b_sigma = psf[i].GetSigma();
@@ -466,13 +496,15 @@ void PSFCatalog::WriteAscii(std::string file, std::string delim) const
   Assert(psf.size() == size());
 
   std::ofstream fout(file.c_str());
-  if (!fout) {
+  if (!fout) 
+  {
     throw WriteError("Error opening psf file"+file);
   }
 
   Form hexform; hexform.hex().trail(0);
 
-  for(size_t i=0;i<size();i++) {
+  for(size_t i=0;i<size();i++) 
+  {
     fout
       << id[i] << delim
       << pos[i].GetX() << delim
@@ -493,12 +525,14 @@ void PSFCatalog::Write() const
 {
   std::vector<std::string> files = MultiName(params, "psf");  
 
-  for(size_t i=0; i<files.size(); ++i) {
+  for(size_t i=0; i<files.size(); ++i) 
+  {
     const std::string& file = files[i];
     dbg<<"Writing psf catalog to file: "<<file<<std::endl;
 
     bool fitsio = false;
-    if (params.keyExists("psf_io")) {
+    if (params.keyExists("psf_io")) 
+    {
       std::vector<std::string> ios = params["psf_io"];
       Assert(ios.size() == files.size());
       fitsio = (ios[i] == "FITS");
@@ -508,11 +542,15 @@ void PSFCatalog::Write() const
 
     try
     {
-      if (fitsio) {
+      if (fitsio) 
+      {
 	WriteFits(file);
-      } else {
+      }
+      else 
+      {
 	std::string delim = "  ";
-	if (params.keyExists("psf_delim")) {
+	if (params.keyExists("psf_delim")) 
+	{
 	  std::vector<std::string> delims = params["psf_delim"];
 	  Assert(delims.size() == files.size());
 	  delim = delims[i];
@@ -542,7 +580,8 @@ void PSFCatalog::Write() const
 void PSFCatalog::ReadFits(std::string file)
 {
   int hdu=2;
-  if (params.keyExists("psf_hdu")) {
+  if (params.keyExists("psf_hdu")) 
+  {
     hdu = params.read<int>("psf_hdu");
   }
 
@@ -555,7 +594,8 @@ void PSFCatalog::ReadFits(std::string file)
   long nrows=table.rows();
 
   dbg<<"  nrows = "<<nrows<<std::endl;
-  if (nrows <= 0) {
+  if (nrows <= 0) 
+  {
     throw ReadError("PSFCatalog found to have 0 rows.  Must have > 0 rows.");
   }
 
@@ -611,7 +651,8 @@ void PSFCatalog::ReadFits(std::string file)
 
   // gotta loop for this one
   psf.reserve(nrows);
-  for (size_t i=0; i<size(); ++i) {
+  for (size_t i=0; i<size(); ++i) 
+  {
     size_t row=i+1;
 
     psf.push_back(BVec(order[i],sigma[i]));
@@ -622,7 +663,8 @@ void PSFCatalog::ReadFits(std::string file)
     std::valarray<double> coeffs;
     table.column(coeffs_col).read(coeffs, row);
     double* ptri = (double* ) psf[i].cptr(); 
-    for (int j=0; j<ncoeff; ++j) {
+    for (int j=0; j<ncoeff; ++j) 
+    {
       ptri[i] = coeffs[i];
     }
   }
@@ -631,14 +673,16 @@ void PSFCatalog::ReadFits(std::string file)
 void PSFCatalog::ReadAscii(std::string file, std::string delim)
 {
   std::ifstream fin(file.c_str());
-  if (!fin) {
+  if (!fin) 
+  {
     throw ReadError("Error opening psf file"+file);
   }
 
   id.clear(); pos.clear(); sky.clear(); noise.clear(); flags.clear();
   nu.clear(); psf.clear();
 
-  if (delim == "  ") {
+  if (delim == "  ") 
+  {
     ConvertibleString flag;
     long id1,b_order;
     double x,y,sky1,noise1,nu1,b_sigma;
@@ -662,8 +706,11 @@ void PSFCatalog::ReadAscii(std::string file, std::string delim)
       for(size_t j=0;j<psf.back().size();++j)
 	fin >> psf.back()[j];
     }
-  } else {
-    if (delim.size() > 1) {
+  } 
+  else 
+  {
+    if (delim.size() > 1) 
+    {
       // getline only works with single character delimiters.
       // Since I don't really expect a multicharacter delimiter to
       // be used ever, I'm just going to throw an exception here 
@@ -675,7 +722,7 @@ void PSFCatalog::ReadAscii(std::string file, std::string delim)
     long b_order;
     double x,y,b_sigma;
     while (getline(fin,temp,d))
-    { 
+    {
       id.push_back(temp);
       getline(fin,temp,d); x = temp;
       getline(fin,temp,d); y = temp;
@@ -687,7 +734,8 @@ void PSFCatalog::ReadAscii(std::string file, std::string delim)
       getline(fin,temp,d); b_order = temp;
       getline(fin,temp,d); b_sigma = temp;
       psf.push_back(BVec(b_order,b_sigma));
-      for(size_t j=0;j<psf.back().size()-1;++j) {
+      for(size_t j=0;j<psf.back().size()-1;++j) 
+      {
 	getline(fin,temp,d); psf.back()[j] = temp;
       }
       getline(fin,temp); psf.back()[psf.back().size()-1] = temp;
@@ -715,9 +763,12 @@ void PSFCatalog::Read()
   }
   try 
   {
-    if (fitsio) {
+    if (fitsio) 
+    {
       ReadFits(file);
-    } else {
+    }
+    else 
+    {
       std::string delim = "  ";
       if (params.keyExists("psf_delim")) delim = params["psf_delim"];
       else if (file.find("csv") != std::string::npos) delim = ",";

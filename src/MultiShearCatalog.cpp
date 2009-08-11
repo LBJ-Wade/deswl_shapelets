@@ -1,3 +1,8 @@
+
+#include <valarray>
+#include "TMV.h"
+#include <CCfits/CCfits>
+
 #include "CoaddCatalog.h"
 #include "Ellipse.h"
 #include "ConfigFile.h"
@@ -5,14 +10,15 @@
 #include "Params.h"
 #include "BVec.h"
 #include "Ellipse.h"
-#include "TMV.h"
 #include "Pixel.h"
 #include "Image.h"
 #include "FittedPSF.h"
 #include "Log.h"
 #include "TimeVars.h"
 #include "MultiShearCatalog.h"
+#include "ShearCatalog.h"
 #include "Form.h"
+#include "WriteParKey.h"
 
 #define UseInverseTransform
 
@@ -21,9 +27,14 @@
 MultiShearCatalog::MultiShearCatalog(
     const CoaddCatalog& coaddcat, const ConfigFile& _params) :
   id(coaddcat.id), skypos(coaddcat.skypos), sky(coaddcat.sky),
-  noise(coaddcat.noise), flags(coaddcat.flags), params(_params)
+  noise(coaddcat.noise), flags(coaddcat.flags), params(_params),
+  skybounds(coaddcat.skybounds)
 {
   Resize(coaddcat.size());
+  for (size_t i=0;i<pixlist.size();++i) 
+  {
+    pixlist[i] = new std::vector<std::vector<Pixel> >;
+  }
 
   // Fix flags to only have INPUT_FLAG set.
   // (I don't think this is necessary, but just in case.)
@@ -31,31 +42,80 @@ MultiShearCatalog::MultiShearCatalog(
     flags[i] &= INPUT_FLAG;
   }
 
-  // TODO: A lot of the parameter names that are coadd_* probably 
-  // should be changed to multishear_*.  e.g. srclist
-
   // Read the names of the component image and catalog files from
   // the srclist file (given as params.coadd_srclist)
   ReadFileLists();
+}
 
+std::vector<Bounds> MultiShearCatalog::SplitBounds(double side)
+{
+  double xrange = skybounds.GetXMax() - skybounds.GetXMin();
+  double yrange = skybounds.GetYMax() - skybounds.GetYMin();
+
+  int nx = int(floor(xrange/side))+1;
+  int ny = int(floor(yrange/side))+1;
+  return skybounds.Divide(nx,ny);
+}
+
+void MultiShearCatalog::GetPixels(const Bounds& b)
+{
+  // The pixlist object takes up a lot of memory, so at the start 
+  // of this function, I clear it out, along with image_indexlist and
+  // image_cenlist.  Then we loop over sections of the coaddcat and
+  // only measure the shears for the objects within one section at a time.
+  for (size_t i=0;i<pixlist.size();++i) 
+  {
+    // MJ: pixlist used to be a vector<vector<vector<Pixel> > > object.
+    // Then at the start of this function, I would just call
+    // pixlist.clear()
+    // This worked fine for serial code, but when I tried openmp, a memory
+    // leak showed up.  Apparently, clear didn't actually release the 
+    // memory in that case, so on the next pass through GetPixels,
+    // the other pixel lists would be given new memory rather than reacquiring
+    // the memory from the cleared vectors.
+    // I don't really understand why this happened, especially since this 
+    // function is called from outside the openmp parallel region, so I 
+    // wouldn't have thought omp would be a factor at all.
+    //
+    // Update: this didn't work either.  Hmmm....  
+    delete pixlist[i];
+    pixlist[i] = new std::vector<std::vector<Pixel> >;
+    image_indexlist[i].clear();
+    image_cenlist[i].clear();
+  }
+
+  dbg<<"Start GetPixels for b = "<<b<<std::endl;
   // Loop over the files and read pixel lists for each object.
   // The Transformation and FittedPSF constructors get the name
   // information from the parameter file, so we use that to set the 
   // names of each component image here.
   for (size_t fnum=0; fnum<image_file_list.size(); fnum++) {
+
+    dbg<<"bounds for image "<<fnum<<" = "<<image_skybounds[fnum];
+    // Skip this file in none of the objects in it are in this section of sky.
+    if (!image_skybounds[fnum].Intersects(b)) 
+    {
+      dbg<<"Skipping fnum = "<<fnum<<", because bounds don't intersect\n";
+      continue;
+    }
+
+    // Get the file names
     std::string image_file = image_file_list[fnum];
+    std::string shear_file = shear_file_list[fnum];
     std::string psf_file = fitpsf_file_list[fnum];
 
     dbg<<"Reading image file: "<<image_file<<"\n";
+    // Set the appropriate parameters
     params["image_file"] = image_file;
     params["weight_file"] = image_file;
     params["dist_file"] = image_file;
+    params["shear_file"] = shear_file;
     params["dist_hdu"] = 2;
     params["dist_method"] = "WCS";
-
     params["fitpsf_file"] = psf_file;
 
-    GetImagePixelLists();
+    // Load the pixels
+    GetImagePixelLists(fnum,b);
     dbg<<"\n";
 
 #ifdef OnlyNImages
@@ -72,11 +132,15 @@ MultiShearCatalog::MultiShearCatalog(const ConfigFile& _params) :
 
 MultiShearCatalog::~MultiShearCatalog()
 {
+  for (size_t i=0;i<pixlist.size();++i) 
+  {
+    if (pixlist[i]) delete pixlist[i];
+  }
   for(size_t k=0;k<trans.size();++k) {
-    if (trans[k]) delete(trans[k]);
+    if (trans[k]) delete trans[k];
   }
   for(size_t k=0;k<fitpsf.size();++k) {
-    if (fitpsf[k]) delete(fitpsf[k]);
+    if (fitpsf[k]) delete fitpsf[k];
   }
 }
 
@@ -100,14 +164,41 @@ void MultiShearCatalog::ReadFileLists()
     }
 
     image_file_list.clear();
+    shear_file_list.clear();
     fitpsf_file_list.clear();
 
     std::string image_filename;
+    std::string shear_filename;
     std::string psf_filename;
-    while (flist >> image_filename >> psf_filename) 
+    params["dist_hdu"] = 2;
+    params["dist_method"] = "WCS";
+    while (flist >> image_filename >> shear_filename >> psf_filename) 
     {
       image_file_list.push_back(image_filename);
+      shear_file_list.push_back(shear_filename);
       fitpsf_file_list.push_back(psf_filename);
+      dbg<<"Files are :\n"<<image_filename<<std::endl;
+      dbg<<shear_filename<<std::endl;
+      dbg<<psf_filename<<std::endl;
+
+      // read transformation between ra/dec and x/y
+      params["dist_file"] = image_filename;
+      trans.push_back(new Transformation(params));
+
+      // read the psf
+      params["fitpsf_file"] = psf_filename;
+      fitpsf.push_back(new FittedPSF(params));
+      dbg<<"fitpsf["<<fitpsf.size()-1<<"] sigma = "<<fitpsf.back()->GetSigma()<<std::endl;
+
+      // We need the bounds for each component image so that we can 
+      // efficiently load only the images we need in each area of the sky 
+      // we will be working on.  
+      // The easiest way to do this is to load the shear catalog
+      // and read off the skybounds from that.  But we don't need to 
+      // keep the whole shear catalog in memory.
+      params["shear_file"] = shear_filename;
+      ShearCatalog scat(params);
+      image_skybounds.push_back(scat.skybounds);
     }
   }
   catch (std::exception& e)
@@ -120,7 +211,11 @@ void MultiShearCatalog::ReadFileLists()
     throw ReadError("Error reading from "+file+" -- caught unknown error");
   }
 
+  dbg<<"Done reading file lists\n";
   Assert(image_file_list.size() == fitpsf_file_list.size());
+  Assert(shear_file_list.size() == fitpsf_file_list.size());
+  Assert(image_skybounds.size() == fitpsf_file_list.size());
+
 }
 
 void MultiShearCatalog::Resize(int n)
@@ -148,9 +243,49 @@ void MultiShearCatalog::Resize(int n)
   shape.resize(n,shape_default);
 }
 
-// Get pixel lists from the file specified in params
-void MultiShearCatalog::GetImagePixelLists()
+template <class T>
+long long MemoryFootprint(const T& x)
+{ return sizeof(x); };
+
+template <class T>
+long long MemoryFootprint(const T*& x)
 {
+  long long res=sizeof(T*);
+  res += MemoryFootprint(*x);
+  return res;
+}
+
+template <class T>
+long long MemoryFootprint(const std::auto_ptr<T>& x)
+{
+  long long res=sizeof(std::auto_ptr<T>);
+  res += MemoryFootprint(*x);
+  return res;
+}
+
+template <class T>
+long long MemoryFootprint(const std::vector<T>& x)
+{
+  long long res=sizeof(std::vector<T>);
+  for(size_t i=0;i<x.size();++i) res += MemoryFootprint(x[i]);
+  return res;
+}
+
+// Get pixel lists from the file specified in params
+void MultiShearCatalog::GetImagePixelLists(int fnum, const Bounds& b)
+{
+  dbg<<"Start GetImagePixelLists: fnum = "<<fnum<<std::endl;
+  dbg<<"trans.size = "<<trans.size()<<std::endl;
+  dbg<<"pixlist.size = "<<pixlist.size()<<std::endl;
+  dbg<<"Memory usage in pixlist structure = ";
+  dbg<<MemoryFootprint(pixlist)<<std::endl;
+  bool output_dots = params.read("output_dots",false);
+  if (output_dots)
+  {
+    std::cerr<<"Using image# "<<fnum<<"... Memory usage in pixlist structure = ";
+    std::cerr<<(MemoryFootprint(pixlist)/1024./1024.)<<" MB\n";;
+  }
+
   std::auto_ptr<Image<double> > weight_im;
   Image<double> im(params,weight_im);
 
@@ -158,16 +293,11 @@ void MultiShearCatalog::GetImagePixelLists()
   int maxj=im.GetMaxJ();
   xdbg<<"MaxI: "<<maxi<<" MaxJ: "<<maxj<<"\n";
 
-  // read transformation between ra/dec and x/y
-  trans.push_back(new Transformation(params));
-  const Transformation& trans1 = *trans.back();
-
-  // read the psf
-  fitpsf.push_back(new FittedPSF(params));
-  const FittedPSF& fitpsf1 = *fitpsf.back();
-
   // which image index is this one?
-  int image_index = fitpsf.size()-1;
+  int image_index = fnum;
+
+  const Transformation& trans1 = *trans[fnum];
+  const FittedPSF& fitpsf1 = *fitpsf[fnum];
 
 #ifdef UseInverseTransform
   Transformation invtrans;
@@ -186,15 +316,16 @@ void MultiShearCatalog::GetImagePixelLists()
   // loop over the the objects, if the object falls on the image get
   // the pixel list
   for (size_t i=0; i<skypos.size(); ++i) {
+    if (!b.Includes(skypos[i])) continue;
 
     // convert ra/dec to x,y in this image
 
 #ifdef UseInverseTransform
     // Figure out a good starting point for the nonlinear solver:
     Position pxy;
-    xdbg<<"skypos = "<<skypos[i]<<std::endl;
+    //xdbg<<"skypos = "<<skypos[i]<<std::endl;
     if (!invb.Includes(skypos[i])) {
-      xdbg<<"skypos "<<skypos[i]<<" not in "<<invb<<std::endl;
+      //xdbg<<"skypos "<<skypos[i]<<" not in "<<invb<<std::endl;
       continue;
     }
     invtrans.Transform(skypos[i],pxy);
@@ -258,7 +389,7 @@ void MultiShearCatalog::GetImagePixelLists()
 	Assert(i < image_indexlist.size());
 	Assert(i < image_cenlist.size());
 	Assert(i < nimages_gotpix.size());
-	pixlist[i].push_back(tmp_pixlist);
+	pixlist[i]->push_back(tmp_pixlist);
 	image_indexlist[i].push_back(image_index);
 	image_cenlist[i].push_back(pxy);
 	nimages_gotpix[i]++;
@@ -299,10 +430,16 @@ void MeasureMultiShear1(
 
   // Find harmonic mean of psf sizes:
   // MJ: Is it correct to use the harmonic mean of sigma^2?
+  dbg<<"sigma_p values are: \n";
   double sigma_p = 0.;
   Assert(psf.size() > 0);
-  for(size_t i=0;i<psf.size();++i) sigma_p += 1./psf[i].GetSigma();
+  for(size_t i=0;i<psf.size();++i) 
+  {
+    dbg<<psf[i].GetSigma()<<std::endl;
+    sigma_p += 1./psf[i].GetSigma();
+  }
   sigma_p = double(psf.size()) / sigma_p;
+  dbg<<"Harmonic mean = "<<sigma_p<<std::endl;
 
   // We start with a native fit using sigma = 2*sigma_p:
   double sigma_obs = 2.*sigma_p;
@@ -364,6 +501,7 @@ void MeasureMultiShear1(
   // Now we can do a deconvolving fit, but one that does not 
   // shear the coordinates.
   sigma_obs *= exp(ell.GetMu());
+  dbg<<"sigma_obs -> "<<sigma_obs<<std::endl;
   if (sigma_obs < min_gal_size*sigma_p) {
     dbg<<"skip: galaxy is too small -- "<<sigma_obs<<" psf size = "<<sigma_p<<std::endl;
     if (times) times->nf_small++;
@@ -390,9 +528,11 @@ void MeasureMultiShear1(
   xdbg<<"npix = "<<npix<<std::endl;
   double sigpsq = pow(sigma_p,2);
   double sigma = pow(sigma_obs,2) - sigpsq;
+  xdbg<<"sigma_p^2 = "<<sigpsq<<std::endl;
+  xdbg<<"sigma^2 = sigma_obs^2 - sigmap^2 = "<<sigma<<std::endl;
   if (sigma < 0.1*sigpsq) sigma = 0.1*sigpsq;
   sigma = sqrt(sigma);
-  xdbg<<"sigma = "<<sigma<<std::endl;
+  xdbg<<"sigma = sqrt(sigma^2) "<<sigma<<std::endl;
   ell.SetFP(f_psf);
   if (times) ell.ResetTimes();
   flag1 = 0;
@@ -459,7 +599,6 @@ void MeasureMultiShear1(
     flag |= SHAPE_REDUCED_ORDER;
     if (go < 2) { flag |= TOO_SMALL; return; }
   }
-  //shapelet = new BVec(go,sigma);
   shapelet.SetSigma(sigma);
   std::complex<double> gale = 0.;
   ell.MeasureShapelet(pix,psf,shapelet);
@@ -544,19 +683,35 @@ void MeasureMultiShear(
     tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
     long& flag)
 {
+  dbg<<"Start MeasureMultiShear\n";
+  dbg<<"cen = "<<cen<<std::endl;
+  dbg<<"pix.size = "<<pix.size()<<"  ";
+  for(size_t i=0;i<pix.size();++i) dbg<<pix[i].size()<<" ";
+  dbg<<std::endl;
+  dbg<<"image_index.size = "<<image_index.size()<<std::endl;
+  dbg<<"image_cen.size = "<<image_cen.size()<<std::endl;
+  dbg<<"fitpsf.size = "<<fitpsf.size()<<std::endl;
+
   Assert(fitpsf.size() > 0);
   // Calculate the psf from the fitted-psf formula:
   int psforder = fitpsf[0]->GetPSFOrder();
   double psfsigma = fitpsf[0]->GetSigma();
   for(size_t k=1;k<fitpsf.size();++k) 
+  {
     // The psforder should be the same in all the FittedPSF's,
     // but the sigma's are allowed to vary.
     Assert(fitpsf[k]->GetPSFOrder() == psforder);
+  }
   std::vector<BVec> psf(pix.size(), BVec(psforder, psfsigma));
   try {
     for(size_t i=0;i<pix.size();++i) {
       int k = image_index[i];
+      dbg<<"image_index["<<i<<"] = "<<k<<std::endl;
+      dbg<<"fitpsf[k].sigma = "<<fitpsf[k]->GetSigma()<<std::endl;
       psf[i] = (*fitpsf[k])(image_cen[i]);
+      psf[i].SetSigma(fitpsf[k]->GetSigma());
+      dbg<<"psf[i].sigma = "<<psf[i].GetSigma()<<std::endl;
+      dbg<<"psf[i] = "<<psf[i]<<std::endl;
     }
   } catch (Range_error& e) {
     // This shouldn't happen.  We already checked that fitpsf(cen) and
@@ -568,8 +723,9 @@ void MeasureMultiShear(
   }
 
   // Do the real meat of the calculation:
-  dbg<<"measure single shear cen = "<<cen<<std::endl;
-  try { 
+  dbg<<"measure multi shear cen = "<<cen<<std::endl;
+  try 
+  {
     MeasureMultiShear1(
 	// Input data:
 	cen, pix, psf,
@@ -582,7 +738,9 @@ void MeasureMultiShear(
 	log,
 	// Ouput values:
 	shear, shearcov, shapelet, flag);
-  } catch (tmv::Error& e) { 
+  } 
+  catch (tmv::Error& e) 
+  {
     dbg<<"TMV Error thrown in MeasureSingleShear\n";
     dbg<<e<<std::endl;
     log.nf_tmverror++;
@@ -597,8 +755,9 @@ void MeasureMultiShear(
 
 }
 
-int MultiShearCatalog::MeasureMultiShears(ShearLog& log)
+int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
 {
+  dbg<<"Start MeasureMultiShears for b = "<<b<<std::endl;
   int ngals = skypos.size();
   dbg<<"ngals = "<<ngals<<std::endl;
 
@@ -619,16 +778,6 @@ int MultiShearCatalog::MeasureMultiShears(ShearLog& log)
   ngals = ENDAT;
 #endif
   
-  log.ngals = ngals;
-#ifdef STARTAT
-  log.ngals -= STARTAT;
-#endif
-#ifdef SINGLEGAL
-  log.ngals = 1;
-#endif
-  log.ngoodin = std::count(flags.begin(),flags.end(),0);
-  dbg<<log.ngoodin<<"/"<<log.ngals<<" galaxies with no input flags\n";
-
   // Main loop to measure shears
 #ifdef _OPENMP
 #pragma omp parallel 
@@ -641,7 +790,18 @@ int MultiShearCatalog::MeasureMultiShears(ShearLog& log)
 #ifdef _OPENMP
 #pragma omp for schedule(dynamic)
 #endif
-      for(int i=0;i<ngals;++i) if (!flags[i]) {
+      for(int i=0;i<ngals;++i) 
+      {
+	if (!b.Includes(skypos[i])) 
+	{
+	  xdbg<<"Skipping galaxy "<<i<<" because "<<skypos[i]<<"not in bounds\n";
+	  continue;
+	}
+	if (flags[i]) 
+	{
+	  xdbg<<"Skipping galaxy "<<i<<" because flag = "<<flags[i]<<std::endl;
+	  continue;
+	}
 #ifdef STARTAT
 	if (i < STARTAT) continue;
 #endif
@@ -659,7 +819,7 @@ int MultiShearCatalog::MeasureMultiShears(ShearLog& log)
 	  dbg<<"pos[i] = "<<skypos[i]<<std::endl;
 	}
 
-	if (pixlist[i].size() == 0) 
+	if (pixlist[i]->size() == 0) 
 	{
 	  dbg<<"no valid single epoch images.\n";
 	  flags[i] = NO_SINGLE_EPOCH_IMAGES;
@@ -673,7 +833,7 @@ int MultiShearCatalog::MeasureMultiShears(ShearLog& log)
 
 	MeasureMultiShear(
 	    // Input data:
-	    skypos[i], pixlist[i], image_indexlist[i], image_cenlist[i],
+	    skypos[i], *pixlist[i], image_indexlist[i], image_cenlist[i],
 	    // Fitted PSF
 	    fitpsf,
 	    // Parameters:
@@ -704,7 +864,7 @@ int MultiShearCatalog::MeasureMultiShears(ShearLog& log)
 #ifdef _OPENMP
 #pragma omp critical (add_log)
 #endif
-      { 
+      {
 	if (timing) alltimes += times;
 	log += log1;
       }
@@ -719,18 +879,7 @@ int MultiShearCatalog::MeasureMultiShears(ShearLog& log)
   }
 #endif
 
-  dbg<<log.ns_gamma<<" successful shear measurements, ";
-  dbg<<ngals-log.ns_gamma<<" unsuccessful\n";
-  log.ngood = std::count(flags.begin(),flags.end(),0);
-  dbg<<log.ngood<<" with no flags\n";
-
-  if (output_dots) {
-    std::cerr
-      <<std::endl
-      <<"Success rate: "<<log.ns_gamma<<"/"<<log.ngoodin
-      <<"  # with no flags: "<<log.ngood
-      <<std::endl;
-  }
+  dbg<<log.ns_gamma<<" successful shear measurements so far.\n";
 
   if (timing) {
     dbg<<"From timing structure:\n";
@@ -888,16 +1037,19 @@ void MultiShearCatalog::WriteFits(std::string file) const
   std::vector<double> cov00(size());
   std::vector<double> cov01(size());
 
-  for(size_t i=0;i<size();i++) { 
+  for(size_t i=0;i<size();i++) 
+  {
     ra[i] = skypos[i].GetX();
     dec[i] = skypos[i].GetY();
   }
-  for(size_t i=0;i<size();i++) { 
+  for(size_t i=0;i<size();i++) 
+  {
     shear1[i] = real(shear[i]);
     shear2[i] = imag(shear[i]);
   }
   std::vector<double> cov11(size());
-  for(size_t i=0;i<size();i++) { 
+  for(size_t i=0;i<size();i++) 
+  {
     cov00[i] = cov[i](0,0);
     cov01[i] = cov[i](0,1);
     cov11[i] = cov[i](1,1);

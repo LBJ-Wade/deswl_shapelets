@@ -98,11 +98,11 @@ void Bounds::AddBorder(double d)
   if(defined) {xmax += d; xmin -= d; ymax += d; ymin -= d;}
 }
 
-std::vector<std::vector<Bounds> > Bounds::Divide(size_t nx,size_t ny) const
+std::vector<Bounds> Bounds::Divide(size_t nx,size_t ny) const
 {
-  if (!defined) return std::vector<std::vector<Bounds> >(nx,
-      std::vector<Bounds>(ny));
-  std::vector<std::vector<Bounds> > temp(nx,std::vector<Bounds>(ny));
+  if (!defined) return std::vector<Bounds>(nx*ny);
+  std::vector<Bounds> temp;
+  temp.reserve(nx*ny);
   std::vector<double> x(nx+1);
   std::vector<double> y(ny+1);
   x[0] = xmin;  x[nx] = xmax;
@@ -112,6 +112,6 @@ std::vector<std::vector<Bounds> > Bounds::Divide(size_t nx,size_t ny) const
   for(size_t i=1;i<nx;i++) x[i] = x[0]+i*xstep;
   for(size_t j=1;j<ny;j++) y[j] = y[0]+j*ystep;
   for(size_t i=0;i<nx;i++) for(size_t j=0;j<ny;j++)
-    temp[i][j] = Bounds(x[i],x[i+1],y[j],y[j+1]);
+    temp.push_back(Bounds(x[i],x[i+1],y[j],y[j+1]));
   return temp;
 }

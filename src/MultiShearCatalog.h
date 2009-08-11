@@ -32,11 +32,16 @@ class MultiShearCatalog
     // Read the srclist file
     void ReadFileLists();
 
+    // Get a set of bounds with a maximum linear extent in either direction
+    // of side arcminutes on a side.
+    std::vector<Bounds> SplitBounds(double side);
+
     // Get pixel lists for the component images/catalogs
-    void GetImagePixelLists();
+    void GetPixels(const Bounds& b);
+    void GetImagePixelLists(int fnum, const Bounds& b);
 
     // Measure the shears
-    int MeasureMultiShears(ShearLog& log);
+    int MeasureMultiShears(const Bounds& b, ShearLog& log);
 
     // Write output
     void Write() const;
@@ -67,6 +72,10 @@ class MultiShearCatalog
     std::vector<double> noise;
     std::vector<long> flags;
 
+    Bounds skybounds; 
+    // There is no non-sky bounds of course, but to be consistent with 
+    // the skybounds name in other catalogs, we keep that prefix here.
+
     std::vector<std::complex<double> > shear;
     std::vector<double> nu;
     std::vector<tmv::SmallMatrix<double,2,2> > cov;
@@ -79,14 +88,16 @@ class MultiShearCatalog
     ConfigFile params;
 
     // For each object, we have a vector with an element for each image it
-    // is found in, and each of those elements is a vector if Pixel
-    std::vector<std::vector<std::vector<Pixel> > > pixlist;
+    // is found in, and each of those elements is a vector of Pixel
+    std::vector<std::vector<std::vector<Pixel> >* > pixlist;
     // Which image index corresponds to each pixel list?
     std::vector<std::vector<int> > image_indexlist;
     // The skypos projected back onto the source image
     std::vector<std::vector<Position> > image_cenlist;
 
     std::vector<string> image_file_list;
+    std::vector<Bounds> image_skybounds;
+    std::vector<string> shear_file_list;
     std::vector<string> fitpsf_file_list;
 
 

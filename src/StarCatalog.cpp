@@ -3,6 +3,9 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <valarray>
+#include "TMV.h"
+#include <CCfits/CCfits>
 
 #include "StarCatalog.h"
 #include "StarFinder.h"
@@ -17,7 +20,7 @@
 #include "Log.h"
 #include "Form.h"
 #include "WlVersion.h"
-#include "TMV.h"
+#include "WriteParKey.h"
 
 void CalcSigma(
     double& sigma,

@@ -8,17 +8,20 @@
 // This function is taken from:
 // http://www.techbytes.ca/techbyte103.html
 bool FileExists(const std::string& strFilename) 
-{ 
+{
   struct stat stFileInfo; 
   int intStat; 
 
   // Attempt to get the file attributes 
   intStat = stat(strFilename.c_str(),&stFileInfo); 
-  if (intStat == 0) { 
+  if (intStat == 0) 
+  {
     // We were able to get the file attributes 
     // so the file obviously exists. 
     return true;
-  } else { 
+  }
+  else 
+  {
     // We were not able to get the file attributes. 
     // This may mean that we don't have permission to 
     // access the folder which contains this file. If you 
@@ -33,7 +36,8 @@ void SetRoot(ConfigFile& params)
 {
   Assert(params.keyExists("root") || params.keyExists("image_file"));
 
-  if (!params.keyExists("root")) {
+  if (!params.keyExists("root")) 
+  {
     // Get image name and extensions from params
     dbg<<"Make root from image_file\n";
     std::string image_file = params["image_file"];
@@ -45,7 +49,8 @@ void SetRoot(ConfigFile& params)
     std::string image_ext;
     size_t ext_pos;
     bool found = false;
-    for(size_t i=0;i<all_image_ext.size();i++) {
+    for(size_t i=0;i<all_image_ext.size();i++) 
+    {
       image_ext = all_image_ext[i];
       dbg<<"image_ext = "<<image_ext<<std::endl;
       if (image_ext.size() > image_file.size()) continue;
@@ -53,12 +58,14 @@ void SetRoot(ConfigFile& params)
       dbg<<"ext_pos = "<<ext_pos<<std::endl;
       std::string image_ext2 = std::string(image_file,ext_pos);
       dbg<<"image_ext2 = "<<image_ext2<<std::endl;
-      if (image_ext2 == image_ext) {
+      if (image_ext2 == image_ext) 
+      {
 	found = true;
 	break;
       }
     }
-    if (!found) {
+    if (!found) 
+    {
       throw(ParameterError("image file "+image_file+
 	    " does not end with "+params["image_ext"]));
     }
@@ -96,40 +103,54 @@ std::string Name(const ConfigFile& params, const std::string& what,
 
   xdbg<<"Making name for "<<what<<std::endl;
   std::string name;
-  if (params.keyExists((what+"_file"))) {
+  if (params.keyExists((what+"_file"))) 
+  {
     name = params[what+"_file"];
-    if (mustexist) {
+    if (mustexist) 
+    {
       if (!FileExists(name)) throw FileNotFound(name);
     }
-  } else {
+  }
+  else 
+  {
     Assert(params.keyExists("root"));
     Assert(params.keyExists(what+"_ext"));
     std::string root = params["root"];
     std::vector<std::string> ext = params[what+"_ext"];
     std::string pre = "";
     if (params.keyExists((what+"_prefix"))) pre=params[what+"_prefix"];
-    else {
-      if (input_prefix) {
+    else 
+    {
+      if (input_prefix) 
+      {
 	if (params.keyExists("input_prefix")) pre=params["input_prefix"];
-      } else {
+      }
+      else 
+      {
 	if (params.keyExists("output_prefix")) pre=params["output_prefix"];
       }
     }
 
-    for(size_t i=0;i<ext.size();i++) {
+    for(size_t i=0;i<ext.size();i++) 
+    {
       name = pre + root + ext[i];
-      if (mustexist) {
+      if (mustexist) 
+      {
 	if (FileExists(name)) break;
-	if (i == ext.size()-1) {
+	if (i == ext.size()-1) 
+	{
 	  std::string allnames;
-	  for(size_t j=0;j<ext.size();j++) {
+	  for(size_t j=0;j<ext.size();j++) 
+	  {
 	    if (j > 0) allnames += ",";
 	    name = pre + root + ext[j];
 	    allnames += name;
 	  }
 	  throw FileNotFound(allnames);
 	}
-      } else {
+      }
+      else 
+      {
 	break;
       }
     }
@@ -144,9 +165,12 @@ std::vector<std::string> MultiName(const ConfigFile& params,
   xdbg<<"Making multi-name for "<<what<<std::endl;
   std::vector<std::string> names;
 
-  if (params.keyExists((what+"_file"))) {
+  if (params.keyExists((what+"_file"))) 
+  {
     names = params[what+"_file"];
-  } else {
+  }
+  else 
+  {
     Assert(params.keyExists("root"));
     Assert(params.keyExists(what+"_ext"));
     std::string root = params["root"];
@@ -155,7 +179,8 @@ std::vector<std::string> MultiName(const ConfigFile& params,
     if (params.keyExists((what+"_prefix"))) pre=params[what+"_prefix"];
     else if (params.keyExists("output_prefix")) pre=params["output_prefix"];
 
-    for(size_t i=0;i<ext.size();i++) {
+    for(size_t i=0;i<ext.size();i++) 
+    {
       std::string name = pre + root + ext[i];
       xdbg<<"name = "<<name<<std::endl;
       names.push_back(name);

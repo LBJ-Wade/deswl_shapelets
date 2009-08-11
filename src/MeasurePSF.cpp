@@ -1,4 +1,5 @@
 
+#include <valarray>
 #include "Image.h"
 #include "FittedPSF.h"
 #include "Transformation.h"

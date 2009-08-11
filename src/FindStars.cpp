@@ -1,4 +1,5 @@
 
+#include <valarray>
 #include "StarCatalog.h"
 #include "InputCatalog.h"
 #include "StarFinder.h"

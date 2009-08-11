@@ -50,6 +50,9 @@ class ShearCatalog
     std::vector<tmv::SmallMatrix<double,2,2> > cov;
     std::vector<BVec> shape;
 
+    Bounds bounds;
+    Bounds skybounds;
+
   private :
 
     const ConfigFile& params;

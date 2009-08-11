@@ -9,12 +9,16 @@ Log::Log(const ConfigFile& _params,
   exitcode(SUCCESS), params(_params), logout(0), fits_file(_fits_file)
 {
   bool desqa = params.read("des_qa",false);
-  if (desqa) {
-    if (_logfile == "") {
+  if (desqa) 
+  {
+    if (_logfile == "") 
+    {
       logout = &std::cout;
-    } else {
+    } else 
+    {
       logout = new std::ofstream(_logfile.c_str(),std::ios_base::app);
-      if (!logout) {
+      if (!logout) 
+      {
 	throw WriteError(
 	    std::string("Error: Unable to open logfile ") + _logfile
 	    + " for append output");
@@ -39,8 +43,9 @@ Log::~Log()
 }
 
 void Log::NoWriteLog() 
-{ 
-  if (logout && logout != &std::cout) {
+{
+  if (logout && logout != &std::cout) 
+  {
     delete logout;
   }
   logout = 0;
@@ -54,7 +59,8 @@ ShearLog::ShearLog(const ConfigFile& params,
   ns_mu(0), nf_mu(0), ns_gamma(0), nf_gamma(0)
 {}
 
-ShearLog::~ShearLog() {
+ShearLog::~ShearLog() 
+{
   this->WriteLog();
   this->WriteLogToFitsHeader();
 }
@@ -118,7 +124,7 @@ void ShearLog::WriteLogToFitsHeader() const
 }
 
 inline std::string StatusText1(ExitCode exitcode, const ConfigFile& params)
-{ 
+{
   return std::string("STATUS") +
     char('0'+Status(exitcode,params)) +
     std::string("BEG"); 
@@ -132,9 +138,11 @@ inline std::string StatusText2(ExitCode exitcode, const ConfigFile& params)
 
 void ShearLog::WriteLog() const
 {
-  if (logout) {
+  if (logout) 
+  {
     // Emit logging information
-    if (exitcode) {
+    if (exitcode) 
+    {
       *logout << 
 	StatusText1(exitcode,this->params)<<" "<<
 	Text(exitcode)<<" "<<
@@ -142,7 +150,9 @@ void ShearLog::WriteLog() const
       if (fits_file != "")
 	*logout << " (Name="<<fits_file<<") ";
       *logout<< StatusText2(exitcode,this->params)<<std::endl;
-    } else {
+    } 
+    else 
+    {
       std::string name = "measureshear";
       if (fits_file != "") name = fits_file;
       *logout << 
@@ -199,7 +209,8 @@ PSFLog::PSFLog(const ConfigFile& params,
   nstars(0), ngoodin(0), ngood(0), nf_range(0),
   nf_tmverror(0), nf_othererror(0), ns_psf(0), nf_psf(0) {}
 
-PSFLog::~PSFLog() {
+PSFLog::~PSFLog() 
+{
   this->WriteLog();
   this->WriteLogToFitsHeader();
 }
@@ -237,7 +248,7 @@ void PSFLog::WriteLogToFitsHeader() const
 
   }
   catch (...)
-  { 
+  {
     throw WriteError("Error writing PSFLog to the Fits file header info.");
 
     // This was the old line.  Why only if exitcode==0?
@@ -247,9 +258,11 @@ void PSFLog::WriteLogToFitsHeader() const
 
 void PSFLog::WriteLog() const
 {
-  if (logout) {
+  if (logout) 
+  {
     // Emit logging information
-    if (exitcode) {
+    if (exitcode) 
+    {
       *logout << 
 	StatusText1(exitcode,this->params)<<" "<<
 	Text(exitcode)<<" "<<
@@ -257,7 +270,9 @@ void PSFLog::WriteLog() const
       if (fits_file != "")
 	*logout << " (Name="<<fits_file<<") ";
       *logout<< StatusText2(exitcode,this->params)<<std::endl;
-    } else {
+    } 
+    else 
+    {
       std::string name = "measurepsf";
       if (fits_file != "") name = fits_file;
       *logout << 
@@ -299,7 +314,8 @@ FindStarsLog::FindStarsLog(const ConfigFile& params,
   ntot(0), nr_flag(0), nr_mag(0), nr_size(0),
   nobj(0), nallstars(0), nstars(0) {}
 
-FindStarsLog::~FindStarsLog() {
+FindStarsLog::~FindStarsLog() 
+{
   this->WriteLog();
   this->WriteLogToFitsHeader();
 }
@@ -336,7 +352,7 @@ void FindStarsLog::WriteLogToFitsHeader() const
     
   }
   catch(...)
-  { 
+  {
     throw WriteError(
 	"Error writing FindStarsLog to the Fits file header info.");
 
@@ -347,9 +363,11 @@ void FindStarsLog::WriteLogToFitsHeader() const
 
 void FindStarsLog::WriteLog() const
 {
-  if (logout) {
+  if (logout) 
+  {
     // Emit logging information
-    if (exitcode) {
+    if (exitcode) 
+    {
       *logout << 
 	StatusText1(exitcode,this->params)<<" "<<
 	Text(exitcode)<<" "<<
@@ -357,7 +375,9 @@ void FindStarsLog::WriteLog() const
       if (fits_file != "")
 	*logout << " (Name="<<fits_file<<") ";
       *logout<< StatusText2(exitcode,this->params)<<std::endl;
-    } else {
+    } 
+    else 
+    {
       std::string name = "findstars";
       if (fits_file != "") name = fits_file;
       *logout << 

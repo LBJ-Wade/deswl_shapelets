@@ -93,15 +93,15 @@ void GetSubPixList(std::vector<Pixel>& pix, const std::vector<Pixel>& allpix,
   pix.clear();
   for(size_t i=0;i<allpix.size();++i) 
   {
-    xdbg<<"allpix["<<i<<"] = "<<allpix[i].z<<std::endl;
+    xxdbg<<"allpix["<<i<<"] = "<<allpix[i].z<<std::endl;
     if (std::norm(allpix[i].z) < apsq)
     {
       pix.push_back(allpix[i]);
-      xdbg<<"added to pix\n";
+      xxdbg<<"added to pix\n";
     } 
     else 
     {
-      xdbg<<"not in aperture\n";
+      xxdbg<<"not in aperture\n";
     }
 
   }

@@ -1,4 +1,5 @@
 
+#include <valarray>
 #include "Image.h"
 #include "Function2D.h"
 #include "ConfigFile.h"
@@ -180,8 +181,7 @@ void Image<T>::Write(std::string _filename) const
 }
 
 template <class T> 
-std::vector<std::vector<Image<T>*> > Image<T>::Divide(
-    size_t nx, size_t ny) const
+std::vector<Image<T>*> Image<T>::Divide(size_t nx, size_t ny) const
 {
   std::vector<size_t> x(nx+1);
   std::vector<size_t> y(ny+1);
@@ -191,10 +191,11 @@ std::vector<std::vector<Image<T>*> > Image<T>::Divide(
   size_t ystep = (ymax-ymin)/ny;
   for(size_t i=1;i<nx;i++) x[i] = x[i-1]+xstep;
   for(size_t j=1;j<ny;j++) y[j] = y[j-1]+ystep;
-  std::vector<std::vector<Image*> > blockimages(nx,std::vector<Image*>(ny));
+  std::vector<Image*> blockimages;
+  blockimages.reserve(nx*ny);
   for(size_t i=0;i<nx;i++) for(size_t j=0;j<ny;j++) 
-    blockimages[i][j] = new Image(itsm->SubMatrix(x[i],x[i+1],y[j],y[j+1]),
-	  x[i],x[i+1],y[j],y[j+1]);
+    blockimages.push_back(new Image(itsm->SubMatrix(x[i],x[i+1],y[j],y[j+1]),
+	  x[i],x[i+1],y[j],y[j+1]));
   return blockimages;
 }
 

@@ -121,7 +121,7 @@ class NonLinear2 : public NLSolver
     }
 
     void F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
-    { 
+    {
       for(size_t i=0;i<MM;i++) {
 	if (x(0)*t(i) > 20.) A(i,0) = 5.e8;
 	else if (x(0)*t(i) < -20.) A(i,0) = 2.e-9;
@@ -310,7 +310,7 @@ int main() try
 #endif
 
 #ifdef DOPOWELL
-  { 
+  {
     std::cout<<"Test Powell\n";
     Powell pow;
     pow.ftol = 1.e-20;
@@ -336,7 +336,7 @@ int main() try
 #endif
 
 #ifdef DOROSENBROCK
-  { 
+  {
     std::cout<<"Test Rosenbrock\n";
     const int ntest = 4;
     double lambda[ntest] = {0., 1.e-3, 1., 1.e4};

@@ -85,7 +85,7 @@ template <class T> class Image {
     { return Image(itsm->SubMatrix(x1,x2,y1,y2),x1,x2,y1,y2); }
       
     // Split into nx x ny subimages
-    std::vector<std::vector<Image*> > Divide(size_t nx, size_t ny) const; 
+    std::vector<Image*> Divide(size_t nx, size_t ny) const; 
 
     // Iterpolate between integral pixel values
     T Interpolate(double x, double y) const;

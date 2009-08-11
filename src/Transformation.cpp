@@ -1,14 +1,15 @@
 
+#include <valarray>
 #include "TMV.h"
 #include <fitsio.h>
-
 #include "Transformation.h"
-#include "TMV_Small.h"
 #include "dbg.h"
 #include "Legendre2D.h"
 #include "NLSolver.h"
 #include "Name.h"
 #include "Params.h"
+#include "TMV.h"
+#include "TMV_Small.h"
 
 const double PI = 4.*atan(1.);
 

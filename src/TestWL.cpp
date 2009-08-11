@@ -1,4 +1,5 @@
 
+#include <valarray>
 #include <fstream>
 #include <iostream>
 #include <cmath>

@@ -6,7 +6,8 @@ Import('env')
 RunInstall = env['_InstallProgram']
 RunUninstall = env['_UninstallProgram']
 
-for fname in ['wl.config','wl_dc4.config']:
+#for fname in ['wl.config','wl_dc4.config']:
+for fname in ['wl.config']:
 
     #cfile=env.File('wl.config')
     cfile=env.File(fname)
