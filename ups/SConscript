@@ -12,6 +12,8 @@ main_libdir=distutils.sysconfig.get_python_lib()
 this_libdir = main_libdir.replace(distutils.sysconfig.PREFIX+os.sep,'')
 
 fobj=open('wl.table','w')
+fobj.write('setupRequired("ccfits")\n')
+fobj.write('setupRequired("tmv")\n')
 fobj.write('envPrepend(PATH,${PRODUCT_DIR}/bin)\n')
 fobj.write('envPrepend(PYTHON_PATH,${PRODUCT_DIR}/'+this_libdir+')\n')
 fobj.close()
