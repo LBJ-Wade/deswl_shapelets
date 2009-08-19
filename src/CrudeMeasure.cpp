@@ -8,7 +8,7 @@
 class CrudeSolver : public NLSolver 
 {
   public :
-    CrudeSolver(const std::vector<Pixel>& pix, double _sigma, double _I1,
+    CrudeSolver(const PixelList& pix, double _sigma, double _I1,
 	tmv::Vector<double>& _xinit);
 
     void F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const;
@@ -28,7 +28,7 @@ class CrudeSolver : public NLSolver
     tmv::Vector<double>& xinit;
 };
 
-CrudeSolver::CrudeSolver(const std::vector<Pixel>& pix,
+CrudeSolver::CrudeSolver(const PixelList& pix,
     double _sigma, double _I1, tmv::Vector<double>& _xinit) :
   sigma(_sigma), I(pix.size()), Z(pix.size()), W(pix.size()), 
   Z1(pix.size()), E(pix.size()), Rsq(pix.size()), f1(pix.size()), I1(_I1),
@@ -129,7 +129,7 @@ void CrudeSolver::J(const tmv::Vector<double>& params, const tmv::Vector<double>
   xxdbg<<"J = "<<df<<std::endl;
 }
 
-void Ellipse::CrudeMeasure(const std::vector<Pixel>& pix, double sigma)
+void Ellipse::CrudeMeasure(const PixelList& pix, double sigma)
 {
   // We use as our initial estimate the exact value for a 
   // well-sampled, uniform-variance, undistorted Gaussian intensity pattern
@@ -308,19 +308,18 @@ void Ellipse::CrudeMeasure(const std::vector<Pixel>& pix, double sigma)
 }
 
 void Ellipse::CrudeMeasure(
-    const std::vector<std::vector<Pixel> >& pix, double sigma)
+    const std::vector<PixelList>& pix, double sigma)
 {
-  std::vector<Pixel> allpix;
   int n = 0;
   for(size_t i=0;i<pix.size();i++) n += pix[i].size();
-  allpix.reserve(n);
-  for(size_t i=0;i<pix.size();i++)
-    for(size_t j=0;j<pix[i].size();j++)
-      allpix.push_back(pix[i][j]);
+  PixelList allpix(n);
+  for(size_t i=0,k=0;i<pix.size();i++)
+    for(size_t j=0;j<pix[i].size();j++,k++)
+      allpix[k] = pix[i][j];
   CrudeMeasure(allpix,sigma);
 }
 
-void Ellipse::PeakCentroid(const std::vector<Pixel>& pix, double maxr)
+void Ellipse::PeakCentroid(const PixelList& pix, double maxr)
 {
   double peakI = 0.;
   std::complex<double> peakz = 0.;

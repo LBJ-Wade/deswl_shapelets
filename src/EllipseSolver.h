@@ -25,11 +25,11 @@ class EllipseSolver : public BaseEllipseSolver
 {
   public :
 
-    EllipseSolver(const std::vector<std::vector<Pixel> >& pix, 
+    EllipseSolver(const std::vector<PixelList>& pix, 
 	int order, double sigma, bool desqa,
 	bool fixcen=false, bool fixgam=false, bool fixmu=false,
 	bool useflux=false);
-    EllipseSolver(const std::vector<std::vector<Pixel> >& pix, 
+    EllipseSolver(const std::vector<PixelList>& pix, 
 	const std::vector<BVec>& psf, double fp,
 	int order, double sigma, bool desqa,
 	bool fixcen=false, bool fixgam=false, bool fixmu=false,
@@ -64,11 +64,11 @@ class EllipseSolver2 : public BaseEllipseSolver
 {
   public :
 
-    EllipseSolver2(const std::vector<std::vector<Pixel> >& pix,
+    EllipseSolver2(const std::vector<PixelList>& pix,
 	int order, double sigma, double pixscale,
 	bool fixcen=false, bool fixgam=false, bool fixmu=false,
 	bool useflux=false);
-    EllipseSolver2(const std::vector<std::vector<Pixel> >& pix,
+    EllipseSolver2(const std::vector<PixelList>& pix,
 	const std::vector<BVec>& psf, double fp,
 	int order, double sigma, double pixscale,
 	bool fixcen=false, bool fixgam=false, bool fixmu=false,

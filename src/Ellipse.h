@@ -29,25 +29,25 @@ class Ellipse {
       dotimings(false), t_integ(0.), t_centroid(0.),
       t_gamma(0.), t_mu(0.), t_fixflux(0.), t_final(0.) {}
 
-    bool Measure(const std::vector<std::vector<Pixel> >& pix, 
+    bool Measure(const std::vector<PixelList>& pix, 
 	const std::vector<BVec>& psf,
 	int order, double sigma, bool use_iteg, long& flag, bool desqa,
 	tmv::Matrix<double>* cov=0, 
 	BVec* bret=0, tmv::Matrix<double>* bcov=0);
-    bool Measure(const std::vector<std::vector<Pixel> >& pix, 
+    bool Measure(const std::vector<PixelList>& pix, 
 	int order, double sigma, bool use_integ, long& flag, bool desqa,
 	tmv::Matrix<double>* cov=0, 
 	BVec* bret=0, tmv::Matrix<double>* bcov=0);
 
-    void CrudeMeasure(const std::vector<Pixel>& pix, double sigma);
+    void CrudeMeasure(const PixelList& pix, double sigma);
     void CrudeMeasure(
-	const std::vector<std::vector<Pixel> >& pix, double sigma);
+	const std::vector<PixelList>& pix, double sigma);
 
-    void PeakCentroid(const std::vector<Pixel>& pix, double maxr);
+    void PeakCentroid(const PixelList& pix, double maxr);
 
-    void MeasureShapelet(const std::vector<std::vector<Pixel> >& pix, 
+    void MeasureShapelet(const std::vector<PixelList>& pix, 
 	const std::vector<BVec>& psf, BVec& bret) const;
-    void MeasureShapelet(const std::vector<std::vector<Pixel> >& pix, 
+    void MeasureShapelet(const std::vector<PixelList>& pix, 
 	BVec& bret) const;
 
     void Write(std::ostream& os) const
@@ -82,11 +82,11 @@ class Ellipse {
 
   private :
 
-    bool DoMeasure(const std::vector<std::vector<Pixel> >& pix, 
+    bool DoMeasure(const std::vector<PixelList>& pix, 
 	const std::vector<BVec>* psf, int order, double sigma,
 	bool use_integ, long& flag, bool desqa, tmv::Matrix<double>* cov=0, 
 	BVec* bret=0, tmv::Matrix<double>* bcov=0);
-    void DoMeasureShapelet(const std::vector<std::vector<Pixel> >& pix, 
+    void DoMeasureShapelet(const std::vector<PixelList>& pix, 
 	const std::vector<BVec>* psf, BVec& bret,
 	tmv::Matrix<double>* bcov=0) const;
 

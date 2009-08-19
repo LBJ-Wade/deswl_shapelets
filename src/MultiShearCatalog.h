@@ -4,6 +4,8 @@
 #include <vector>
 #include <string>
 #include "TMV.h"
+
+#include "CoaddCatalog.h"
 #include "Bounds.h"
 #include "ConfigFile.h"
 #include "Image.h"
@@ -11,9 +13,18 @@
 #include "Transformation.h"
 #include "FittedPSF.h"
 #include "dbg.h"
-#include <CCfits/CCfits>
 #include "Name.h"
 #include "WlVersion.h"
+
+#define MULTI_BLOCK 10*1024*1024  
+// 10 MB blocks for the pools other than PixelList
+
+typedef pool_allocator<PixelList,MULTI_BLOCK> pool_alloc1;
+typedef pool_allocator<std::vector<PixelList>,MULTI_BLOCK> pool_alloc2;
+typedef pool_allocator<int,MULTI_BLOCK> pool_alloc3;
+typedef pool_allocator<std::vector<int>,MULTI_BLOCK> pool_alloc4;
+typedef pool_allocator<Position,MULTI_BLOCK> pool_alloc5;
+typedef pool_allocator<std::vector<Position>,MULTI_BLOCK> pool_alloc6;
 
 class MultiShearCatalog 
 {
@@ -89,18 +100,42 @@ class MultiShearCatalog
 
     // For each object, we have a vector with an element for each image it
     // is found in, and each of those elements is a vector of Pixel
-    std::vector<std::vector<std::vector<Pixel> >* > pixlist;
+    std::vector<std::vector<PixelList,pool_alloc1>,pool_alloc2> pixlist;
     // Which image index corresponds to each pixel list?
-    std::vector<std::vector<int> > image_indexlist;
+    std::vector<std::vector<int,pool_alloc3>,pool_alloc4> image_indexlist;
     // The skypos projected back onto the source image
-    std::vector<std::vector<Position> > image_cenlist;
+    std::vector<std::vector<Position,pool_alloc5>,pool_alloc6> image_cenlist;
 
-    std::vector<string> image_file_list;
+    std::vector<std::string> image_file_list;
     std::vector<Bounds> image_skybounds;
-    std::vector<string> shear_file_list;
-    std::vector<string> fitpsf_file_list;
-
-
+    std::vector<std::string> shear_file_list;
+    std::vector<std::string> fitpsf_file_list;
 };
+
+void MeasureMultiShear1(
+    const Position& cen, 
+    const std::vector<PixelList,pool_alloc1> allpix,
+    const std::vector<BVec>& psf,
+    double gal_aperture, double max_aperture,
+    int gal_order, int gal_order2,
+    double f_psf, double min_gal_size, bool desqa,
+    OverallFitTimes* times, ShearLog& log,
+    std::complex<double>& shear, 
+    tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
+    long& flag);
+
+void MeasureMultiShear(
+    const Position& cen, 
+    const std::vector<PixelList,pool_alloc1>& pix,
+    const std::vector<int,pool_alloc3>& image_index,
+    const std::vector<Position,pool_alloc5>& image_cen,
+    const std::vector<const FittedPSF*>& fitpsf,
+    double gal_aperture, double max_aperture,
+    int gal_order, int gal_order2,
+    double f_psf, double min_gal_size, bool desqa,
+    OverallFitTimes* times, ShearLog& log,
+    std::complex<double>& shear, 
+    tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
+    long& flag);
 
 #endif

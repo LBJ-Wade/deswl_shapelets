@@ -136,21 +136,22 @@ def BasicCCFlags(env):
             if version <= 4.2:
                 env.Append(CCFLAGS=['-fno-strict-aliasing'])
             if env['WARN']:
-                env.Append(CCFLAGS=['-ggdb','-Wall','-Werror'])
+                #env.Append(CCFLAGS=['-ggdb','-Wall','-Werror'])
+                env.Append(CCFLAGS=['-g','-Wall','-Werror'])
     
         elif compiler == 'icpc':
             env.Replace(CCFLAGS=['-O2'])
             if version >= 10:
                 env.Append(CCFLAGS=['-vec-report0'])
             if env['WARN']:
-                env.Append(CCFLAGS=['-Wall','-Werror','-wd383,810,981'])
+                env.Append(CCFLAGS=['-g','-Wall','-Werror','-wd383,810,981'])
                 if version >= 9:
                     env.Append(CCFLAGS=['-wd1572'])
                 if version >= 11:
                     env.Append(CCFLAGS=['-wd2259'])
 
         elif compiler == 'pgCC':
-            env.Replace(CCFLAGS=['-O2','-fast','-Mcache_align'])
+            env.Replace(CCFLAGS=['-g','-O2','-fast','-Mcache_align'])
 
         elif compiler == 'cl':
             env.Replace(CCFLAGS=['/EHsc','/nologo','/O2','/Oi'])
@@ -192,8 +193,10 @@ def AddOpenMPFlag(env):
             print 'No OpenMP support for g++ versions before ',openmp_mingcc_vers
             return
         flag = ['-fopenmp']
-        ldflag = []
-        xlib = ['gomp','gfortran','pthread']
+        #ldflag = []
+        #xlib = ['gomp','gfortran','pthread']
+        ldflag = ['-fopenmp']
+        xlib = ['pthread']
     elif compiler == 'icpc':
         if version < openmp_minicpc_vers:
             print 'No OpenMP support for icpc versions before ',openmp_minicpc_vers
@@ -217,7 +220,7 @@ def AddOpenMPFlag(env):
 
     #print 'Adding openmp support:',flag
     print 'Using OpenMP'
-    env.Append(CCFLAGS=flag)
+    env['OMP_FLAGS'] = flag
     env.Append(LINKFLAGS=ldflag)
     env.Append(LIBS=xlib)
 
@@ -411,7 +414,7 @@ int main()
     elif context.env['CXXTYPE'] == 'pgCC':
         threadlib = 'mkl_pgi_thread'
     else:
-        threadlib = ['mkl_gnu_thread']
+        threadlib = 'mkl_gnu_thread'
 
     if context.TryCompile(mkl_source_file,'.cpp'):
         if context.env['WITH_OPENMP'] :

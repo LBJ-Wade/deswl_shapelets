@@ -3,7 +3,7 @@
 #include "Params.h"
 #include "dbg.h"
 
-void GetPixList(const Image<double>& im, std::vector<Pixel>& pix,
+void GetPixList(const Image<double>& im, PixelList& pix,
     const Position cen, double sky, double noise, double gain,
     const Image<double>* wt_im, const Transformation& trans,
     double aperture, long& flag)
@@ -53,6 +53,15 @@ void GetPixList(const Image<double>& im, std::vector<Pixel>& pix,
 
   double apsq = aperture*aperture;
 
+  // Do this next loop in two passes.  First figure out which 
+  // pixels we want to use.  Then we can resize pix to the full size
+  // we will need, and go back through and enter the pixels.
+  // This saves us a lot of resizing calls in vector, which are
+  // both slow and can fragment the memory.
+  std::vector<std::vector<bool> > usepix(i2-i1+1,
+      std::vector<bool>(j2-j1+1,false));
+  int npix = 0;
+
   double chipx = xmin+i1-xcen;
   for(int i=i1;i<=i2;i++,chipx+=1.) {
     double chipy = ymin+j1-ycen;
@@ -61,26 +70,45 @@ void GetPixList(const Image<double>& im, std::vector<Pixel>& pix,
     for(int j=j1;j<=j2;j++,u+=D(0,1),v+=D(1,1)) {
       // u,v are in arcsec
       double rsq = u*u + v*v;
-      xxdbg<<"i,j,u,v,rsq = "<<i<<','<<j<<"  "<<u<<','<<v<<"  "<<rsq<<std::endl;
-      if (rsq > apsq) continue;
-      xxdbg<<rsq<<" < "<<apsq<<std::endl;
-      double I = im(i,j)-sky;
-      double wt;
-      if (wt_im) {
-	wt = (*wt_im)(i,j);
-      } else {
-	double var = noise;
-	if (gain != 0.) var += im(i,j)/gain;
-	wt = 1./var;
+      if (rsq <= apsq) 
+      {
+	usepix[i-i1][j-j1] = true;
+	npix++;
       }
-      pix.push_back(Pixel(u,v,I,wt));
     }
   }
-  xdbg<<"done: npix = "<<pix.size()<<std::endl;
-  if (pix.size() < 10) flag |= LT10PIX;
+
+  xdbg<<"npix = "<<npix<<std::endl;
+  pix.resize(npix);
+  xdbg<<"pixlist size = "<<npix<<" = "<<npix*sizeof(Pixel)<<" bytes = "<<npix*sizeof(Pixel)/1024.<<" KB\n";
+  int k=0;
+
+  chipx = xmin+i1-xcen;
+  for(int i=i1;i<=i2;i++,chipx+=1.) {
+    double chipy = ymin+j1-ycen;
+    double u = D(0,0)*chipx+D(0,1)*chipy;
+    double v = D(1,0)*chipx+D(1,1)*chipy;
+    for(int j=j1;j<=j2;j++,u+=D(0,1),v+=D(1,1)) {
+      if (usepix[i-i1][j-j1]) {
+	double I = im(i,j)-sky;
+	double wt;
+	if (wt_im) {
+	  wt = (*wt_im)(i,j);
+	} else {
+	  double var = noise;
+	  if (gain != 0.) var += im(i,j)/gain;
+	  wt = 1./var;
+	}
+	Assert(k < int(pix.size()));
+	pix[k++] = Pixel(u,v,I,wt);
+      }
+    }
+  }
+  Assert(k == int(pix.size()));
+  if (npix < 10) flag |= LT10PIX;
 }
 
-void GetSubPixList(std::vector<Pixel>& pix, const std::vector<Pixel>& allpix,
+void GetSubPixList(PixelList& pix, const PixelList& allpix,
     double aperture, long& flag)
 {
   // Select a subset of allpix that are within the given aperture

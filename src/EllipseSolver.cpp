@@ -21,11 +21,11 @@ class ESImpl
 
     friend class EllipseSolver;
 
-    ESImpl(const std::vector<std::vector<Pixel> >& _pix,
+    ESImpl(const std::vector<PixelList>& _pix,
 	int _order, double _sigma, bool desqa,
 	bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux);
 
-    ESImpl(const std::vector<std::vector<Pixel> >& _pix,
+    ESImpl(const std::vector<PixelList>& _pix,
 	const std::vector<BVec>& _psf, 
 	double _fp, int _order, double _sigma, bool desqa,
 	bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux);
@@ -42,7 +42,7 @@ class ESImpl
 
     size_t nsize, np2size;
     mutable BVec b;
-    const std::vector<std::vector<Pixel> >& pix;
+    const std::vector<PixelList>& pix;
     const std::vector<BVec>* psf;
     double f_psf;
     std::vector<double> sigma_obs;
@@ -86,13 +86,13 @@ class ESImpl
 
 };
 
-EllipseSolver::EllipseSolver(const std::vector<std::vector<Pixel> >& pix,
+EllipseSolver::EllipseSolver(const std::vector<PixelList>& pix,
     int order, double sigma, bool desqa,
     bool fixcen, bool fixgam, bool fixmu, bool useflux) :
   pimpl(new ESImpl(pix,order,sigma,desqa,fixcen,fixgam,fixmu,useflux))
 {}
 
-EllipseSolver::EllipseSolver(const std::vector<std::vector<Pixel> >& pix,
+EllipseSolver::EllipseSolver(const std::vector<PixelList>& pix,
     const std::vector<BVec>& psf, double fp,
     int order, double sigma, bool desqa,
     bool fixcen, bool fixgam, bool fixmu, bool useflux) :
@@ -114,14 +114,14 @@ void EllipseSolver::J(
   else pimpl->J(x,f,df); 
 }
 
-inline size_t SumSize(const std::vector<std::vector<Pixel> >& v)
+inline size_t SumSize(const std::vector<PixelList>& v)
 {
   size_t sum = 0;
   for(size_t i=0;i<v.size();i++) sum += v[i].size();
   return sum;
 }
 
-ESImpl::ESImpl(const std::vector<std::vector<Pixel> >& _pix, 
+ESImpl::ESImpl(const std::vector<PixelList>& _pix, 
     int _order, double _sigma, bool desqa,
     bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux) :
   nsize((_order+1)*(_order+2)/2),
@@ -187,7 +187,7 @@ static int CalcMaxPSFOrder(const std::vector<BVec>& psf)
 #define SIZE_3 (ORDER_3+1)*(ORDER_3+2)/2
 #define SIZE_4 (maxpsforder+1)*(maxpsforder+2)/2
 #define SIZE_5 (maxpsforder+3)*(maxpsforder+4)/2
-ESImpl::ESImpl(const std::vector<std::vector<Pixel> >& _pix, 
+ESImpl::ESImpl(const std::vector<PixelList>& _pix, 
     const std::vector<BVec>& _psf,
     double _fp, int _order, double _sigma, bool desqa,
     bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux) :
@@ -1098,11 +1098,11 @@ class ESImpl2
 
   public :
 
-    ESImpl2(const std::vector<std::vector<Pixel> >& _pix,
+    ESImpl2(const std::vector<PixelList>& _pix,
 	int _order, double _sigma, double _pixscale,
 	bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux);
 
-    ESImpl2(const std::vector<std::vector<Pixel> >& _pix,
+    ESImpl2(const std::vector<PixelList>& _pix,
 	const std::vector<BVec>& _psf, double _fp,
 	int _order, double _sigma, double _pixscale,
 	bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux);
@@ -1116,7 +1116,7 @@ class ESImpl2
 
     size_t nsize, np2size;
     mutable BVec b;
-    const std::vector<std::vector<Pixel> >& pix;
+    const std::vector<PixelList>& pix;
     const std::vector<BVec>* psf;
     double f_psf;
     std::vector<double> sigma_obs;
@@ -1152,14 +1152,14 @@ class ESImpl2
     mutable tmv::Matrix<double> _dTdE;
 };
 
-EllipseSolver2::EllipseSolver2(const std::vector<std::vector<Pixel> >& pix,
+EllipseSolver2::EllipseSolver2(const std::vector<PixelList>& pix,
     int order, double sigma, double pixscale,
     bool fixcen, bool fixgam, bool fixmu, bool useflux) :
   pimpl(new ESImpl2(pix,order,sigma,pixscale,
 	fixcen,fixgam,fixmu,useflux))
 {}
 
-EllipseSolver2::EllipseSolver2(const std::vector<std::vector<Pixel> >& pix,
+EllipseSolver2::EllipseSolver2(const std::vector<PixelList>& pix,
     const std::vector<BVec>& psf, double fp,
     int order, double sigma, double pixscale,
     bool fixcen, bool fixgam, bool fixmu, bool useflux) :
@@ -1182,7 +1182,7 @@ void EllipseSolver2::J(
   else pimpl->J(x,f,df); 
 }
 
-ESImpl2::ESImpl2(const std::vector<std::vector<Pixel> >& _pix,
+ESImpl2::ESImpl2(const std::vector<PixelList>& _pix,
     int _order, double _sigma, double _pixscale,
     bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux) :
   nsize((_order+1)*(_order+2)/2),
@@ -1245,7 +1245,7 @@ ESImpl2::ESImpl2(const std::vector<std::vector<Pixel> >& _pix,
 #define SIZE_3 (ORDER_3+1)*(ORDER_3+2)/2
 #define SIZE_4 (maxpsforder+1)*(maxpsforder+2)/2
 
-ESImpl2::ESImpl2(const std::vector<std::vector<Pixel> >& _pix,
+ESImpl2::ESImpl2(const std::vector<PixelList>& _pix,
     const std::vector<BVec>& _psf, double _fp, int _order, double _sigma, 
     double _pixscale, bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux) :
   nsize((_order+1)*(_order+2)/2),

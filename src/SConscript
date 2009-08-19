@@ -58,15 +58,26 @@ Histogram.cpp StarFinder.cpp StarCatalog.cpp PSFCatalog.cpp
 ShearCatalog.cpp InputCatalog.cpp ExecuteCommand.cpp CoaddCatalog.cpp 
 MultiShearCatalog.cpp WlVersion.cpp""".split()
 
+libwl_omp_files="""
+Ellipse_omp.cpp StarCatalog_omp.cpp PSFCatalog_omp.cpp
+ShearCatalog_omp.cpp MultiShearCatalog_omp.cpp """.split()
+
+
+env1 = env.Clone()
 
 if env['MEM_TEST']:
     print 'Using mmgr.cpp'
     libwl_files += ['mmgr.cpp']
 
-# Library file containing generic code
-obj_lib = env.Object(libwl_files)
+env2 = env1.Clone()
+if env['WITH_OPENMP'] :
+    env2.Append(CCFLAGS=env['OMP_FLAGS'])
 
-libwl = env.Library('#lib/wl',obj_lib)
+# Library file containing generic code
+obj_lib = env1.Object(libwl_files)
+obj_omp_lib = env2.Object(libwl_omp_files)
+
+libwl = env.Library('#lib/wl',obj_lib+obj_omp_lib)
 
 env.Prepend(LIBS=['wl'])
 

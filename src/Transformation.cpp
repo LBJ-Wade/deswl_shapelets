@@ -368,6 +368,9 @@ static void ReadWCSFits(const std::string& filename, int hdu,
   if (fits_read_key(fitsptr,TDOUBLE,(char*)"CD2_2",&cd(1,1),NULL,&status))
     dbg<<"fits read cd2_2: "<<status<<std::endl;
 
+  if (fits_close_file(fitsptr,&status))
+    dbg<<"fits close file: "<<status<<std::endl;
+
   if (status) {
     char errmsg[80];
     fits_get_errstatus(status,errmsg);

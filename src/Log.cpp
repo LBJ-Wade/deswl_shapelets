@@ -1,6 +1,7 @@
 
-#include "Log.h"
 #include <iostream>
+#include <CCfits/CCfits>
+#include "Log.h"
 #include "Params.h"
 
 

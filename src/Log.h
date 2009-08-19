@@ -2,7 +2,6 @@
 #define LOG_H
 
 #include "Params.h"
-#include <CCfits/CCfits>
 #include <fstream>
 #include "ConfigFile.h"
 

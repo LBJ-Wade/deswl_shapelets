@@ -22,19 +22,15 @@
 
 #define UseInverseTransform
 
-//#define OnlyNImages 10
+#define OnlyNImages 30
 
 MultiShearCatalog::MultiShearCatalog(
     const CoaddCatalog& coaddcat, const ConfigFile& _params) :
   id(coaddcat.id), skypos(coaddcat.skypos), sky(coaddcat.sky),
-  noise(coaddcat.noise), flags(coaddcat.flags), params(_params),
-  skybounds(coaddcat.skybounds)
+  noise(coaddcat.noise), flags(coaddcat.flags),
+  skybounds(coaddcat.skybounds), params(_params)
 {
   Resize(coaddcat.size());
-  for (size_t i=0;i<pixlist.size();++i) 
-  {
-    pixlist[i] = new std::vector<std::vector<Pixel> >;
-  }
 
   // Fix flags to only have INPUT_FLAG set.
   // (I don't think this is necessary, but just in case.)
@@ -63,23 +59,27 @@ void MultiShearCatalog::GetPixels(const Bounds& b)
   // of this function, I clear it out, along with image_indexlist and
   // image_cenlist.  Then we loop over sections of the coaddcat and
   // only measure the shears for the objects within one section at a time.
-  for (size_t i=0;i<pixlist.size();++i) 
+
+  // MJ: pixlist used to be a vector<vector<vector<Pixel> > > object.
+  // Then at the start of this function, I would just call
+  // pixlist.clear();
+  // This worked fine for serial code, but when I tried openmp, a memory
+  // leak showed up.  Apparently, clear didn't actually release the 
+  // memory in that case, so on the next pass through GetPixels,
+  // the other pixel lists would be given new memory rather than reacquiring
+  // the memory from the cleared vectors.
+  // I don't really understand why this happened, especially since this 
+  // function is called from outside the openmp parallel region, so I 
+  // wouldn't have thought omp would be a factor at all.
+  //
+  // Update: this didn't work either.  Hmmm....  
+  const int n = pixlist.size();
+  //pixlist.reset(0);
+  //pixlist.reset(new std::vector<std::vector<std::vector<Pixel> > >(n));
+
+  for (int i=0;i<n;++i) 
   {
-    // MJ: pixlist used to be a vector<vector<vector<Pixel> > > object.
-    // Then at the start of this function, I would just call
-    // pixlist.clear()
-    // This worked fine for serial code, but when I tried openmp, a memory
-    // leak showed up.  Apparently, clear didn't actually release the 
-    // memory in that case, so on the next pass through GetPixels,
-    // the other pixel lists would be given new memory rather than reacquiring
-    // the memory from the cleared vectors.
-    // I don't really understand why this happened, especially since this 
-    // function is called from outside the openmp parallel region, so I 
-    // wouldn't have thought omp would be a factor at all.
-    //
-    // Update: this didn't work either.  Hmmm....  
-    delete pixlist[i];
-    pixlist[i] = new std::vector<std::vector<Pixel> >;
+    pixlist[i].clear();
     image_indexlist[i].clear();
     image_cenlist[i].clear();
   }
@@ -132,10 +132,6 @@ MultiShearCatalog::MultiShearCatalog(const ConfigFile& _params) :
 
 MultiShearCatalog::~MultiShearCatalog()
 {
-  for (size_t i=0;i<pixlist.size();++i) 
-  {
-    if (pixlist[i]) delete pixlist[i];
-  }
   for(size_t k=0;k<trans.size();++k) {
     if (trans[k]) delete trans[k];
   }
@@ -245,12 +241,22 @@ void MultiShearCatalog::Resize(int n)
 
 template <class T>
 long long MemoryFootprint(const T& x)
-{ return sizeof(x); };
+{
+  return sizeof(x); 
+};
 
 template <class T>
-long long MemoryFootprint(const T*& x)
+long long MemoryFootprint(T*const x)
 {
-  long long res=sizeof(T*);
+  long long res=sizeof(x);
+  res += MemoryFootprint(*x);
+  return res;
+}
+
+template <class T>
+long long MemoryFootprint(const T*const x)
+{
+  long long res=sizeof(x);
   res += MemoryFootprint(*x);
   return res;
 }
@@ -258,31 +264,59 @@ long long MemoryFootprint(const T*& x)
 template <class T>
 long long MemoryFootprint(const std::auto_ptr<T>& x)
 {
-  long long res=sizeof(std::auto_ptr<T>);
+  long long res=sizeof(x);
   res += MemoryFootprint(*x);
   return res;
 }
 
-template <class T>
-long long MemoryFootprint(const std::vector<T>& x)
+template <class T, class Alloc>
+long long MemoryFootprint(const std::vector<T,Alloc>& x)
 {
-  long long res=sizeof(std::vector<T>);
+  long long res=sizeof(x);
+  for(size_t i=0;i<x.size();++i) res += MemoryFootprint(x[i]);
+  return res;
+}
+
+long long MemoryFootprint(const PixelList& x)
+{
+  long long res=sizeof(x);
   for(size_t i=0;i<x.size();++i) res += MemoryFootprint(x[i]);
   return res;
 }
 
 // Get pixel lists from the file specified in params
-void MultiShearCatalog::GetImagePixelLists(int fnum, const Bounds& b)
+void MultiShearCatalog::GetImagePixelLists(int image_index, const Bounds& b)
 {
-  dbg<<"Start GetImagePixelLists: fnum = "<<fnum<<std::endl;
+  dbg<<"Start GetImagePixelLists: image_index = "<<image_index<<std::endl;
   dbg<<"trans.size = "<<trans.size()<<std::endl;
   dbg<<"pixlist.size = "<<pixlist.size()<<std::endl;
-  dbg<<"Memory usage in pixlist structure = ";
-  dbg<<MemoryFootprint(pixlist)<<std::endl;
+  dbg<<"Memory usage:\n";
+  dbg<<"trans: "<<MemoryFootprint(trans)/1024./1024.<<" MB\n";
+  dbg<<"fitpsf: "<<MemoryFootprint(fitpsf)/1024./1024.<<" MB\n";
+  dbg<<"input_flags: "<<MemoryFootprint(input_flags)/1024./1024.<<" MB\n";
+  dbg<<"nimages_found: "<<MemoryFootprint(nimages_found)/1024./1024.<<" MB\n";
+  dbg<<"pixlist: "<<MemoryFootprint(pixlist)/1024./1024.<<" MB\n";
+  dbg<<"nimages_gotpix: "<<MemoryFootprint(nimages_gotpix)/1024./1024.<<" MB\n";
+  dbg<<"id: "<<MemoryFootprint(id)/1024./1024.<<" MB\n";
+  dbg<<"skypos: "<<MemoryFootprint(skypos)/1024./1024.<<" MB\n";
+  dbg<<"sky: "<<MemoryFootprint(sky)/1024./1024.<<" MB\n";
+  dbg<<"noise: "<<MemoryFootprint(noise)/1024./1024.<<" MB\n";
+  dbg<<"flags: "<<MemoryFootprint(flags)/1024./1024.<<" MB\n";
+  dbg<<"shear: "<<MemoryFootprint(shear)/1024./1024.<<" MB\n";
+  dbg<<"nu: "<<MemoryFootprint(nu)/1024./1024.<<" MB\n";
+  dbg<<"cov: "<<MemoryFootprint(cov)/1024./1024.<<" MB\n";
+  dbg<<"shape: "<<MemoryFootprint(shape)/1024./1024.<<" MB\n";
+  dbg<<"image_indexlist: "<<MemoryFootprint(image_indexlist)/1024./1024.<<" MB\n";
+  dbg<<"image_cenlist: "<<MemoryFootprint(image_cenlist)/1024./1024.<<" MB\n";
+  dbg<<"image_file_list: "<<MemoryFootprint(image_file_list)/1024./1024.<<" MB\n";
+  dbg<<"image_skybounds: "<<MemoryFootprint(image_skybounds)/1024./1024.<<" MB\n";
+  dbg<<"shear_file_list: "<<MemoryFootprint(shear_file_list)/1024./1024.<<" MB\n";
+  dbg<<"fitpsf_file_list: "<<MemoryFootprint(fitpsf_file_list)/1024./1024.<<" MB\n";
+
   bool output_dots = params.read("output_dots",false);
   if (output_dots)
   {
-    std::cerr<<"Using image# "<<fnum<<"... Memory usage in pixlist structure = ";
+    std::cerr<<"Using image# "<<image_index<<"... Memory usage in pixlist structure = ";
     std::cerr<<(MemoryFootprint(pixlist)/1024./1024.)<<" MB\n";;
   }
 
@@ -293,11 +327,8 @@ void MultiShearCatalog::GetImagePixelLists(int fnum, const Bounds& b)
   int maxj=im.GetMaxJ();
   xdbg<<"MaxI: "<<maxi<<" MaxJ: "<<maxj<<"\n";
 
-  // which image index is this one?
-  int image_index = fnum;
-
-  const Transformation& trans1 = *trans[fnum];
-  const FittedPSF& fitpsf1 = *fitpsf[fnum];
+  const Transformation& trans1 = *trans[image_index];
+  const FittedPSF& fitpsf1 = *fitpsf[image_index];
 
 #ifdef UseInverseTransform
   Transformation invtrans;
@@ -315,7 +346,12 @@ void MultiShearCatalog::GetImagePixelLists(int fnum, const Bounds& b)
   dbg<<"Extracting pixel lists\n";
   // loop over the the objects, if the object falls on the image get
   // the pixel list
+  Assert(pixlist.size() == skypos.size());
+  Assert(image_indexlist.size() == skypos.size());
+  Assert(image_cenlist.size() == skypos.size());
   for (size_t i=0; i<skypos.size(); ++i) {
+    Assert(image_indexlist[i].size() == pixlist[i].size());
+    Assert(image_cenlist[i].size() == pixlist[i].size());
     if (!b.Includes(skypos[i])) continue;
 
     // convert ra/dec to x,y in this image
@@ -375,9 +411,17 @@ void MultiShearCatalog::GetImagePixelLists(int fnum, const Bounds& b)
       }
 
       long flag = 0;
-      std::vector<Pixel> tmp_pixlist;
+      Assert(i < pixlist.size());
+      xdbg<<"pixlist["<<i<<"].size = "<<pixlist[i].size()<<std::endl;
+      xdbg<<"image_indexlist["<<i<<"].size = "<<image_indexlist[i].size()<<std::endl;
+      xdbg<<"image_cenlist["<<i<<"].size = "<<image_cenlist[i].size()<<std::endl;
+      Assert(image_indexlist[i].size() == pixlist[i].size());
+      Assert(image_cenlist[i].size() == pixlist[i].size());
+      pixlist[i].push_back(PixelList());
+      pixlist[i].back().UseBlockMem();
+      xdbg<<"pixlist["<<i<<"].size = "<<pixlist[i].size()<<std::endl;
       GetPixList(
-	  im,tmp_pixlist,pxy,
+	  im,pixlist[i].back(),pxy,
 	  sky[i],noise,gain,weight_im.get(),trans1,max_aperture,flag);
       xdbg<<"Got pixellist, flag = "<<flag<<std::endl;
 
@@ -385,512 +429,35 @@ void MultiShearCatalog::GetImagePixelLists(int fnum, const Bounds& b)
       // checked above
       if (flag == 0) {
 	dbg<<"i = "<<i<<", pixlist.size = "<<pixlist.size()<<std::endl;
-	Assert(i < pixlist.size());
 	Assert(i < image_indexlist.size());
 	Assert(i < image_cenlist.size());
 	Assert(i < nimages_gotpix.size());
-	pixlist[i]->push_back(tmp_pixlist);
 	image_indexlist[i].push_back(image_index);
 	image_cenlist[i].push_back(pxy);
+	xdbg<<"image_indexlist["<<i<<"].size = "<<image_indexlist[i].size()<<std::endl;
+	xdbg<<"image_cenlist["<<i<<"].size = "<<image_cenlist[i].size()<<std::endl;
 	nimages_gotpix[i]++;
       } else {
 	input_flags[i] |= flag;
+	pixlist[i].pop_back();
+	xdbg<<"pixlist["<<i<<"].size = "<<pixlist[i].size()<<std::endl;
       }
-      xdbg<<"added pixlist to main list\n";
+      xdbg<<"pixlist["<<i<<"].size = "<<pixlist[i].size()<<std::endl;
+      xdbg<<"image_indexlist["<<i<<"].size = "<<image_indexlist[i].size()<<std::endl;
+      xdbg<<"image_cenlist["<<i<<"].size = "<<image_cenlist[i].size()<<std::endl;
+      Assert(image_indexlist[i].size() == pixlist[i].size());
+      Assert(image_cenlist[i].size() == pixlist[i].size());
     } else {
       xdbg<<"x,y not in valid bounds\n";
     }
+    xdbg<<"end loop over objects\n";
+    xdbg<<"pixlist["<<i<<"].size = "<<pixlist[i].size()<<std::endl;
+    xdbg<<"image_indexlist["<<i<<"].size = "<<image_indexlist[i].size()<<std::endl;
+    xdbg<<"image_cenlist["<<i<<"].size = "<<image_cenlist[i].size()<<std::endl;
+    Assert(image_indexlist[i].size() == pixlist[i].size());
+    Assert(image_cenlist[i].size() == pixlist[i].size());
   } // loop over objects
   dbg<<"Done extracting pixel lists\n";
-}
-
-void MeasureMultiShear1(
-    const Position& cen, 
-    const std::vector<std::vector<Pixel> > allpix,
-    const std::vector<BVec>& psf,
-    double gal_aperture, double max_aperture,
-    int gal_order, int gal_order2,
-    double f_psf, double min_gal_size, bool desqa,
-    OverallFitTimes* times, ShearLog& log,
-    std::complex<double>& shear, 
-    tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
-    long& flag)
-{
-  //TODO: This function is too long.  It should really be broken 
-  //      up in to smaller units...
-  //      In which case most of the overlap between this and 
-  //      MeasureSingleShear1 would not have to be duplicated.
-
-  dbg<<"Start MeasureMultiShear1:\n";
-  dbg<<"cen = "<<cen<<std::endl;
-  dbg<<"allpix.size = "<<allpix.size()<<std::endl;
-  for(size_t i=0;i<allpix.size();++i)
-    dbg<<"allpix["<<i<<"].size = "<<allpix[i].size()<<std::endl;
-  dbg<<"psf.size = "<<psf.size()<<std::endl;
-
-  // Find harmonic mean of psf sizes:
-  // MJ: Is it correct to use the harmonic mean of sigma^2?
-  dbg<<"sigma_p values are: \n";
-  double sigma_p = 0.;
-  Assert(psf.size() > 0);
-  for(size_t i=0;i<psf.size();++i) 
-  {
-    dbg<<psf[i].GetSigma()<<std::endl;
-    sigma_p += 1./psf[i].GetSigma();
-  }
-  sigma_p = double(psf.size()) / sigma_p;
-  dbg<<"Harmonic mean = "<<sigma_p<<std::endl;
-
-  // We start with a native fit using sigma = 2*sigma_p:
-  double sigma_obs = 2.*sigma_p;
-  double galap = gal_aperture * sigma_obs;
-  xdbg<<"galap = "<<gal_aperture<<" * "<<sigma_obs<<" = "<<galap<<std::endl;
-  if (max_aperture > 0. && galap > max_aperture) {
-    galap = max_aperture;
-    xdbg<<"      => "<<galap<<std::endl;
-  }
-  xdbg<<"sigma_obs = "<<sigma_obs<<", sigma_p = "<<sigma_p<<std::endl;
-
-  std::vector<std::vector<Pixel> > pix(allpix.size());
-  int npix = 0;
-  for(size_t i=0;i<pix.size();++i) {
-    GetSubPixList(pix[i],allpix[i],galap,flag);
-    npix += pix[i].size();
-  }
-  xdbg<<"npix = "<<npix<<std::endl;
-
-  Ellipse ell;
-  ell.FixGam();
-  ell.CrudeMeasure(pix,sigma_obs);
-  xdbg<<"Crude Measure: centroid = "<<ell.GetCen()<<", mu = "<<ell.GetMu()<<std::endl;
-  //double mu_1 = ell.GetMu();
-
-  int go = 2;
-  int gal_size = (go+1)*(go+2)/2;
-
-  if (times) ell.DoTimings();
-  long flag1=0;
-  if (ell.Measure(pix,go,sigma_obs,true,flag1,desqa)) {
-    if (times) {
-      times->ns_native++;
-      times->ts_native_integ += ell.t_integ;
-      times->ts_native_centroid += ell.t_centroid;
-      times->ts_native_fixflux += ell.t_fixflux;
-      times->ts_native_final += ell.t_final;
-    }
-    log.ns_native++;
-    dbg<<"Successful native fit:\n";
-    dbg<<"Z = "<<ell.GetCen()<<std::endl;
-    dbg<<"Mu = "<<ell.GetMu()<<std::endl;
-  }
-  else {
-    if (times) {
-      times->nf_native++;
-      times->tf_native_integ += ell.t_integ;
-      times->tf_native_centroid += ell.t_centroid;
-      times->tf_native_fixflux += ell.t_fixflux;
-      times->tf_native_final += ell.t_final;
-    }
-    log.nf_native++;
-    dbg<<"Native measurement failed\n";
-    flag |= NATIVE_FAILED;
-    return;
-  }
-  //double mu_2 = ell.GetMu();
-
-  // Now we can do a deconvolving fit, but one that does not 
-  // shear the coordinates.
-  sigma_obs *= exp(ell.GetMu());
-  dbg<<"sigma_obs -> "<<sigma_obs<<std::endl;
-  if (sigma_obs < min_gal_size*sigma_p) {
-    dbg<<"skip: galaxy is too small -- "<<sigma_obs<<" psf size = "<<sigma_p<<std::endl;
-    if (times) times->nf_small++;
-    log.nf_small++;
-    flag |= TOO_SMALL;
-    return;
-  }
-  galap *= exp(ell.GetMu());
-  if (max_aperture > 0. && galap > max_aperture) galap = max_aperture;
-  ell.SetMu(0);
-
-  // Check - mu should now be zero:
-  // This one works
-  //ell.Measure(pix,go,sigma_obs,true,flag1,desqa);
-  //xdbg<<"After native fit #2:\n";
-  //xdbg<<"Mu = "<<ell.GetMu()<<std::endl;
-
-  npix = 0;
-  for(size_t i=0;i<pix.size();++i) {
-    GetSubPixList(pix[i],allpix[i],galap,flag);
-    npix += pix[i].size();
-  }
-
-  xdbg<<"npix = "<<npix<<std::endl;
-  double sigpsq = pow(sigma_p,2);
-  double sigma = pow(sigma_obs,2) - sigpsq;
-  xdbg<<"sigma_p^2 = "<<sigpsq<<std::endl;
-  xdbg<<"sigma^2 = sigma_obs^2 - sigmap^2 = "<<sigma<<std::endl;
-  if (sigma < 0.1*sigpsq) sigma = 0.1*sigpsq;
-  sigma = sqrt(sigma);
-  xdbg<<"sigma = sqrt(sigma^2) "<<sigma<<std::endl;
-  ell.SetFP(f_psf);
-  if (times) ell.ResetTimes();
-  flag1 = 0;
-  if (ell.Measure(pix,psf,go,sigma,false,flag1,desqa)) {
-    if (times) {
-      times->ns_mu++;
-      times->ts_mu_integ += ell.t_integ;
-      times->ts_mu_centroid += ell.t_centroid;
-      times->ts_mu_fixflux += ell.t_fixflux;
-      times->ts_mu_final += ell.t_final;
-    }
-    log.ns_mu++;
-    if (flag1) {
-      Assert((flag1 & ~(SHEAR_LOCAL_MIN | SHEAR_POOR_FIT)) == false);
-      // This is just bumps the Ellipse flags up two spots
-      // from the SHEAR_* to SHAPE_* flags.
-      flag1 <<= 2;
-      Assert((flag1 & ~(SHAPE_LOCAL_MIN | SHAPE_POOR_FIT)) == false);
-      flag |= flag1;
-    }
-    dbg<<"Successful deconvolving fit:\n";
-    xdbg<<"Mu = "<<ell.GetMu()<<std::endl;
-  }
-  else {
-    if (times) {
-      times->nf_mu++;
-      times->tf_mu_integ += ell.t_integ;
-      times->tf_mu_centroid += ell.t_centroid;
-      times->tf_mu_fixflux += ell.t_fixflux;
-      times->tf_mu_final += ell.t_final;
-    }
-    log.nf_mu++;
-    dbg<<"Deconvolving measurement failed\n";
-    flag |= DECONV_FAILED;
-    ell.MeasureShapelet(pix,psf,shapelet);
-    return;
-  }
-  //double mu_3 = ell.GetMu();
-
-#if 0
-  // This doesn't work.  So for now, keep mu, sigma the same
-  // I'd rather have mu = 0 and the right sigma.
-  // Maybe I need to change to fit to solve for sigma directly
-  // rather than solve for mu.
-  sigma *= exp(ell.GetMu());
-  ell.SetMu(0);
-
-  // Check - mu should now be zero:
-  b_gal.SetSigma(sigma);
-  dbg<<"Meausre with sigma = "<<sigma<<std::endl;
-  ell.Measure(pix,psf,go,sigma,false,flag1,desqa,&b_gal);
-  dbg<<"After deconvolving fit #2:\n";
-  dbg<<"Mu = "<<ell.GetMu()<<std::endl;
-  dbg<<"b_gal = "<<b_gal<<std::endl;
-#endif
-
-  // Measure the galaxy shape at the full order
-  go = gal_order;
-  gal_size = (go+1)*(go+2)/2;
-  if (npix <= gal_size) {
-    while (npix <= gal_size) { gal_size -= go+1; --go; }
-    dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
-    dbg<<"Reduced gal_order to "<<go<<" gal_size = "<<gal_size<<std::endl;
-    flag |= SHAPE_REDUCED_ORDER;
-    if (go < 2) { flag |= TOO_SMALL; return; }
-  }
-  shapelet.SetSigma(sigma);
-  std::complex<double> gale = 0.;
-  ell.MeasureShapelet(pix,psf,shapelet);
-  xdbg<<"Measured b_gal = "<<shapelet<<std::endl;
-
-  // Under normal circumstances, b20/b00 ~= conj(gamma)/sqrt(2)
-  gale = std::complex<double>(shapelet[3],shapelet[4]);
-  gale /= shapelet[0];
-  if (std::abs(gale) < 0.5) {
-    ell.SetGamma(conj(gale) * sqrt(2.));
-    shear = ell.GetGamma();
-  }
-
-  // Finally, we calculate the shear in the deconvolved galaxy.
-  //ell.FixMu();
-  ell.UnFixGam();
-  go = gal_order2;
-  gal_size = (go+1)*(go+2)/2;
-  if (npix <= gal_size) {
-    while (npix <= gal_size) { gal_size -= go+1; --go; }
-    dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
-    dbg<<"Reduced gal_order to "<<go<<" gal_size = "<<gal_size<<std::endl;
-  }
-  if (times) ell.ResetTimes();
-  tmv::Matrix<double> cov(5,5);
-  if (ell.Measure(pix,psf,go,sigma,false,flag,desqa,&cov)) {
-    if (times) {
-      times->ns_gamma++;
-      times->ts_gamma_integ += ell.t_integ;
-      times->ts_gamma_centroid += ell.t_centroid;
-      times->ts_gamma_fixflux += ell.t_fixflux;
-      times->ts_gamma_final += ell.t_final;
-    }
-    log.ns_gamma++;
-    dbg<<"Successful Gamma fit\n";
-    xdbg<<"Measured gamma = "<<ell.GetGamma()<<std::endl;
-    shear = ell.GetGamma();
-    tmv::SmallMatrix<double,2,2,tmv::RowMajor> cov1 = 
-      cov.SubMatrix(2,4,2,4);
-    if (!(cov1.Det() > 0.)) flag |= SHEAR_BAD_COVAR;
-    else shearcov = cov1;
-  }
-  else {
-    if (times) {
-      times->nf_gamma++;
-      times->tf_gamma_integ += ell.t_integ;
-      times->tf_gamma_centroid += ell.t_centroid;
-      times->tf_gamma_fixflux += ell.t_fixflux;
-      times->tf_gamma_final += ell.t_final;
-    }
-    log.nf_gamma++;
-    dbg<<"Measurement failed\n";
-    flag |= SHEAR_FAILED;
-    shear = ell.GetGamma();
-    tmv::SmallMatrix<double,2,2,tmv::RowMajor> cov1 = 
-      cov.SubMatrix(2,4,2,4);
-    if (!(cov1.Det() > 0.)) flag |= SHEAR_BAD_COVAR;
-    else shearcov = cov1;
-    return;
-  }
-  //dbg<<"Stats: Mu: "<<mu_1<<"  "<<mu_2<<"  "<<mu_3<<std::endl;
-  //dbg<<"       sigma = "<<sigma<<std::endl;
-  //dbg<<"       gamma = "<<shear<<std::endl;
-
-  // Finally measure the variance of the shear
-  // TODO: Write function to directly measure shear variance
-  // And also the BJ02 sigma_0 value.
-  // (I'm not convinced that the above covariance matrix is a good estiamte.)
-}
-
-void MeasureMultiShear(
-    const Position& cen, 
-    const std::vector<std::vector<Pixel> >& pix,
-    const std::vector<int>& image_index,
-    const std::vector<Position>& image_cen,
-    const std::vector<const FittedPSF*>& fitpsf,
-    double gal_aperture, double max_aperture,
-    int gal_order, int gal_order2,
-    double f_psf, double min_gal_size, bool desqa,
-    OverallFitTimes* times, ShearLog& log,
-    std::complex<double>& shear, 
-    tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
-    long& flag)
-{
-  dbg<<"Start MeasureMultiShear\n";
-  dbg<<"cen = "<<cen<<std::endl;
-  dbg<<"pix.size = "<<pix.size()<<"  ";
-  for(size_t i=0;i<pix.size();++i) dbg<<pix[i].size()<<" ";
-  dbg<<std::endl;
-  dbg<<"image_index.size = "<<image_index.size()<<std::endl;
-  dbg<<"image_cen.size = "<<image_cen.size()<<std::endl;
-  dbg<<"fitpsf.size = "<<fitpsf.size()<<std::endl;
-
-  Assert(fitpsf.size() > 0);
-  // Calculate the psf from the fitted-psf formula:
-  int psforder = fitpsf[0]->GetPSFOrder();
-  double psfsigma = fitpsf[0]->GetSigma();
-  for(size_t k=1;k<fitpsf.size();++k) 
-  {
-    // The psforder should be the same in all the FittedPSF's,
-    // but the sigma's are allowed to vary.
-    Assert(fitpsf[k]->GetPSFOrder() == psforder);
-  }
-  std::vector<BVec> psf(pix.size(), BVec(psforder, psfsigma));
-  try {
-    for(size_t i=0;i<pix.size();++i) {
-      int k = image_index[i];
-      dbg<<"image_index["<<i<<"] = "<<k<<std::endl;
-      dbg<<"fitpsf[k].sigma = "<<fitpsf[k]->GetSigma()<<std::endl;
-      psf[i] = (*fitpsf[k])(image_cen[i]);
-      psf[i].SetSigma(fitpsf[k]->GetSigma());
-      dbg<<"psf[i].sigma = "<<psf[i].GetSigma()<<std::endl;
-      dbg<<"psf[i] = "<<psf[i]<<std::endl;
-    }
-  } catch (Range_error& e) {
-    // This shouldn't happen.  We already checked that fitpsf(cen) and
-    // trans(cen) don't throw above in GetImagePixelLists
-    dbg<<"Unexpected range error in MeasureMultiShear: \n";
-    dbg<<"p = "<<e.p<<", b = "<<e.b<<std::endl;
-    flag |= FITTEDPSF_EXCEPTION;
-    throw;
-  }
-
-  // Do the real meat of the calculation:
-  dbg<<"measure multi shear cen = "<<cen<<std::endl;
-  try 
-  {
-    MeasureMultiShear1(
-	// Input data:
-	cen, pix, psf,
-	// Parameters:
-	gal_aperture, max_aperture, gal_order, gal_order2, 
-	f_psf, min_gal_size, desqa,
-	// Time stats if desired:
-	times,
-	// Log information
-	log,
-	// Ouput values:
-	shear, shearcov, shapelet, flag);
-  } 
-  catch (tmv::Error& e) 
-  {
-    dbg<<"TMV Error thrown in MeasureSingleShear\n";
-    dbg<<e<<std::endl;
-    log.nf_tmverror++;
-    flag |= TMV_EXCEPTION;
-  } catch (std::exception) {
-    throw;
-  } catch (...) {
-    dbg<<"unkown exception in MeasureSingleShear\n";
-    log.nf_othererror++;
-    flag |= UNKNOWN_EXCEPTION;
-  } 
-
-}
-
-int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
-{
-  dbg<<"Start MeasureMultiShears for b = "<<b<<std::endl;
-  int ngals = skypos.size();
-  dbg<<"ngals = "<<ngals<<std::endl;
-
-  // Read some needed parameters
-  double gal_aperture = params.read<double>("shear_aperture");
-  double max_aperture = params.read("shear_max_aperture",0.);
-  int gal_order = params.read<int>("shear_gal_order");
-  int gal_order2 = params.read("shear_gal_order2",gal_order);
-  double f_psf = params.read<double>("shear_f_psf");
-  double min_gal_size = params.read<double>("shear_min_gal_size");
-  bool desqa = params.read("des_qa",false);
-  bool output_dots = params.read("output_dots",false);
-  bool timing = params.read("timing",false);
-
-  OverallFitTimes alltimes;
-
-#ifdef ENDAT
-  ngals = ENDAT;
-#endif
-  
-  // Main loop to measure shears
-#ifdef _OPENMP
-#pragma omp parallel 
-  {
-    try {
-#endif
-      OverallFitTimes times; // just for this thread
-      ShearLog log1(params); // just for this thread
-      log1.NoWriteLog();
-#ifdef _OPENMP
-#pragma omp for schedule(dynamic)
-#endif
-      for(int i=0;i<ngals;++i) 
-      {
-	if (!b.Includes(skypos[i])) 
-	{
-	  xdbg<<"Skipping galaxy "<<i<<" because "<<skypos[i]<<"not in bounds\n";
-	  continue;
-	}
-	if (flags[i]) 
-	{
-	  xdbg<<"Skipping galaxy "<<i<<" because flag = "<<flags[i]<<std::endl;
-	  continue;
-	}
-#ifdef STARTAT
-	if (i < STARTAT) continue;
-#endif
-#ifdef SINGLEGAL
-	if (i < SINGLEGAL) continue;
-	if (i > SINGLEGAL) break;
-#endif
-
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-	{
-	  if (output_dots) { std::cerr<<"."; std::cerr.flush(); }
-	  dbg<<"galaxy "<<i<<":\n";
-	  dbg<<"pos[i] = "<<skypos[i]<<std::endl;
-	}
-
-	if (pixlist[i]->size() == 0) 
-	{
-	  dbg<<"no valid single epoch images.\n";
-	  flags[i] = NO_SINGLE_EPOCH_IMAGES;
-	  continue;
-	}
-
-	// Start with an error code of unknown failure, in case
-	// something happens that I don't detect as an error.
-	flags[i] = UNKNOWN_FAILURE;
-	long flag1 = 0;
-
-	MeasureMultiShear(
-	    // Input data:
-	    skypos[i], *pixlist[i], image_indexlist[i], image_cenlist[i],
-	    // Fitted PSF
-	    fitpsf,
-	    // Parameters:
-	    gal_aperture, max_aperture, gal_order, gal_order2, 
-	    f_psf, min_gal_size, desqa,
-	    // Time stats if desired:
-	    timing ? &times : 0, 
-	    // Log information
-	    log1,
-	    // Ouput values:
-	    shear[i], cov[i], shape[i], flag1);
-
-	flags[i] = flag1;
-
-	if (!flag1) {
-	  ompdbg<<"Successful shear measurement: "<<shear[i]<<std::endl;
-	}
-	else {
-	  ompdbg<<"Unsuccessful shear measurement\n"; 
-	}
-
-	if (timing) {
-	  ompdbg<<"So far: ns = "<<times.ns_gamma<<",  nf = "<<times.nf_native;
-	  ompdbg<<", "<<times.nf_mu<<", "<<times.nf_gamma<<std::endl;
-	}
-
-      }
-#ifdef _OPENMP
-#pragma omp critical (add_log)
-#endif
-      {
-	if (timing) alltimes += times;
-	log += log1;
-      }
-#ifdef _OPENMP
-    } 
-    catch (...)
-    {
-      // This isn't supposed to happen.
-      std::cerr<<"STATUS5BEG Caught some error in parallel region STATUS5END\n";
-      exit(1);
-    }
-  }
-#endif
-
-  dbg<<log.ns_gamma<<" successful shear measurements so far.\n";
-
-  if (timing) {
-    dbg<<"From timing structure:\n";
-    dbg<<alltimes.ns_gamma<<" successful shear measurements, ";
-    dbg<<alltimes.nf_native<<" + "<<alltimes.nf_mu;
-    dbg<<" + "<<alltimes.nf_gamma<<" unsuccessful\n";
-    std::cerr<<alltimes<<std::endl;
-  }
-  xdbg<<log<<std::endl;
-
-  return log.ns_gamma;
 }
 
 void MultiShearCatalog::Write() const

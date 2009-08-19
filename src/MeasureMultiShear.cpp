@@ -10,6 +10,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <valgrind/memcheck.h>
 
 static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log) 
 {
@@ -48,6 +49,9 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
 
     nshear += nshear1;
     dbg<<"After MeasureShears: nshear = "<<nshear1<<"  "<<nshear<<std::endl;
+    dbg<<"Valgrind Leak Check:\n";
+    VALGRIND_DO_LEAK_CHECK;
+    //if (i == 2) break;
   }
 
   dbg<<"Done: "<<log.ns_gamma<<" successful shear measurements, ";
@@ -63,6 +67,27 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
       <<"Success rate: "<<log.ns_gamma<<"/"<<log.ngoodin
       <<"  # with no flags: "<<log.ngood
       <<std::endl;
+    std::cerr<<"Memory used in PixelList pool = "<<
+      pool_allocator<Pixel,PIXELLIST_BLOCK>::total_memory_used()/(1024.*1024.)<<
+      " MB\n";
+    std::cerr<<"Memory used in vector<PixelList> pool = "<<
+      pool_allocator<PixelList,MULTI_BLOCK>::total_memory_used()/(1024.*1024.)<<
+      " MB\n";
+    std::cerr<<"Memory used in vector<vector<PixelList> > pool = "<<
+      pool_allocator<std::vector<PixelList>,MULTI_BLOCK>::total_memory_used()/(1024.*1024.)<<
+      " MB\n";
+    std::cerr<<"Memory used in vector<int> pool = "<<
+      pool_allocator<int,MULTI_BLOCK>::total_memory_used()/(1024.*1024.)<<
+      " MB\n";
+    std::cerr<<"Memory used in vector<vector<int> > pool = "<<
+      pool_allocator<std::vector<int>,MULTI_BLOCK>::total_memory_used()/(1024.*1024.)<<
+      " MB\n";
+    std::cerr<<"Memory used in vector<Position> pool = "<<
+      pool_allocator<Position,MULTI_BLOCK>::total_memory_used()/(1024.*1024.)<<
+      " MB\n";
+    std::cerr<<"Memory used in vector<vector<Position> > pool = "<<
+      pool_allocator<std::vector<Position>,MULTI_BLOCK>::total_memory_used()/(1024.*1024.)<<
+      " MB\n";
   }
 
   shearcat.Write();
