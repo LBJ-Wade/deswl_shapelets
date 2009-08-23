@@ -22,7 +22,11 @@
 
 #define UseInverseTransform
 
-#define OnlyNImages 30
+//#define OnlyNImages 30
+
+// TODO: Turn this into a ok_input_flag parameter and check against it
+// with if ((flag & ~ok_input_flag)) { .. skip .. }
+#define SKIP_INPUT_FLAGS
 
 MultiShearCatalog::MultiShearCatalog(
     const CoaddCatalog& coaddcat, const ConfigFile& _params) :
@@ -32,10 +36,8 @@ MultiShearCatalog::MultiShearCatalog(
 {
   Resize(coaddcat.size());
 
-  // Fix flags to only have INPUT_FLAG set.
-  // (I don't think this is necessary, but just in case.)
   for (size_t i=0; i<size(); i++) {
-    flags[i] &= INPUT_FLAG;
+    if (flags[i]) flags[i] = INPUT_FLAG;
   }
 
   // Read the names of the component image and catalog files from
@@ -53,7 +55,7 @@ std::vector<Bounds> MultiShearCatalog::SplitBounds(double side)
   return skybounds.Divide(nx,ny);
 }
 
-void MultiShearCatalog::GetPixels(const Bounds& b)
+int MultiShearCatalog::GetPixels(const Bounds& b)
 {
   // The pixlist object takes up a lot of memory, so at the start 
   // of this function, I clear it out, along with image_indexlist and
@@ -122,6 +124,9 @@ void MultiShearCatalog::GetPixels(const Bounds& b)
     if (fnum + 1 >= OnlyNImages) break;
 #endif
   }
+  int npix=0;
+  for (int i=0;i<size();++i) if (pixlist[i].size() > 0) ++npix;
+  return npix;
 }
 
 MultiShearCatalog::MultiShearCatalog(const ConfigFile& _params) :
@@ -284,6 +289,29 @@ long long MemoryFootprint(const PixelList& x)
   return res;
 }
 
+template <class T>
+long long MemoryFootprint(const tmv::Vector<T>& x)
+{
+  long long res=sizeof(x);
+  res += x.size() * sizeof(T);
+  return res;
+}
+
+long long MemoryFootprint(const BVec& x)
+{
+  long long res=sizeof(x);
+  res += x.size() * sizeof(double);
+  return res;
+}
+
+template <class T>
+long long MemoryFootprint(const tmv::Matrix<T>& x)
+{
+  long long res=sizeof(x);
+  res += x.colsize() * x.rowsize() * sizeof(T);
+  return res;
+}
+
 // Get pixel lists from the file specified in params
 void MultiShearCatalog::GetImagePixelLists(int image_index, const Bounds& b)
 {
@@ -316,8 +344,35 @@ void MultiShearCatalog::GetImagePixelLists(int image_index, const Bounds& b)
   bool output_dots = params.read("output_dots",false);
   if (output_dots)
   {
-    std::cerr<<"Using image# "<<image_index<<"... Memory usage in pixlist structure = ";
-    std::cerr<<(MemoryFootprint(pixlist)/1024./1024.)<<" MB\n";;
+    long long totmem = 
+      MemoryFootprint(trans) +
+      MemoryFootprint(fitpsf) +
+      MemoryFootprint(input_flags) +
+      MemoryFootprint(nimages_found) +
+      MemoryFootprint(pixlist) +
+      MemoryFootprint(nimages_gotpix) +
+      MemoryFootprint(id) +
+      MemoryFootprint(skypos) +
+      MemoryFootprint(sky) +
+      MemoryFootprint(noise) +
+      MemoryFootprint(flags) +
+      MemoryFootprint(shear) +
+      MemoryFootprint(nu) +
+      MemoryFootprint(cov) +
+      MemoryFootprint(shape) +
+      MemoryFootprint(image_indexlist) +
+      MemoryFootprint(image_cenlist) +
+      MemoryFootprint(image_file_list) +
+      MemoryFootprint(image_skybounds) +
+      MemoryFootprint(shear_file_list) +
+      MemoryFootprint(fitpsf_file_list);
+
+    std::cerr<<"Using image# "<<image_index;
+    std::cerr<<"... Memory Usage in MultiShearCatalog = ";
+    std::cerr<<(totmem/1024./1024.)<<" MB";
+    //std::cerr<<" ["<<(MemoryFootprint(pixlist)/1024./1024.)<<"]";
+    //std::cerr<<" ["<<(MemoryFootprint(shape)/1024./1024.)<<"]";
+    std::cerr<<"\n";
   }
 
   std::auto_ptr<Image<double> > weight_im;
@@ -329,6 +384,7 @@ void MultiShearCatalog::GetImagePixelLists(int image_index, const Bounds& b)
 
   const Transformation& trans1 = *trans[image_index];
   const FittedPSF& fitpsf1 = *fitpsf[image_index];
+  BVec psf1(fitpsf1.GetPSFOrder(), fitpsf1.GetSigma());
 
 #ifdef UseInverseTransform
   Transformation invtrans;
@@ -349,7 +405,10 @@ void MultiShearCatalog::GetImagePixelLists(int image_index, const Bounds& b)
   Assert(pixlist.size() == skypos.size());
   Assert(image_indexlist.size() == skypos.size());
   Assert(image_cenlist.size() == skypos.size());
-  for (size_t i=0; i<skypos.size(); ++i) {
+  for (size_t i=0; i<size(); ++i) {
+#ifdef SKIP_INPUT_FLAGS
+    if (flags[i]) continue;
+#endif
     Assert(image_indexlist[i].size() == pixlist[i].size());
     Assert(image_cenlist[i].size() == pixlist[i].size());
     if (!b.Includes(skypos[i])) continue;
@@ -387,7 +446,6 @@ void MultiShearCatalog::GetImagePixelLists(int image_index, const Bounds& b)
 
       // We don't actually need the psf here.  But we want to check
       // to make sure fitpsf(pxy) doesn't throw an exception:
-      BVec psf1(fitpsf1.GetPSFOrder(), fitpsf1.GetSigma());
       try {
 	psf1 = fitpsf1(pxy);
       } catch (Range_error& e) {
@@ -418,7 +476,7 @@ void MultiShearCatalog::GetImagePixelLists(int image_index, const Bounds& b)
       Assert(image_indexlist[i].size() == pixlist[i].size());
       Assert(image_cenlist[i].size() == pixlist[i].size());
       pixlist[i].push_back(PixelList());
-      pixlist[i].back().UseBlockMem();
+      //pixlist[i].back().UseBlockMem();
       xdbg<<"pixlist["<<i<<"].size = "<<pixlist[i].size()<<std::endl;
       GetPixList(
 	  im,pixlist[i].back(),pxy,

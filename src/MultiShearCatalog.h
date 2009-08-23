@@ -16,6 +16,9 @@
 #include "Name.h"
 #include "WlVersion.h"
 
+//#define USE_POOL
+
+#ifdef USE_POOL
 #define MULTI_BLOCK 10*1024*1024  
 // 10 MB blocks for the pools other than PixelList
 
@@ -25,6 +28,21 @@ typedef pool_allocator<int,MULTI_BLOCK> pool_alloc3;
 typedef pool_allocator<std::vector<int>,MULTI_BLOCK> pool_alloc4;
 typedef pool_allocator<Position,MULTI_BLOCK> pool_alloc5;
 typedef pool_allocator<std::vector<Position>,MULTI_BLOCK> pool_alloc6;
+
+#define POOL1 ,pool_alloc1
+#define POOL2 ,pool_alloc2
+#define POOL3 ,pool_alloc3
+#define POOL4 ,pool_alloc4
+#define POOL5 ,pool_alloc5
+#define POOL6 ,pool_alloc6
+#else
+#define POOL1
+#define POOL2
+#define POOL3
+#define POOL4
+#define POOL5
+#define POOL6
+#endif
 
 class MultiShearCatalog 
 {
@@ -48,7 +66,7 @@ class MultiShearCatalog
     std::vector<Bounds> SplitBounds(double side);
 
     // Get pixel lists for the component images/catalogs
-    void GetPixels(const Bounds& b);
+    int GetPixels(const Bounds& b);
     void GetImagePixelLists(int fnum, const Bounds& b);
 
     // Measure the shears
@@ -100,11 +118,11 @@ class MultiShearCatalog
 
     // For each object, we have a vector with an element for each image it
     // is found in, and each of those elements is a vector of Pixel
-    std::vector<std::vector<PixelList,pool_alloc1>,pool_alloc2> pixlist;
+    std::vector<std::vector<PixelList POOL1> POOL2> pixlist;
     // Which image index corresponds to each pixel list?
-    std::vector<std::vector<int,pool_alloc3>,pool_alloc4> image_indexlist;
+    std::vector<std::vector<int POOL3> POOL4> image_indexlist;
     // The skypos projected back onto the source image
-    std::vector<std::vector<Position,pool_alloc5>,pool_alloc6> image_cenlist;
+    std::vector<std::vector<Position POOL5> POOL6> image_cenlist;
 
     std::vector<std::string> image_file_list;
     std::vector<Bounds> image_skybounds;
@@ -114,7 +132,7 @@ class MultiShearCatalog
 
 void MeasureMultiShear1(
     const Position& cen, 
-    const std::vector<PixelList,pool_alloc1> allpix,
+    const std::vector<PixelList POOL1> allpix,
     const std::vector<BVec>& psf,
     double gal_aperture, double max_aperture,
     int gal_order, int gal_order2,
@@ -126,9 +144,9 @@ void MeasureMultiShear1(
 
 void MeasureMultiShear(
     const Position& cen, 
-    const std::vector<PixelList,pool_alloc1>& pix,
-    const std::vector<int,pool_alloc3>& image_index,
-    const std::vector<Position,pool_alloc5>& image_cen,
+    const std::vector<PixelList POOL1>& pix,
+    const std::vector<int POOL3>& image_index,
+    const std::vector<Position POOL5>& image_cen,
     const std::vector<const FittedPSF*>& fitpsf,
     double gal_aperture, double max_aperture,
     int gal_order, int gal_order2,

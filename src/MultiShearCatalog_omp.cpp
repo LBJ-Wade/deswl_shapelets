@@ -7,6 +7,8 @@
 #include "MultiShearCatalog.h"
 #include "Ellipse.h"
 
+#define SKIP_INPUT_FLAGS
+
 int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
 {
   dbg<<"Start MeasureMultiShears for b = "<<b<<std::endl;
@@ -56,6 +58,7 @@ int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
 	  }
 	  continue;
 	}
+#ifdef SKIP_INPUT_FLAGS
 	if (flags[i]) 
 	{
 #ifdef _OPENMP
@@ -66,6 +69,7 @@ int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
 	  }
 	  continue;
 	}
+#endif
 #ifdef STARTAT
 	if (i < STARTAT) continue;
 #endif
@@ -170,7 +174,7 @@ int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
 
 void MeasureMultiShear1(
     const Position& cen, 
-    const std::vector<PixelList,pool_alloc1> allpix,
+    const std::vector<PixelList POOL1> allpix,
     const std::vector<BVec>& psf,
     double gal_aperture, double max_aperture,
     int gal_order, int gal_order2,
@@ -485,9 +489,9 @@ void MeasureMultiShear1(
 
 void MeasureMultiShear(
     const Position& cen, 
-    const std::vector<PixelList,pool_alloc1>& pix,
-    const std::vector<int,pool_alloc3>& image_index,
-    const std::vector<Position,pool_alloc5>& image_cen,
+    const std::vector<PixelList POOL1>& pix,
+    const std::vector<int POOL3>& image_index,
+    const std::vector<Position POOL5>& image_cen,
     const std::vector<const FittedPSF*>& fitpsf,
     double gal_aperture, double max_aperture,
     int gal_order, int gal_order2,

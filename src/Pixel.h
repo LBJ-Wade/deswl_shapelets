@@ -19,7 +19,7 @@ struct Pixel {
 
 #define PIXELLIST_BLOCK 1024*1024*100  // 100 MB per block
 
-#if 0
+#if 1
 typedef std::vector<Pixel> PixelList;
 #else
 class PixelList

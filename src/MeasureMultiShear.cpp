@@ -42,7 +42,9 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
       std::cerr<<"Starting section ";
       std::cerr<<(i+1)<<"/"<<section_bounds.size()<<std::endl;
     }
-    shearcat.GetPixels(section_bounds[i]);
+    int npix = shearcat.GetPixels(section_bounds[i]);
+    if (output_dots)
+      std::cerr<<npix<<" galaxies in this section.\n";
 
     long nshear1 = shearcat.MeasureMultiShears(section_bounds[i],log);
     if (output_dots) std::cerr<<std::endl;
@@ -51,7 +53,7 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
     dbg<<"After MeasureShears: nshear = "<<nshear1<<"  "<<nshear<<std::endl;
     dbg<<"Valgrind Leak Check:\n";
     VALGRIND_DO_LEAK_CHECK;
-    //if (i == 2) break;
+    if (VALGRIND_COUNT_ERRORS) break;
   }
 
   dbg<<"Done: "<<log.ns_gamma<<" successful shear measurements, ";
@@ -67,6 +69,7 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
       <<"Success rate: "<<log.ns_gamma<<"/"<<log.ngoodin
       <<"  # with no flags: "<<log.ngood
       <<std::endl;
+#ifdef USE_POOL
     std::cerr<<"Memory used in PixelList pool = "<<
       pool_allocator<Pixel,PIXELLIST_BLOCK>::total_memory_used()/(1024.*1024.)<<
       " MB\n";
@@ -88,6 +91,7 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
     std::cerr<<"Memory used in vector<vector<Position> > pool = "<<
       pool_allocator<std::vector<Position>,MULTI_BLOCK>::total_memory_used()/(1024.*1024.)<<
       " MB\n";
+#endif
   }
 
   shearcat.Write();

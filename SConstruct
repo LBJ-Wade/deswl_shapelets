@@ -98,6 +98,9 @@ opts.Add(BoolVariable('WARN',
 
 opts.Add(BoolVariable('WITH_UPS',
             'Create ups/wl.table.  Install the ups directory under PREFIX/ups',False))
+opts.Add(BoolVariable('WITH_PROF',
+            'Use the compiler flag -pg to include profiling info for gprof',
+            False))
 
 
 opts.Update(initial_env)
@@ -173,6 +176,10 @@ def BasicCCFlags(env):
     else:
         libs = env['LIBS'].split(' ')
         env.Replace(LIBS=libs)
+
+    if env['WITH_PROF']:
+        env.Append(CCFLAGS=['-pg'])
+        env.Append(LINKFLAGS=['-pg'])
 
 
 def AddOpenMPFlag(env):
@@ -418,7 +425,7 @@ int main()
 
     if context.TryCompile(mkl_source_file,'.cpp'):
         if context.env['WITH_OPENMP'] :
-            # Then need the correct thread_lib
+            # Then probably need the correct thread_lib -- try that first
             result = (
                 CheckLibs(context,[],mkl_source_file) or
                 CheckLibs(context,['mkl',threadlib],mkl_source_file) or
@@ -437,6 +444,23 @@ int main()
                 CheckLibs(context,['mkl_ipf',threadlib,'guide','pthread'],
                             mkl_source_file) or
                 CheckLibs(context,['mkl_em64t',threadlib,'guide','pthread'],
+                            mkl_source_file) or
+                CheckLibs(context,['mkl'],mkl_source_file) or
+                CheckLibs(context,['mkl','pthread'],
+                            mkl_source_file) or
+                CheckLibs(context,['mkl','guide','pthread'],
+                            mkl_source_file) or
+                CheckLibs(context,['mkl_ia32','guide','pthread'],
+                            mkl_source_file) or
+                CheckLibs(context,['mkl_ia32','mkl_core','mkl_sequential'],
+                            mkl_source_file) or
+                CheckLibs(context,['mkl_intel_lp64','mkl_core',
+                            'guide','pthread'],mkl_source_file) or
+                CheckLibs(context,['mkl_intel_lp64','mkl_core',
+                            'mkl_sequential'],mkl_source_file) or
+                CheckLibs(context,['mkl_ipf','guide','pthread'],
+                            mkl_source_file) or
+                CheckLibs(context,['mkl_em64t','guide','pthread'],
                             mkl_source_file) )
 
         else:

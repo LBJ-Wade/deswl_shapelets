@@ -56,24 +56,24 @@ class pool_allocator
 	size_type size, 
 	typename pool_allocator<void,block_size>::const_pointer hint = 0)
     {
-      return static_cast<pointer>(mem_.allocate(size*sizeof(T)));
+      return static_cast<pointer>(mem.allocate(size*sizeof(T)));
     }
 
     //for Dinkumware:
     char *_Charalloc(size_type n) 
-    { return static_cast<char*>(mem_.allocate(n)); }
+    { return static_cast<char*>(mem.allocate(n)); }
     // end Dinkumware
 
     template <class U> pool_allocator(const pool_allocator<U,block_size>&) {}
 
     void deallocate(pointer p, size_type n)
     {
-      mem_.deallocate(p, n);
+      mem.deallocate(p, n);
     }
 
     void deallocate(void *p, size_type n)
     {
-      mem_.deallocate(p, n);
+      mem.deallocate(p, n);
     }
 
     size_type max_size() const throw() 
@@ -91,17 +91,17 @@ class pool_allocator
 
     void destroy(pointer p) { pool_alloc::destruct(p); }
 
-    static void dump() { mem_.dump(); };
+    static void dump() { mem.dump(); };
 
-    static size_t total_memory_used() { return mem_.total_memory_used(); }
+    static size_t total_memory_used() { return mem.total_memory_used(); }
 
   private:
 
-    static pool<block_size> mem_;
+    static pool<block_size> mem;
 };
 
 template <typename T, int block_size> 
-pool<block_size> pool_allocator<T,block_size>::mem_;
+pool<block_size> pool_allocator<T,block_size>::mem;
 
 template <typename T, typename U, int bs>
 inline bool operator==(

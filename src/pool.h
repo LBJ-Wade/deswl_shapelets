@@ -12,6 +12,7 @@
 #include <list>
 #include <algorithm>
 #include <iostream>  //for dump()
+#include <valgrind/memcheck.h>
 
 template <int block_size>
 class pool
@@ -22,6 +23,8 @@ class pool
     {
       //std::cout<<"Initialize pool\n";
       pool_mem.push_back(new char[block_size]);
+      VALGRIND_CREATE_MEMPOOL(&pool_mem,0,false);
+      VALGRIND_MAKE_MEM_NOACCESS(pool_mem.back(),block_size);
       std::cout<<"Adding block "<<(void*)pool_mem.back()<<" ... "<<(void*)(pool_mem.back()+block_size)<<std::endl;
       std::cout<<"total memory = "<<total_memory_used()/(1024.*1024.)<<" MB\n";
       blocks = reinterpret_cast<block*>(*(pool_mem.begin()));
@@ -36,6 +39,7 @@ class pool
     ~pool()
     {
       std::for_each(pool_mem.begin(), pool_mem.end(), killer());
+      VALGRIND_DESTROY_MEMPOOL(&pool_mem);
     }
 
     size_t total_memory_used() const 
@@ -63,7 +67,9 @@ class pool
 	//std::cout<<"return "<<b<<std::endl;
 	checkp((char*)b + sizeof(block),size);
 	check();
-	return reinterpret_cast<char *>(b) + sizeof(block);
+	char* ret = reinterpret_cast<char *>(b) + sizeof(block);
+	VALGRIND_MEMPOOL_ALLOC(&pool_mem,ret,size);
+	return ret;
       }
       else
       {
@@ -94,7 +100,9 @@ class pool
 	//std::cout<<"return "<<b<<std::endl;
 	checkp((char*)b+sizeof(block),size);
 	check();
-	return reinterpret_cast<char *>(b) + sizeof(block);
+	char* ret = reinterpret_cast<char *>(b) + sizeof(block);
+	VALGRIND_MEMPOOL_ALLOC(&pool_mem,ret,size);
+	return ret;
       }
     }
 
@@ -139,6 +147,7 @@ class pool
       }
       //std::cout<<"done deallocate"<<std::endl;
       check();
+      VALGRIND_MEMPOOL_FREE(&pool_mem,p);
     }
     void dump()
     {
@@ -250,6 +259,7 @@ class pool
       check();
       block* new_block;
       char *p = new char[block_size];
+      VALGRIND_MAKE_MEM_NOACCESS(p,block_size);
       pool_mem.push_back(p);
       std::cout<<"Adding block "<<(void*)pool_mem.back()<<" ... "<<(void*)(pool_mem.back()+block_size)<<std::endl;
       std::cout<<"total memory = "<<total_memory_used()/(1024.*1024.)<<" MB\n";
