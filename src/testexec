@@ -1,27 +1,36 @@
 #root=decam--24--27-i-2_61
+#stardat=stars1.dat
 #root=decam--24--37-i-14_06
-root=decam--25--30-i-3_51
+#stardat=stars2.dat
+#root=decam--25--30-i-3_51
+#stardat=stars3.dat
 #root=decam--25--38-i-12_01
+#stardat=stars4.dat
 #root=decam--25--38-i-8_01
-#root=decam--25--42-i-9_28
+#stardat=stars5.dat
 #root=decam--27--31-i-2_16
-#root=decam--27--9-i-3_20
+#stardat=stars6.dat
+root=decam--27--9-i-3_20
+#stardat=stars7.dat
 config=../example_config/wl_dc4.config
 
-echo FindStars
-echo ./findstars $config image_file=data/$root.fits.fz output_prefix=output/ debug_file=fs.debug verbose=1 output_dots=1 
-time ./findstars $config image_file=data/$root.fits.fz output_prefix=output/ debug_file=fs.debug verbose=1 output_dots=1 
-#echo ./findstars $config root=$root input_prefix=data/ output_prefix=output/ debug_file=fs.debug verbose=1 output_dots=1 
-#time ./findstars $config root=$root input_prefix=data/ output_prefix=output/ debug_file=fs.debug verbose=1 output_dots=1 
+echo ./findstars $config root=$root input_prefix=data/ output_prefix=output/ debug_file=fs.debug verbose=1 output_dots=1 
+time ./findstars $config root=$root input_prefix=data/ output_prefix=output/ debug_file=fs.debug verbose=1 output_dots=1 
+#/bin/cp output/${root}_stars.dat output/$stardat
+#exit
+
 echo MeasurePSF:
 echo ./measurepsf $config root=$root input_prefix=data/ output_prefix=output/ debug_file=mp.debug verbose=1 output_dots=1 
 time ./measurepsf $config root=$root input_prefix=data/ output_prefix=output/ debug_file=mp.debug verbose=1 output_dots=1 
+
 echo MeasureShear:
 echo ./measureshear $config root=$root input_prefix=data/ output_prefix=output/ debug_file=ms.debug verbose=1 output_dots=1 
 time ./measureshear $config root=$root input_prefix=data/ output_prefix=output/ debug_file=ms.debug verbose=1 output_dots=1 
+
 echo FullPipeline
 echo ./fullpipe $config root=$root input_prefix=data/ output_prefix=output/ debug_file=ms.debug verbose=1 output_dots=1 
 time ./fullpipe $config root=$root input_prefix=data/ output_prefix=output/ debug_file=ms.debug verbose=1 output_dots=1 
+
 #echo Try execution with bad configfile:
 #./findstars foo root=$root input_prefix=data/ output_prefix=output/
 #./measurepsf foo root=$root input_prefix=data/ output_prefix=output/

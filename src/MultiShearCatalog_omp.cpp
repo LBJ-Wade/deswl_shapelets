@@ -7,8 +7,6 @@
 #include "MultiShearCatalog.h"
 #include "Ellipse.h"
 
-#define SKIP_INPUT_FLAGS
-
 int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
 {
   dbg<<"Start MeasureMultiShears for b = "<<b<<std::endl;
@@ -58,7 +56,6 @@ int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
 	  }
 	  continue;
 	}
-#ifdef SKIP_INPUT_FLAGS
 	if (flags[i]) 
 	{
 #ifdef _OPENMP
@@ -69,7 +66,6 @@ int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
 	  }
 	  continue;
 	}
-#endif
 #ifdef STARTAT
 	if (i < STARTAT) continue;
 #endif

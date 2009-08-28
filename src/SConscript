@@ -53,7 +53,7 @@ if not (xxdexit == None):
 
 libwl_files="""Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp BVec.cpp
 EllipseSolver.cpp Pixel.cpp Transformation.cpp ConfigFile.cpp FittedPSF.cpp
-CrudeMeasure.cpp Name.cpp NLSolver.cpp Log.cpp Ellipse.cpp PsiHelper.cpp
+EllipseSolver2.cpp CrudeMeasure.cpp Name.cpp Log.cpp Ellipse.cpp PsiHelper.cpp
 Histogram.cpp StarFinder.cpp StarCatalog.cpp PSFCatalog.cpp
 ShearCatalog.cpp InputCatalog.cpp ExecuteCommand.cpp CoaddCatalog.cpp 
 MultiShearCatalog.cpp WlVersion.cpp""".split()

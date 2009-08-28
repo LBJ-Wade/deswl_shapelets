@@ -8,11 +8,13 @@
 #include "ConfigFile.h"
 #include "pool_allocator.h"
 
-struct Pixel { 
+struct Pixel 
+{ 
   Pixel() : z(0.), I(0.), wt(0.) {}
-
   Pixel(double _u, double _v, double _I, double _wt) :
     z(_u,_v), I(_I), wt(_wt) {}
+  ~Pixel() {}
+
   std::complex<double> z;
   double I,wt;
 };

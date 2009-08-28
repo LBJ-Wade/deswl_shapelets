@@ -147,14 +147,14 @@ def BasicCCFlags(env):
             if version >= 10:
                 env.Append(CCFLAGS=['-vec-report0'])
             if env['WARN']:
-                env.Append(CCFLAGS=['-g','-Wall','-Werror','-wd383,810,981'])
+                env.Append(CCFLAGS=['-Wall','-Werror','-wd383,810,981'])
                 if version >= 9:
                     env.Append(CCFLAGS=['-wd1572'])
                 if version >= 11:
                     env.Append(CCFLAGS=['-wd2259'])
 
         elif compiler == 'pgCC':
-            env.Replace(CCFLAGS=['-g','-O2','-fast','-Mcache_align'])
+            env.Replace(CCFLAGS=['-O2','-fast','-Mcache_align'])
 
         elif compiler == 'cl':
             env.Replace(CCFLAGS=['/EHsc','/nologo','/O2','/Oi'])

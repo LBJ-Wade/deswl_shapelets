@@ -464,13 +464,27 @@ static void ReadTANFits(const std::string& filename, int hdu,
   if (fits_open_file(&fitsptr,filename.c_str(),READONLY,&status))
     dbg<<"fits open file: "<<status<<std::endl;
   if (status)
+  {
+    char errmsg[80];
+    fits_get_errstatus(status,errmsg);
+    std::cerr << "fits error status "<<status<<" = "<<errmsg<<std::endl;
+    while (fits_read_errmsg(errmsg))
+      std::cerr << "fits error: "<<errmsg<<std::endl;
     throw ReadError("Opening fits file "+filename+" for TAN Transformation");
+  }
 
   if (fits_movabs_hdu(fitsptr,hdu,0,&status))
     dbg<<"fits moveabs hdu: "<<status<<std::endl;
   if (status)
+  {
+    char errmsg[80];
+    fits_get_errstatus(status,errmsg);
+    std::cerr << "fits error status "<<status<<" = "<<errmsg<<std::endl;
+    while (fits_read_errmsg(errmsg))
+      std::cerr << "fits error: "<<errmsg<<std::endl;
     throw ReadError(
 	"Changing hdu in fits file "+filename+" for Transformation read");
+  }
   xdbg<<"Moved to hdu "<<hdu<<std::endl;
 
   char pvstr[10] = "PV1_1";

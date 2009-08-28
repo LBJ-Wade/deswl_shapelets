@@ -12,6 +12,12 @@
 #include <fstream>
 #include <valgrind/memcheck.h>
 
+#ifdef __INTEL_COMPILER
+// For VALGRIND.  
+#pragma warning (disable : 593)
+#pragma warning (disable : 1469)
+#endif
+
 static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log) 
 {
   bool output_dots = params.read("output_dots",false);

@@ -22,7 +22,7 @@ class CoaddCatalog
     CoaddCatalog(ConfigFile& _params);
     ~CoaddCatalog();
 
-    size_t size() const { return skypos.size(); }
+    size_t size() const { return id.size(); }
 
     void ReadCatalog();
 

@@ -114,12 +114,11 @@ void ShearLog::WriteLogToFitsHeader() const
   } 
   catch(...) 
   {
-    // TODO: Remember to uncomment this when we are actually writing 
-    // the fits file before getting here.
-    //throw WriteError("Error writing ShearLog to the Fits file header info.");
-
-    // This was the old line.  Why only if exitcode==0?
-    //if (exitcode == 0) throw; 
+    // If we already have a Failure exit, then ignore any problems with
+    // writing the Log file.  There is already something else wrong, so 
+    // just leave it at that.
+    if (exitcode == 0)
+      throw WriteError("Error writing ShearLog to the Fits file header info.");
   }
 
 }
@@ -250,10 +249,11 @@ void PSFLog::WriteLogToFitsHeader() const
   }
   catch (...)
   {
-    throw WriteError("Error writing PSFLog to the Fits file header info.");
-
-    // This was the old line.  Why only if exitcode==0?
-    //if (exitcode == 0) throw; 
+    // If we already have a Failure exit, then ignore any problems with
+    // writing the Log file.  There is already something else wrong, so 
+    // just leave it at that.
+    if (exitcode == 0)
+      throw WriteError("Error writing PSFLog to the Fits file header info.");
   }
 }
 
@@ -354,11 +354,12 @@ void FindStarsLog::WriteLogToFitsHeader() const
   }
   catch(...)
   {
-    throw WriteError(
-	"Error writing FindStarsLog to the Fits file header info.");
-
-    // This was the old line.  Why only if exitcode==0?
-    //if (exitcode == 0) throw; 
+    // If we already have a Failure exit, then ignore any problems with
+    // writing the Log file.  There is already something else wrong, so 
+    // just leave it at that.
+    if (exitcode == 0)
+      throw WriteError(
+	  "Error writing FindStarsLog to the Fits file header info.");
   }
 }
 

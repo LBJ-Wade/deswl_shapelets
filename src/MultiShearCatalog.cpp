@@ -24,10 +24,6 @@
 
 //#define OnlyNImages 30
 
-// TODO: Turn this into a ok_input_flag parameter and check against it
-// with if ((flag & ~ok_input_flag)) { .. skip .. }
-#define SKIP_INPUT_FLAGS
-
 MultiShearCatalog::MultiShearCatalog(
     const CoaddCatalog& coaddcat, const ConfigFile& _params) :
   id(coaddcat.id), skypos(coaddcat.skypos), sky(coaddcat.sky),
@@ -35,10 +31,6 @@ MultiShearCatalog::MultiShearCatalog(
   skybounds(coaddcat.skybounds), params(_params)
 {
   Resize(coaddcat.size());
-
-  for (size_t i=0; i<size(); i++) {
-    if (flags[i]) flags[i] = INPUT_FLAG;
-  }
 
   // Read the names of the component image and catalog files from
   // the srclist file (given as params.coadd_srclist)
@@ -245,13 +237,13 @@ void MultiShearCatalog::Resize(int n)
 }
 
 template <class T>
-long long MemoryFootprint(const T& x)
+inline long long MemoryFootprint(const T& x)
 {
   return sizeof(x); 
-};
+}
 
 template <class T>
-long long MemoryFootprint(T*const x)
+inline long long MemoryFootprint(T*const x)
 {
   long long res=sizeof(x);
   res += MemoryFootprint(*x);
@@ -259,7 +251,7 @@ long long MemoryFootprint(T*const x)
 }
 
 template <class T>
-long long MemoryFootprint(const T*const x)
+inline long long MemoryFootprint(const T*const x)
 {
   long long res=sizeof(x);
   res += MemoryFootprint(*x);
@@ -267,7 +259,7 @@ long long MemoryFootprint(const T*const x)
 }
 
 template <class T>
-long long MemoryFootprint(const std::auto_ptr<T>& x)
+inline long long MemoryFootprint(const std::auto_ptr<T>& x)
 {
   long long res=sizeof(x);
   res += MemoryFootprint(*x);
@@ -275,14 +267,14 @@ long long MemoryFootprint(const std::auto_ptr<T>& x)
 }
 
 template <class T, class Alloc>
-long long MemoryFootprint(const std::vector<T,Alloc>& x)
+inline long long MemoryFootprint(const std::vector<T,Alloc>& x)
 {
   long long res=sizeof(x);
   for(size_t i=0;i<x.size();++i) res += MemoryFootprint(x[i]);
   return res;
 }
 
-long long MemoryFootprint(const PixelList& x)
+inline long long MemoryFootprint(const PixelList& x)
 {
   long long res=sizeof(x);
   for(size_t i=0;i<x.size();++i) res += MemoryFootprint(x[i]);
@@ -290,14 +282,14 @@ long long MemoryFootprint(const PixelList& x)
 }
 
 template <class T>
-long long MemoryFootprint(const tmv::Vector<T>& x)
+inline long long MemoryFootprint(const tmv::Vector<T>& x)
 {
   long long res=sizeof(x);
   res += x.size() * sizeof(T);
   return res;
 }
 
-long long MemoryFootprint(const BVec& x)
+inline long long MemoryFootprint(const BVec& x)
 {
   long long res=sizeof(x);
   res += x.size() * sizeof(double);
@@ -305,7 +297,7 @@ long long MemoryFootprint(const BVec& x)
 }
 
 template <class T>
-long long MemoryFootprint(const tmv::Matrix<T>& x)
+inline long long MemoryFootprint(const tmv::Matrix<T>& x)
 {
   long long res=sizeof(x);
   res += x.colsize() * x.rowsize() * sizeof(T);
@@ -405,10 +397,8 @@ void MultiShearCatalog::GetImagePixelLists(int image_index, const Bounds& b)
   Assert(pixlist.size() == skypos.size());
   Assert(image_indexlist.size() == skypos.size());
   Assert(image_cenlist.size() == skypos.size());
-  for (size_t i=0; i<size(); ++i) {
-#ifdef SKIP_INPUT_FLAGS
-    if (flags[i]) continue;
-#endif
+
+  for (size_t i=0; i<size(); ++i) if (!flags[i]) {
     Assert(image_indexlist[i].size() == pixlist[i].size());
     Assert(image_cenlist[i].size() == pixlist[i].size());
     if (!b.Includes(skypos[i])) continue;

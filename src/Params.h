@@ -92,7 +92,7 @@ enum ExitCode {
   FAILURE_PARAMETER_ERROR,
   FAILURE_READ_ERROR,
   FAILURE_WRITE_ERROR,
-  FAILURE_PROCESSING_ERROR,
+  FAILURE_PROCESSING_ERROR
 };
 
 inline const char* Text(const ExitCode& code)

@@ -276,7 +276,7 @@ void MeasureSingleShear1(
   //dbg<<"       gamma = "<<shear<<std::endl;
 
   // Finally measure the variance of the shear
-  // TODO
+  // TODO: measure shear variance by mapping local chisq values
   // (I'm not convinced that the above covariance matrix is a good estiamte.)
 }
 
