@@ -99,11 +99,17 @@ void GetPixList(const Image<double>& im, PixelList& pix,
 	  if (gain != 0.) var += im(i,j)/gain;
 	  wt = 1./var;
 	}
-	Assert(k < int(pix.size()));
-	pix[k++] = Pixel(u,v,I,wt);
+	if (wt > 0.0) 
+	{
+	  Assert(k < int(pix.size()));
+	  pix[k++] = Pixel(u,v,I,wt);
+	}
       }
     }
   }
+  Assert(k <= int(pix.size()));
+  // Not necessarily == because we skip pixels with 0.0 variance
+  pix.erase(pix.begin()+k,pix.end());
   Assert(k == int(pix.size()));
   if (npix < 10) flag |= LT10PIX;
 }

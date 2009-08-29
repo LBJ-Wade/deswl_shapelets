@@ -97,8 +97,8 @@ class MultiShearCatalog
 
     std::vector<long> id;
     std::vector<Position> skypos;
-    std::vector<double> sky;
-    std::vector<double> noise;
+    //std::vector<double> sky;
+    //std::vector<double> noise;
     std::vector<long> flags;
 
     Bounds skybounds; 

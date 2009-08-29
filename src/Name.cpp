@@ -32,6 +32,61 @@ bool FileExists(const std::string& strFilename)
   } 
 }
 
+void SetRoot(ConfigFile& params, const std::string& image_file)
+{
+  // Get image name and extensions from params
+  dbg<<"image_file = "<<image_file<<std::endl;
+  Assert(params.keyExists("image_ext"));
+  std::vector<std::string> all_image_ext = params["image_ext"];
+
+  // Find which extension is correct
+  std::string image_ext;
+  size_t ext_pos;
+  bool found = false;
+  for(size_t i=0;i<all_image_ext.size();i++) 
+  {
+    image_ext = all_image_ext[i];
+    dbg<<"image_ext = "<<image_ext<<std::endl;
+    if (image_ext.size() > image_file.size()) continue;
+    ext_pos = image_file.size() - image_ext.size();
+    dbg<<"ext_pos = "<<ext_pos<<std::endl;
+    std::string image_ext2 = std::string(image_file,ext_pos);
+    dbg<<"image_ext2 = "<<image_ext2<<std::endl;
+    if (image_ext2 == image_ext) 
+    {
+      found = true;
+      break;
+    }
+  }
+  if (!found) 
+  {
+    throw(ParameterError("image file "+image_file+
+	  " does not end with "+params["image_ext"]));
+  }
+
+  // Calculate the root
+  size_t root_pos = image_file.find_last_of('/',ext_pos);
+  if (root_pos == std::string::npos) root_pos = 0;
+  else ++root_pos;
+  dbg<<"root_pos = "<<root_pos<<std::endl;
+  std::string root = std::string(image_file,root_pos,ext_pos-root_pos);
+  dbg<<"root = "<<root<<std::endl;
+
+  // Calculate the prefix
+  std::string prefix = std::string(image_file,0,root_pos);
+  dbg<<"prefix = "<<prefix<<std::endl;
+
+  // Double check
+  std::string image_file2 = prefix + root + image_ext;
+  dbg<<"image_file2 = "<<image_file2<<std::endl;
+  Assert(image_file == image_file2);
+
+  // Assign results back to params
+  params["root"] = root;
+  params["input_prefix"] = prefix;
+  if (!params.keyExists("output_prefix")) params["output_prefix"] = prefix;
+}
+
 void SetRoot(ConfigFile& params)
 {
   Assert(params.keyExists("root") || params.keyExists("image_file"));
@@ -41,58 +96,8 @@ void SetRoot(ConfigFile& params)
     // Get image name and extensions from params
     dbg<<"Make root from image_file\n";
     std::string image_file = params["image_file"];
-    dbg<<"image_file = "<<image_file<<std::endl;
-    Assert(params.keyExists("image_ext"));
-    std::vector<std::string> all_image_ext = params["image_ext"];
-
-    // Find which extension is correct
-    std::string image_ext;
-    size_t ext_pos;
-    bool found = false;
-    for(size_t i=0;i<all_image_ext.size();i++) 
-    {
-      image_ext = all_image_ext[i];
-      dbg<<"image_ext = "<<image_ext<<std::endl;
-      if (image_ext.size() > image_file.size()) continue;
-      ext_pos = image_file.size() - image_ext.size();
-      dbg<<"ext_pos = "<<ext_pos<<std::endl;
-      std::string image_ext2 = std::string(image_file,ext_pos);
-      dbg<<"image_ext2 = "<<image_ext2<<std::endl;
-      if (image_ext2 == image_ext) 
-      {
-	found = true;
-	break;
-      }
-    }
-    if (!found) 
-    {
-      throw(ParameterError("image file "+image_file+
-	    " does not end with "+params["image_ext"]));
-    }
-
-    // Calculate the root
-    size_t root_pos = image_file.find_last_of('/',ext_pos);
-    if (root_pos == std::string::npos) root_pos = 0;
-    else ++root_pos;
-    dbg<<"root_pos = "<<root_pos<<std::endl;
-    std::string root = std::string(image_file,root_pos,ext_pos-root_pos);
-    dbg<<"root = "<<root<<std::endl;
-
-    // Calculate the prefix
-    std::string prefix = std::string(image_file,0,root_pos);
-    dbg<<"prefix = "<<prefix<<std::endl;
-
-    // Double check
-    std::string image_file2 = prefix + root + image_ext;
-    dbg<<"image_file2 = "<<image_file2<<std::endl;
-    Assert(image_file == image_file2);
-
-    // Assign results back to params
-    params["root"] = root;
-    params["input_prefix"] = prefix;
-    if (!params.keyExists("output_prefix")) params["output_prefix"] = prefix;
+    SetRoot(params,image_file);
   }
-
   Assert(params.keyExists("root"));
 }
 
@@ -105,6 +110,7 @@ std::string Name(const ConfigFile& params, const std::string& what,
   std::string name;
   if (params.keyExists((what+"_file"))) 
   {
+    xdbg<<(what+"_file")<<" parameter exists, so use that.\n";
     name = params[what+"_file"];
     if (mustexist) 
     {
@@ -116,7 +122,10 @@ std::string Name(const ConfigFile& params, const std::string& what,
     Assert(params.keyExists("root"));
     Assert(params.keyExists(what+"_ext"));
     std::string root = params["root"];
+    xdbg<<"No "<<(what+"_file")<<" parameter, so use root.\n";
+    xdbg<<"root = "<<root<<std::endl;
     std::vector<std::string> ext = params[what+"_ext"];
+    xdbg<<"ext = "<<params[what+"_ext"]<<std::endl;
     std::string pre = "";
     if (params.keyExists((what+"_prefix"))) pre=params[what+"_prefix"];
     else 
@@ -130,6 +139,7 @@ std::string Name(const ConfigFile& params, const std::string& what,
 	if (params.keyExists("output_prefix")) pre=params["output_prefix"];
       }
     }
+    xdbg<<"pre = "<<pre<<std::endl;
 
     for(size_t i=0;i<ext.size();i++) 
     {

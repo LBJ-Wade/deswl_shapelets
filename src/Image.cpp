@@ -27,11 +27,29 @@ Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im)
   xdbg<<"Opened image "<<Name(params,"image",true)<<std::endl;
 
   // Load weight image (if necessary)
-  if (params["noise_method"] == "WEIGHT_IMAGE") {
+  if (params["noise_method"] == "WEIGHT_IMAGE") 
+  {
     int weight_hdu = params.read("weight_hdu",1);
     weight_im.reset(
 	new Image<T>(Name(params,"weight",true),weight_hdu));
     dbg<<"Opened weight image.\n";
+
+    // Make sure any bad pixels are marked with 0 variance.
+    if (params.keyExists("badpix_file") || params.keyExists("badpix_ext"))
+    {
+      int badpix_hdu = params.read("badpix_hdu",1);
+      std::string badpix_name = Name(params,"badpix",true);
+      dbg<<"badpix name = "<<badpix_name<<std::endl;
+      dbg<<"hdu = "<<badpix_hdu<<std::endl;
+      Image<float> badpix_im(badpix_name,badpix_hdu);
+      dbg<<"Opened badpix image.\n";
+
+      for(int i=0;i<=weight_im->GetMaxI();++i)
+	for(int j=0;j<=weight_im->GetMaxJ();++j)
+	{
+	  if (badpix_im(i,j) > 0.0) (*weight_im)(i,j) = 0.0;
+	}
+    }
   }
 }
 
@@ -54,13 +72,15 @@ Image<T>::Image(std::string _filename, int _hdu) :
 template <class T> 
 void Image<T>::ReadFits(std::string filename, int hdu) 
 {
-  xxdbg<<"Start read fitsimage"<<std::endl;
+  xdbg<<"Start read fitsimage"<<std::endl;
+  xdbg<<"filename = "<<filename<<std::endl;
+  xdbg<<"hdu = "<<hdu<<std::endl;
   // TODO: Use CCFits
   fitsfile *fptr;
   int fitserr=0;
 
   fits_open_file(&fptr,filename.c_str(),READONLY,&fitserr);
-  xxdbg<<"Done open"<<std::endl;
+  xdbg<<"Done open"<<std::endl;
   if (fitserr != 0) fits_report_error(stderr,fitserr);
   Assert(fitserr==0);
 
@@ -87,7 +107,7 @@ void Image<T>::ReadFits(std::string filename, int hdu)
   ymin = 0;
   ymax = sizes[1];
   sourcem.reset(new tmv::Matrix<T,tmv::ColMajor>(xmax,ymax));
-  xxdbg<<"done make matrix of image"<<std::endl;
+  xdbg<<"done make matrix of image"<<std::endl;
  
   long fpixel[2] = {1,1};
   int anynul;

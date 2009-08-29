@@ -26,8 +26,7 @@
 
 MultiShearCatalog::MultiShearCatalog(
     const CoaddCatalog& coaddcat, const ConfigFile& _params) :
-  id(coaddcat.id), skypos(coaddcat.skypos), sky(coaddcat.sky),
-  noise(coaddcat.noise), flags(coaddcat.flags),
+  id(coaddcat.id), skypos(coaddcat.skypos), flags(coaddcat.flags),
   skybounds(coaddcat.skybounds), params(_params)
 {
   Resize(coaddcat.size());
@@ -101,11 +100,8 @@ int MultiShearCatalog::GetPixels(const Bounds& b)
     dbg<<"Reading image file: "<<image_file<<"\n";
     // Set the appropriate parameters
     params["image_file"] = image_file;
-    params["weight_file"] = image_file;
-    params["dist_file"] = image_file;
+    SetRoot(params,image_file);
     params["shear_file"] = shear_file;
-    params["dist_hdu"] = 2;
-    params["dist_method"] = "WCS";
     params["fitpsf_file"] = psf_file;
 
     // Load the pixels
@@ -319,8 +315,6 @@ void MultiShearCatalog::GetImagePixelLists(int image_index, const Bounds& b)
   dbg<<"nimages_gotpix: "<<MemoryFootprint(nimages_gotpix)/1024./1024.<<" MB\n";
   dbg<<"id: "<<MemoryFootprint(id)/1024./1024.<<" MB\n";
   dbg<<"skypos: "<<MemoryFootprint(skypos)/1024./1024.<<" MB\n";
-  dbg<<"sky: "<<MemoryFootprint(sky)/1024./1024.<<" MB\n";
-  dbg<<"noise: "<<MemoryFootprint(noise)/1024./1024.<<" MB\n";
   dbg<<"flags: "<<MemoryFootprint(flags)/1024./1024.<<" MB\n";
   dbg<<"shear: "<<MemoryFootprint(shear)/1024./1024.<<" MB\n";
   dbg<<"nu: "<<MemoryFootprint(nu)/1024./1024.<<" MB\n";
@@ -345,8 +339,6 @@ void MultiShearCatalog::GetImagePixelLists(int image_index, const Bounds& b)
       MemoryFootprint(nimages_gotpix) +
       MemoryFootprint(id) +
       MemoryFootprint(skypos) +
-      MemoryFootprint(sky) +
-      MemoryFootprint(noise) +
       MemoryFootprint(flags) +
       MemoryFootprint(shear) +
       MemoryFootprint(nu) +
@@ -385,8 +377,9 @@ void MultiShearCatalog::GetImagePixelLists(int image_index, const Bounds& b)
 
   // we are using the weight image so the noise and gain are 
   // dummy variables
+  Assert(weight_im.get());
   double noise = 0.0;
-  double gain=0.0;
+  double gain = 0.0;
   // We always use the maximum aperture size here, since we don't know
   // how big the galaxy is yet, so we don't know what galap will be.
   double max_aperture = params.read<double>("shear_max_aperture");
@@ -468,9 +461,10 @@ void MultiShearCatalog::GetImagePixelLists(int image_index, const Bounds& b)
       pixlist[i].push_back(PixelList());
       //pixlist[i].back().UseBlockMem();
       xdbg<<"pixlist["<<i<<"].size = "<<pixlist[i].size()<<std::endl;
+      double sky = 0.;
       GetPixList(
 	  im,pixlist[i].back(),pxy,
-	  sky[i],noise,gain,weight_im.get(),trans1,max_aperture,flag);
+	  sky,noise,gain,weight_im.get(),trans1,max_aperture,flag);
       xdbg<<"Got pixellist, flag = "<<flag<<std::endl;
 
       // make sure not (edge or < 10 pixels) although edge is already
@@ -569,10 +563,11 @@ void MultiShearCatalog::WriteFits(std::string file) const
   std::vector<string> colunits(nfields);
 
   colnames[0] = params.get("multishear_id_col");
-  colnames[1] = params.get("multishear_x_col");
-  colnames[2] = params.get("multishear_y_col");
-  colnames[3] = params.get("multishear_sky_col");
-  colnames[4] = params.get("multishear_noise_col");
+  // MJ: These don't make sense anymore.  Remove them, right?
+  //colnames[1] = params.get("multishear_x_col");
+  //colnames[2] = params.get("multishear_y_col");
+  //colnames[3] = params.get("multishear_sky_col");
+  //colnames[4] = params.get("multishear_noise_col");
   colnames[5] = params.get("multishear_flags_col");
   colnames[6] = params.get("multishear_ra_col");
   colnames[7] = params.get("multishear_dec_col");
@@ -673,8 +668,6 @@ void MultiShearCatalog::WriteFits(std::string file) const
   int startrow=1;
 
   table->column(colnames[0]).write(id,startrow);
-  table->column(colnames[3]).write(sky,startrow);
-  table->column(colnames[4]).write(noise,startrow);
   table->column(colnames[5]).write(flags,startrow);
   table->column(colnames[6]).write(ra,startrow);
   table->column(colnames[7]).write(dec,startrow);
@@ -706,8 +699,6 @@ void MultiShearCatalog::WriteAscii(std::string file, std::string delim) const
 {
   Assert(id.size() == size());
   Assert(skypos.size() == size());
-  Assert(sky.size() == size());
-  Assert(noise.size() == size());
   Assert(flags.size() == size());
   Assert(shear.size() == size());
   Assert(nu.size() == size());
@@ -729,8 +720,6 @@ void MultiShearCatalog::WriteAscii(std::string file, std::string delim) const
       << id[i] << delim
       << skypos[i].GetX() << delim
       << skypos[i].GetY() << delim
-      << sky[i] << delim
-      << noise[i] << delim
       << hexform(flags[i]) << delim
       << real(shear[i]) << delim
       << imag(shear[i]) << delim
@@ -846,12 +835,6 @@ void MultiShearCatalog::ReadFits(std::string file)
   table.column(dec_col).read(dec, start, end);
   for(long i=0;i<nrows;++i) skypos[i] = Position(ra[i],dec[i]);
 
-  dbg<<"  "<<sky_col<<std::endl;
-  table.column(sky_col).read(sky, start, end);
-
-  dbg<<"  "<<noise_col<<std::endl;
-  table.column(noise_col).read(noise, start, end);
-
   dbg<<"  "<<flags_col<<std::endl;
   table.column(flags_col).read(flags, start, end);
 
@@ -920,23 +903,21 @@ void MultiShearCatalog::ReadAscii(std::string file, std::string delim)
     throw ReadError("Error opening stars file"+file);
   }
 
-  id.clear(); skypos.clear(); sky.clear(); noise.clear(); flags.clear();
+  id.clear(); skypos.clear(); flags.clear();
   shear.clear(); nu.clear(); cov.clear(); shape.clear();
   nimages_found.clear(); nimages_gotpix.clear(); input_flags.clear();
 
   if (delim == "  ") {
     ConvertibleString flag;
     long id1,b_order,nfound,ngotpix,inflag;
-    double ra,dec,sky1,noise1,s1,s2,nu1,c00,c01,c11,b_sigma;
-    while ( fin >> id1 >> ra >> dec >> sky1 >> noise1 >>
+    double ra,dec,s1,s2,nu1,c00,c01,c11,b_sigma;
+    while ( fin >> id1 >> ra >> dec >> 
 	flag >> s1 >> s2 >> nu1 >>
 	c00 >> c01 >> c11 >> b_order >> b_sigma >>
 	nfound >> ngotpix >> inflag )
     {
       id.push_back(id1);
       skypos.push_back(Position(ra,dec));
-      sky.push_back(sky1);
-      noise.push_back(noise1);
       flags.push_back(flag);
       shear.push_back(std::complex<double>(s1,s2));
       nu.push_back(nu1);
@@ -967,8 +948,6 @@ void MultiShearCatalog::ReadAscii(std::string file, std::string delim)
       getline(fin,temp,d); ra = temp;
       getline(fin,temp,d); dec = temp;
       skypos.push_back(Position(ra,dec));
-      getline(fin,temp,d); sky.push_back(temp);
-      getline(fin,temp,d); noise.push_back(temp);
       getline(fin,temp,d); flags.push_back(temp);
       getline(fin,temp,d); s1 = temp;
       getline(fin,temp,d); s2 = temp;

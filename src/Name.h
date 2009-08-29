@@ -7,6 +7,7 @@
 #include "Params.h"
 
 void SetRoot(ConfigFile& params);
+void SetRoot(ConfigFile& params, const std::string& image_file);
 
 bool FileExists(const std::string& strFilename);
 
