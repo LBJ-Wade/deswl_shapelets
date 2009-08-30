@@ -65,29 +65,29 @@ class Bounds
 
   public:
 
-    Bounds(double x1, double x2, double y1, double y2):
-      defined(1),xmin(x1),xmax(x2),ymin(y1),ymax(y2) {}
-    Bounds(const Position &pos):
-      defined(1),xmin(pos.GetX()),xmax(pos.GetX()),
-      ymin(pos.GetY()),ymax(pos.GetY()) {}
-    Bounds(): defined(0),xmin(0.),xmax(0.),ymin(0.),ymax(0.) {}
+    Bounds(double x1, double x2, double y1, double y2) :
+      defined(true),xmin(x1),xmax(x2),ymin(y1),ymax(y2) {}
+    Bounds(const Position& pos) :
+      defined(true), xmin(pos.GetX()), xmax(pos.GetX()),
+      ymin(pos.GetY()), ymax(pos.GetY()) {}
+    Bounds(): defined(false),xmin(0.),xmax(0.),ymin(0.),ymax(0.) {}
     ~Bounds() {}
-    void SetXMin(double x) {xmin = x;}
-    void SetXMax(double x) {xmax = x;}
-    void SetYMin(double y) {ymin = y;}
-    void SetYMax(double y) {ymax = y;}
-    double GetXMin() const {return xmin;}
-    double GetXMax() const {return xmax;}
-    double GetYMin() const {return ymin;}
-    double GetYMax() const {return ymax;}
-    bool IsDefined() const {return defined;}
+    void SetXMin(double x) { xmin = x; defined = true; }
+    void SetXMax(double x) { xmax = x; defined = true; }
+    void SetYMin(double y) { ymin = y; defined = true; }
+    void SetYMax(double y) { ymax = y; defined = true; }
+    double GetXMin() const { return xmin; }
+    double GetXMax() const { return xmax; }
+    double GetYMin() const { return ymin; }
+    double GetYMax() const { return ymax; }
+    bool IsDefined() const { return defined; }
     Position Center() const;
     void operator+=(const Position& pos);
     void operator+=(const Bounds& rec);
 
     bool operator==(const Bounds& rhs) const
     { 
-      if (defined) return rhs.defined;
+      if (!defined) return (!rhs.defined);
       else return (xmin == rhs.xmin && xmax == rhs.xmax &&
 	  ymin == rhs.ymin && ymax == rhs.ymax); 
     }
@@ -96,8 +96,8 @@ class Bounds
     void AddBorder(double d);
     void AddXBorder(double d);
     void AddYBorder(double d);
-    Bounds operator&(const Bounds &rhs) const; // Finds intersection
-    bool Includes(const Position &pos) const
+    Bounds operator&(const Bounds& rhs) const; // Finds intersection
+    bool Includes(const Position& pos) const
     { 
       return (defined && pos.GetX()<=xmax && pos.GetX()>=xmin &&
 	  pos.GetY()<=ymax && pos.GetY()>=ymin); 
@@ -134,6 +134,9 @@ class Bounds
     Position Get01() const {return Position(xmin,ymax);}
     Position Get10() const {return Position(xmax,ymin);}
     Position Get11() const {return Position(xmax,ymax);}
+
+    bool IsWide() const { return (xmax-xmin > ymax-ymin); }
+    bool IsTall() const { return (xmax-xmin < ymax-ymin); }
 
   private:
     bool defined;

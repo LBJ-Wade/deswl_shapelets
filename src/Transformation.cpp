@@ -263,11 +263,11 @@ Bounds Transformation::MakeInverseOf(const Transformation& t2,
   for(int i=0; i<=ngrid; i++, x+=dx) {
     double y = bounds.GetYMin();
     for(int j=0; j<=ngrid; j++, y+=dy) {
-      xdbg<<"i,j = "<<i<<','<<j<<std::endl;
-      xdbg<<"x,y = "<<x<<','<<y<<std::endl;
+      xxdbg<<"i,j = "<<i<<','<<j<<std::endl;
+      xxdbg<<"x,y = "<<x<<','<<y<<std::endl;
       Position pxy(x,y);
       t2.Transform(pxy,puv);
-      xdbg<<"u,v = "<<puv<<std::endl;
+      xxdbg<<"u,v = "<<puv<<std::endl;
       v_pos.push_back(puv);
       v_x.push_back(x);
       v_y.push_back(y);
@@ -397,10 +397,10 @@ static void ReCenterDistortion(tmv::Matrix<double>& a,
   //     (pCi)(p-iCm)(qCj)(q-jCn) c00^i c01^m c10^j c11^n
   //     xc^(p-i-m) yc^(q-j-n) x^(i+j) y^(m+n)
 
-  xdbg<<"Start recenter distortion:\n";
-  xdbg<<"a = "<<a<<std::endl;
-  xdbg<<"cd = "<<cd<<std::endl;
-  xdbg<<"crpix = "<<crpix<<std::endl;
+  xxdbg<<"Start recenter distortion:\n";
+  xxdbg<<"a = "<<a<<std::endl;
+  xxdbg<<"cd = "<<cd<<std::endl;
+  xxdbg<<"crpix = "<<crpix<<std::endl;
 
   int xorder = a.colsize();
   int yorder = a.rowsize();
@@ -434,7 +434,7 @@ static void ReCenterDistortion(tmv::Matrix<double>& a,
       binom(n,m) = binom(n-1,m-1) + binom(n-1,m);
     }
   }
-  xdbg<<"binom = "<<binom<<std::endl;
+  xxdbg<<"binom = "<<binom<<std::endl;
 
   for(int p=0;p<xorder;p++) for(int q=0;q<std::min(maxorder-p,yorder);q++) {
     // (x')^p (y')^q = (c00 x + c01 y + x0)^i (c10 x + c11 y + y0)^j
@@ -450,7 +450,7 @@ static void ReCenterDistortion(tmv::Matrix<double>& a,
 	  a(p,q);
       }
   }
-  xdbg<<"new ar = "<<newar<<std::endl;
+  xxdbg<<"new ar = "<<newar<<std::endl;
   a = newar;
 }
 
@@ -488,27 +488,27 @@ static void ReadTANFits(const std::string& filename, int hdu,
   xdbg<<"Moved to hdu "<<hdu<<std::endl;
 
   char pvstr[10] = "PV1_1";
-  xdbg<<"pvstr = "<<pvstr<<std::endl;
+  xxdbg<<"pvstr = "<<pvstr<<std::endl;
   for(int pvnum=0; pvnum<=1; pvnum++) {
-    xdbg<<"pvnum = "<<pvnum<<std::endl;
+    xxdbg<<"pvnum = "<<pvnum<<std::endl;
     Assert(pvnum < int(pv.size()));
     Assert(pv[pvnum].colsize() >= 4);
     Assert(pv[pvnum].rowsize() >= 4);
     pv[pvnum].Zero();
-    xdbg<<"pv.zero = "<<pv[pvnum]<<std::endl;
+    xxdbg<<"pv.zero = "<<pv[pvnum]<<std::endl;
 
     pvstr[2]='1'+pvnum;
     pvstr[5] = '\0';
     int k = 0;
-    xdbg<<"pvstr = "<<pvstr<<std::endl;
+    xxdbg<<"pvstr = "<<pvstr<<std::endl;
     for(int n=0;n<4;++n) {
-      xdbg<<"n = "<<n<<std::endl;
+      xxdbg<<"n = "<<n<<std::endl;
       for(int i=n,j=0;j<=n;--i,++j,++k) {
 	if (k == 3) ++k; // I don't know why they skip 3.
-	xdbg<<"i,j,k = "<<i<<','<<j<<','<<k<<std::endl;
+	xxdbg<<"i,j,k = "<<i<<','<<j<<','<<k<<std::endl;
 	if (k < 10) { pvstr[4] = '0'+k; pvstr[5] = '\0'; }
 	else { pvstr[4] = '0'+(k/10); pvstr[5] = '0'+(k%10); pvstr[6] = '\0'; }
-	xdbg<<"Try reading pv key |"<<pvstr<<"|"<<std::endl;
+	xxdbg<<"Try reading pv key |"<<pvstr<<"|"<<std::endl;
 	float temp;
 	if (fits_read_key(fitsptr,TFLOAT,pvstr,&temp,NULL,&status))
 	  dbg<<"Problem reading key: "<<pvstr<<" for n,i,j,k = "<<n<<','<<i<<','<<j<<','<<k<<std::endl;
@@ -599,21 +599,21 @@ static Function2D<double>* TNXConvert(const std::string& wcsstr,
 
   wcsin >> x;
   functype = TNXFUNC(int(x+0.5));
-  xdbg<<"functype: "<<x<<' '<<functype<<std::endl;
+  xxdbg<<"functype: "<<x<<' '<<functype<<std::endl;
   wcsin >> x;
   xorder = int(x+0.5);
-  xdbg<<"xorder: "<<x<<' '<<xorder<<std::endl;
+  xxdbg<<"xorder: "<<x<<' '<<xorder<<std::endl;
   wcsin >> x;
   yorder = int(x+0.5);
-  xdbg<<"yorder: "<<x<<' '<<yorder<<std::endl;
+  xxdbg<<"yorder: "<<x<<' '<<yorder<<std::endl;
   wcsin >> x;
   crossterms = TNXCROSS(int(x+0.5));
-  xdbg<<"crossterms: "<<x<<' '<<crossterms<<std::endl;
+  xxdbg<<"crossterms: "<<x<<' '<<crossterms<<std::endl;
 
   double xmin,xmax,ymin,ymax;
   wcsin >> xmin >> xmax >> ymin >> ymax;
   Bounds b(xmin,xmax,ymin,ymax);
-  xdbg<<"bounds = "<<b<<std::endl;
+  xxdbg<<"bounds = "<<b<<std::endl;
 
   tmv::Matrix<double> a(xorder,yorder,0.);
   int xorder1 = xorder;
@@ -637,25 +637,25 @@ static Function2D<double>* TNXConvert(const std::string& wcsstr,
 
   Function2D<double>* f=0;
 
-  xdbg<<"before switch\n";
+  xxdbg<<"before switch\n";
   switch(functype) {
     case TNX_CHEBYSHEV:
-      xdbg<<"cheby\n";
+      xxdbg<<"cheby\n";
       throw ReadError("Error TNX_CHEBYSHEV not implemented yet.");
       //f = new Cheby2D<double>(b,a);
       //break;
     case TNX_LEGENDRE:
-      xdbg<<"legendre\n";
+      xxdbg<<"legendre\n";
       f = new Legendre2D<double>(b,a);
       break;
     case TNX_POLYNOMIAL:
-      xdbg<<"poly\n";
+      xxdbg<<"poly\n";
       f = new Polynomial2D<double>(a);
       break;
     default:
       throw ReadError( "Unknown TNX surface type");
   }
-  xdbg<<"done WCSConvert\n";
+  xxdbg<<"done WCSConvert\n";
 
   return f;
 }
@@ -727,11 +727,11 @@ void Transformation::ReadWCS(std::string fitsfile, int hdu)
     std::string lngstr,latstr;
     ReadTNXFits(fitsfile,hdu,lngstr,latstr);
     xdbg<<"done read fits: \n";
-    xdbg<<"lngstr = \n"<<lngstr<<std::endl;
-    xdbg<<"latstr = \n"<<latstr<<std::endl;
-    xdbg<<"cd = \n"<<cd<<std::endl;
-    xdbg<<"crpix = \n"<<crpix<<std::endl;
-    xdbg<<"crval = \n"<<crval<<std::endl;
+    xxdbg<<"lngstr = \n"<<lngstr<<std::endl;
+    xxdbg<<"latstr = \n"<<latstr<<std::endl;
+    xxdbg<<"cd = \n"<<cd<<std::endl;
+    xxdbg<<"crpix = \n"<<crpix<<std::endl;
+    xxdbg<<"crval = \n"<<crval<<std::endl;
 
     up.reset(TNXConvert(lngstr,cd,crpix));
     vp.reset(TNXConvert(latstr,cd,crpix));

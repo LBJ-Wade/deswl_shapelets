@@ -100,14 +100,17 @@ CoaddCatalog::CoaddCatalog(ConfigFile& _params):
     {
       flags[i] = (flags[i] & ignore_flags) ? INPUT_FLAG : 0;
     }
-    if (params.keyExists("coaddcat_max_mag")) 
+    if (params.keyExists("coaddcat_minnu_mag")) 
     {
-      double max_mag = params["coaddcat_max_mag"];
-      dbg<<"Limiting input magnitude to mag <= "<<max_mag<<std::endl;
+      double minnu = params["coaddcat_minnu_mag"];
+      dbg<<"Limiting signal to noise in input magnitude to >= "<<minnu<<std::endl;
       dbg<<"Marking fainter objects with flag INPUT_FLAG = "<<INPUT_FLAG<<std::endl;
+      // S/N = 1.086 / mag_err (= 2.5*log(e) / mag_err)
+      double max_magerr = 1.086/minnu;
+      dbg<<"(Corresponds to max mag_err = "<<minnu<<")\n";
       for(size_t i=0;i<size();++i) 
       {
-	if (mag[i] > max_mag) flags[i] = INPUT_FLAG;
+	if (mag_err[i] > max_magerr) flags[i] = INPUT_FLAG;
       }
     }
     int goodcount = std::count(flags.begin(),flags.end(),0);

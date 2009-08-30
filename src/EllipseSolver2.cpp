@@ -280,10 +280,10 @@ void ESImpl2::F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
 
   if (NormInf(xx-xinit) > 4.) 
   {
-    xdbg<<"ES2::F large diversion:\n";
-    xdbg<<"xinit = "<<xinit<<std::endl;
-    xdbg<<"xx = "<<xx<<std::endl;
-    xdbg<<"Norm(xx-xinit) = "<<Norm(xx-xinit)<<std::endl;
+    xxdbg<<"ES2::F large diversion:\n";
+    xxdbg<<"xinit = "<<xinit<<std::endl;
+    xxdbg<<"xx = "<<xx<<std::endl;
+    xxdbg<<"Norm(xx-xinit) = "<<Norm(xx-xinit)<<std::endl;
     if (flux == 0.) flux = b(0);
     if (useflux) {
       f(0) = 2.*(b(0)/flux-1.);
@@ -300,11 +300,11 @@ void ESImpl2::F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
 
   if (gsq > 0.99 || (mu < -2. && Norm(xx-xinit) > 0.3))
   {
-    xdbg<<"ES2::F bad gsq or mu value:\n";
-    xdbg<<"gsq = "<<gsq<<std::endl;
-    xdbg<<"mu = "<<mu<<std::endl;
-    xdbg<<"xinit = "<<xinit<<std::endl;
-    xdbg<<"xx = "<<xx<<std::endl;
+    xxdbg<<"ES2::F bad gsq or mu value:\n";
+    xxdbg<<"gsq = "<<gsq<<std::endl;
+    xxdbg<<"mu = "<<mu<<std::endl;
+    xxdbg<<"xinit = "<<xinit<<std::endl;
+    xxdbg<<"xx = "<<xx<<std::endl;
     if (flux == 0.) flux = b(0);
     if (flux == 0.) flux = 1.;
     if (useflux) {

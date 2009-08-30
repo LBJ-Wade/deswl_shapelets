@@ -29,32 +29,32 @@ int Position::ChipNum(Position *rawcoord) const
 void Bounds::operator+=(const Position &pos)
 // Expand the bounds to include the given position.
 {
-  if(defined) {
-    if(pos.GetX() < xmin) xmin = pos.GetX();
+  if (defined) {
+    if (pos.GetX() < xmin) xmin = pos.GetX();
     else if (pos.GetX() > xmax) xmax = pos.GetX();
-    if(pos.GetY() < ymin) ymin = pos.GetY();
+    if (pos.GetY() < ymin) ymin = pos.GetY();
     else if (pos.GetY() > ymax) ymax = pos.GetY();
   }
   else {
     xmin = xmax = pos.GetX();
     ymin = ymax = pos.GetY();
-    defined = 1;
+    defined = true;
   }
 }
 
 void Bounds::operator+=(const Bounds &rec)
 // Expand the bounds to include the given rectangle (ie. bounds)
 {
-  if(!rec.IsDefined()) return;
-  if(defined) {
-    if(rec.GetXMin() < xmin) xmin = rec.GetXMin();
-    if(rec.GetXMax() > xmax) xmax = rec.GetXMax();
-    if(rec.GetYMin() < ymin) ymin = rec.GetYMin();
-    if(rec.GetYMax() > ymax) ymax = rec.GetYMax();
+  if (!rec.IsDefined()) return;
+  if (defined) {
+    if (rec.GetXMin() < xmin) xmin = rec.GetXMin();
+    if (rec.GetXMax() > xmax) xmax = rec.GetXMax();
+    if (rec.GetYMin() < ymin) ymin = rec.GetYMin();
+    if (rec.GetYMax() > ymax) ymax = rec.GetYMax();
   }
   else {
     *this = rec;
-    defined = 1;
+    defined = true;
   }
 }
 
@@ -75,7 +75,7 @@ Bounds Bounds::operator&(const Bounds &rhs) const
 
 void Bounds::Snap(double d)
 {
-  if(defined) {
+  if (defined) {
     xmax = d*ceil(xmax/d);
     xmin = d*floor(xmin/d);
     ymax = d*ceil(ymax/d);
@@ -85,17 +85,17 @@ void Bounds::Snap(double d)
 
 void Bounds::AddXBorder(double d)
 {
-  if(defined) {xmax += d; xmin -= d;}
+  if (defined) { xmax += d; xmin -= d; }
 }
 
 void Bounds::AddYBorder(double d)
 {
-  if(defined) {ymax += d; ymin -= d;}
+  if (defined) { ymax += d; ymin -= d; }
 }
 
 void Bounds::AddBorder(double d)
 {
-  if(defined) {xmax += d; xmin -= d; ymax += d; ymin -= d;}
+  if (defined) { xmax += d; xmin -= d; ymax += d; ymin -= d; }
 }
 
 std::vector<Bounds> Bounds::Divide(size_t nx,size_t ny) const

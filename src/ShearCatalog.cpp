@@ -171,8 +171,9 @@ void MeasureSingleShear1(
     log.nf_mu++;
     dbg<<"Deconvolving measurement failed\n";
     flag |= DECONV_FAILED;
-    ell.MeasureShapelet(pix,psf,shapelet);
-    return;
+    // Moved this return lower, so we do the Shapelet measurement
+    // as well as we can with what we have now, and then return.
+    //return;
   }
   //double mu_3 = ell.GetMu();
 
@@ -204,11 +205,13 @@ void MeasureSingleShear1(
     flag |= SHAPE_REDUCED_ORDER;
     if (go < 2) { flag |= TOO_SMALL; return; }
   }
-  //shapelet = new BVec(go,sigma);
   shapelet.SetSigma(sigma);
   std::complex<double> gale = 0.;
   ell.MeasureShapelet(pix,psf,shapelet);
   xdbg<<"Measured b_gal = "<<shapelet<<std::endl;
+
+  // If the above deconvolving fit failed, then return.
+  if (flag & DECONV_FAILED) return;
 
   // Under normal circumstances, b20/b00 ~= conj(gamma)/sqrt(2)
   gale = std::complex<double>(shapelet[3],shapelet[4]);

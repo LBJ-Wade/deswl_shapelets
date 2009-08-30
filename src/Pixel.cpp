@@ -45,6 +45,7 @@ void GetPixList(const Image<double>& im, PixelList& pix,
   int i2 = int(ceil(xcen+xap-xmin));
   int j1 = int(floor(ycen-yap-ymin));
   int j2 = int(ceil(ycen+yap-ymin));
+  xdbg<<"i1,i2,j1,j2 = "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
 
   if (i1 < 0) { i1 = 0; flag |= EDGE; }
   if (i2 > int(im.GetMaxI())) { i2 = im.GetMaxI(); flag |= EDGE; }
@@ -58,6 +59,10 @@ void GetPixList(const Image<double>& im, PixelList& pix,
   // we will need, and go back through and enter the pixels.
   // This saves us a lot of resizing calls in vector, which are
   // both slow and can fragment the memory.
+  xdbg<<"nx = "<<i2-i1+1<<std::endl;
+  xdbg<<"ny = "<<j2-j1+1<<std::endl;
+  Assert(i2-i1+1 >= 0);
+  Assert(j2-j1+1 >= 0);
   std::vector<std::vector<bool> > usepix(i2-i1+1,
       std::vector<bool>(j2-j1+1,false));
   int npix = 0;

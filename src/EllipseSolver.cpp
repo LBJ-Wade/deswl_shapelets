@@ -282,13 +282,13 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
   // Typically, these large values end up with overflows, which 
   // lead to nans and/or inf's in the resulting f.
   // Use 2 x the previous value;
-  xdbg<<"x = "<<x<<std::endl;
+  xxdbg<<"x = "<<x<<std::endl;
   if (NormInf(x-xinit) > 4.) 
   {
-    xdbg<<"ES::F large diversion:\n";
-    xdbg<<"xinit = "<<xinit<<std::endl;
-    xdbg<<"x = "<<x<<std::endl;
-    xdbg<<"Norm(x-xinit) = "<<Norm(x-xinit)<<std::endl;
+    xxdbg<<"ES::F large diversion:\n";
+    xxdbg<<"xinit = "<<xinit<<std::endl;
+    xxdbg<<"x = "<<x<<std::endl;
+    xxdbg<<"Norm(x-xinit) = "<<Norm(x-xinit)<<std::endl;
     f = b.SubVector(0,6);
     if (flux == 0.) flux = b(0);
     f /= flux;
@@ -305,11 +305,11 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
   // factor below.
   if (gsq > 0.99 || (mu < -3. && Norm(x-xinit) > 0.3))
   {
-    xdbg<<"ES::F bad gsq or mu value:\n";
-    xdbg<<"gsq = "<<gsq<<std::endl;
-    xdbg<<"mu = "<<mu<<std::endl;
-    xdbg<<"xinit = "<<xinit<<std::endl;
-    xdbg<<"x = "<<x<<std::endl;
+    xxdbg<<"ES::F bad gsq or mu value:\n";
+    xxdbg<<"gsq = "<<gsq<<std::endl;
+    xxdbg<<"mu = "<<mu<<std::endl;
+    xxdbg<<"xinit = "<<xinit<<std::endl;
+    xxdbg<<"x = "<<x<<std::endl;
     f = b.SubVector(0,6);
     if (flux == 0.) flux = b(0);
     f /= flux;
@@ -370,13 +370,13 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
     b = I/A;
   }
 
-  xdbg<<"b = "<<b<<std::endl;
+  xxdbg<<"b = "<<b<<std::endl;
   f = b.SubVector(0,6);
   if (flux == 0.) flux = b(0);
   f /= flux;
   if (useflux) f(0) -= 1.;
-  xdbg<<"f = "<<f<<std::endl;
-  xdbg<<"Done EllipseSolver DoF\n";
+  xxdbg<<"f = "<<f<<std::endl;
+  xxdbg<<"Done EllipseSolver DoF\n";
 }
 
 void ESImpl::F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
@@ -482,9 +482,9 @@ void ESImpl::DoJ(const tmv::Vector<double>& x, const tmv::Vector<double>& ,
 #ifdef JTEST
   tmv::Matrix<double> A_aux2(Z1.size(),np2size);
   MakePsi(A_aux2.View(),Z1,b.GetOrder()+2,&W);
-  xdbg<<"A_aux = "<<A_aux.Rows(0,6);
-  xdbg<<"A_aux2 = "<<A_aux2.Rows(0,6);
-  xdbg<<"Norm(diff) = "<<Norm(A_aux2-A_aux)<<std::endl;
+  xxdbg<<"A_aux = "<<A_aux.Rows(0,6);
+  xxdbg<<"A_aux2 = "<<A_aux2.Rows(0,6);
+  xxdbg<<"Norm(diff) = "<<Norm(A_aux2-A_aux)<<std::endl;
   Test(Norm(A_aux2-A_aux) < 1.e-8*Norm(A_aux),"A_aux");
 #endif
 

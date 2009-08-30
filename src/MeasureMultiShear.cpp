@@ -53,10 +53,15 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
       std::cerr<<npix<<" galaxies in this section.\n";
 
     long nshear1 = shearcat.MeasureMultiShears(section_bounds[i],log);
-    if (output_dots) std::cerr<<std::endl;
 
     nshear += nshear1;
     dbg<<"After MeasureShears: nshear = "<<nshear1<<"  "<<nshear<<std::endl;
+    if (output_dots)
+    {
+      std::cerr<<std::endl;
+      std::cerr<<nshear1<<" successful shear measurements ";
+      std::cerr<<"(total "<<nshear<<")\n";
+    }
     dbg<<"Valgrind Leak Check:\n";
     VALGRIND_DO_LEAK_CHECK;
     if (VALGRIND_COUNT_ERRORS) break;

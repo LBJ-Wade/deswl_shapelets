@@ -66,8 +66,8 @@ FittedPSF::FittedPSF(const PSFCatalog& psfcat, const ConfigFile& _params) :
     ngoodpsf++;
   }
   *avepsf /= double(ngoodpsf);
-  xdbg<<"ngoodpsf = "<<ngoodpsf<<std::endl;
-  xdbg<<"average psf = "<<*avepsf<<std::endl;
+  xxdbg<<"ngoodpsf = "<<ngoodpsf<<std::endl;
+  xxdbg<<"average psf = "<<*avepsf<<std::endl;
 
   // Rotate the vectors into their eigen directions.
   // The matrix V is stored to let us get back to the original basis.
@@ -494,7 +494,7 @@ void FittedPSF::ReadFits(std::string file)
   for (size_t j=0; j<dvec.size(); j++) {
     dptr[j] = dvec[j];
   }
-  xdbg<<"avepsf = "<<*avepsf<<std::endl;
+  xxdbg<<"avepsf = "<<*avepsf<<std::endl;
 
 
 
@@ -508,7 +508,7 @@ void FittedPSF::ReadFits(std::string file)
   for (size_t j=0; j<dvec.size(); j++) {
     dptr[j] = dvec[j];
   }
-  xdbg<<"V = "<<*V<<std::endl;
+  xxdbg<<"V = "<<*V<<std::endl;
 
 
 
@@ -524,7 +524,7 @@ void FittedPSF::ReadFits(std::string file)
   for (size_t j=0; j<dvec.size(); j++) {
     dptr[j] = dvec[j];
   }
-  xdbg<<"f = "<<*f<<std::endl;
+  xxdbg<<"f = "<<*f<<std::endl;
 }
 
 void FittedPSF::InterpolateVector(
