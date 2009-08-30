@@ -129,7 +129,7 @@ struct ShearCatalogTree::Node
 ShearCatalogTree::ShearCatalogTree(const ShearCatalog& _incat) : incat(_incat)
 {
   std::vector<PosWithIndex> data(incat.size());
-  for(int i=0;i<incat.size();++i)
+  for(size_t i=0;i<incat.size();++i)
   { 
     data[i].pos = incat.pos[i];
     data[i].index = i;
@@ -150,9 +150,10 @@ int ShearCatalogTree::FindNearestTo(const Position& pos)
   top->FindNearestTo(pos,index,best);
   xdbg<<"Found: index = "<<index<<", best = "<<best<<std::endl;
   Assert(index >= 0);
-  Assert(index < incat.size());
+  Assert(index < int(incat.size()));
   xdbg<<"incat.pos["<<index<<"] = "<<incat.pos[index]<<std::endl;
   xdbg<<"actual distance = "<<std::abs(pos-incat.pos[index])<<std::endl;
   Assert(std::abs(pos-incat.pos[index]) == best);
+  return index;
 }
 

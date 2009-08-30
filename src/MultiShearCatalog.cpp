@@ -91,7 +91,7 @@ int MultiShearCatalog::GetPixels(const Bounds& b)
     dbg<<"\n";
   }
   int npix=0;
-  for (int i=0;i<size();++i) if (pixlist[i].size() > 0) ++npix;
+  for (size_t i=0;i<size();++i) if (pixlist[i].size() > 0) ++npix;
   return npix;
 }
 
@@ -306,7 +306,7 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
 
   // If the skybounds for each shear catalog have been saved, then
   // we might be able to skip the ShearCatalog load.
-  if (saved_se_skybounds.size() > se_index)
+  if (int(saved_se_skybounds.size()) > se_index)
   {
     Bounds se_skybounds = saved_se_skybounds[se_index];
     dbg<<"saved bounds for image "<<se_index<<" = "<<se_skybounds;
@@ -323,9 +323,9 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
   dbg<<"bounds for image "<<se_index<<" = "<<se_skybounds;
 
   // Skip this file if none of the objects in it are in this section of sky.
-  if (saved_se_skybounds.size() <= se_index) // Then save the se_skybounds
+  if (int(saved_se_skybounds.size()) <= se_index) // Then save the se_skybounds
   {
-    Assert(saved_se_skybounds.size() == se_index);
+    Assert(int(saved_se_skybounds.size()) == se_index);
     saved_se_skybounds.push_back(se_skybounds);
   }
   if (!se_skybounds.Intersects(b)) 

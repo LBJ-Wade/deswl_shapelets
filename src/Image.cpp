@@ -44,8 +44,8 @@ Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im)
       Image<float> badpix_im(badpix_name,badpix_hdu);
       dbg<<"Opened badpix image.\n";
 
-      for(int i=0;i<=weight_im->GetMaxI();++i)
-	for(int j=0;j<=weight_im->GetMaxJ();++j)
+      for(size_t i=0;i<=weight_im->GetMaxI();++i)
+	for(size_t j=0;j<=weight_im->GetMaxJ();++j)
 	{
 	  if (badpix_im(i,j) > 0.0) (*weight_im)(i,j) = 0.0;
 	}

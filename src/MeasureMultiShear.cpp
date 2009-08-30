@@ -36,7 +36,7 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
   dbg<<log.ngoodin<<"/"<<log.ngals<<" galaxies with no input flags\n";
 
   long nshear = 0;
-  double section_size = params.get("coaddcat_section_size");
+  double section_size = params.get("multishear_section_size");
   section_size *= 60.; // arcmin -> arcsec
   std::vector<Bounds> section_bounds = shearcat.SplitBounds(section_size);
   for(size_t i=0;i<section_bounds.size();++i) 
