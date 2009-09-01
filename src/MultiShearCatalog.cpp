@@ -468,7 +468,7 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
     int nearest = shearcat_tree.FindNearestTo(pos);
 
     // Calculate the local sky value.
-    double sky;
+    double sky=0;
     if (sky_method == "MEAN")
       sky = mean_sky;
     else if (sky_method == "NEAREST")
@@ -476,7 +476,7 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
     else 
     {
       Assert(sky_method == "MAP");
-      Assert(!("MAP method not implemented yet."));
+      Assert(!("MAP method not implemented yet." + int(sky)));
     }
 
     Assert(i < pixlist.size());

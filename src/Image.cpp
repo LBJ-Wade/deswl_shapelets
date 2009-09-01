@@ -339,3 +339,4 @@ T Image<T>::Median() const
 }
 
 template class Image<double>;
+template class Image<float>;

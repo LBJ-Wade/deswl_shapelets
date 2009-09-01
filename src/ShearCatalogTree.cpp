@@ -153,7 +153,8 @@ int ShearCatalogTree::FindNearestTo(const Position& pos)
   Assert(index < int(incat.size()));
   xdbg<<"incat.pos["<<index<<"] = "<<incat.pos[index]<<std::endl;
   xdbg<<"actual distance = "<<std::abs(pos-incat.pos[index])<<std::endl;
-  Assert(std::abs(pos-incat.pos[index]) == best);
+  xdbg<<"diff = "<<std::abs(std::abs(pos-incat.pos[index])-best)<<std::endl;
+  Assert(std::abs(std::abs(pos-incat.pos[index]) - best) < 1.e-5);
   return index;
 }
 
