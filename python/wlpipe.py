@@ -55,6 +55,8 @@ _fileclass='wlbnl'
 run_types={}
 run_types['wlse'] = \
         {'name':'wlse','fileclass': _fileclass, 'filetype':'se_shapelet'}
+run_types['wlme'] = \
+        {'name':'wlme','fileclass': _fileclass, 'filetype':'se_shapelet'}
 
 
 fileclasses = {}
@@ -263,6 +265,9 @@ def ReadRunConfig(run):
 
 
 def GenerateRunName(run_type):
+    """
+    Not used
+    """
 
     if run_type not in run_types:
         raise ValueError,'Unknown run type: %s.  Must be one of: (%s)' % (run_type, ', '.join(run_types))
@@ -276,16 +281,16 @@ def GenerateRunName(run_type):
 def GenerateRunNameOrdered(run_type):
 
     if run_type not in run_types:
-        raise ValueError,'Unknown run type: %s.  Must be one of: (%s)' % (run_type, ', '.join(run_types))
+        raise ValueError,"Unknown run type: '%s'.  Must be one of: (%s)" % (run_type, ', '.join(run_types))
 
 
     dir=RunConfigBaseDir()
     i=0
-    run_name = 'wlse%06i' % i
+    run_name = '%s%06i' % (run_type, i)
     rundir=os.path.join(dir, run_name)
     while os.path.exists(rundir):
         i+=1
-        run_name = 'wlse%06i' % i
+        run_name = '%s%06i' % (run_type,i)
         rundir=os.path.join(dir, run_name) 
 
     return run_name
@@ -296,9 +301,23 @@ def GenerateSeRunConfig():
     """
     Generate single epoch wl run configuration
     """
+    run_type = 'wlse'
+    return GenerateRunConfig(run_type)
+
+def GenerateMeRunConfig():
+    """
+    Generate multi epoch wl run configuration
+    """
+    run_type = 'wlme'
+    return GenerateRunConfig(run_type)
+
+
+def GenerateRunConfig(run_type):
+    """
+    Generate single epoch wl run configuration
+    """
     # need to add a tmv version here
 
-    run_type = 'wlse'
     run = GenerateRunNameOrdered(run_type)
     fileclass = run_types[run_type]['fileclass']
     filetype = run_types[run_type]['filetype']
@@ -326,6 +345,7 @@ def GenerateSeRunConfig():
     stdout.write('Writing to file: %s\n' % runconfig_name)
     xmltools.dict2xml(runconfig, runconfig_name, roottag='runconfig')
     return runconfig
+
 
 
 def VerifyRunConfig(runconfig):
@@ -697,9 +717,6 @@ def GetExternalVersion(version_command):
         raise RuntimeError, \
          'Could not get version from command: %s: %s' % (version_command,serr)
     return sout.strip()
-
-#def GetWlVersion():
-#    return GetExternalVersion('wl-version')
 
 def GetTmvVersion():
     return GetExternalVersion('tmv-version')
