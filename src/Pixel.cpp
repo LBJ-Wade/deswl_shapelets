@@ -116,6 +116,8 @@ void GetPixList(const Image<double>& im, PixelList& pix,
   // Not necessarily == because we skip pixels with 0.0 variance
   pix.erase(pix.begin()+k,pix.end());
   Assert(k == int(pix.size()));
+  npix = pix.size(); // may have changed.
+  xdbg<<"npix => "<<npix<<std::endl;
   if (npix < 10) flag |= LT10PIX;
 }
 

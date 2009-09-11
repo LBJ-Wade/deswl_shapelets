@@ -163,9 +163,9 @@ void Ellipse::CrudeMeasure(const PixelList& pix, double sigma)
   }
   xdbg<<"Iz = "<<Iz<<", I = "<<I<<std::endl;
 
-  // If I < 0 then this isn't going to work.  Just return and hope
+  // If I <= 0 then this isn't going to work.  Just return and hope
   // the regular measure method might do better.
-  if (I < 0) return;
+  if (I <= 0) return;
 
   std::complex<double> zc = Iz / I;
   zc += cen;

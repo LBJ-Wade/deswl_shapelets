@@ -82,8 +82,6 @@ class ESImpl
     tmv::Matrix<double> _Gth;
     tmv::Matrix<double> _Gmu;
     mutable tmv::Matrix<double> _dTdE;
-    mutable bool didstatus3output;
-
 };
 
 EllipseSolver::EllipseSolver(const std::vector<PixelList>& pix,
@@ -140,8 +138,7 @@ ESImpl::ESImpl(const std::vector<PixelList>& _pix,
   _Gx(np2size,nsize), _Gy(np2size,nsize), 
   _Gg1(np2size,nsize), _Gg2(np2size,nsize), 
   _Gth(np2size,nsize), _Gmu(np2size,nsize),
-  _dTdE(0,0),
-  didstatus3output(!desqa)
+  _dTdE(0,0)
 {
   for(size_t k=0,n=0;k<pix.size();k++) {
     for(size_t i=0;i<pix[k].size();i++,n++) {
@@ -207,8 +204,7 @@ ESImpl::ESImpl(const std::vector<PixelList>& _pix,
   _Gx(np2size,nsize), _Gy(np2size,nsize),
   _Gg1(SIZE_1b,SIZE_1), _Gg2(SIZE_1b,SIZE_1),
   _Gth(SIZE_1b,SIZE_1), _Gmu(SIZE_2,SIZE_3),
-  _dTdE(SIZE_4,SIZE_4),
-  didstatus3output(!desqa)
+  _dTdE(SIZE_4,SIZE_4)
 {
   for(size_t k=0,n=0;k<pix.size();k++) {
     for(size_t i=0;i<pix[k].size();i++,n++) {
@@ -347,25 +343,21 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
     xxdbg<<"after psf correction"<<std::endl;
     AC.ReSetDiv();
     if (AC.Singular()) {
-      if (!didstatus3output) {
-	std::cout<<"STATUS3BEG Warning: Singular AC matrix encountered in EllipseSolver. STATUS3END"<<std::endl;
-	didstatus3output = true;
-      }
-      dbg<<"Warning -- Singular AC:\n";
+      // I used to keep going and just give an error. But these never 
+      // eventually work, so just bail on the whole calculation.
+      dbg<<"Found singular AC.  Bail.\n";
       xxdbg<<"AC = "<<AC<<std::endl;
       xxdbg<<"AC.R = "<<AC.QRD().GetR()<<std::endl;
+      throw tmv::Singular();
     }
     b = I/AC;
   } else {
     A.ReSetDiv();
     if (A.Singular()) {
-      if (!didstatus3output) {
-	std::cout<<"STATUS3BEG Warning: Singular A matrix encountered in EllipseSolver. STATUS3END"<<std::endl;
-	didstatus3output = true;
-      }
-      dbg<<"Warning -- Singular A:\n";
+      dbg<<"Found singular A.  Bail.\n";
       xxdbg<<"A = "<<A<<std::endl;
       xxdbg<<"A.R = "<<A.QRD().GetR()<<std::endl;
+      throw tmv::Singular();
     }
     b = I/A;
   }
@@ -1045,9 +1037,17 @@ bool EllipseSolver::Solve(tmv::Vector<double>& x, tmv::Vector<double>& f,
   pimpl->x_short = pimpl->U * x;
 
   pimpl->flux = 0;
-  bool ret = NLSolver::Solve(pimpl->x_short,pimpl->f_short);
+  bool ret;
+  try
+  {
+    ret = NLSolver::Solve(pimpl->x_short,pimpl->f_short);
+  }
+  catch (...)
+  {
+    ret = false;
+  }
 
-  if (cov) {
+  if (ret && cov) {
     // C_E = (dbdE^-1) C_b (dbdE^-1)^T
     // C_b = (A^T A)^-1 = R^T R)^-1
     //     = R^-1 R^-1^T
