@@ -52,7 +52,16 @@ FittedPSF::FittedPSF(const PSFCatalog& psfcat, const ConfigFile& _params) :
   // Do a polynomial fit of the psf shapelet vectors
 
   Assert(psfcat.psf.size() > 0);
-  sigma = psfcat.psf[0].GetSigma();
+
+  // This used to be set to the sigma of psfcat.psf[0].
+  // This doesn't work if the first object failed. 
+  // So now I set it to -1, and then update it when we get to the first
+  // object without an error flag (usually n = 0).
+  sigma = -1.;
+  for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
+    sigma = psfcat.psf[n].GetSigma();
+    break;
+  }
 
   // Calculate the average psf vector
   avepsf.reset(new BVec(psforder,sigma));
@@ -61,6 +70,9 @@ FittedPSF::FittedPSF(const PSFCatalog& psfcat, const ConfigFile& _params) :
   size_t ngoodpsf=0;
   for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
     xxdbg<<"n = "<<n<<", psf[n] = "<<psfcat.psf[n]<<std::endl;
+    xxdbg<<"sigma = "<<sigma<<std::endl;
+    xxdbg<<"psfcat.psf["<<n<<"].sigma = "<<psfcat.psf[n].GetSigma()<<std::endl;
+    xxdbg<<"diff = "<<std::abs(sigma-psfcat.psf[n].GetSigma())<<std::endl;
     Assert(psfcat.psf[n].GetSigma() == sigma);
     *avepsf += psfcat.psf[n];
     ngoodpsf++;
