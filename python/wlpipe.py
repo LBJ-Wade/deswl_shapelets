@@ -1,5 +1,5 @@
 """
-    Order of doing things:
+    Order of doing things for SE image processing:
         # create a run name and its configuration
         GenerateSeRunConfig()
 
@@ -25,7 +25,26 @@
         # you can run a set of scripts for the 8 processors on each machine
         # with this shell script. Run in the directory with the scripts.
         run-wlpipe machine_number executable
+        (need to convert to batch system)
 
+
+    For coadds, using multishear:
+        On a machine that can directly access the desdm database, run (from
+        ES des.util module:
+
+            des.util.DBCollateCoaddCatalogsAndImages(band,getsrc=True,
+                                                     toxml=collated_file)
+        Then we need to find the files on local disk, filename from above:
+            des.util.FindCollatedCoaddFiles(collated_file, toxml=outfile,
+                                            wlserun=run_for_fitpsf_shear)
+
+        For dc4 I'm putting all this stuff into the nyu repo:
+            deswl/desfiles/trunk/dc4-coadd
+        Since this is data it is not really versioned.  The product should
+        be installed and set up so that DESFILES_DIR is set.  Then the
+        files are under, e.g. 
+            $DESFILES_DIR/
+              dc4-coadd/dc4-collate-coadd-catalogs-images-withsrc-i-found.xml
 """
 import sys
 from sys import stdout,stderr
@@ -56,7 +75,7 @@ run_types={}
 run_types['wlse'] = \
         {'name':'wlse','fileclass': _fileclass, 'filetype':'se_shapelet'}
 run_types['wlme'] = \
-        {'name':'wlme','fileclass': _fileclass, 'filetype':'se_shapelet'}
+        {'name':'wlme','fileclass': _fileclass, 'filetype':'me_shapelet'}
 
 
 fileclasses = {}
@@ -501,6 +520,9 @@ def ExecuteWlCommand(command, timeout=None,
 
     return exit_status, stdout_ret, stderr_ret
 
+
+
+
 def ReplaceDirectory(oldfile, newdir):
     if oldfile is not None:
         fbase=os.path.basename(oldfile)
@@ -509,12 +531,19 @@ def ReplaceDirectory(oldfile, newdir):
     else:
         return None
 
+
+
+
 _fits_extstrip=re.compile( '\.fits(\.fz)?$' )
 def RemoveFitsExtension(fname):
     """
     See if the pattern exists and replace it with '' if it does
     """
     return _fits_extstrip.sub('', fname)
+
+
+
+
 
 def MakeSeCommand(executable, conf_file, image_file, 
                   cat_file=None,
@@ -589,6 +618,8 @@ def ProcessSeImage(executable, config_file, image_filename,
     if verbose:
         stderr.write('    exit_status: %s\n' % exit_status)
     return exit_status
+
+
 
 
 
@@ -701,6 +732,9 @@ def ProcessSeRunImageList(serun, executable,
 
 
 
+
+
+
 def GetExternalVersion(version_command):
     """
     Run a command to get a version string and return it through the
@@ -724,6 +758,9 @@ def GetTmvVersion():
 def GetPythonVersion():
     pyvers='v%s.%s.%s' % sys.version_info[0:3]
     return pyvers
+
+
+
 
 def GenerateSeFileNames(serun, imfile, 
                         rootdir=None, outdir=None, mohrify=True):
@@ -786,6 +823,9 @@ def GenerateSeFileNames(serun, imfile,
 
     return fdict
 
+
+
+
 def GetInfoFromImagePath(imfile):
     """
     This will probably also work for cat files
@@ -821,6 +861,9 @@ def GetInfoFromImagePath(imfile):
     odict['ccdnum'] = int(namefront.split('_')[1])
     
     return odict
+
+
+
 
 
 def BachSplitImageCatFileList(input_fname, roottag='bachsplit'):
@@ -888,6 +931,10 @@ def BachSplitImageCatFileList(input_fname, roottag='bachsplit'):
         xmltools.dict2xml(fdict, filenames[i], roottag=roottag)
 
     return filenames
+
+
+
+
 
 def ptime(seconds, fobj=None, format=None):
     from sys import stdout
