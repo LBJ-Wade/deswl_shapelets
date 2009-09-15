@@ -5,6 +5,8 @@ try:
 except:
     stderr.write('Could not import oracle utilities\n')
 
+import xmltools
+
 def GetTileRun(tilename, verbose=False, multi=False):
     """
     Try to get the appropriate run identifier for the input tilename
@@ -213,9 +215,7 @@ def GetCoaddSrcLocations(coadd_id=None, tilename=None, band=None, run=None,
 
 
 
-def CollateCoaddCatalogsAndImages(band, dictlist=False,
-                                  toxml=None, 
-                                  getsrc=False):
+def CollateCoaddCatalogsAndImages(band, xmlfile, getsrc=False):
     """
 
     join the catalog table (catalogtype='coadd_cat' and project='DES') to the
@@ -230,7 +230,7 @@ def CollateCoaddCatalogsAndImages(band, dictlist=False,
 
     if getsrc=True add a list of the source 'red' images that made up the
     coadd.  This depends on
-        DBGetCoaddSrcLocations
+        GetCoaddSrcLocations
             (GetCoaddId)
                 (GetTileRun)
 
@@ -261,9 +261,8 @@ def CollateCoaddCatalogsAndImages(band, dictlist=False,
 
     conn = oracle_util.Connection()
 
-    if toxml or getsrc:
-        dictlist=True
 
+    dictlist=True
     res = conn.Execute(q, dictlist=dictlist, lower=True)
 
     if res is not None:
@@ -280,7 +279,7 @@ def CollateCoaddCatalogsAndImages(band, dictlist=False,
         nbad=0
         for i in range(len(res)):
             coadd_id = res[i]['parentid']
-            srclist = DBGetCoaddSrcLocations(coadd_id,dictlist=True)
+            srclist = GetCoaddSrcLocations(coadd_id,dictlist=True)
             if srclist is None:
                 raise ValueError,\
                     'Could not get source list for id=%s\n' % coadd_id
@@ -297,10 +296,8 @@ def CollateCoaddCatalogsAndImages(band, dictlist=False,
             res[i]['srclist'] = srclist
 
 
-    if toxml is not None:
-        stdout.write('Writing to xml file: %s\n' % toxml)
-        xmltools.dict2xml({'info':res}, toxml, roottag='coaddinfo')
-    return res
+    stdout.write('Writing to xml file: %s\n' % xmlfile)
+    xmltools.dict2xml({'info':res}, xmlfile, roottag='coaddinfo')
 
 
 def DumpQuery(q, fname):

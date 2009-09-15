@@ -32,11 +32,11 @@
         On a machine that can directly access the desdm database, run (from
         ES des.util module:
 
-            des.util.DBCollateCoaddCatalogsAndImages(band,getsrc=True,
+            deswl.oracle.CollateCoaddCatalogsAndImages(band,getsrc=True,
                                                      toxml=collated_file)
         Then we need to find the files on local disk, filename from above:
-            des.util.FindCollatedCoaddFiles(collated_file, toxml=outfile,
-                                            wlserun=run_for_fitpsf_shear)
+            des.wlpipe.FindCollatedCoaddFiles(collated_file, toxml=outfile,
+                                              wlserun=run_for_fitpsf_shear)
 
         For dc4 I'm putting all this stuff into the nyu repo:
             deswl/desfiles/trunk/dc4-coadd
@@ -629,8 +629,8 @@ def ProcessSeImage(executable, config_file, image_filename,
 
 
 
-default_proddir=os.getenv('PRODUCTS_DIR')
-default_config=os.path.join(default_proddir,'local/etc/wl_dc4.config')
+
+default_config=os.path.join(os.getenv('WL_DIR'),'etc/wl_dc4.config')
 
 def ProcessSeRunImageList(serun, executable, 
                           config_file=default_config, 
