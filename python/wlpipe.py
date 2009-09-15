@@ -32,8 +32,8 @@
         On a machine that can directly access the desdm database, run (from
         ES des.util module:
 
-            deswl.oracle.CollateCoaddCatalogsAndImages(band,getsrc=True,
-                                                     toxml=collated_file)
+            deswl.oracle.CollateCoaddCatalogsAndImages(band,collated_file,
+                                                       getsrc=True)
         Then we need to find the files on local disk, filename from above:
             des.wlpipe.FindCollatedCoaddFiles(collated_file, toxml=outfile,
                                               wlserun=run_for_fitpsf_shear)
@@ -164,7 +164,8 @@ def SelectLatestRedRun(image_list, return_dict=False):
     """
     kinfo={}
     for imfile in image_list:
-        info=GetInfoFromImagePath(imfile)
+        #info=GetInfoFromImagePath(imfile)
+        info=GetInfoFromPath(imfile, 'red')
         key=info['exposurename']+'-'+str(info['ccdnum'])
         key = '%s-%02i' % (info['exposurename'], info['ccdnum'])
         if key in kinfo:
@@ -243,6 +244,16 @@ def WlSeDir(run, exposurename, rootdir=None):
  
     return wldir
 
+def WlMeDir(run, tilename, rootdir=None):
+    fileclass=run_types['wlme']['fileclass']
+    filetype=run_types['wlme']['filetype']
+
+    ftdir=FiletypeDir(fileclass, run, filetype, rootdir=rootdir)
+    wldir=os.path.join(ftdir, tilename)
+ 
+    return wldir
+
+
 def WlSeName(run, redrun, exposurename, ccdnum, wltype, 
              mohrify=True, rootdir=None, ext='fits'):
     """
@@ -268,6 +279,8 @@ def WlSeName(run, redrun, exposurename, ccdnum, wltype,
     fullpath = os.path.join(wldir, name)
     return fullpath
 
+def WlMeName(run, coaddrun, tilename, band, wltype):
+    pass
 
 def RunConfigBaseDir():
     DESDATA=os.getenv('DESDATA')
@@ -457,7 +470,8 @@ def GenerateSeRunFileListAndScripts(run, band, rootdir=default_rootdir, badlist=
 def ExtractImageExposureNames(flist):
     allinfo={}
     for imfile in flist:
-        info=GetInfoFromImagePath(imfile)
+        #info=GetInfoFromImagePath(imfile)
+        info=GetInfoFromPath(imfile, 'red')
         allinfo[info['exposurename']] = info['exposurename']
 
     return allinfo.keys()
@@ -770,7 +784,8 @@ def GetPythonVersion():
 
 def GenerateSeFileNames(serun, imfile, 
                         rootdir=None, outdir=None, mohrify=True):
-    info = GetInfoFromImagePath(imfile)
+    #info = GetInfoFromImagePath(imfile)
+    info=GetInfoFromPath(imfile, 'red')
     fdict={}
 
     # output file names
@@ -869,6 +884,113 @@ def GetInfoFromImagePath(imfile):
     return odict
 
 
+def GetInfoFromPath(filepath, fileclass):
+    """
+    This is a more extensive version GetInfoFromImagePath.  Also works for
+    the cat files.  If coadd=True then treated differently
+    """
+
+    odict = {}
+    # remove the extension
+    dotloc=filepath.find('.')
+    
+    odict['ext'] = filepath[dotloc:]
+    root=filepath[0:dotloc]
+
+
+
+    DESDATA=os.getenv('DESDATA')
+    if DESDATA is None:
+        raise ValueError,'Environment variable DESDATA does not exist'
+    if DESDATA[-1] == os.sep:
+        DESDATA=DESDATA[0:len(DESDATA)-1]
+
+    endf = filepath.replace(DESDATA, '')
+
+
+    odict['filename'] = filepath
+    odict['root'] = root
+    odict['DESDATA'] = DESDATA
+
+
+    fsplit = endf.split(os.sep)
+
+
+    if fileclass == 'red':
+        nparts = 6
+        if len(fsplit) < nparts:
+            raise ValueError,\
+                'Found too few file elements, '+\
+                '%s instead of %s: "%s"\n' % (len(fsplit), nparts, filepath)
+
+        if fsplit[1] != 'red' or fsplit[3] != 'red':
+            mess="In file path %s expected 'red' in positions "+\
+                "1 and 3 after DESDATA=%s" % (filepath,DESDATA)
+            raise ValueError,mess
+
+        odict['redrun'] = fsplit[2]
+        odict['exposurename'] = fsplit[4]
+        odict['basename'] = fsplit[5]
+
+        base=os.path.basename(odict['root'])
+
+
+        # last 3 bytes are _[ccd number]
+        odict['ccd']=int(base[-2:])
+        base=base[0:len(base)-3]
+
+        # next -[repeatnum].  not fixed length so we must go by the dash
+        dashloc=base.rfind('-')
+        odict['repeatnum'] = base[dashloc+1:]
+        base=base[0:dashloc]
+
+        # now is -[band]
+        dashloc=base.rfind('-')
+        band=base[-1]
+        odict['band'] = band
+        base=base[0:dashloc]
+        
+        # now we have something like decam--24--11 or decam--24--9, so
+        # just remove the decam-
+        # might have to alter this some time if they change the names
+        if base[0:6] != 'decam-':
+            raise ValueError,'Expected "decam-" at beginning'
+        odict['pointing'] = base.replace('decam-','')
+
+        
+    elif fileclass == 'coadd':
+        nparts = 5
+        if len(fsplit) < nparts:
+            raise ValueError,\
+                'Found too few file elements, '+\
+                '%s instead of %s: "%s"\n' % (len(fsplit), nparts, filepath)
+
+        if fsplit[1] != 'coadd' or fsplit[3] != 'coadd':
+            mess="In file path %s expected 'red' in positions "+\
+                "1 and 3 after DESDATA=%s" % (filepath,DESDATA)
+            raise ValueError,mess
+
+
+        odict['coaddrun'] = fsplit[2]
+        odict['basename'] = fsplit[4]
+
+        tmp = os.path.basename(root)
+        if tmp[-3:] == 'cat':
+            odict['coaddtype'] = 'cat'
+            tmp = tmp[0:-4]
+        else:
+            odict['coaddtype'] = 'image'
+
+        odict['band'] = tmp[-1]
+
+        last_underscore = tmp.rfind('_')
+        if last_underscore == -1:
+            raise ValueError,\
+                'Expected t find an underscore in basename of %s' % filepath
+        odict['tilename'] = tmp[0:last_underscore]
+
+    
+    return odict
 
 
 
@@ -968,5 +1090,177 @@ def ptime(seconds, fobj=None, format=None):
         stdout.write(format % tstr)
     else:
         fobj.write(format % tstr)
+
+
+
+
+
+
+
+def _find_wl_output(wlserun, src, typename, mohrify=True, verbosity=1):
+    fname=WlSeName(wlserun, 
+                   src['run'],
+                   src['exposurename'],
+                   int(src['ccd']),
+                   typename,
+                   mohrify=mohrify)
+    if not os.path.exists(fname):
+        if verbosity > 1:
+            stdout.write("file not found: %s\n" % fname)
+        return False
+    else:
+        src[typename+'file'] = fname
+        return True
+
+
+def FindCollatedCoaddFiles(infofile, xmlfile, 
+                           wlserun=None, mohrify=True,
+                           verbosity=1):
+    """
+
+    Find coadd files on the local disk.
+
+    Also if srclist is in the dictionaries these files are also searched for
+    as well as the corresponding fitpsf file needed for input into the
+    multishear code, and the shear catalog for SE.  For the fitpsf files you
+    must enter wlserun.
+
+    """
+    infodict,root = xmltools.xml2dict(infofile, seproot=True)
+    allinfo=infodict['info']
+
+    DESDATA=os.getenv('DESDATA')
+
+
+    n_srcmissing=0
+    n_srcshort=0
+    n_catmissing=0
+    n_imagemissing=0
+    output = []
+
+    if 'srclist' in allinfo[0]:
+        stdout.write("Checking for sources\n")
+        checksources=True
+    else:
+        checksources=False
+
+    for info in allinfo:
+        
+        catfile=os.sep.join([DESDATA,'coadd',info['catalogrun'],
+                             'coadd',info['catalogname']])
+        imfile=os.sep.join([DESDATA,'coadd',info['coaddrun'],
+                            'coadd',info['coaddname']])
+        #catfile = os.path.join(DESDATA, catfile)
+        #imfile = os.path.join(DESDATA, imfile)
+
+        srcfound=True
+        catfound=True
+        imfound=True
+        if not os.path.exists(imfile):
+            imfile = imfile + '.fz'
+            if not os.path.exists(imfile):
+                stdout.write('image file not found: %s\n' % imfile)
+                imfound=False
+                n_imagemissing += 1
+
+        if not os.path.exists(catfile):
+            stdout.write('catalog file not found: %s\n' % catfile)
+            catfound=False
+            n_catmissing += 1
+
+        srclist=[]
+        if checksources and imfound and catfound:
+            for src in info['srclist']:
+                keepsrc = True
+                sparts = [DESDATA,
+                          'red',
+                          src['run'],
+                          'red',
+                          src['exposurename'],
+                          src['filename']]
+                srcfile=os.sep.join(sparts)
+                if not os.path.exists(srcfile):
+                    srcfile += '.fz'
+                    if not os.path.exists(srcfile):
+                        keepsrc=False
+                        stdout.write("srcfile not found: %s\n" % srcfile)
+                    else:
+                        src['srcfile'] = srcfile
+                else:
+                    src['srcfile'] = srcfile
+
+
+                # check for the fitted psf file and shear file
+                if wlserun is not None:
+                    for ftype in ['fitpsf','shear']:
+                        res=_find_wl_output(wlserun,src,ftype,mohrify=mohrify,
+                                            verbosity=verbosity)
+                        if not res:
+                            keepsrc=False
+                
+                if keepsrc:
+                    srclist.append(src)
+
+            if len(srclist) < len(info['srclist']):
+                stdout.write("Found fewer sources than listed %s/%s\n" % (len(srclist), len(info['srclist'])))
+                n_srcshort += 1
+                if len(srclist) == 0:
+                    stdout.write("skipping the rest for this coadd %s\n" % imfile)
+                    srcfound=False
+                    n_srcmissing += 1
+
+        if catfound and imfound and \
+                ( (checksources and len(srclist) > 0) or (not checksources)):
+            info['catfile'] = catfile
+            info['imfile'] = imfile
+            if checksources:
+                info['srclist'] = srclist
+            output.append(info)
+
+    stdout.write("\nout of %s coadds\n" % len(allinfo))
+    stdout.write("  n_imagemissing = %s\n" % n_imagemissing)
+    stdout.write("  n_catmissing = %s\n" % n_catmissing)
+    stdout.write("  n_srcmissing = %s\n" % n_srcmissing)
+    stdout.write("  Of the good ones, n_srcshort = %s\n" % n_srcshort)
+    stdout.write("  (may not be unique)\n")
+
+    stdout.write("Writing to xml file: %s\n" % xmlfile)
+    xmltools.dict2xml({'info':output}, xmlfile, roottag='tileinfo_local')
+
+
+
+def GenerateMeInputFile(tileinfo, outfile):
+    """
+    Generate an input file for multishear for the input tileinfo dict, which
+    should describe a single tile version.  
+
+    This just writes out what is stored in the tile info structure
+    (found_coaddinfo).
+    """
+
+
+    fobj=open(outfile, 'w')
+    for s in tileinfo['srclist']:
+        line = '%s %s %s\n' % (s['srcfile'],s['shearfile'],s['fitpsffile'])
+        fobj.write(line)
+
+    fobj.close()
+
+def GenerateMeInputFiles(tileinfo_found, merun, outdir):
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+
+    tileinfo_dict = xmltools.xml2dict(tileinfo_found)
+    tileinfo = tileinfo_dict['tileinfo_local']['info']
+
+    for ti in tileinfo:
+        name=[merun,ti['tilename'],ti['band'],'multishear','input']
+        name='-'.join(name)+'.dat'
+
+        outfile = os.path.join(outdir, name)
+        stdout.write('Writing multishear input file: %s\n' % outfile)
+        GenerateMeInputFile(ti, outfile)
+
+
 
 
