@@ -30,3 +30,4 @@ def GetWlVersion():
 
 version=GetWlVersion()
 import wlpipe
+import oracle

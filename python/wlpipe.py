@@ -40,12 +40,17 @@
 
         For dc4 I'm putting all this stuff into the nyu repo:
             deswl/desfiles/trunk/dc4-coadd
-        Since this is data it is not really versioned.  The product should
+        This is data it is not really versioned.  The product should
         be installed and set up so that DESFILES_DIR is set.  Then the
         files are under, e.g. 
             $DESFILES_DIR/
               dc4-coadd/dc4-collate-coadd-catalogs-images-withsrc-i-found.xml
+        Then send this file to 
+            des.util.GenerateMeInputFiles(tileinfo,merun,outdir)
+        Which calls GenerateMeInputFile.  This will put files under the
+        given output directory.
 """
+
 import sys
 from sys import stdout,stderr
 import os
@@ -57,6 +62,7 @@ import datetime
 
 from deswl import GetWlVersion
 from deswl import version
+from deswl import oracle
 
 # xmltools is a basic requirement, but I'm not putting it into the DES svn
 # instead it must be exported from ES's svn and placed into the path somewhere
