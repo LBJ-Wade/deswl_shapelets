@@ -73,7 +73,12 @@ except:
     stderr.write('Failed to import xmltools\n')
 
 # default timeout 5 minutes
-default_timeout = 300
+default_timeout_se = 300
+# default timeout 1 hour
+default_timeout_me = 60*60
+
+# weak lensing config file
+default_config=os.path.join(os.getenv('WL_DIR'),'etc/wl_dc4.config')
 
 _fileclass='wlbnl'
 
@@ -533,11 +538,11 @@ def _PollSubProcess(pobj, timeout_in):
         stderr.write('Process is taking longer than %s seconds.  Ending process\n' % timeout)
         os.kill(pobj.pid, signal.SIGTERM)
         exit_status = 1024
-        stdout, stderr = None, None
+        stdout_ret, stderr_ret = None, None
     else:
-        stdout, stderr = pobj.communicate()
+        stdout_ret, stderr_ret = pobj.communicate()
 
-    return exit_status, stdout, stderr
+    return exit_status, stdout_ret, stderr_ret
 
 
 bitshift = 8
@@ -556,9 +561,37 @@ def ExecuteWlCommand(command, timeout=None,
 
     Execute the command with a timeout in seconds
     """
-    pobj = subprocess.Popen(command, 
-                            stdout=stdout_file, 
-                            stderr=stderr_file, 
+
+    # the user can send file names, PIPE, or a file object
+    if isinstance(stdout_file, str):
+        stdout_fileobj = open(stdout_file, 'w')
+    else:
+        stdout_fileobj=stdout_file
+
+    if isinstance(stderr_file, str):
+        stderr_fileobj = open(stderr_file, 'w')
+    else:
+        stderr_fileobj = stderr_file
+
+
+    # if a list was entered, convert to a string.  Also print the command
+    # if requested
+    if isinstance(command, list):
+        cmd = ' '.join(command)
+        if verbose:
+            stderr.write(command[0] + '    \\\n')
+            for c in command[1:]:
+                stderr.write('    '+c+'    \\\n')
+    else:
+        cmd=command
+        if verbose:
+            stderr.write('%s\n' % cmd)
+
+
+
+    pobj = subprocess.Popen(cmd, 
+                            stdout=stdout_fileobj, 
+                            stderr=stderr_fileobj, 
                             shell=shell)
 
     if timeout is not None:
@@ -576,6 +609,12 @@ def ExecuteWlCommand(command, timeout=None,
             if verbose:
                 stderr.write(mess)
             exit_status = exit_status >> bitshift
+
+    # If they were opened files, close them
+    if isinstance(stdout_fileobj, file):
+        stdout_fileobj.close()
+    if isinstance(stderr_fileobj, file):
+        stderr_fileobj.close()
 
     return exit_status, stdout_ret, stderr_ret
 
@@ -604,12 +643,12 @@ def RemoveFitsExtension(fname):
 
 
 
-def MakeSeCommand(executable, conf_file, image_file, 
-                  cat_file=None,
-                  stars_file=None, 
-                  psf_file=None, 
-                  fitpsf_file=None, 
-                  shear_file=None):
+def MakeSeCommandList(executable, conf_file, image_file, 
+                      cat_file=None,
+                      stars_file=None, 
+                      psf_file=None, 
+                      fitpsf_file=None, 
+                      shear_file=None):
 
     root = RemoveFitsExtension(image_file)
 
@@ -639,41 +678,22 @@ def ProcessSeImage(executable, config_file, image_filename,
                    shear_file=None,
                    stdout_file=None,
                    stderr_file=None,
-                   timeout=default_timeout,
+                   timeout=default_timeout_se,
                    verbose=None):
 
-    cmd = MakeSeCommand(executable, config_file, image_filename,
-                        cat_file=cat_file,
-                        stars_file=stars_file,
-                        psf_file=psf_file,
-                        fitpsf_file=fitpsf_file,
-                        shear_file=shear_file)
-    if verbose:
-        stderr.write(cmd[0] + '    \\\n')
-        for c in cmd[1:]:
-            stderr.write('    '+c+'    \\\n')
-        stderr.write('    1> '+stdout_file+'\n    2> '+stderr_file+'\n') 
-    command = ' '.join(cmd)
-
-    if stdout_file is not None:
-        stdo=open(stdout_file,'w')
-    else:
-        stdo=None
-    if stderr_file is not None:
-        stde=open(stderr_file,'w')
-    else:
-        stde=None
+    command = MakeSeCommandList(executable, config_file, image_filename,
+                                cat_file=cat_file,
+                                stars_file=stars_file,
+                                psf_file=psf_file,
+                                fitpsf_file=fitpsf_file,
+                                shear_file=shear_file)
 
     exit_status, stdout_ret, stderr_ret = \
         ExecuteWlCommand(command, timeout=timeout, 
-                         stdout_file=stdo, 
-                         stderr_file=stde,
+                         stdout_file=stdout_file, 
+                         stderr_file=stderr_file,
                          verbose=verbose)
 
-    if stdo is not None:
-        stdo.close()
-    if stde is not None:
-        stde.close()
     if verbose:
         stderr.write('    exit_status: %s\n' % exit_status)
     return exit_status
@@ -683,7 +703,6 @@ def ProcessSeImage(executable, config_file, image_filename,
 
 
 
-default_config=os.path.join(os.getenv('WL_DIR'),'etc/wl_dc4.config')
 
 def ProcessSeRunImageList(serun, executable, 
                           config_file=default_config, 
@@ -1348,8 +1367,47 @@ def GenerateMeInputFiles(tileinfo_found_latest, outdir):
     readme.close()
 
 
-crap="""
-multishear $config_file coadd_srclist=$srclist \ 
-    coaddimage_file=$coaddimage_file coaddcat_file=$coaddcat_file \ 
-    multishear_file=$multishear_file 
-"""
+
+def MakeMeCommandList(executable, 
+                      config_file, 
+                      coadd_srclist, 
+                      coaddimage_file, 
+                      coaddcat_file, 
+                      multishear_file):
+    command = [executable,
+               config_file,
+               'coadd_srclist='+coadd_srclist,
+               'coaddimage_file='+coaddimage_file,
+               'coaddcat_file='+coaddcat_file,
+               'multishear_file='+multishear_file]
+    return command
+
+def ProcessMeImage(executable, 
+                   config_file, 
+                   coadd_srclist,
+                   coaddimage_file, 
+                   coaddcat_file,
+                   multishear_file,
+                   stdout_file=None,
+                   stderr_file=None,
+                   timeout=default_timeout_me,
+                   verbose=False):
+
+    command = MakeMeCommandList(executable, 
+                                config_file, 
+                                coadd_srclist, 
+                                coaddimage_file, 
+                                coaddcat_file, 
+                                multishear_file)
+
+    exit_status, stdout_ret, stderr_ret = \
+        ExecuteWlCommand(command, timeout=timeout, 
+                         stdout_file=stdout_file, 
+                         stderr_file=stderr_file,
+                         verbose=verbose)
+
+    if verbose:
+        stderr.write('    exit_status: %s\n' % exit_status)
+    return exit_status
+
+
