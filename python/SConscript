@@ -8,9 +8,10 @@ Import('env')
 
 # for the /bin directory
 wlrun_file=env.File('wl-run.py')
+multishear_run_file=env.File('multishear-run')
 
 bin_install_subdir = 'bin'
-bin_targets = [wlrun_file]
+bin_targets = [wlrun_file, multishear_run_file]
 
 
 # for the /lib/pythonX/site-packages directory
