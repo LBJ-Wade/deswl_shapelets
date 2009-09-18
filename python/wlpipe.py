@@ -111,6 +111,7 @@ from deswl import oracle
 
 from esutil.ostools import path_join, getenv_check
 from esutil import xmltools
+from esutil.misc import ptime
 
 # default timeout 5 minutes
 default_timeout_se = 300
@@ -622,6 +623,7 @@ def ExecuteWlCommand(command, timeout=None,
             stderr.write(command[0] + '    \\\n')
             for c in command[1:]:
                 stderr.write('    '+c+'    \\\n')
+        #print 'actual cmd:',cmd
     else:
         cmd=command
         if verbose:
@@ -1428,7 +1430,10 @@ def ProcessMeTile(executable,
 
 
 def RunMultishear(tilename, band, 
-                  outdir='.', dataset='dc4coadd', host='tutti'):
+                  outdir='.', 
+                  dataset='dc4coadd', 
+                  host='tutti',
+                  srclist=None):
     """
 
     Wrapper function requiring minimial info to process a tile, namely the
@@ -1454,6 +1459,8 @@ def RunMultishear(tilename, band,
         $DESFILES_DIR/(dataset)/multishear-srclists/
            (tilename)-(band)-srclist.dat
 
+    You can override the srclist file with the srclist= keyword.
+
     Example using the library:
         deswl.wlpipe.RunMultishear('DES2215-2853', 'i')\n\n"""
 
@@ -1468,9 +1475,10 @@ def RunMultishear(tilename, band,
     config=path_join(wl_dir, 'etc','wl.config')
 
     # source list can be determined from tilename/band
-    srclist=[tilename,band,'multishear','input']
-    srclist='-'.join(srclist)+'.dat'
-    srclist=path_join(desfiles_dir, dataset,'multishear-srclists', srclist)
+    if srclist is None:
+        srclist=[tilename,band,'srclist']
+        srclist='-'.join(srclist)+'.dat'
+        srclist=path_join(desfiles_dir, dataset,'multishear-srclists', srclist)
 
     # info on all the unique, latest tiles and catalogs
     tileinfo_file=\
@@ -1489,6 +1497,7 @@ def RunMultishear(tilename, band,
     stdout.write('    tileinfo file: %s\n' % tileinfo_file)
     stdout.write('    tilename: %s\n' % tilename)
     stdout.write('    band: %s\n' % band)
+    stdout.write('    srclist: %s\n' % srclist)
 
     stdout.write('\nReading tileinfo file\n')
     tileinfo=xmltools.xml2dict(tileinfo_file,noroot=True)
@@ -1511,8 +1520,8 @@ def RunMultishear(tilename, band,
         RemoveFitsExtension(coaddimage)+'_multishear.fits'
     multishear_file=\
         path_join(outdir,os.path.basename(multishear_file))
-    stdout_file=repstr(multishear_file, '.fits','.stdout')
-    stderr_file=repstr(multishear_file, '.fits','.stderr')
+    stdout_file=multishear_file.replace('.fits','.stdout')
+    stderr_file=multishear_file.replace('.fits','.stderr')
 
 
     ProcessMeTile(executable, 

@@ -10,6 +10,8 @@ import deswl
 from optparse import OptionParser
 parser = OptionParser(__doc__)
 
+parser.add_option("--srclist", default=None,
+ help="srclist file name.  Overrides the default srclist. Default '%default'")
 parser.add_option("--outdir", default='.',
                   help="Where to place the output file. Default '%default'")
 parser.add_option("--dataset", default='dc4coadd',
@@ -31,7 +33,9 @@ band=args[1]
 outdir = options.outdir
 dataset=options.dataset
 host=options.host
+srclist=options.srclist
 
 deswl.wlpipe.RunMultishear(tilename, band, 
+                           srclist=srclist,
                            outdir=outdir, dataset=dataset, host=host)
 
