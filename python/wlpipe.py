@@ -109,13 +109,8 @@ from deswl import GetWlVersion
 from deswl import version
 from deswl import oracle
 
-# xmltools is a basic requirement, but I'm not putting it into the DES svn
-# instead it must be exported from ES's svn and placed into the path somewhere
-
-try:
-    import xmltools
-except:
-    stderr.write('Failed to import xmltools\n')
+from esutil.ostools import path_join, getenv_check
+from esutil import xmltools
 
 # default timeout 5 minutes
 default_timeout_se = 300
@@ -385,7 +380,7 @@ def RunConfigName(run):
 
 def ReadRunConfig(run):
     name=RunConfigName(run)
-    runconfig, roottag = xmltools.xml2dict(name, seproot=True)
+    runconfig = xmltools.xml2dict(name, noroot=True)
     return runconfig
 
 
@@ -777,7 +772,7 @@ def ProcessSeRunImageList(serun, executable,
     if flist is None:
         if imlist_file is None:
             raise ValueError,'Either enter flist or imlist_file'
-        imdict,roottag = xmltools.xml2dict(imlist_file, seproot=True)
+        imdict = xmltools.xml2dict(imlist_file, noroot=True)
         flist = imdict['files']
 
     if type(flist) != type([]):
@@ -1167,35 +1162,6 @@ def BachSplitImageCatFileList(input_fname, roottag='bachsplit'):
 
 
 
-def ptime(seconds, fobj=None, format=None):
-    from sys import stdout
-
-    min, sec = divmod(seconds, 60.0)
-    hr, min = divmod(min, 60.0)
-    days, hr = divmod(hr, 24.0)
-    yrs,days = divmod(days, 365.0)
-
-    if yrs > 0:
-        tstr="%d years %d days %d hours %d min %f sec" % (yrs,days,hr,min,sec)
-    elif days > 0:
-        tstr="%d days %d hours %d min %f sec" % (days,hr,min,sec)
-    elif hr > 0:
-        tstr="%d hours %d min %f sec" % (hr,min,sec)
-    elif min > 0:
-        tstr="%d min %f sec" % (min,sec)
-    else:
-        tstr="%f sec" % sec
-
-    if format is None:
-        format='%s\n'
-
-    if fobj is None:
-        stdout.write(format % tstr)
-    else:
-        fobj.write(format % tstr)
-
-
-
 
 
 
@@ -1229,7 +1195,7 @@ def FindCollatedCoaddFiles(infofile, xmlfile,
     must enter wlserun.
 
     """
-    infodict,root = xmltools.xml2dict(infofile, seproot=True)
+    infodict = xmltools.xml2dict(infofile, noroot=True)
     allinfo=infodict['info']
 
     DESDATA=os.getenv('DESDATA')
@@ -1524,8 +1490,8 @@ def RunMultishear(tilename, band,
     stdout.write('    tilename: %s\n' % tilename)
     stdout.write('    band: %s\n' % band)
 
-    stdout.write('\nReading tileinfo\n')
-    tileinfo,rname=xmltools.xml2dict(tileinfo_file,seproot=True)
+    stdout.write('\nReading tileinfo file\n')
+    tileinfo=xmltools.xml2dict(tileinfo_file,noroot=True)
     tileinfo=tileinfo['info']
 
     # Here we rely on the fact that we picked out the unique, latest

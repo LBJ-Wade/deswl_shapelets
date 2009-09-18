@@ -1,7 +1,7 @@
 from sys import stdout,stderr
 try:
-    import oracle_util
-    import cx_Oracle as cxo
+    from esutil import oracle_util
+    cxo = oracle_util.cxo
 except:
     stderr.write('Could not import oracle utilities\n')
 
