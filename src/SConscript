@@ -70,7 +70,7 @@ if env['MEM_TEST']:
     libwl_files += ['mmgr.cpp']
 
 env2 = env1.Clone()
-if env['WITH_OPENMP'] :
+if env['WITH_OPENMP'] and 'OMP_FLAGS' in env:
     env2.Append(CCFLAGS=env['OMP_FLAGS'])
 
 # Library file containing generic code
