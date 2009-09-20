@@ -20,6 +20,10 @@ bool XDEBUG=false;
 extern std::ostream* dbgout;
 extern bool XDEBUG;
 
+#ifdef _OPENMP
+#pragma omp threadprivate( dbgout , XDEBUG )
+#endif
+
 struct AssertFailure :
   public std::runtime_error
 {

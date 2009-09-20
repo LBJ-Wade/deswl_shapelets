@@ -50,8 +50,6 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
 
   // Main loop to measure shears
 #ifdef _OPENMP
-  std::ostream* dbgout_temp = dbgout;
-  dbgout = 0;
 #pragma omp parallel 
   {
     try 
@@ -137,7 +135,6 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
       exit(1);
     }
   }
-  dbgout = dbgout_temp;
 #endif
 
   dbg<<log.ns_gamma<<" successful shear measurements, ";

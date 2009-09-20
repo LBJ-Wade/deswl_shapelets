@@ -34,8 +34,6 @@ double PSFCatalog::EstimateSigma(const Image<double>& im,
   double meanmu = 0.;
   int count = 0;
 #ifdef _OPENMP
-  std::ostream* dbgout_temp = dbgout;
-  dbgout = 0;
 #pragma omp parallel for schedule(guided) reduction(+ : meanmu) reduction(+ : count)
 #endif
   for (int i=0; i<nstars; i++) if (!flags[i]) 
@@ -60,7 +58,6 @@ double PSFCatalog::EstimateSigma(const Image<double>& im,
     }
   } // End omp parallel for
 #ifdef _OPENMP
-  dbgout = dbgout_temp;
 #endif
 
   if (count < nstars/3) 
@@ -119,8 +116,6 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
   Assert(nstars<=int(flags.size()));
   // Main loop to measure psf shapelets:
 #ifdef _OPENMP
-  std::ostream* dbgout_temp = dbgout;
-  dbgout = 0;
 #pragma omp parallel 
   {
     try 
@@ -193,7 +188,6 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
       exit(1); 
     }
   }
-  dbgout = dbgout_temp;
 #endif
 
   dbg<<log.ns_psf<<" successful star measurements, ";

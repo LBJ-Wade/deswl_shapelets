@@ -165,11 +165,15 @@ void Ellipse::CrudeMeasure(const PixelList& pix, double sigma)
 
   // If I <= 0 then this isn't going to work.  Just return and hope
   // the regular measure method might do better.
-  if (I <= 0) return;
+  if (!(I > 0.)) return;
 
   std::complex<double> zc = Iz / I;
+  // If zc is more than 2, something is probably wrong, so abort now.
+  if (!(std::abs(zc) < 2.)) return;
+  
+  xdbg<<"Initial offset to centroid = "<<zc<<std::endl;
   zc += cen;
-  xdbg<<"Initial zc = "<<zc<<std::endl;
+  xdbg<<"zc = "<<zc<<std::endl;
 
   double Irr = 0.;
   double W = 0.;

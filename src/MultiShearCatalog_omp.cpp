@@ -34,8 +34,6 @@ int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
   
   // Main loop to measure shears
 #ifdef _OPENMP
-  //std::ostream* dbgout_temp = dbgout;
-  //dbgout = 0;
 #pragma omp parallel 
   {
     try {
@@ -152,7 +150,6 @@ int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
       exit(1);
     }
   }
-  //dbgout = dbgout_temp;
 #endif
 
   dbg<<nsuccess<<" successful shear measurements in this pass.\n";

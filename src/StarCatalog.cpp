@@ -52,6 +52,7 @@ void CalcSigma(
   double mu = ell.GetMu();
 
   sigma *= exp(mu);
+  dbg<<"sigma = "<<sigma<<std::endl;
   Assert(sigma > 0);
 }
 

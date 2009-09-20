@@ -173,8 +173,8 @@ InputCatalog::InputCatalog(ConfigFile& _params, const Image<double>* im) :
     xdbg<<"Calculate noise from sky, gain, readnoise\n";
     for(size_t i=0;i<noise.size();++i) {
       noise[i] = (sky[i]+extrasky)/gain + readnoise;
-      xdbg<<"("<<sky[i]<<" + "<<extrasky<<")/"<<gain<<" + "<<readnoise<<" = "<<noise[i]<<std::endl;
-      xdbg<<"ID="<<id[i]<<" NOISE="<<noise[i]<<std::endl;
+      xxdbg<<"("<<sky[i]<<" + "<<extrasky<<")/"<<gain<<" + "<<readnoise<<" = "<<noise[i]<<std::endl;
+      xxdbg<<"ID="<<id[i]<<" NOISE="<<noise[i]<<std::endl;
     }
   }
   else if (nm == WEIGHT_IMAGE) {
@@ -206,9 +206,9 @@ InputCatalog::InputCatalog(ConfigFile& _params, const Image<double>* im) :
     }
     Assert(flags.size() == id.size());
     for(size_t i=0;i<flags.size();++i) {
-      xdbg<<"flags[i] = "<<flags[i];
+      xxdbg<<"flags[i] = "<<flags[i];
       flags[i] = (flags[i] & ignore_flags) ? INPUT_FLAG : 0;
-      xdbg<<" => "<<flags[i]<<std::endl;
+      xxdbg<<" => "<<flags[i]<<std::endl;
     }
     dbg<<std::dec<<std::noshowbase;
   }
@@ -320,7 +320,7 @@ void InputCatalog::ReadFits(std::string file)
   double y_offset = params.read("cat_y_offset",0.);
   for (long i=0; i< nrows; i++) {
     pos[i] = Position(pos_x[i]-x_offset, pos_y[i]-y_offset);
-    xdbg<<"pos["<<i<<"] = "<<pos[i]<<std::endl;
+    xxdbg<<"pos["<<i<<"] = "<<pos[i]<<std::endl;
   }
 
   // Local sky
@@ -478,7 +478,7 @@ void InputCatalog::ReadAscii(std::string file, std::string delim)
       ++id_val;
     }
     id.push_back(id_val);
-    xdbg<<"ID="<<id_val<<"  ";
+    xxdbg<<"ID="<<id_val<<"  ";
 
     // Position
     Assert(x_col <= tokens.size());
@@ -486,7 +486,7 @@ void InputCatalog::ReadAscii(std::string file, std::string delim)
     double x = tokens[x_col-1];
     double y = tokens[y_col-1];
     pos.push_back(Position(x-x_offset,y-y_offset));
-    xdbg<<"POS=("<<pos.back()<<")  ";
+    xxdbg<<"POS=("<<pos.back()<<")  ";
 
     // Sky
     if (sky_col) {
@@ -496,7 +496,7 @@ void InputCatalog::ReadAscii(std::string file, std::string delim)
       Assert(sky_col <= tokens.size());
       sky_val = tokens[sky_col-1];
       sky.push_back(sky_val);
-      xdbg<<"SKY="<<sky_val<<"  ";
+      xxdbg<<"SKY="<<sky_val<<"  ";
     } 
 
     // Magnitude
@@ -505,7 +505,7 @@ void InputCatalog::ReadAscii(std::string file, std::string delim)
       Assert(mag_col <= tokens.size());
       mag_val = tokens[mag_col-1];
       mag.push_back(mag_val);
-      xdbg<<"MAG="<<mag_val<<"  ";
+      xxdbg<<"MAG="<<mag_val<<"  ";
     } 
 
     // Magnitude error
@@ -514,7 +514,7 @@ void InputCatalog::ReadAscii(std::string file, std::string delim)
       Assert(mag_err_col <= tokens.size());
       mag_err_val = tokens[mag_err_col-1];
       mag_err.push_back(mag_err_val);
-      xdbg<<"MAG_ERR="<<mag_err_val<<"  ";
+      xxdbg<<"MAG_ERR="<<mag_err_val<<"  ";
     } 
 
     // Size
@@ -527,7 +527,7 @@ void InputCatalog::ReadAscii(std::string file, std::string delim)
 	size_val += double(tokens[size2_col-1]);
       } 
       objsize.push_back(size_val);
-      xdbg<<"SIZE="<<size_val<<"  ";
+      xxdbg<<"SIZE="<<size_val<<"  ";
     } 
 
     // Flags
@@ -536,7 +536,7 @@ void InputCatalog::ReadAscii(std::string file, std::string delim)
       Assert(flag_col <= tokens.size());
       flag_val = tokens[flag_col-1];
       flags.push_back(flag_val);
-      xdbg<<"FLAG="<<flag_val<<"  ";
+      xxdbg<<"FLAG="<<flag_val<<"  ";
     } 
 
     // RA
@@ -545,7 +545,7 @@ void InputCatalog::ReadAscii(std::string file, std::string delim)
       Assert(ra_col <= tokens.size());
       ra_val = tokens[ra_col-1];
       ra.push_back(ra_val);
-      xdbg<<"RA="<<ra_val<<"  ";
+      xxdbg<<"RA="<<ra_val<<"  ";
     } 
 
     // Declination
@@ -554,7 +554,7 @@ void InputCatalog::ReadAscii(std::string file, std::string delim)
       Assert(dec_col <= tokens.size());
       dec_val = tokens[dec_col-1];
       dec.push_back(dec_val);
-      xdbg<<"DEC="<<dec_val<<"  ";
+      xxdbg<<"DEC="<<dec_val<<"  ";
     }
 
     // Noise
@@ -563,9 +563,9 @@ void InputCatalog::ReadAscii(std::string file, std::string delim)
       Assert(noise_col <= tokens.size());
       noise_val = tokens[noise_col-1];
       noise.push_back(noise_val);
-      xdbg<<"NOISE="<<noise_val<<"  ";
+      xxdbg<<"NOISE="<<noise_val<<"  ";
     }
-    xdbg<<std::endl;
+    xxdbg<<std::endl;
   }
 }
 

@@ -208,6 +208,8 @@ def AddOpenMPFlag(env):
         if version < openmp_minicpc_vers:
             print 'No OpenMP support for icpc versions before ',openmp_minicpc_vers
             return
+        #env.Append(CCFLAGS=['-openmp'])
+        #flag = []
         flag = ['-openmp']
         ldflag = ['-openmp']
         xlib = ['pthread']

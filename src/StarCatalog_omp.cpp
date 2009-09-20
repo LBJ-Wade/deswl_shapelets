@@ -23,8 +23,6 @@ void StarCatalog::CalcSizes(const Image<double>& im,
   double gain = params.read("image_gain",0.);
 
 #ifdef _OPENMP
-  std::ostream* dbgout_temp = dbgout;
-  dbgout = 0;
 #pragma omp parallel 
   {
 #pragma omp for schedule(guided)
@@ -57,7 +55,6 @@ void StarCatalog::CalcSizes(const Image<double>& im,
     }
 #ifdef _OPENMP
   } // End omp parallel 
-  dbgout = dbgout_temp;
 #endif
   dbg<<"Done MeasureSigmas\n";
 }

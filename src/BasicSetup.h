@@ -37,26 +37,57 @@ inline int BasicSetup(int argc, char **argv,
   params.Load(argv[1]);
   for(int k=2;k<argc;k++) params.Append(argv[k]);
 
-  // Setup debugging - first ignore names that use root.
-  if (params.read("verbose",0) > 0) {
-    if (params.keyExists("debug_file"))
-      dbgout = new std::ofstream(params["debug_file"].c_str());
-    if (params.read<int>("verbose") > 1) XDEBUG = true;
+  // Set number of openmp threads if necessary
+#ifdef _OPENMP
+  if (params.keyExists("omp_num_threads")) {
+    int num_threads = params["omp_num_threads"];
+    omp_set_num_threads(num_threads);
   }
+#endif
 
   // Set root
-  if ( (!params.keyExists("root")) 
-      && params.keyExists("coaddcat_file") ) 
+  if ( !params.keyExists("root") && 
+       !params.keyExists("image_file") &&
+       params.keyExists("coaddcat_file") ) 
   {
-    // just so the code doesn't crash
+    // Then use coaddcat_file rather than image_file to make root.
     params["image_file"] = params["coaddcat_file"];
   }
   SetRoot(params);
 
-  // Finish setting up debugging with names that need root
-  if (!dbgout && params.read("verbose",0) > 0) {
-    if (params.keyExists("debug_ext")) {
-      dbgout = new std::ofstream(Name(params,"debug").c_str());
+  // Setup debugging
+  if (params.read("verbose",0) > 0) {
+    if (params.read<int>("verbose") > 1) XDEBUG = true;
+    std::string dbgfile = "";
+    if (params.keyExists("debug_file") || params.keyExists("debug_ext"))
+    {
+      std::string dbgfile = Name(params,"debug");
+      dbgout = new std::ofstream(dbgfile.c_str());
+
+#ifdef _OPENMP
+      // For openmp runs, we use a cool feature known as threadprivate 
+      // variables.  
+      // In dbg.h, dbgout and XDEBUG are both set to be threadprivate.
+      // This means that openmp sets up a separate value for each that
+      // persists between threads.  
+      // So here, we open a parallel block and initialize each thread's
+      // copy of dbgout to be a different file.
+
+      // To use this feature, dynamic threads must be off.  (Otherwise,
+      // openmp doesn't know how many copies of each variable to make.)
+      omp_set_dynamic(0); 
+
+#pragma omp parallel copyin(dbgout, XDEBUG)
+      {
+        int threadnum = omp_get_thread_num();
+        std::stringstream ss;
+        ss << threadnum;
+        std::string dbgfile2 = dbgfile + "_" + ss.str();
+        if (threadnum > 0)
+          // This is a memory leak, but a tiny one.
+          dbgout = new std::ofstream(dbgfile2.c_str());
+      }
+#endif
     }
     else dbgout = &std::cout;
   }
@@ -69,14 +100,6 @@ inline int BasicSetup(int argc, char **argv,
   std::string fp((const char*)fitsparams_config,fitsparams_config_len);
   std::istringstream is(fp);
   params.Read(is);
-
-  // Set number of openmp threads if necessary
-#ifdef _OPENMP
-  if (params.keyExists("omp_num_threads")) {
-    int num_threads = params["omp_num_threads"];
-    omp_set_num_threads(num_threads);
-  }
-#endif
 
   return 0;
 }
