@@ -17,8 +17,13 @@ bool XDEBUG=false;
 #include <iostream>
 #include <stdexcept>
 
+#ifdef __GNUC__
+extern __thread std::ostream* dbgout;
+extern __thread bool XDEBUG;
+#else
 extern std::ostream* dbgout;
 extern bool XDEBUG;
+#endif
 
 #ifdef _OPENMP
 #pragma omp threadprivate( dbgout , XDEBUG )

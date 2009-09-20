@@ -257,7 +257,6 @@ void SetupGx(tmv::Matrix<double>& Gx, int order1, int order2)
 
   Gx.Zero();
   for(int n=0,k=0;n<=order2;n++) for(int p=n,q=0;p>=q;p--,q++,k++) {
-    //std::cout<<"n,k,p,q = "<<n<<','<<k<<','<<p<<','<<q<<std::endl;
     double dp = p;
     double dq = q;
     // d(psi(x,y))/dx = psi(x,y) Gx
@@ -288,7 +287,6 @@ void SetupGx(tmv::Matrix<double>& Gx, int order1, int order2)
     }
     if (p > q) ++k;
   }
-  //std::cout<<"after define Gx"<<std::endl;
 }
 
 void SetupGy(tmv::Matrix<double>& Gy, int order1, int order2)

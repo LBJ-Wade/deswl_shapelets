@@ -38,7 +38,7 @@ double PSFCatalog::EstimateSigma(const Image<double>& im,
 #endif
   for (int i=0; i<nstars; i++) if (!flags[i]) 
   {
-    ompdbg<<"use i = "<<i<<std::endl;
+    dbg<<"use i = "<<i<<std::endl;
 
     try 
     {
@@ -136,19 +136,20 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
 	if (i > SINGLESTAR) break;
 	XDEBUG = true;
 #endif
+	if (output_dots)
 #ifdef _OPENMP
 #pragma omp critical (output)
 #endif
 	{
-	  if (output_dots) { std::cerr<<"."; std::cerr.flush(); }
-	  dbg<<"star "<<i<<":\n";
-	  dbg<<"pos["<<i<<"] = "<<pos[i]<<std::endl;
+	  std::cerr<<"."; std::cerr.flush(); 
 	}
+	dbg<<"star "<<i<<":\n";
+	dbg<<"pos["<<i<<"] = "<<pos[i]<<std::endl;
 
 	// Start with an error code of unknown failure, in case
 	// something happens that I don't detect as an error.
 	flags[i] = UNKNOWN_FAILURE;
-	ompdbg<<"Before MeasureSinglePSF1"<<std::endl;
+	dbg<<"Before MeasureSinglePSF1"<<std::endl;
 	long flag1 = 0;
 	MeasureSinglePSF(
 	    // Input data:
@@ -161,16 +162,16 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
 	    log1,
 	    // Ouput value:
 	    psf[i], nu[i], flag1);
-	ompdbg<<"After MeasureSinglePSF"<<std::endl;
+	dbg<<"After MeasureSinglePSF"<<std::endl;
 
 	flags[i] = flag1;
 	if (!flag1) 
 	{
-	  ompdbg<<"Successful psf measurement: "<<psf[i]<<std::endl;
+	  dbg<<"Successful psf measurement: "<<psf[i]<<std::endl;
 	}
 	else 
 	{
-	  ompdbg<<"Unsuccessful psf measurement\n"; 
+	  dbg<<"Unsuccessful psf measurement\n"; 
 	}
       }
 #ifdef _OPENMP

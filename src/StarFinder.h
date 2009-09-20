@@ -91,6 +91,8 @@ class StarFinder
     int okerrcode;          // errcodes to allow
 #endif
 
+    bool des_qa;  // Output warnings in DES QA format
+
 };
 
 #endif

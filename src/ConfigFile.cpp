@@ -154,7 +154,6 @@ void ConfigFile::Read(std::istream& is)
     {
       std::getline( is, line );
     }
-    //std::cout<<"Line = "<<line<<std::endl;
 
     // Ignore comments
     line = line.substr( 0, line.find(comm) );

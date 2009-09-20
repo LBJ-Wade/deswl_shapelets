@@ -435,9 +435,11 @@ ShearCatalog::ShearCatalog(const InputCatalog& incat,
     rmserror /= count;
     rmserror = std::sqrt(rmserror);
     xdbg<<"rms error = "<<rmserror<<" arcsec\n";
-    if (rmserror > 0.1) 
-    {
-      std::cout<<"STATUS3BEG Warning: Positions from WCS transformation have rms error of "<<rmserror<<" arcsec relative to ra, dec in catalog. STATUS3END"<<std::endl;
+    if (params.read("des_qa",false)) {
+      if (rmserror > 0.1) 
+      {
+	std::cout<<"STATUS3BEG Warning: Positions from WCS transformation have rms error of "<<rmserror<<" arcsec relative to ra, dec in catalog. STATUS3END"<<std::endl;
+      }
     }
   }
 

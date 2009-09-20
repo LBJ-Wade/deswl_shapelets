@@ -1,4 +1,9 @@
 #include "WlVersion.h"
+#include <iostream>
+#include <vector>
+#include <sstream>
+// for basename
+#include <libgen.h>
 
 std::string WlVersion()
 {

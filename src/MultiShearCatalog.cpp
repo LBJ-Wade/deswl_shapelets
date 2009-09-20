@@ -340,12 +340,12 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
   bool output_dots = params.read("output_dots",false);
   if (output_dots) 
   {
-    std::cout<<"Using image# "<<se_index;
-    std::cout<<"... Memory Usage in MultiShearCatalog = ";
-    std::cout<<CalcMemoryFootprint()<<" MB";
-    //std::cout<<" ["<<(MemoryFootprint(pixlist)/1024./1024.)<<"]";
-    //std::cout<<" ["<<(MemoryFootprint(shape)/1024./1024.)<<"]";
-    std::cout<<"\n";
+    std::cerr<<"Using image# "<<se_index;
+    std::cerr<<"... Memory Usage in MultiShearCatalog = ";
+    std::cerr<<CalcMemoryFootprint()<<" MB";
+    //std::cerr<<" ["<<(MemoryFootprint(pixlist)/1024./1024.)<<"]";
+    //std::cerr<<" ["<<(MemoryFootprint(shape)/1024./1024.)<<"]";
+    std::cerr<<"\n";
   }
 
   // Load the image

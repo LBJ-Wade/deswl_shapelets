@@ -71,14 +71,15 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
 	if (i < SINGLEGAL) continue;
 	if (i > SINGLEGAL) break;
 #endif
+	if (output_dots)
 #ifdef _OPENMP
 #pragma omp critical (output)
 #endif
 	{
-	  if (output_dots) { std::cerr<<"."; std::cerr.flush(); }
-	  dbg<<"galaxy "<<i<<":\n";
-	  dbg<<"pos[i] = "<<pos[i]<<std::endl;
+	  std::cerr<<"."; std::cerr.flush(); 
 	}
+	dbg<<"galaxy "<<i<<":\n";
+	dbg<<"pos[i] = "<<pos[i]<<std::endl;
 
 	// Start with an error code of unknown failure, in case
 	// something happens that I don't detect as an error.
@@ -105,17 +106,17 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
 
 	if (!flag1) 
 	{
-	  ompdbg<<"Successful shear measurement: "<<shear[i]<<std::endl;
+	  dbg<<"Successful shear measurement: "<<shear[i]<<std::endl;
 	}
 	else 
 	{
-	  ompdbg<<"Unsuccessful shear measurement\n"; 
+	  dbg<<"Unsuccessful shear measurement\n"; 
 	}
 
 	if (timing) 
 	{
-	  ompdbg<<"So far: ns = "<<times.ns_gamma<<",  nf = "<<times.nf_native;
-	  ompdbg<<", "<<times.nf_mu<<", "<<times.nf_gamma<<std::endl;
+	  dbg<<"So far: ns = "<<times.ns_gamma<<",  nf = "<<times.nf_native;
+	  dbg<<", "<<times.nf_mu<<", "<<times.nf_gamma<<std::endl;
 	}
 
       }

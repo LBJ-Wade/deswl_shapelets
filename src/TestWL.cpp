@@ -18,6 +18,10 @@
 #include "FittedPSF.h"
 #include "ShearCatalog.h"
 
+#ifdef _OPENMP
+#include "omp.h"
+#endif
+
 bool showtests = false;
 bool dontthrow = false;
 std::string lastsuccess = "";
@@ -25,9 +29,7 @@ std::string lastsuccess = "";
 const double PI = 3.14159265359;
 const double sqrtpi = sqrt(PI);
 
-std::ostream* dbgout = new std::ofstream("testwl.debug");
-//std::ostream* dbgout = 0;
-//std::ostream* dbgout = &std::cout;
+std::ostream* dbgout = 0;
 bool XDEBUG = true;
 //bool XDEBUG = false;
 
@@ -729,6 +731,24 @@ inline void DirectConvolveB(const BVec& rbi, const BVec& rbp, BVec& rb)
 
 int main(int argc, char **argv) try 
 {
+#if 1
+  std::string dbgfile = "testwl.debug";
+  dbgout = new std::ofstream(dbgfile.c_str());
+#ifdef _OPENMP
+  omp_set_dynamic(0); 
+#pragma omp parallel copyin(dbgout, XDEBUG)
+  {
+    int threadnum = omp_get_thread_num();
+    std::stringstream ss;
+    ss << threadnum;
+    std::string dbgfile2 = dbgfile + "_" + ss.str();
+    if (threadnum > 0) dbgout = new std::ofstream(dbgfile2.c_str());
+  }
+#endif
+#else
+  dbgout = &std::cout;
+#endif
+
   tmv::WriteWarningsTo(dbgout);
 
   // First check that the functions work very well in the limit of

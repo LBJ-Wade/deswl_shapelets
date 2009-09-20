@@ -809,8 +809,6 @@ void PSFConvolve(const BVec& bpsf, int order, double sigma,
 	  int uv0 = 0;
 	  int parity = (n+nn)%2;
 	  for(int upv=0;upv<=bpsf.GetOrder();++upv,uv0+=upv) {
-	    //std::cout<<"p,q,s,t = "<<p<<','<<q<<','<<s<<','<<t<<std::endl;
-	    //std::cout<<"upv = "<<upv<<std::endl;
 	    if (upv % 2 != parity) continue;
 	    // There are three values of u-v that are worth considering:
 	    // u-v = (s-t) - (p-q) >= 0
@@ -824,15 +822,12 @@ void PSFConvolve(const BVec& bpsf, int order, double sigma,
 		// s-t = p-q + u-v
 		int u = (upv+umv)/2;
 		int v = (upv-umv)/2;
-		//std::cout<<"u,v = "<<u<<','<<v<<std::endl;
 
 		int w = p+u-s;
-		//std::cout<<"w = "<<w<<std::endl;
 		Assert(q+v-t == w);
 		//Assert((w >= 0) == (umv >= 0));
 		if (w >= 0) {
 		  int uv = uv0 + 2*v;
-		  //std::cout<<"uv = "<<uv<<std::endl;
 		  if (umv == 0) {
 		    double temp = Hs.cref(p,u)*Ht.cref(q,v)*bpsf(uv);
 		    if (s==t) {
@@ -877,15 +872,12 @@ void PSFConvolve(const BVec& bpsf, int order, double sigma,
 		Assert(umv > 0);
 		int u = (upv+umv)/2;
 		int v = (upv-umv)/2;
-		//std::cout<<"u,v = "<<u<<','<<v<<std::endl;
 
 		int w = q+u-s;
-		//std::cout<<"w = "<<w<<std::endl;
 		Assert(p+v-t == w);
 		//Assert((w >= 0) == (umv > 0));
 		if (w >= 0) {
 		  int uv = uv0 + 2*v;
-		  //std::cout<<"uv = "<<uv<<std::endl;
 		  //Assert(w > 0);
 		  //Assert((w > 0) == (umv > 0));
 		  Assert(u>v);
@@ -915,14 +907,11 @@ void PSFConvolve(const BVec& bpsf, int order, double sigma,
 		// These terms account for b_psf_vu = b_psf_uv*
 		int u = (upv+umv)/2;
 		int v = (upv-umv)/2;
-		//std::cout<<"u,v = "<<u<<','<<v<<std::endl;
 
 		int w = p+v-s;
-		//std::cout<<"w = "<<w<<std::endl;
 		Assert(q+u-t == w);
 		if (w >= 0) {
 		  int uv = uv0 + 2*v;
-		  //std::cout<<"uv = "<<uv<<std::endl;
 		  // s-t = p-q + v-u
 		  Assert(p>q);
 		  double tempr = Hs.cref(p,v)*Ht.cref(q,u);
@@ -958,15 +947,6 @@ void PSFConvolve(const BVec& bpsf, int order, double sigma,
   }
   Assert(pq == int(C.rowsize()));
   C *= twosqrtpi;
-
-  //tmv::Matrix<double> OldC(C.colsize(),C.rowsize());
-  //OldPSFConvolve(bpsf,order,sigma,OldC.View());
-  //std::cout<<"Norm(C-OldC) = "<<Norm(C-OldC)<<std::endl;
-  //if (Norm(C-OldC) > 1.e-6 * Norm(C)) {
-    //std::cout<<"C = "<<C.Rows(0,3)<<std::endl;
-    //std::cout<<"OldC = "<<OldC.Rows(0,3)<<std::endl;
-    //exit(1);
-  //}
 }
 
 void ApplyPSF(const BVec& bpsf, BVec& b)

@@ -72,6 +72,8 @@ StarFinder::StarFinder(const ConfigFile& params, std::string key_prefix)
   SetParams(default_params,"",true);
 
   SetParams(params,key_prefix);
+
+  des_qa = params.read("des_qa",false); 
 }
 
 #undef SFKeyAssign
@@ -151,7 +153,10 @@ std::vector<PotentialStar*> StarFinder::FindStars(
     {
       if (qpeaklist.size() < size_t(0.2 * nstars_expected)) 
       {
-	std::cout<<"STATUS3BEG Warning: Only "<<qpeaklist.size()<<" stars found in section "<<i<<". STATUS3END"<<std::endl;
+	if (des_qa)
+	{
+	  std::cout<<"STATUS3BEG Warning: Only "<<qpeaklist.size()<<" stars found in section "<<i<<". STATUS3END"<<std::endl;
+	}
 	dbg<<"Warning: only "<<qpeaklist.size()<<" stars found in section ";
 	dbg<<i<<"  "<<qbounds[i]<<std::endl;
       }
@@ -230,7 +235,10 @@ std::vector<PotentialStar*> StarFinder::FindStars(
       // just add all the stars to fitlist
       if (starsarray[i].size() < starsperbin) 
       {
-	std::cout<<"STATUS3BEG Warning: Only "<<starsarray[i].size()<<" stars in section "<<i<<". STATUS3END"<<std::endl;
+	if (des_qa)
+	{
+	  std::cout<<"STATUS3BEG Warning: Only "<<starsarray[i].size()<<" stars in section "<<i<<". STATUS3END"<<std::endl;
+	}
 	dbg<<"Warning: only "<<starsarray[i].size()<<" stars in section ";
 	dbg<<i<<"  "<<qbounds[i]<<std::endl;
 	fitlist.insert(fitlist.end(),starsarray[i].begin(),

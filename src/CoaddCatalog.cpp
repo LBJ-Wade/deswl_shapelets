@@ -60,13 +60,17 @@ CoaddCatalog::CoaddCatalog(ConfigFile& _params):
     else magcount[9]++;
   }
 
-  std::cout<<"total ojbects = "<<size()<<std::endl;
-  std::cout<<"flag counts = ";
-  for(int i=0;i<8;++i) std::cout<<flagcount[i]<<" ";
-  std::cout<<"  no flag: "<<flagcount[8]<<std::endl;
-  std::cout<<"mag counts = ";
-  for(int i=0;i<10;++i) std::cout<<magcount[i]<<" ";
-  std::cout<<std::endl;
+  bool output_dots = params.read("output_dots",false);
+  if (output_dots)
+  {
+    std::cerr<<"total ojbects = "<<size()<<std::endl;
+    std::cerr<<"flag counts = ";
+    for(int i=0;i<8;++i) std::cerr<<flagcount[i]<<" ";
+    std::cerr<<"  no flag: "<<flagcount[8]<<std::endl;
+    std::cerr<<"mag counts = ";
+    for(int i=0;i<10;++i) std::cerr<<magcount[i]<<" ";
+    std::cerr<<std::endl;
+  }
 
   // Convert input flags into our flag schema
   if (flags.size() == 0) 
@@ -114,7 +118,10 @@ CoaddCatalog::CoaddCatalog(ConfigFile& _params):
       }
     }
     int goodcount = std::count(flags.begin(),flags.end(),0);
-    std::cout<<"# good objects = "<<goodcount<<std::endl;
+    if (output_dots)
+    {
+      std::cerr<<"# good objects = "<<goodcount<<std::endl;
+    }
 
     dbg<<std::dec<<std::noshowbase;
   }

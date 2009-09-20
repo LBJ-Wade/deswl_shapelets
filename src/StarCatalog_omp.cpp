@@ -28,7 +28,7 @@ void StarCatalog::CalcSizes(const Image<double>& im,
 #pragma omp for schedule(guided)
 #endif
     for (int i=0; i<n; i++) if (!flags[i]) {
-      ompdbg<<"use i = "<<i<<std::endl;
+      dbg<<"use i = "<<i<<std::endl;
 
       try {
 	// Negative value indicates not set yet.  Start with 1 then.
@@ -37,18 +37,18 @@ void StarCatalog::CalcSizes(const Image<double>& im,
 	    objsize[i],
 	    im, pos[i], sky[i], noise[i], gain, weight_im, 
 	    trans, psfap, flags[i]);
-	ompdbg<<"objsize["<<i<<"]: "<<objsize[i]<<std::endl;
-	ompdbg<<"flags["<<i<<"]: "<<flags[i]<<std::endl;
+	dbg<<"objsize["<<i<<"]: "<<objsize[i]<<std::endl;
+	dbg<<"flags["<<i<<"]: "<<flags[i]<<std::endl;
       } catch (tmv::Error& e) {
-	ompdbg<<"Caught: "<<e<<std::endl;
+	dbg<<"Caught: "<<e<<std::endl;
 	objsize[i] = DEFVALNEG;
 	flags[i] |= TMV_EXCEPTION;
       } catch (std::exception& e) {
-	ompdbg<<"Caught: "<<e.what()<<std::endl;
+	dbg<<"Caught: "<<e.what()<<std::endl;
 	objsize[i] = DEFVALNEG;
 	flags[i] |= STD_EXCEPTION;
       } catch (...) {
-	ompdbg<<"Caught unknown exception"<<std::endl;
+	dbg<<"Caught unknown exception"<<std::endl;
 	objsize[i] = DEFVALNEG;
 	flags[i] |= UNKNOWN_EXCEPTION;
       }

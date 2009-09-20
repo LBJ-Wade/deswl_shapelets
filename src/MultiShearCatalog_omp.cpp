@@ -48,22 +48,12 @@ int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
       {
 	if (!b.Includes(skypos[i])) 
 	{
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-	  {
-	    xxdbg<<"Skipping galaxy "<<i<<" because "<<skypos[i]<<"not in bounds\n";
-	  }
+	  xxdbg<<"Skipping galaxy "<<i<<" because "<<skypos[i]<<"not in bounds\n";
 	  continue;
 	}
 	if (flags[i]) 
 	{
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-	  {
-	    xxdbg<<"Skipping galaxy "<<i<<" because flag = "<<flags[i]<<std::endl;
-	  }
+	  xxdbg<<"Skipping galaxy "<<i<<" because flag = "<<flags[i]<<std::endl;
 	  continue;
 	}
 #ifdef STARTAT
@@ -74,23 +64,17 @@ int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
 	if (i > SINGLEGAL) break;
 #endif
 
+	if (output_dots)
 #ifdef _OPENMP
 #pragma omp critical (output)
 #endif
 	{
-	  if (output_dots) { std::cerr<<"."; std::cerr.flush(); }
-	  dbg<<"galaxy "<<i<<":\n";
-	  dbg<<"pos[i] = "<<skypos[i]<<std::endl;
+	  std::cerr<<"."; std::cerr.flush(); 
 	}
 
 	if (pixlist[i].size() == 0) 
 	{
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-	  {
-	    dbg<<"no valid single epoch images.\n";
-	  }
+	  dbg<<"no valid single epoch images.\n";
 	  flags[i] = NO_SINGLE_EPOCH_IMAGES;
 	  continue;
 	}
@@ -115,22 +99,17 @@ int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
 
 	flags[i] = flag1;
 
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-	{
-	  if (!flag1) {
-	    dbg<<"Successful shear measurement: "<<shear[i]<<std::endl;
-	    nsuccess++;
-	  }
-	  else {
-	    dbg<<"Unsuccessful shear measurement\n"; 
-	  }
+	if (!flag1) {
+	  dbg<<"Successful shear measurement: "<<shear[i]<<std::endl;
+	  nsuccess++;
+	}
+	else {
+	  dbg<<"Unsuccessful shear measurement\n"; 
 	}
 
 	if (timing) {
-	  ompdbg<<"So far: ns = "<<times.ns_gamma<<",  nf = "<<times.nf_native;
-	  ompdbg<<", "<<times.nf_mu<<", "<<times.nf_gamma<<std::endl;
+	  dbg<<"So far: ns = "<<times.ns_gamma<<",  nf = "<<times.nf_native;
+	  dbg<<", "<<times.nf_mu<<", "<<times.nf_gamma<<std::endl;
 	}
 
       }
@@ -184,17 +163,12 @@ void MeasureMultiShear(
   //      In which case most of the overlap between this and 
   //      MeasureSingleShear1 would not have to be duplicated.
 
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-  {
-    dbg<<"Start MeasureMultiShear\n";
-    dbg<<"cen = "<<cen<<std::endl;
-    dbg<<"allpix.size = "<<allpix.size()<<std::endl;
-    for(size_t i=0;i<allpix.size();++i)
-      dbg<<"allpix["<<i<<"].size = "<<allpix[i].size()<<std::endl;
-    dbg<<"psf.size = "<<psf.size()<<std::endl;
-  }
+  dbg<<"Start MeasureMultiShear\n";
+  dbg<<"cen = "<<cen<<std::endl;
+  dbg<<"allpix.size = "<<allpix.size()<<std::endl;
+  for(size_t i=0;i<allpix.size();++i)
+    dbg<<"allpix["<<i<<"].size = "<<allpix[i].size()<<std::endl;
+  dbg<<"psf.size = "<<psf.size()<<std::endl;
   Assert(psf.size() == allpix.size());
 
   try 
@@ -252,14 +226,9 @@ void MeasureMultiShear(
 	times->ts_native_final += ell.t_final;
       }
       log.ns_native++;
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-      {
-	dbg<<"Successful native fit:\n";
-	dbg<<"Z = "<<ell.GetCen()<<std::endl;
-	dbg<<"Mu = "<<ell.GetMu()<<std::endl;
-      }
+      dbg<<"Successful native fit:\n";
+      dbg<<"Z = "<<ell.GetCen()<<std::endl;
+      dbg<<"Mu = "<<ell.GetMu()<<std::endl;
     }
     else {
       if (times) {
@@ -270,12 +239,7 @@ void MeasureMultiShear(
 	times->tf_native_final += ell.t_final;
       }
       log.nf_native++;
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-      {
-	dbg<<"Native measurement failed\n";
-      }
+      dbg<<"Native measurement failed\n";
       flag |= NATIVE_FAILED;
       return;
     }
@@ -286,12 +250,7 @@ void MeasureMultiShear(
     sigma_obs *= exp(ell.GetMu());
     xdbg<<"sigma_obs -> "<<sigma_obs<<std::endl;
     if (sigma_obs < min_gal_size*sigma_p) {
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-      {
-	dbg<<"skip: galaxy is too small -- "<<sigma_obs<<" psf size = "<<sigma_p<<std::endl;
-      }
+      dbg<<"skip: galaxy is too small -- "<<sigma_obs<<" psf size = "<<sigma_p<<std::endl;
       if (times) times->nf_small++;
       log.nf_small++;
       flag |= TOO_SMALL;
@@ -341,13 +300,8 @@ void MeasureMultiShear(
 	Assert((flag1 & ~(SHAPE_LOCAL_MIN | SHAPE_POOR_FIT)) == false);
 	flag |= flag1;
       }
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-      {
-	dbg<<"Successful deconvolving fit:\n";
-	dbg<<"Mu = "<<ell.GetMu()<<std::endl;
-      }
+      dbg<<"Successful deconvolving fit:\n";
+      dbg<<"Mu = "<<ell.GetMu()<<std::endl;
     }
     else {
       if (times) {
@@ -358,12 +312,7 @@ void MeasureMultiShear(
 	times->tf_mu_final += ell.t_final;
       }
       log.nf_mu++;
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-      {
-	dbg<<"Deconvolving measurement failed\n";
-      }
+      dbg<<"Deconvolving measurement failed\n";
       flag |= DECONV_FAILED;
       ell.MeasureShapelet(pix,psf,shapelet);
       return;
@@ -392,13 +341,8 @@ void MeasureMultiShear(
     gal_size = (go+1)*(go+2)/2;
     if (npix <= gal_size) {
       while (npix <= gal_size) { gal_size -= go+1; --go; }
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-      {
-	dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
-	dbg<<"Reduced gal_order to "<<go<<" gal_size = "<<gal_size<<std::endl;
-      }
+      dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
+      dbg<<"Reduced gal_order to "<<go<<" gal_size = "<<gal_size<<std::endl;
       flag |= SHAPE_REDUCED_ORDER;
       if (go < 2) { flag |= TOO_SMALL; return; }
     }
@@ -422,13 +366,8 @@ void MeasureMultiShear(
     gal_size = (go+1)*(go+2)/2;
     if (npix <= gal_size) {
       while (npix <= gal_size) { gal_size -= go+1; --go; }
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-      {
-	dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
-	dbg<<"Reduced gal_order to "<<go<<" gal_size = "<<gal_size<<std::endl;
-      }
+      dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
+      dbg<<"Reduced gal_order to "<<go<<" gal_size = "<<gal_size<<std::endl;
     }
     if (times) ell.ResetTimes();
     tmv::Matrix<double> cov(5,5);
@@ -441,13 +380,8 @@ void MeasureMultiShear(
 	times->ts_gamma_final += ell.t_final;
       }
       log.ns_gamma++;
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-      {
-	dbg<<"Successful Gamma fit\n";
-	dbg<<"Measured gamma = "<<ell.GetGamma()<<std::endl;
-      }
+      dbg<<"Successful Gamma fit\n";
+      dbg<<"Measured gamma = "<<ell.GetGamma()<<std::endl;
       shear = ell.GetGamma();
       tmv::SmallMatrix<double,2,2,tmv::RowMajor> cov1 = 
 	cov.SubMatrix(2,4,2,4);
@@ -463,12 +397,7 @@ void MeasureMultiShear(
 	times->tf_gamma_final += ell.t_final;
       }
       log.nf_gamma++;
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-      {
-	dbg<<"Gamma measurement failed\n";
-      }
+      dbg<<"Gamma measurement failed\n";
       flag |= SHEAR_FAILED;
       shear = ell.GetGamma();
       tmv::SmallMatrix<double,2,2,tmv::RowMajor> cov1 = 
@@ -488,24 +417,14 @@ void MeasureMultiShear(
   } 
   catch (tmv::Error& e) 
   {
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-    {
-      dbg<<"TMV Error thrown in MeasureSingleShear\n";
-      dbg<<e<<std::endl;
-    }
+    dbg<<"TMV Error thrown in MeasureSingleShear\n";
+    dbg<<e<<std::endl;
     log.nf_tmverror++;
     flag |= TMV_EXCEPTION;
   } catch (std::exception) {
     throw;
   } catch (...) {
-#ifdef _OPENMP
-#pragma omp critical (output)
-#endif
-    {
-      dbg<<"unkown exception in MeasureSingleShear\n";
-    }
+    dbg<<"unkown exception in MeasureSingleShear\n";
     log.nf_othererror++;
     flag |= UNKNOWN_EXCEPTION;
   } 
