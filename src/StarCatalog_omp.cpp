@@ -23,39 +23,18 @@ void StarCatalog::CalcSizes(const Image<double>& im,
   double gain = params.read("image_gain",0.);
 
 #ifdef _OPENMP
-#pragma omp parallel 
-  {
-#pragma omp for schedule(guided)
+#pragma omp parallel for schedule(guided)
 #endif
-    for (int i=0; i<n; i++) if (!flags[i]) {
-      dbg<<"use i = "<<i<<std::endl;
+  for (int i=0; i<n; i++) if (!flags[i]) {
+    dbg<<"use i = "<<i<<std::endl;
 
-      try {
-	// Negative value indicates not set yet.  Start with 1 then.
-	if (objsize[i] <= 0.) objsize[i] = 1.;
-	CalcSigma(
-	    objsize[i],
-	    im, pos[i], sky[i], noise[i], gain, weight_im, 
-	    trans, psfap, flags[i]);
-	dbg<<"objsize["<<i<<"]: "<<objsize[i]<<std::endl;
-	dbg<<"flags["<<i<<"]: "<<flags[i]<<std::endl;
-      } catch (tmv::Error& e) {
-	dbg<<"Caught: "<<e<<std::endl;
-	objsize[i] = DEFVALNEG;
-	flags[i] |= TMV_EXCEPTION;
-      } catch (std::exception& e) {
-	dbg<<"Caught: "<<e.what()<<std::endl;
-	objsize[i] = DEFVALNEG;
-	flags[i] |= STD_EXCEPTION;
-      } catch (...) {
-	dbg<<"Caught unknown exception"<<std::endl;
-	objsize[i] = DEFVALNEG;
-	flags[i] |= UNKNOWN_EXCEPTION;
-      }
-    }
-#ifdef _OPENMP
-  } // End omp parallel 
-#endif
+    // Negative value indicates not set yet.  Start with 1 then.
+    if (objsize[i] <= 0.) objsize[i] = 1.;
+    CalcSigma(
+	objsize[i],
+	im, pos[i], sky[i], noise[i], gain, weight_im, 
+	trans, psfap, flags[i]);
+  }
   dbg<<"Done MeasureSigmas\n";
 }
 

@@ -171,6 +171,9 @@ void MeasureMultiShear(
   dbg<<"psf.size = "<<psf.size()<<std::endl;
   Assert(psf.size() == allpix.size());
 
+  // MJ remove this after doing VALGRIND debugging.
+  //if (~flag) return;
+
   try 
   {
     // Find harmonic mean of psf sizes:

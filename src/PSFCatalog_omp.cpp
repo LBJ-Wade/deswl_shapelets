@@ -40,25 +40,17 @@ double PSFCatalog::EstimateSigma(const Image<double>& im,
   {
     dbg<<"use i = "<<i<<std::endl;
 
-    try 
-    {
-      double sigma = sigma_p;
-      long flag1 = 0; // Ignore flags set by CalcSigma
-      CalcSigma(
-	  sigma,
-	  im, pos[i], sky[i], noise[i], gain, weight_im, 
-	  trans, psfap, flag1);
-      if (flag1) continue;
-      meanmu += log(sigma);
-      count++;
-    } 
-    catch (...) 
-    {
-      // Ignore errors -- just don't add to meanmu
-    }
+    double sigma = sigma_p;
+    long flag1 = 0; // Ignore flags set by CalcSigma
+    CalcSigma(
+	sigma,
+	im, pos[i], sky[i], noise[i], gain, weight_im, 
+	trans, psfap, flag1);
+    // Ignore errors -- just don't add to meanmu
+    if (flag1) continue;
+    meanmu += log(sigma);
+    count++;
   } // End omp parallel for
-#ifdef _OPENMP
-#endif
 
   if (count < nstars/3) 
   {

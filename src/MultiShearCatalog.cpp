@@ -23,6 +23,10 @@
 
 //#define OnlyNImages 30
 
+//#define VG
+#define GETCHAR
+//#define GETCHAR getchar();
+
 MultiShearCatalog::MultiShearCatalog(
     const CoaddCatalog& coaddcat, const ConfigFile& _params) :
   id(coaddcat.id), skypos(coaddcat.skypos), flags(coaddcat.flags),
@@ -54,6 +58,17 @@ int MultiShearCatalog::GetPixels(const Bounds& b)
   // bounds for the section we are working on.
 
   const int n = pixlist.size();
+  
+#ifdef VG
+  {
+    VALGRIND_DO_LEAK_CHECK;
+    std::cout<<"Start GetPixels\n";
+    std::cout<<"Memory Usage in MultiShearCatalog = ";
+    std::cout<<CalcMemoryFootprint()<<" MB\n";
+    std::cout<<"What does top say now?\n";
+    GETCHAR
+  }
+#endif
 
   for (int i=0;i<n;++i) 
   {
@@ -62,6 +77,16 @@ int MultiShearCatalog::GetPixels(const Bounds& b)
     se_shearlist[i].clear();
     se_sizelist[i].clear();
   }
+#ifdef VG
+  {
+    VALGRIND_DO_LEAK_CHECK;
+    std::cout<<"After clear\n";
+    std::cout<<"Memory Usage in MultiShearCatalog = ";
+    std::cout<<CalcMemoryFootprint()<<" MB\n";
+    std::cout<<"What does top say now?\n";
+    GETCHAR
+  }
+#endif
 
   dbg<<"Start GetPixels for b = "<<b<<std::endl;
   // Loop over the files and read pixel lists for each object.
@@ -159,6 +184,17 @@ void MultiShearCatalog::ReadFileLists()
 
 void MultiShearCatalog::Resize(int n)
 {
+#ifdef VG
+  {
+    VALGRIND_DO_LEAK_CHECK;
+    std::cout<<"Start Resize\n";
+    std::cout<<"Memory Usage in MultiShearCatalog = ";
+    std::cout<<CalcMemoryFootprint()<<" MB\n";
+    std::cout<<"What does top say now?\n";
+    GETCHAR
+  }
+#endif
+
   pixlist.clear();
   pixlist.resize(n);
 
@@ -183,6 +219,17 @@ void MultiShearCatalog::Resize(int n)
   BVec shape_default(gal_order,1.);
   shape_default.SetAllTo(DEFVALNEG);
   shape.resize(n,shape_default);
+
+#ifdef VG
+  {
+    VALGRIND_DO_LEAK_CHECK;
+    std::cout<<"After clear, resize\n";
+    std::cout<<"Memory Usage in MultiShearCatalog = ";
+    std::cout<<CalcMemoryFootprint()<<" MB\n";
+    std::cout<<"What does top say now?\n";
+    GETCHAR
+  }
+#endif
 }
 
 template <class T>
@@ -303,6 +350,17 @@ double MultiShearCatalog::CalcMemoryFootprint() const
 void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
 {
   dbg<<"Start GetImagePixelLists: se_index = "<<se_index<<std::endl;
+#ifdef VG
+  if (se_index == 193)
+  {
+    VALGRIND_DO_LEAK_CHECK;
+    std::cout<<"Start GetImagePixelLists\n";
+    std::cout<<"Memory Usage in MultiShearCatalog = ";
+    std::cout<<CalcMemoryFootprint()<<" MB\n";
+    std::cout<<"What does top say now?\n";
+    GETCHAR
+  }
+#endif
 
   // If the skybounds for each shear catalog have been saved, then
   // we might be able to skip the ShearCatalog load.
@@ -321,6 +379,17 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
   ShearCatalog shearcat(params);
   Bounds se_skybounds = shearcat.skybounds;
   dbg<<"bounds for image "<<se_index<<" = "<<se_skybounds;
+#ifdef VG
+  if (se_index == 193)
+  {
+    VALGRIND_DO_LEAK_CHECK;
+    std::cout<<"After read shearcat\n";
+    std::cout<<"Memory Usage in MultiShearCatalog = ";
+    std::cout<<CalcMemoryFootprint()<<" MB\n";
+    std::cout<<"What does top say now?\n";
+    GETCHAR
+  }
+#endif
 
   // Skip this file if none of the objects in it are in this section of sky.
   if (int(saved_se_skybounds.size()) <= se_index) // Then save the se_skybounds
@@ -334,33 +403,63 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
     return;
   }
 
-  // Keep track of how much memory we are using.
-  // TODO: introduce a parameter max_memory and check to make sure
-  // we stay within the allowed memory usage.
-  bool output_dots = params.read("output_dots",false);
-  if (output_dots) 
-  {
-    std::cerr<<"Using image# "<<se_index;
-    std::cerr<<"... Memory Usage in MultiShearCatalog = ";
-    std::cerr<<CalcMemoryFootprint()<<" MB";
-    //std::cerr<<" ["<<(MemoryFootprint(pixlist)/1024./1024.)<<"]";
-    //std::cerr<<" ["<<(MemoryFootprint(shape)/1024./1024.)<<"]";
-    std::cerr<<"\n";
-  }
-
   // Load the image
   std::auto_ptr<Image<double> > weight_im;
   Image<double> im(params,weight_im);
+#ifdef VG
+  if (se_index == 193)
+  {
+    VALGRIND_DO_LEAK_CHECK;
+    std::cout<<"After load image\n";
+    std::cout<<"Memory Usage in MultiShearCatalog = ";
+    std::cout<<CalcMemoryFootprint()<<" MB\n";
+    std::cout<<"What does top say now?\n";
+    GETCHAR
+  }
+#endif
 
   // Read transformation between ra/dec and x/y
   Transformation trans(params);
+#ifdef VG
+  if (se_index == 193)
+  {
+    VALGRIND_DO_LEAK_CHECK;
+    std::cout<<"After load transformation\n";
+    std::cout<<"Memory Usage in MultiShearCatalog = ";
+    std::cout<<CalcMemoryFootprint()<<" MB\n";
+    std::cout<<"What does top say now?\n";
+    GETCHAR
+  }
+#endif
 
   // Read the psf
   FittedPSF fitpsf(params);
+#ifdef VG
+  if (se_index == 193)
+  {
+    VALGRIND_DO_LEAK_CHECK;
+    std::cout<<"After load fitpsf\n";
+    std::cout<<"Memory Usage in MultiShearCatalog = ";
+    std::cout<<CalcMemoryFootprint()<<" MB\n";
+    std::cout<<"What does top say now?\n";
+    GETCHAR
+  }
+#endif
 
   // Make a tree of the shear catalog to more easily find the nearest
   // single-epoch object to each coadd detection.
   ShearCatalogTree shearcat_tree(shearcat);
+#ifdef VG
+  if (se_index == 193)
+  {
+    VALGRIND_DO_LEAK_CHECK;
+    std::cout<<"After make shearcat_tree\n";
+    std::cout<<"Memory Usage in MultiShearCatalog = ";
+    std::cout<<CalcMemoryFootprint()<<" MB\n";
+    std::cout<<"What does top say now?\n";
+    GETCHAR
+  }
+#endif
 
   // Figure out which method we are going to use to calculate the 
   // local sky values.
@@ -386,6 +485,17 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
   // point for the more accurate InverseTransform function.
   Transformation invtrans;
   Bounds invb = invtrans.MakeInverseOf(trans,im.GetBounds(),4);
+#ifdef VG
+  if (se_index == 193)
+  {
+    VALGRIND_DO_LEAK_CHECK;
+    std::cout<<"After make invtrans\n";
+    std::cout<<"Memory Usage in MultiShearCatalog = ";
+    std::cout<<CalcMemoryFootprint()<<" MB\n";
+    std::cout<<"What does top say now?\n";
+    GETCHAR
+  }
+#endif
 
   // We are using the weight image so the noise and gain are dummy variables
   Assert(weight_im.get());
@@ -488,10 +598,32 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
     Assert(se_shearlist[i].size() == pixlist[i].size());
     Assert(se_sizelist[i].size() == pixlist[i].size());
 
+#ifdef VG
+    if (se_index == 193)
+    {
+      VALGRIND_DO_LEAK_CHECK;
+      std::cout<<"Before push_back PixelList\n";
+      std::cout<<"Memory Usage in MultiShearCatalog = ";
+      std::cout<<CalcMemoryFootprint()<<" MB\n";
+      std::cout<<"What does top say now?\n";
+      GETCHAR
+    }
+#endif
     long flag = 0;
     pixlist[i].push_back(PixelList());
     //pixlist[i].back().UseBlockMem();
     xxdbg<<"pixlist["<<i<<"].size = "<<pixlist[i].size()<<std::endl;
+#ifdef VG
+    if (se_index == 193)
+    {
+      VALGRIND_DO_LEAK_CHECK;
+      std::cout<<"After push_back PixelList\n";
+      std::cout<<"Memory Usage in MultiShearCatalog = ";
+      std::cout<<CalcMemoryFootprint()<<" MB\n";
+      std::cout<<"What does top say now?\n";
+      GETCHAR
+    }
+#endif
 
     std::complex<double> se_shear = 0.;
     double se_size = 0.;
@@ -511,6 +643,17 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
 	im,pixlist[i].back(),pos,
 	sky,noise,gain,weight_im.get(),trans,galap,flag);
     xdbg<<"Got pixellist, flag = "<<flag<<std::endl;
+#ifdef VG
+    if (se_index == 193)
+    {
+      VALGRIND_DO_LEAK_CHECK;
+      std::cout<<"After GetPixList\n";
+      std::cout<<"Memory Usage in MultiShearCatalog = ";
+      std::cout<<CalcMemoryFootprint()<<" MB\n";
+      std::cout<<"What does top say now?\n";
+      GETCHAR
+    }
+#endif
 
     // Make sure not (edge or < 10 pixels) although edge is already
     // checked above
@@ -549,6 +692,44 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
     Assert(se_shearlist[i].size() == pixlist[i].size());
     Assert(se_sizelist[i].size() == pixlist[i].size());
   } // loop over objects
+#ifdef VG
+  if (se_index == 193)
+  {
+    VALGRIND_DO_LEAK_CHECK;
+    std::cout<<"After load all pixlists\n";
+    std::cout<<"Memory Usage in MultiShearCatalog = ";
+    std::cout<<CalcMemoryFootprint()<<" MB\n";
+    std::cout<<"What does top say now?\n";
+    GETCHAR
+  }
+#endif
+
+#ifdef VG
+  if (se_index == 193)
+  {
+    VALGRIND_DO_LEAK_CHECK;
+    std::cout<<"After unload image (et al)\n";
+    std::cout<<"Memory Usage in MultiShearCatalog = ";
+    std::cout<<CalcMemoryFootprint()<<" MB\n";
+    std::cout<<"What does top say now?\n";
+    GETCHAR
+  }
+#endif
+
+  // Keep track of how much memory we are using.
+  // TODO: introduce a parameter max_memory and check to make sure
+  // we stay within the allowed memory usage.
+  bool output_dots = params.read("output_dots",false);
+  if (output_dots) 
+  {
+    std::cerr<<"Using image# "<<se_index;
+    std::cerr<<"... Memory Usage in MultiShearCatalog = ";
+    std::cerr<<CalcMemoryFootprint()<<" MB";
+    //std::cerr<<" ["<<(MemoryFootprint(pixlist)/1024./1024.)<<"]";
+    //std::cerr<<" ["<<(MemoryFootprint(shape)/1024./1024.)<<"]";
+    std::cerr<<"\n";
+  }
+
   dbg<<"Done extracting pixel lists\n";
 }
 

@@ -22,7 +22,7 @@
 #include "WlVersion.h"
 #include "WriteParKey.h"
 
-void CalcSigma(
+static void CalcSigma1(
     double& sigma,
     const Image<double>& im, const Position& pos, double sky,
     double noise, double gain, const Image<double>* weight_im, 
@@ -54,6 +54,34 @@ void CalcSigma(
   sigma *= exp(mu);
   dbg<<"sigma = "<<sigma<<std::endl;
   Assert(sigma > 0);
+}
+
+void CalcSigma(
+    double& sigma,
+    const Image<double>& im, const Position& pos, double sky,
+    double noise, double gain, const Image<double>* weight_im, 
+    const Transformation& trans, double psfap, long& flag)
+{
+  try {
+    CalcSigma1(
+	sigma,
+	im, pos, sky, noise, gain, weight_im,
+	trans, psfap, flag);
+    dbg<<"objsize: "<<sigma<<std::endl;
+    dbg<<"flags: "<<flag<<std::endl;
+  } catch (tmv::Error& e) {
+    dbg<<"Caught: "<<e<<std::endl;
+    sigma = DEFVALNEG;
+    flag |= TMV_EXCEPTION;
+  } catch (std::exception& e) {
+    dbg<<"Caught: "<<e.what()<<std::endl;
+    sigma = DEFVALNEG;
+    flag |= STD_EXCEPTION;
+  } catch (...) {
+    dbg<<"Caught unknown exception"<<std::endl;
+    sigma = DEFVALNEG;
+    flag |= UNKNOWN_EXCEPTION;
+  }
 }
 
 

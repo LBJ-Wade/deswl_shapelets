@@ -64,7 +64,7 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
     }
     dbg<<"Valgrind Leak Check:\n";
     VALGRIND_DO_LEAK_CHECK;
-    if (VALGRIND_COUNT_ERRORS) break;
+    //if (VALGRIND_COUNT_ERRORS) break;
   }
 
   dbg<<"Done: "<<log.ns_gamma<<" successful shear measurements, ";
