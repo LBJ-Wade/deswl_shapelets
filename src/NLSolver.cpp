@@ -177,10 +177,12 @@ bool NLSolver::Solve_Newton(
 	dbg<<"Maximum iterations exceeded in subloop of Newton method\n";
 	dbg<<"This can happen when there is a singularity (or close to it)\n";
 	dbg<<"along the gradient direction:\n";
-	J.DivideUsing(tmv::SV);
-	J.SetDiv();
-	dbg<<"J Singular values = \n"<<J.SVD().GetS().diag()<<std::endl;
-	dbg<<"V = \n"<<J.SVD().GetV()<<std::endl;
+	if (trysvd) {
+	  J.DivideUsing(tmv::SV);
+	  J.SetDiv();
+	  dbg<<"J Singular values = \n"<<J.SVD().GetS().diag()<<std::endl;
+	  dbg<<"V = \n"<<J.SVD().GetV()<<std::endl;
+	}
 	SHOWFAILFG; 
 	return false;
       }
@@ -360,7 +362,7 @@ bool NLSolver::Solve_Dogleg(
   for(int k=0;k<max_iter;k++) {
     dbg<<k<<"   "<<NormInf(f)<<"   "<<Q<<"   "<<NormInf(g)<<"   "<<delta<<std::endl;
     J.SetDiv();
-    if (nsing == maxnsing && J.Singular() && nsing > 1) {
+    if (trysvd && nsing == maxnsing && J.Singular() && nsing > 1) {
       dbg<<"Singular J, so try SVD.\n";
       J.DivideUsing(tmv::SV);
       J.SetDiv();
@@ -442,7 +444,7 @@ bool NLSolver::Solve_Dogleg(
       nsing = maxnsing;
     } else {
       double normsqh = normh1*normh1;
-      if (delta < normh1 && normsqg < 0.01 * normsqh && nsing > 1) {
+      if (trysvd && delta < normh1 && normsqg < 0.01 * normsqh && nsing > 1) {
 	dbg<<"normsqg == "<<normsqg/normsqh<<" * normsqh, so try SVD.\n";
         --nsing;
 	dbg<<"nsing -> "<<nsing<<std::endl;

@@ -127,7 +127,7 @@ class NLSolver
       method(Newton),
       ftol(1.e-8), gtol(1.e-8), min_step(1.e-8), max_iter(200),
       tau(1.e-3), delta0(1.), nlout(0), 
-      verbose(false), hasdirecth(false), startwithch(true) {}
+      verbose(false), hasdirecth(false), startwithch(true), trysvd(false) {}
 
     virtual ~NLSolver() {}
 
@@ -199,6 +199,7 @@ class NLSolver
     bool verbose;
     bool hasdirecth;
     bool startwithch;
+    bool trysvd;
 
   private :
 
