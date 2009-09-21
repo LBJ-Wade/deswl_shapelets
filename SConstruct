@@ -203,7 +203,10 @@ def AddOpenMPFlag(env):
         #ldflag = []
         #xlib = ['gomp','gfortran','pthread']
         ldflag = ['-fopenmp']
-        xlib = ['pthread']
+        # Note: gcc_eh is required on MacOs, but not linux
+        # However, it seems to be safe for both (???), so I always include it.
+        # If it turns out to break something, I'll have to revisit this.
+        xlib = ['pthread','gcc_eh']
     elif compiler == 'icpc':
         if version < openmp_minicpc_vers:
             print 'No OpenMP support for icpc versions before ',openmp_minicpc_vers
