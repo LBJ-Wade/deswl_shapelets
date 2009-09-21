@@ -1523,6 +1523,8 @@ def RunMultishear(tilename, band,
     stdout_file=multishear_file.replace('.fits','.stdout')
     stderr_file=multishear_file.replace('.fits','.stderr')
 
+    # what to put in here?  Should contain run info too
+    log_file=multishear_file.replace('.fits','_log.xml')
 
     ProcessMeTile(executable, 
                   config, 
@@ -1533,6 +1535,7 @@ def RunMultishear(tilename, band,
                   stdout_file=stdout_file,
                   stderr_file=stderr_file,
                   verbose=True)
+
     tm2=time.time()
     ptime(tm2-tm1, format='RunMultishear Execution time: %s\n')
 
