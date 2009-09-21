@@ -1014,7 +1014,7 @@ void ShearCatalog::Read()
 
   // TODO: delete this line once new shear catalogs are made.  
   // This corrects for the old value of the skypos values.
-  for(size_t i=0;i<skypos.size();++i) skypos[i] *= 3600.;
+  //for(size_t i=0;i<skypos.size();++i) skypos[i] *= 3600.;
 
   for(size_t i=0;i<skypos.size();++i) skybounds += skypos[i];
 
