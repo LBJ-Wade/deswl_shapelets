@@ -1012,9 +1012,12 @@ void ShearCatalog::Read()
   // Update the bounds:
   for(size_t i=0;i<pos.size();++i) bounds += pos[i];
 
-  // TODO: delete this line once new shear catalogs are made.  
   // This corrects for the old value of the skypos values.
-  //for(size_t i=0;i<skypos.size();++i) skypos[i] *= 3600.;
+  if (params.read("shear_dc4_input_format",false))
+  {
+    for(size_t i=0;i<skypos.size();i++)
+      skypos[i] *= 3600.; // deg -> arcsec
+  }
 
   for(size_t i=0;i<skypos.size();++i) skybounds += skypos[i];
 
