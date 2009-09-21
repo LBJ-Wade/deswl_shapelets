@@ -107,7 +107,6 @@ import datetime
 
 from deswl import GetWlVersion
 from deswl import version
-from deswl import oracle
 
 from esutil.ostools import path_join, getenv_check
 from esutil import xmltools
