@@ -1,7 +1,12 @@
+
+# version info
+# You need to run 'svn propset svn:keywords HeadURL' on the file and commit
+# before this works.
+#
 # Don't edit these svn properties by hand
 _property_headurl='$HeadURL$'
 
-def GetWlVersion():
+def get_wl_version():
     import os
     from sys import stderr
 
@@ -28,6 +33,8 @@ def GetWlVersion():
     return tag
 
 
-version=GetWlVersion()
+version=get_wl_version()
 import wlpipe
+import files
 import oracle
+

@@ -1,18 +1,18 @@
 """
     Order of doing things for SE image processing:
         # create a run name and its configuration
-        GenerateSeRunConfig()
+        generate_runconfig('wlse')
 
         # For a given run, band generate an input file list.  Also split
         # it up into chunks for each processor
         # also write out a python script to run each chunk.  
         # these go under $DESDATA/runconfig/runname/images-cats-$band-split 
         
-        GenerateSeRunFileListAndScripts(run, band, rootdir=default_rootdir, badlist=None)
+        generate_serun_filelists_scripts(run, band, rootdir=scratch_rootdir, badlist=None)
 
         # each script calls This
         # run through image list and execute the code
-        ProcessSeImageList(serun, executable, 
+        process_serun_imagelist(serun, executable, 
                           config_file=default_config, 
                           imlist_file=None,
                           flist=None,
@@ -32,14 +32,14 @@
         On a machine that can directly access the desdm database:
 
             import deswl
-            deswl.oracle.CollateCoaddCatalogsAndImages(band,collated_file,
-                                                       getsrc=True)
+            deswl.oracle.collate_coadd_catim(band,collated_file,
+                                             getsrc=True)
 
         To process data on your local machien, you need to find the files on
         local disk:
 
-            des.wlpipe.FindCollatedCoaddFiles(collated_file, toxml=outfile,
-                                              wlserun=run_for_fitpsf_shear)
+            des.wlpipe.find_collated_coaddfiles(collated_file, toxml=outfile,
+                                                wlserun=run_for_fitpsf_shear)
 
         For dc4 I'm putting all this stuff into the nyu repo 'desfiles':
             deswl/desfiles/trunk/dc4-coadd
@@ -53,14 +53,14 @@
 
         Then send this file to 
 
-            des.wlpipe.GenerateMeSrclists(tileinfo,outdir='.')
+            des.wlpipe.generate_me_srclists(tileinfo,outdir='.')
 
-        Which calls GenerateMeSrclist.  This will put files under the
+        Which calls generate_me_srclist.  This will put files under the
         given output directory.  Results are usually checked into desfiles under
             $DESFILES_DIR/dataset/multishear-srclist
 
 
-        This calls the function RunMultishear(tilename,band,...) defined
+        This calls the function run_multishear(tilename,band,...) defined
         in this module.  This requires only the tilename and band to
         be set, and figures out all the input files and srclist files.
 
@@ -105,12 +105,13 @@ import signal
 import re
 import datetime
 
-from deswl import GetWlVersion
+import deswl
 from deswl import version
 
 from esutil.ostools import path_join, getenv_check
 from esutil import xmltools
 from esutil.misc import ptime
+
 
 # default timeout 5 minutes
 default_timeout_se = 300
@@ -119,6 +120,9 @@ default_timeout_me = 60*60
 
 # weak lensing config file
 default_config=os.path.join(os.getenv('WL_DIR'),'etc/wl_dc4.config')
+
+# root directory where scratch files go
+scratch_rootdir='/scratch/esheldon/DES'
 
 _fileclass='wlbnl'
 
@@ -139,75 +143,8 @@ se_filetypes = ['stars','psf','fitpsf','shear',
                 'measurepsf_log', 
                 'measureshear_log']
 
-def FileclassDir(fileclass, rootdir=None):
-    if rootdir is not None:
-        DESDATA=rootdir
-    else:
-        DESDATA=os.getenv('DESDATA')
-        if DESDATA is None:
-            raise ValueError,'DESDATA environment variable not set'
-    return os.path.join(DESDATA, fileclass)
-    
-def RunDir(fileclass, run, rootdir=None):
-    fcdir = FileclassDir(fileclass, rootdir=rootdir)
-    return os.path.join(fcdir, run)
 
-def FiletypeDir(fileclass, run, filetype, rootdir=None):
-    rundir=RunDir(fileclass, run, rootdir=rootdir)
-    return os.path.join(rundir, filetype)
-
-def ExposureDir(fileclass, run, filetype, exposurename, rootdir=None):
-    ftdir=FiletypeDir(fileclass, run, filetype, rootdir=rootdir)
-    return os.path.join(ftdir, exposurename)
-
-def RedImageName(run, exposurename, ccdnum, fz=True, rootdir=None):
-    fileclass='red'
-    filetype='red'
-    expdir = ExposureDir(fileclass, run, filetype, exposurename, 
-                         rootdir=rootdir)
-    imagename = '%s_%02i.fits' % (exposurename, ccdnum)
-    if fz:
-        imagename=imagename+'.fz'
-    imagename = os.path.join(expdir, imagename)
-    return imagename
-
-def TileDir(coaddrun, rootdir=None):
-    """
-    Coadds are different than other output files:  The fileclass dir is 
-    where the files are!
-    """
-    fileclass='coadd'
-    filetype='coadd'
-    tiledir=FiletypeDir(fileclass, coaddrun, filetype, rootdir=rootdir)
-    return tiledir
-
-def CoaddImageName(coaddrun, tilename, band, fz=True):
-    """
-    More frustration:  the path element for "coaddrun"
-    contains the tilename but in principle it can be arbitrary, so 
-    we can't simply pass in pieces:  coaddrun is treated independently
-    """
-    tiledir=TileDir(coaddrun)
-    fname=tilename+'_'+band+'.fits'
-    if fz:
-        fname+='.fz'
-    return fname
-
-def CoaddCatName(catalogrun, tilename, band):
-    """
-    More frustration:  the path element for "catalogrun"
-    contains the tilename but in principle it can be arbitrary, so 
-    we can't simply pass in pieces:  catalogrun is treated independently
-
-    Note often catalogrun is the same as the coaddrun
-    """
-    tiledir=TileDir(catalogrun)
-    fname=tilename+'_'+band+'_cat.fits'
-    return fname
-
-
-
-def RedFileList(band=None, extra=None, latest=False, return_dict=False):
+def get_red_filelist(band=None, extra=None, latest=False, return_dict=False):
     """
     Send extra="_cat" to get the catalog list
     """
@@ -220,7 +157,7 @@ def RedFileList(band=None, extra=None, latest=False, return_dict=False):
     if extra is not None:
         command = command + " -e %s" % extra
 
-    exit_status, flist, serr = ExecuteWlCommand(command)
+    exit_status, flist, serr = execute_command(command)
 
     if exit_status != 0:
         raise RuntimeError,\
@@ -231,11 +168,11 @@ def RedFileList(band=None, extra=None, latest=False, return_dict=False):
         flist.pop()
 
     if latest:
-        return SelectLatestRedRun(flist, return_dict=return_dict)
+        return select_latest_red_run(flist, return_dict=return_dict)
     else:
         return flist
 
-def SelectLatestRedRun(image_list, return_dict=False):
+def select_latest_red_run(image_list, return_dict=False):
     """
     Return the latest versions in file list based on run.  By default
     returns the list, but can also return the info dict keyed by
@@ -245,8 +182,7 @@ def SelectLatestRedRun(image_list, return_dict=False):
     """
     kinfo={}
     for imfile in image_list:
-        #info=GetInfoFromImagePath(imfile)
-        info=GetInfoFromPath(imfile, 'red')
+        info=deswl.files.get_info_from_path(imfile, 'red')
         key=info['exposurename']+'-'+str(info['ccdnum'])
         key = '%s-%02i' % (info['exposurename'], info['ccdnum'])
         if key in kinfo:
@@ -272,15 +208,15 @@ def SelectLatestRedRun(image_list, return_dict=False):
 
 
 
-def GetMatchedRedImageCatList(band=None, combine=True):
+def get_matched_red_image_catlist(band=None, combine=True):
     """
     Find the latest catalogs and images and match them up
     """
     stdout.write('Getting latest image list\n')
-    imdict = RedFileList(band=band, latest=True, return_dict=True)
+    imdict = get_red_filelist(band=band, latest=True, return_dict=True)
     stdout.write('Getting latest cat list\n')
-    catdict = RedFileList(band=band, latest=True, extra='_cat', 
-                          return_dict=True)
+    catdict = get_red_filelist(band=band, latest=True, extra='_cat', 
+                               return_dict=True)
 
 
     stdout.write('Matching %s images with %s catalogs\n' % 
@@ -306,87 +242,15 @@ def GetMatchedRedImageCatList(band=None, combine=True):
 
 
 
-_mohr_map={'stars':'shpltall', 
-           'psf':'shpltpsf', 
-           'fitpsf':'psfmodel', 
-           'shear':'shear'}
-def Mohrify(name):
-    if name in _mohr_map:
-        return _mohr_map[name]
-    else:
-        return name
-
-def WlSeDir(run, exposurename, rootdir=None):
-    fileclass=run_types['wlse']['fileclass']
-    filetype=run_types['wlse']['filetype']
-
-    ftdir=FiletypeDir(fileclass, run, filetype, rootdir=rootdir)
-    wldir=os.path.join(ftdir, exposurename)
- 
-    return wldir
-
-def WlMeDir(run, tilename, rootdir=None):
-    fileclass=run_types['wlme']['fileclass']
-    filetype=run_types['wlme']['filetype']
-
-    ftdir=FiletypeDir(fileclass, run, filetype, rootdir=rootdir)
-    wldir=os.path.join(ftdir, tilename)
- 
-    return wldir
-
-
-def WlSeName(run, redrun, exposurename, ccdnum, wltype, 
-             mohrify=True, rootdir=None, ext='fits'):
-    """
-    name=WlSeName(run, redrun, exposurename, ccdnum, wltype, 
-                  mohrify=True, rootdir=None, ext='fits')
-    Return the SE output file name for the given inputs
-
-    Because this is designed for single epoch image processing, the
-    resulting directory structure is different than uiuc one running
-    from the tiling:
-
-    fileclass/run/filetype/redrun_exposurename/
-                                  redrun_exposurename_ccd_wltype.fits
-    """
-    if mohrify:
-        wltype_use=Mohrify(wltype)
-    else:
-        wltype_use=wltype
-
-    wldir = WlSeDir(run, exposurename, rootdir=rootdir)
-    name_front = redrun+'_'+os.path.basename(wldir)
-    name = '%s_%s_%02i_%s.%s' % (run,name_front, int(ccdnum), wltype_use, ext)
-    fullpath = os.path.join(wldir, name)
-    return fullpath
-
-def WlMeName(run, coaddrun, tilename, band, wltype):
-    """
-    Return a multi-epoch shear output file name
-    """
-    pass
-
-def RunConfigBaseDir():
-    DESDATA=os.getenv('DESDATA')
-    return os.path.join(DESDATA, 'runconfig')
-
-def RunConfigDir(run):
-    basedir=RunConfigBaseDir()
-    return os.path.join(basedir, run)
-
-def RunConfigName(run):
-    rdir=RunConfigDir(run)
-    return os.path.join(rdir, run+'-config.xml')
-
-def ReadRunConfig(run):
-    name=RunConfigName(run)
+def read_runconfig(run):
+    name=deswl.files.runconfig_name(run)
     runconfig = xmltools.xml2dict(name, noroot=True)
     return runconfig
 
 
 
 
-def GenerateRunName(run_type):
+def generate_run_name_bytype(run_type):
     """
     Not used
     """
@@ -400,13 +264,13 @@ def GenerateRunName(run_type):
     run = run_type+run
     return run
 
-def GenerateRunNameOrdered(run_type):
+def generate_run_name(run_type):
 
     if run_type not in run_types:
         raise ValueError,"Unknown run type: '%s'.  Must be one of: (%s)" % (run_type, ', '.join(run_types))
 
 
-    dir=RunConfigBaseDir()
+    dir=deswl.files.runconfig_basedir()
     i=0
     run_name = '%s%06i' % (run_type, i)
     rundir=os.path.join(dir, run_name)
@@ -419,42 +283,29 @@ def GenerateRunNameOrdered(run_type):
 
 
 
-def GenerateSeRunConfig():
+def generate_runconfig(run_type):
     """
-    Generate single epoch wl run configuration
-    """
-    run_type = 'wlse'
-    return GenerateRunConfig(run_type)
-
-def GenerateMeRunConfig():
-    """
-    Generate multi epoch wl run configuration
-    """
-    run_type = 'wlme'
-    return GenerateRunConfig(run_type)
-
-
-def GenerateRunConfig(run_type):
-    """
-    Generate single epoch wl run configuration
+    Generate wl run configuration. run_types supported currently are
+        'wlse': single epoch
+        'wlme': multi epoch
     """
     # need to add a tmv version here
 
-    run = GenerateRunNameOrdered(run_type)
+    run = generate_run_name(run_type)
     fileclass = run_types[run_type]['fileclass']
     filetype = run_types[run_type]['filetype']
 
 
-    runconfig_dir=RunConfigDir(run)
-    runconfig_name = RunConfigName(run)
+    runconfig_dir=deswl.files.runconfig_dir(run)
+    runconfig_name = deswl.files.runconfig_name(run)
 
     if not os.path.exists(runconfig_dir):
         os.mkdir(runconfig_dir)
 
     # software versions
-    pyvers=GetPythonVersion()
-    wlvers=GetWlVersion()
-    tmvvers=GetTmvVersion()
+    pyvers=get_python_version()
+    wlvers=deswl.version
+    tmvvers=get_tmv_version()
 
     runconfig={'serun':run, 
                'run_type':run_type,
@@ -470,15 +321,15 @@ def GenerateRunConfig(run_type):
 
 
 
-def VerifyRunConfig(runconfig):
+def verify_runconfig(runconfig):
     """
     Make sure the current values for versions and such match that expected
     by the run configuration
     """
 
-    wlvers=GetWlVersion()
-    tmvvers=GetTmvVersion()
-    pyvers=GetPythonVersion()
+    wlvers=deswl.version
+    tmvvers=get_tmv_version()
+    pyvers=get_python_version()
 
     if runconfig['wlvers'] != wlvers:
         raise ValueError,'wlvers "%s" does not match runconfig "%s"' % (wlvers,runconfig['wlvers'])
@@ -491,10 +342,12 @@ def VerifyRunConfig(runconfig):
 
 
 
-
-default_rootdir='/scratch/esheldon/DES'
-def GenerateSeRunFileListAndScripts(run, band, rootdir=default_rootdir, badlist=None):
+def generate_serun_filelists_scripts(run, band, 
+                                     rootdir=scratch_rootdir, badlist=None):
     """
+    This is partially no longer needed since we have a batch system in place
+
+
     This is very generic, you will also want to do do more finely grained 
     selections, especially when debugging.  In that case it may make more
     sense to run individual files than work in the full framework.
@@ -503,15 +356,15 @@ def GenerateSeRunFileListAndScripts(run, band, rootdir=default_rootdir, badlist=
     later, not in building the file list.
     """
 
-    runconfig_dir=RunConfigDir(run)
-    runconfig_file=RunConfigName(run)
+    runconfig_dir=deswl.files.runconfig_dir(run)
+    runconfig_file=deswl.files.runconfig_name(run)
     runconfig=xmltools.xml2dict(runconfig_file)
 
     allfile = os.path.join(runconfig_dir, 'images-cats-'+band+'.xml')
     splitdir=os.path.join(runconfig_dir, 'images-cats-'+band+'-bachsplit')
     
     stdout.write('Getting matched image and catalog lists\n')
-    flist = GetMatchedRedImageCatList(band=band)
+    flist = get_matched_red_image_catlist(band=band)
 
     stdout.write('Found %s images\n' % len(flist))
 
@@ -522,7 +375,7 @@ def GenerateSeRunFileListAndScripts(run, band, rootdir=default_rootdir, badlist=
     stdout.write('Splitting files\n')
     # this splits the file list and writes out new xml files.  Also returns
     # the names of those files
-    splitfiles = BachSplitImageCatFileList(allfile)
+    splitfiles = bach_split_imagecat_filelist(allfile)
 
     # Now write out python scripts
     conf_file=default_config
@@ -546,21 +399,12 @@ def GenerateSeRunFileListAndScripts(run, band, rootdir=default_rootdir, badlist=
                 extra +=', badlist_file="%s"' % badlist
 
             command=\
-                'wlpipe.ProcessSeRunImageList(run, ex, conf, flist'+extra+')'
+                'wlpipe.process_serun_imagelist(run, ex, conf, flist'+extra+')'
             pyfile.write(command+'\n')
             pyfile.close()
 
 
-def ExtractImageExposureNames(flist):
-    allinfo={}
-    for imfile in flist:
-        #info=GetInfoFromImagePath(imfile)
-        info=GetInfoFromPath(imfile, 'red')
-        allinfo[info['exposurename']] = info['exposurename']
-
-    return allinfo.keys()
-
-def _PollSubProcess(pobj, timeout_in):
+def _poll_subprocess(pobj, timeout_in):
     # minimum of 2 seconds
     timeout = timeout_in
     if timeout <= 1:
@@ -575,7 +419,7 @@ def _PollSubProcess(pobj, timeout_in):
         i += 1
 
     if exit_status is None:
-        stderr.write('Process is taking longer than %s seconds.  Ending process\n' % timeout)
+        stdout.write('Process is taking longer than %s seconds.  Ending process\n' % timeout)
         os.kill(pobj.pid, signal.SIGTERM)
         exit_status = 1024
         stdout_ret, stderr_ret = None, None
@@ -586,14 +430,14 @@ def _PollSubProcess(pobj, timeout_in):
 
 
 bitshift = 8
-def ExecuteWlCommand(command, timeout=None, 
+def execute_command(command, timeout=None, 
                      stdout_file=subprocess.PIPE, 
                      stderr_file=subprocess.PIPE, 
                      shell=True,
                      verbose=False):
     """
     exit_status, stdout_returned, stderr_returned = \
-       ExecuteWlCommand(command, 
+       execute_command(command, 
                         timeout=None, 
                         stdout=subprocess.PIPE, 
                         stderr=subprocess.PIPE, 
@@ -616,27 +460,30 @@ def ExecuteWlCommand(command, timeout=None,
 
     # if a list was entered, convert to a string.  Also print the command
     # if requested
+    stdout.write('Executing command: \n')
     if isinstance(command, list):
         cmd = ' '.join(command)
         if verbose:
-            stderr.write(command[0] + '    \\\n')
+            stdout.write(command[0] + '    \\\n')
             for c in command[1:]:
-                stderr.write('    '+c+'    \\\n')
+                stdout.write('    '+c+'    \\\n')
         #print 'actual cmd:',cmd
     else:
         cmd=command
         if verbose:
-            stderr.write('%s\n' % cmd)
+            stdout.write('%s\n' % cmd)
 
 
 
+    stdout.flush()
+    stderr.flush()
     pobj = subprocess.Popen(cmd, 
                             stdout=stdout_fileobj, 
                             stderr=stderr_fileobj, 
                             shell=shell)
 
     if timeout is not None:
-        exit_status, stdout_ret, stderr_ret = _PollSubProcess(pobj, timeout)
+        exit_status, stdout_ret, stderr_ret = _poll_subprocess(pobj, timeout)
     else:
         # this just waits for the process to end
         stdout_ret, stderr_ret = pobj.communicate()
@@ -648,7 +495,7 @@ def ExecuteWlCommand(command, timeout=None,
             mess='This system is probably returning bit-shifted exit codes. Old value: %d\n' % exit_status
 
             if verbose:
-                stderr.write(mess)
+                stdout.write(mess)
             exit_status = exit_status >> bitshift
 
     # If they were opened files, close them
@@ -662,36 +509,18 @@ def ExecuteWlCommand(command, timeout=None,
 
 
 
-def ReplaceDirectory(oldfile, newdir):
-    if oldfile is not None:
-        fbase=os.path.basename(oldfile)
-        newf = os.path.join(newdir, fbase)
-        return newf
-    else:
-        return None
 
 
 
 
-_fits_extstrip=re.compile( '\.fits(\.fz)?$' )
-def RemoveFitsExtension(fname):
-    """
-    See if the pattern exists and replace it with '' if it does
-    """
-    return _fits_extstrip.sub('', fname)
-
-
-
-
-
-def MakeSeCommandList(executable, conf_file, image_file, 
+def make_se_commandlist(executable, conf_file, image_file, 
                       cat_file=None,
                       stars_file=None, 
                       psf_file=None, 
                       fitpsf_file=None, 
                       shear_file=None):
 
-    root = RemoveFitsExtension(image_file)
+    root = deswl.files.remove_fits_extension(image_file)
 
     command = \
         [executable,
@@ -711,32 +540,32 @@ def MakeSeCommandList(executable, conf_file, image_file,
 
     return command
 
-def ProcessSeImage(executable, config_file, image_filename, 
-                   cat_file=None,
-                   stars_file=None, 
-                   psf_file=None, 
-                   fitpsf_file=None, 
-                   shear_file=None,
-                   stdout_file=None,
-                   stderr_file=None,
-                   timeout=default_timeout_se,
-                   verbose=None):
+def process_se_image(executable, config_file, image_filename, 
+                     cat_file=None,
+                     stars_file=None, 
+                     psf_file=None, 
+                     fitpsf_file=None, 
+                     shear_file=None,
+                     stdout_file=None,
+                     stderr_file=None,
+                     timeout=default_timeout_se,
+                     verbose=None):
 
-    command = MakeSeCommandList(executable, config_file, image_filename,
-                                cat_file=cat_file,
-                                stars_file=stars_file,
-                                psf_file=psf_file,
-                                fitpsf_file=fitpsf_file,
-                                shear_file=shear_file)
+    command = make_se_commandlist(executable, config_file, image_filename,
+                                  cat_file=cat_file,
+                                  stars_file=stars_file,
+                                  psf_file=psf_file,
+                                  fitpsf_file=fitpsf_file,
+                                  shear_file=shear_file)
 
     exit_status, stdout_ret, stderr_ret = \
-        ExecuteWlCommand(command, timeout=timeout, 
+        execute_command(command, timeout=timeout, 
                          stdout_file=stdout_file, 
                          stderr_file=stderr_file,
                          verbose=verbose)
 
     if verbose:
-        stderr.write('    exit_status: %s\n' % exit_status)
+        stdout.write('exit_status: %s\n' % exit_status)
     return exit_status
 
 
@@ -745,15 +574,15 @@ def ProcessSeImage(executable, config_file, image_filename,
 
 
 
-def ProcessSeRunImageList(serun, executable, 
-                          config_file=default_config, 
-                          imlist_file=None,
-                          flist=None,
-                          badlist_file=None,
-                          outdir=None,
-                          rootdir=None,
-                          verbose=True,
-                          mohrify=True):
+def process_serun_imagelist(serun, executable, 
+                            config_file=default_config, 
+                            imlist_file=None,
+                            flist=None,
+                            badlist_file=None,
+                            outdir=None,
+                            rootdir=None,
+                            verbose=True,
+                            mohrify=True):
     """
     This is for processing one of the big lists such as generated from
     GenerateSeRunFileList()
@@ -763,11 +592,12 @@ def ProcessSeRunImageList(serun, executable,
     """
 
     import time
+    import distutils
 
     tm0 = time.time()
 
-    runconfig = ReadRunConfig(serun)
-    VerifyRunConfig(runconfig)
+    runconfig = read_runconfig(serun)
+    verify_runconfig(runconfig)
 
     # flist takes precedence
     if flist is None:
@@ -787,7 +617,7 @@ def ProcessSeRunImageList(serun, executable,
         badlist=[]
 
     if verbose:
-        stderr.write('Run: %s\n' % serun)
+        stdout.write('Run: %s\n' % serun)
 
     execbase=os.path.basename(executable)
     for fdict in flist:
@@ -799,39 +629,39 @@ def ProcessSeRunImageList(serun, executable,
         if verbose:
             m='Running %s on Image file: %s\n               cat file: %s\n' % \
                     (executable, imfile, catfile)
-            stderr.write(m)
+            stdout.write(m)
 
-        sefdict=GenerateSeFileNames(serun, imfile, 
-                                    mohrify=mohrify, 
-                                    rootdir=rootdir,
-                                    outdir=outdir)
+        sefdict=generate_se_filenames(serun, imfile, 
+                                      mohrify=mohrify, 
+                                      rootdir=rootdir,
+                                      outdir=outdir)
 
         outd = os.path.dirname(sefdict['stars'])
         if not os.path.exists(outd):
-            estatus, stdo, stde = ExecuteWlCommand('mkdir -p '+outd)
-            if estatus != 0:
-                raise RuntimeError,'Could not make directory: '+outd
-            #os.mkdir(outd)
+            if verbose:
+                stdout.write('    Making output directory path: %s\n' % outd)
+            distutils.dir_util.mkpath(outd)
+
         stdout_file=sefdict[execbase+'_stdout']
         stderr_file=sefdict[execbase+'_stderr']
         log_file=sefdict[execbase+'_log']
 
         if imfile in badlist:
             if verbose:
-                stderr.write('Skipping known bad image: %s\n' % imfile)
+                stdout.write('Skipping known bad image: %s\n' % imfile)
             exit_status=-9999
             skipped=True
         else:
             skipped=False
-            exit_status = ProcessSeImage(executable, config_file, imfile, 
-                                         cat_file=catfile,
-                                         stars_file=sefdict['stars'],
-                                         psf_file=sefdict['psf'],
-                                         fitpsf_file=sefdict['fitpsf'],
-                                         shear_file=sefdict['shear'],
-                                         stdout_file=stdout_file,
-                                         stderr_file=stderr_file,
-                                         verbose=verbose)
+            exit_status = process_se_image(executable, config_file, imfile, 
+                                           cat_file=catfile,
+                                           stars_file=sefdict['stars'],
+                                           psf_file=sefdict['psf'],
+                                           fitpsf_file=sefdict['fitpsf'],
+                                           shear_file=sefdict['shear'],
+                                           stdout_file=stdout_file,
+                                           stderr_file=stderr_file,
+                                           verbose=verbose)
         # add config info to the log
         log=sefdict
         log['image'] = imfile
@@ -854,7 +684,7 @@ def ProcessSeRunImageList(serun, executable,
 
 
 
-def GetExternalVersion(version_command):
+def get_external_version(version_command):
     """
     Run a command to get a version string and return it through the
     standard output
@@ -871,72 +701,71 @@ def GetExternalVersion(version_command):
          'Could not get version from command: %s: %s' % (version_command,serr)
     return sout.strip()
 
-def GetTmvVersion():
-    return GetExternalVersion('tmv-version')
+def get_tmv_version():
+    return get_external_version('tmv-version')
 
-def GetPythonVersion():
+def get_python_version():
     pyvers='v%s.%s.%s' % sys.version_info[0:3]
     return pyvers
 
 
 
 
-def GenerateSeFileNames(serun, imfile, 
-                        rootdir=None, outdir=None, mohrify=True):
-    #info = GetInfoFromImagePath(imfile)
-    info=GetInfoFromPath(imfile, 'red')
+def generate_se_filenames(serun, imfile, 
+                          rootdir=None, outdir=None, mohrify=True):
+    info=deswl.files.get_info_from_path(imfile, 'red')
     fdict={}
 
     # output file names
     for wltype in se_filetypes:
-        name= WlSeName(serun, 
-                       info['redrun'], 
-                       info['exposurename'], 
-                       info['ccdnum'], 
-                       wltype,
-                       rootdir=rootdir,
-                       mohrify=mohrify)
+        name= deswl.files.wlse_name(serun, 
+                                    info['redrun'], 
+                                    info['exposurename'], 
+                                    info['ccdnum'], 
+                                    wltype,
+                                    rootdir=rootdir,
+                                    mohrify=mohrify)
         if outdir is not None:
-            name=ReplaceDirectory(name, outdir)
+            name=deswl.files.replacedir(name, outdir)
         fdict[wltype] = name
 
     # stdout, stderr, and log names
     for executable in se_executables:
         key=executable+'_stdout'
-        name = WlSeName(serun, 
-                        info['redrun'], 
-                        info['exposurename'], 
-                        info['ccdnum'], 
-                        executable,
-                        rootdir=rootdir,
-                        ext='stdout')
+        name = deswl.files.wlse_name(serun, 
+                                     info['redrun'], 
+                                     info['exposurename'], 
+                                     info['ccdnum'], 
+                                     executable,
+                                     rootdir=rootdir,
+                                     ext='stdout')
 
         if outdir is not None:
-            name=ReplaceDirectory(name, outdir)
+            name=deswl.files.replacedir(name, outdir)
         fdict[key] = name
 
         key=executable+'_stderr'
-        name = WlSeName(serun, 
-                        info['redrun'], 
-                        info['exposurename'], 
-                        info['ccdnum'], 
-                        executable,
-                        rootdir=rootdir,
-                        ext='stderr')
+        name = deswl.files.wlse_name(serun, 
+                                     info['redrun'], 
+                                     info['exposurename'], 
+                                     info['ccdnum'], 
+                                     executable,
+                                     rootdir=rootdir,
+                                     ext='stderr')
         if outdir is not None:
-            name=ReplaceDirectory(name, outdir)
+            name=deswl.files.replacedir(name, outdir)
         fdict[key] = name
 
         key=executable+'_log'
-        name = WlSeName(serun, 
-                        info['redrun'], 
-                        info['exposurename'], 
-                        info['ccdnum'], 
-                        executable+'_log',
-                        rootdir=rootdir,
-                        ext='xml')
+        name = deswl.files.wlse_name(serun, 
+                                     info['redrun'], 
+                                     info['exposurename'], 
+                                     info['ccdnum'], 
+                                     executable+'_log',
+                                     rootdir=rootdir,
+                                     ext='xml')
         if outdir is not None:
-            name=ReplaceDirectory(name, outdir)
+            name=deswl.files.replacedir(name, outdir)
         fdict[key] = name
 
 
@@ -946,12 +775,12 @@ def GenerateSeFileNames(serun, imfile,
 
 
 
-def GetInfoFromImagePath(imfile):
+def get_info_from_image_path(imfile):
     """
     This will probably also work for cat files
     """
 
-    root = RemoveFitsExtension(imfile)
+    root = deswl.files.remove_fits_extension(imfile)
 
     DESDATA=os.getenv('DESDATA')
     if DESDATA is None:
@@ -976,125 +805,18 @@ def GetInfoFromImagePath(imfile):
     odict['exposurename'] = fsplit[4]
     odict['basename'] = fsplit[5]
 
-    namefront=RemoveFitsExtension(odict['basename'])
+    namefront=deswl.files.remove_fits_extension(odict['basename'])
     #odict['ccdnum'] = int(namefront.split('_')[-1])
     odict['ccdnum'] = int(namefront.split('_')[1])
     
     return odict
 
 
-def GetInfoFromPath(filepath, fileclass):
+
+
+def bach_split_imagecat_filelist(input_fname, roottag='bachsplit'):
     """
-    This is a more extensive version GetInfoFromImagePath.  Also works for
-    the cat files.  If fileclass='coadd' then treated differently
-    """
-
-    odict = {}
-    # remove the extension
-    dotloc=filepath.find('.')
-    
-    odict['ext'] = filepath[dotloc:]
-    root=filepath[0:dotloc]
-
-
-
-    DESDATA=os.getenv('DESDATA')
-    if DESDATA is None:
-        raise ValueError,'Environment variable DESDATA does not exist'
-    if DESDATA[-1] == os.sep:
-        DESDATA=DESDATA[0:len(DESDATA)-1]
-
-    endf = filepath.replace(DESDATA, '')
-
-
-    odict['filename'] = filepath
-    odict['root'] = root
-    odict['DESDATA'] = DESDATA
-
-
-    fsplit = endf.split(os.sep)
-
-
-    if fileclass == 'red':
-        nparts = 6
-        if len(fsplit) < nparts:
-            raise ValueError,\
-                'Found too few file elements, '+\
-                '%s instead of %s: "%s"\n' % (len(fsplit), nparts, filepath)
-
-        if fsplit[1] != 'red' or fsplit[3] != 'red':
-            mess="In file path %s expected 'red' in positions "+\
-                "1 and 3 after DESDATA=%s" % (filepath,DESDATA)
-            raise ValueError,mess
-
-        odict['redrun'] = fsplit[2]
-        odict['exposurename'] = fsplit[4]
-        odict['basename'] = fsplit[5]
-
-        base=os.path.basename(odict['root'])
-
-
-        # last 3 bytes are _[ccd number]
-        odict['ccd']=int(base[-2:])
-        base=base[0:len(base)-3]
-
-        # next -[repeatnum].  not fixed length so we must go by the dash
-        dashloc=base.rfind('-')
-        odict['repeatnum'] = base[dashloc+1:]
-        base=base[0:dashloc]
-
-        # now is -[band]
-        dashloc=base.rfind('-')
-        band=base[-1]
-        odict['band'] = band
-        base=base[0:dashloc]
-        
-        # now we have something like decam--24--11 or decam--24--9, so
-        # just remove the decam-
-        # might have to alter this some time if they change the names
-        if base[0:6] != 'decam-':
-            raise ValueError,'Expected "decam-" at beginning'
-        odict['pointing'] = base.replace('decam-','')
-
-        
-    elif fileclass == 'coadd':
-        nparts = 5
-        if len(fsplit) < nparts:
-            raise ValueError,\
-                'Found too few file elements, '+\
-                '%s instead of %s: "%s"\n' % (len(fsplit), nparts, filepath)
-
-        if fsplit[1] != 'coadd' or fsplit[3] != 'coadd':
-            mess="In file path %s expected 'red' in positions "+\
-                "1 and 3 after DESDATA=%s" % (filepath,DESDATA)
-            raise ValueError,mess
-
-
-        odict['coaddrun'] = fsplit[2]
-        odict['basename'] = fsplit[4]
-
-        tmp = os.path.basename(root)
-        if tmp[-3:] == 'cat':
-            odict['coaddtype'] = 'cat'
-            tmp = tmp[0:-4]
-        else:
-            odict['coaddtype'] = 'image'
-
-        odict['band'] = tmp[-1]
-
-        last_underscore = tmp.rfind('_')
-        if last_underscore == -1:
-            raise ValueError,\
-                'Expected t find an underscore in basename of %s' % filepath
-        odict['tilename'] = tmp[0:last_underscore]
-
-    
-    return odict
-
-
-
-def BachSplitImageCatFileList(input_fname, roottag='bachsplit'):
-    """
+    We don't need this any more since we have a batch system
 
     Split list into files for input to the pipeline, one for each core on each
     bachNN machine
@@ -1168,12 +890,12 @@ def BachSplitImageCatFileList(input_fname, roottag='bachsplit'):
 
 
 def _find_wl_output(wlserun, src, typename, mohrify=True, verbosity=1):
-    fname=WlSeName(wlserun, 
-                   src['run'],
-                   src['exposurename'],
-                   int(src['ccd']),
-                   typename,
-                   mohrify=mohrify)
+    fname=deswl.files.wlse_name(wlserun, 
+                                src['run'],
+                                src['exposurename'],
+                                int(src['ccd']),
+                                typename,
+                                mohrify=mohrify)
     if not os.path.exists(fname):
         if verbosity > 1:
             stdout.write("file not found: %s\n" % fname)
@@ -1183,9 +905,13 @@ def _find_wl_output(wlserun, src, typename, mohrify=True, verbosity=1):
         return True
 
 
-def FindCollatedCoaddFiles(infofile, xmlfile, 
-                           wlserun=None, mohrify=True,
-                           verbosity=1):
+
+
+
+
+def find_collated_coaddfiles(infofile, xmlfile, 
+                             wlserun=None, mohrify=True,
+                             verbosity=1):
     """
 
     Find coadd files on the local disk.
@@ -1298,9 +1024,9 @@ def FindCollatedCoaddFiles(infofile, xmlfile,
     xmltools.dict2xml({'info':output}, xmlfile, roottag='tileinfo_local')
 
 
-def GetLatestCollatedCoaddFiles(infofile, latest_file):
+def get_latest_coaddfiles(infofile, latest_file):
     """
-    Take an output file from FindCollatedCoaddFiles and return only the
+    Take an output file from find_collated_coaddfiles() and return only the
     latest version of each tile (by coaddrun-catalogrun) 
     """
 
@@ -1329,7 +1055,7 @@ def GetLatestCollatedCoaddFiles(infofile, latest_file):
     stdout.write('Writing to file: %s\n' % latest_file)
     xmltools.dict2xml(output, latest_file, roottag=root)
 
-def GenerateMeSrclist(tileinfo, outfile):
+def generate_me_srclist(tileinfo, outfile):
     """
     Generate an input file for multishear for the input tileinfo dict, which
     should describe a single tile version.  
@@ -1346,10 +1072,10 @@ def GenerateMeSrclist(tileinfo, outfile):
 
     fobj.close()
 
-def GenerateMeSrclists(tileinfo_found_latest, outdir='.'):
+def generate_me_srclists(tileinfo_found_latest, outdir='.'):
     """
     The tileinfo_found_latest is the output file generated by
-        GetLatestCollatedCoaddFiles
+        get_latest_coaddfiles
     """
     if not os.path.exists(outdir):
         os.mkdir(outdir)
@@ -1363,7 +1089,7 @@ def GenerateMeSrclists(tileinfo_found_latest, outdir='.'):
 
         outfile = os.path.join(outdir, name)
         stdout.write('Writing multishear input file: %s\n' % outfile)
-        GenerateMeSrclist(ti, outfile)
+        generate_me_srclist(ti, outfile)
 
     
     readme_fname=os.path.join(outdir, 'README')
@@ -1380,59 +1106,68 @@ def GenerateMeSrclists(tileinfo_found_latest, outdir='.'):
 
 
 
-def MakeMeCommandList(executable, 
-                      config_file, 
-                      coadd_srclist, 
-                      coaddimage_file, 
-                      coaddcat_file, 
-                      multishear_file):
+def make_me_commandlist(executable, 
+                        config_file, 
+                        coadd_srclist, 
+                        coaddimage_file, 
+                        coaddcat_file, 
+                        multishear_file,
+                        shear_dc4_input_format=True,
+                        debug=0):
     command = [executable,
                config_file,
                'coadd_srclist='+coadd_srclist,
                'coaddimage_file='+coaddimage_file,
                'coaddcat_file='+coaddcat_file,
                'multishear_file='+multishear_file]
+    if shear_dc4_input_format:
+        command.append('shear_dc4_input_format=true')
+
+    if debug:
+        debug_file=multishear_file.replace('.fits','.debug')
+        command += ['verbose=%s' % debug, 'debug_file='+debug_file]
     return command
 
-def ProcessMeTile(executable, 
-                  config_file, 
-                  coadd_srclist,
-                  coaddimage_file, 
-                  coaddcat_file,
-                  multishear_file,
-                  stdout_file=None,
-                  stderr_file=None,
-                  timeout=default_timeout_me,
-                  verbose=False):
+def process_me_tile(executable, 
+                    config_file, 
+                    coadd_srclist,
+                    coaddimage_file, 
+                    coaddcat_file,
+                    multishear_file,
+                    stdout_file=None,
+                    stderr_file=None,
+                    timeout=default_timeout_me,
+                    debug=0):
     """
-    All paths must be sent explicitly.  Use the wrapper RunMultishear to
+    All paths must be sent explicitly.  Use the wrapper run_multishear to
     specify a smaller subset
     """
 
-    command = MakeMeCommandList(executable, 
-                                config_file, 
-                                coadd_srclist, 
-                                coaddimage_file, 
-                                coaddcat_file, 
-                                multishear_file)
+    command = make_me_commandlist(executable, 
+                                  config_file, 
+                                  coadd_srclist, 
+                                  coaddimage_file, 
+                                  coaddcat_file, 
+                                  multishear_file,
+                                  debug=debug)
 
     exit_status, stdout_ret, stderr_ret = \
-        ExecuteWlCommand(command, timeout=timeout, 
+        execute_command(command, timeout=timeout, 
                          stdout_file=stdout_file, 
                          stderr_file=stderr_file,
-                         verbose=verbose)
+                         verbose=True)
 
-    if verbose:
-        stderr.write('    exit_status: %s\n' % exit_status)
+    stdout.write('exit_status: %s\n' % exit_status)
     return exit_status
 
 
 
-def RunMultishear(tilename, band, 
-                  outdir='.', 
-                  dataset='dc4coadd', 
-                  host='tutti',
-                  srclist=None):
+def run_multishear(tilename, band, 
+                   outdir='.', 
+                   dataset='dc4coadd', 
+                   host='tutti',
+                   srclist=None,
+                   debug=0):
     """
 
     Wrapper function requiring minimial info to process a tile, namely the
@@ -1461,7 +1196,10 @@ def RunMultishear(tilename, band,
     You can override the srclist file with the srclist= keyword.
 
     Example using the library:
-        deswl.wlpipe.RunMultishear('DES2215-2853', 'i')\n\n"""
+        deswl.wlpipe.run_multishear('DES2215-2853', 'i')\n\n"""
+
+    # for making full directory trees
+    import distutils
 
     tm1=time.time()
     wl_dir=getenv_check('WL_DIR')
@@ -1497,8 +1235,17 @@ def RunMultishear(tilename, band,
     stdout.write('    tilename: %s\n' % tilename)
     stdout.write('    band: %s\n' % band)
     stdout.write('    srclist: %s\n' % srclist)
+    stdout.write('    outdir: %s\n' % outdir)
+    stdout.write('    debug: %s\n' % debug)
 
-    stdout.write('\nReading tileinfo file\n')
+    # make sure outdir exists
+    if not os.path.exists(outdir):
+        stdout.write('    Making output directory path: %s\n' % outdir)
+        distutils.dir_util.mkpath(outdir)
+
+
+
+    stdout.write('\nReading tileinfo file\n\n')
     tileinfo=xmltools.xml2dict(tileinfo_file,noroot=True)
     tileinfo=tileinfo['info']
 
@@ -1516,7 +1263,7 @@ def RunMultishear(tilename, band,
                 (tilename, tileinfo_file)
 
     multishear_file=\
-        RemoveFitsExtension(coaddimage)+'_multishear.fits'
+        deswl.files.remove_fits_extension(coaddimage)+'_multishear.fits'
     multishear_file=\
         path_join(outdir,os.path.basename(multishear_file))
     stdout_file=multishear_file.replace('.fits','.stdout')
@@ -1525,17 +1272,17 @@ def RunMultishear(tilename, band,
     # what to put in here?  Should contain run info too
     log_file=multishear_file.replace('.fits','_log.xml')
 
-    ProcessMeTile(executable, 
-                  config, 
-                  srclist, 
-                  coaddimage, 
-                  coaddcat, 
-                  multishear_file, 
-                  stdout_file=stdout_file,
-                  stderr_file=stderr_file,
-                  verbose=True)
+    process_me_tile(executable, 
+                    config, 
+                    srclist, 
+                    coaddimage, 
+                    coaddcat, 
+                    multishear_file, 
+                    stdout_file=stdout_file,
+                    stderr_file=stderr_file,
+                    debug=debug)
 
     tm2=time.time()
-    ptime(tm2-tm1, format='RunMultishear Execution time: %s\n')
+    ptime(tm2-tm1, format='multishear execution time: %s\n')
 
 

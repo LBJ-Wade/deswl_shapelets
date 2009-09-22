@@ -10,6 +10,8 @@ import deswl
 from optparse import OptionParser
 parser = OptionParser(__doc__)
 
+parser.add_option("--debug", default=0,
+    help="Debug verbosity level. 0:none 1:dbg 2:xdbg. Default '%default'")
 parser.add_option("--srclist", default=None,
  help="srclist file name.  Overrides the default srclist. Default '%default'")
 parser.add_option("--outdir", default='.',
@@ -25,7 +27,7 @@ if len(args) < 2:
     parser.print_help()
     stdout.write('\nExample:\n    multishear-run DES2215-2853 i\n\n')
     stdout.write('Library Documentation:'+\
-                 deswl.wlpipe.RunMultishear.__doc__)
+                 deswl.wlpipe.run_multishear.__doc__)
     sys.exit(45)
 
 tilename=args[0]
@@ -34,8 +36,10 @@ outdir = options.outdir
 dataset=options.dataset
 host=options.host
 srclist=options.srclist
+debug=options.debug
 
-deswl.wlpipe.RunMultishear(tilename, band, 
-                           srclist=srclist,
-                           outdir=outdir, dataset=dataset, host=host)
+deswl.wlpipe.run_multishear(tilename, band, 
+                            srclist=srclist,
+                            outdir=outdir, dataset=dataset, host=host,
+                            debug=debug)
 

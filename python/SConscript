@@ -18,11 +18,12 @@ bin_targets = [wlrun_file, multishear_run_file]
 init_file = env.File('__init__.py')
 wlpipe_file = env.File('wlpipe.py')
 oracle_file = env.File('oracle.py')
+files_file = env.File('files.py')
 
 main_libdir=distutils.sysconfig.get_python_lib()
 pylib_install_subdir = main_libdir.replace(distutils.sysconfig.PREFIX+os.sep,'')
 pylib_install_subdir = os.path.join(pylib_install_subdir, 'deswl')
-pylib_targets = [init_file,wlpipe_file,oracle_file]
+pylib_targets = [init_file,wlpipe_file,oracle_file,files_file]
 
 
 

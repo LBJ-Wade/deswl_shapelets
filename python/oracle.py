@@ -7,7 +7,7 @@ except:
 
 import xmltools
 
-def GetTileRun(tilename, verbose=False, multi=False):
+def get_tile_run(tilename, verbose=False, multi=False):
     """
     Try to get the appropriate run identifier for the input tilename
     Currently choses the latest one
@@ -52,9 +52,9 @@ def GetTileRun(tilename, verbose=False, multi=False):
         run = res['run'][0]
         return run
 
-def GetCoaddId(tilename, band, run=None, verbose=False):
+def get_coadd_id(tilename, band, run=None, verbose=False):
     if run is None:
-        run = GetTileRun(tilename, verbose=verbose)
+        run = get_tile_run(tilename, verbose=verbose)
         if run is None:
             return None
 
@@ -81,7 +81,7 @@ def GetCoaddId(tilename, band, run=None, verbose=False):
 
 
 
-def CoaddCatalogInfo(band=None, dictlist=False):
+def get_coadd_cat_info(band=None, dictlist=False):
     """
     we demand the band since band is not set in the database for most
     tables and we want to set it explicitly
@@ -116,20 +116,20 @@ def CoaddCatalogInfo(band=None, dictlist=False):
     return res
 
 
-def GetCoaddSrcLocations(coadd_id=None, tilename=None, band=None, run=None, 
-                         dictlist=False, verbose=False):
+def get_coadd_src_locations(coadd_id=None, tilename=None, band=None, run=None, 
+                            dictlist=False, verbose=False):
     """
     Get info about original SE 'red' images associated with a given coadd
     from the locations table.  This can be a complicated process.
 
     depends:
-        (GetTileRun)
-        (GetCoaddId)
+        (get_tile_run)
+        (get_coadd_id)
 
     """
 
     if coadd_id is None:
-        coadd_id = GetCoaddId(tilename, band, run=run, verbose=verbose)
+        coadd_id = get_coadd_id(tilename, band, run=run, verbose=verbose)
         coadd_id=coadd_id[0]
 
 
@@ -215,7 +215,7 @@ def GetCoaddSrcLocations(coadd_id=None, tilename=None, band=None, run=None,
 
 
 
-def CollateCoaddCatalogsAndImages(band, xmlfile, getsrc=False):
+def collate_coadd_catim(band, xmlfile, getsrc=False):
     """
 
     join the catalog table (catalogtype='coadd_cat' and project='DES') to the
@@ -230,9 +230,9 @@ def CollateCoaddCatalogsAndImages(band, xmlfile, getsrc=False):
 
     if getsrc=True add a list of the source 'red' images that made up the
     coadd.  This depends on
-        GetCoaddSrcLocations
-            (GetCoaddId)
-                (GetTileRun)
+        get_coadd_src_locations
+            (get_coadd_id)
+                (get_tile_run)
 
     """
 
@@ -279,7 +279,7 @@ def CollateCoaddCatalogsAndImages(band, xmlfile, getsrc=False):
         nbad=0
         for i in range(len(res)):
             coadd_id = res[i]['parentid']
-            srclist = GetCoaddSrcLocations(coadd_id,dictlist=True)
+            srclist = get_coadd_src_locations(coadd_id,dictlist=True)
             if srclist is None:
                 raise ValueError,\
                     'Could not get source list for id=%s\n' % coadd_id
@@ -300,7 +300,7 @@ def CollateCoaddCatalogsAndImages(band, xmlfile, getsrc=False):
     xmltools.dict2xml({'info':res}, xmlfile, roottag='coaddinfo')
 
 
-def DumpQuery(q, fname):
+def dump_query(q, fname):
     import sfile
     conn = oracle_util.Connection()
     stdout.write(q+'\n')
@@ -310,7 +310,7 @@ def DumpQuery(q, fname):
     res=0
     return
 
-def DumpQueryCurs(q, sep=',', fobj=None, fname=None):
+def dump_query_curs(q, sep=',', fobj=None, fname=None):
     """
     currently only good for numbers since not fixed length fields
     """
@@ -341,9 +341,9 @@ def DumpQueryCurs(q, sep=',', fobj=None, fname=None):
 
 
 
-def DumpTableInChunks(tables_in, columns_in, fname, chunksize=1000000,
-                      constraints='',
-                      dryrun=False):
+def dump_table_inchunks(tables_in, columns_in, fname, chunksize=1000000,
+                        constraints='',
+                        dryrun=False):
     import sfile
     conn = oracle_util.Connection()
 
@@ -410,7 +410,7 @@ def DumpTableInChunks(tables_in, columns_in, fname, chunksize=1000000,
     conn.Close()
 
 
-def GetIndexNorun(loc):
+def get_index_norun(loc):
     """
     This is darren's index that does not include the run.
     """
@@ -427,7 +427,7 @@ def GetIndexNorun(loc):
 
 
 
-def QueryByValue(table, colname, values):
+def query_byvalue(table, colname, values):
     """
     Assumes these are unique
     """
@@ -467,7 +467,7 @@ def QueryByValue(table, colname, values):
 
 
 
-def GetLatestDC4Locations(limit=None, band=None):
+def get_latest_dc4locations(limit=None, band=None):
     """
     At this stage we just need the files with nite like '2008%'.
 
@@ -519,7 +519,7 @@ def GetLatestDC4Locations(limit=None, band=None):
     imloc = imloc[ind]
 
 
-    catloc = QueryByValue('location','id',imloc['cat_id'])
+    catloc = query_byvalue('location','id',imloc['cat_id'])
 
     return imloc, catloc
     
