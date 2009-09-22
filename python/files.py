@@ -1,13 +1,84 @@
 import os
 import re
+from esutil import xmltools
+from esutil.ostools import path_join, getenv_check
+import pprint
+
+
+class Runconfig(object):
+    def __init__(self, run=None):
+        
+        self.fileclass='wlbnl'
+
+        self.run_types={}
+        self.run_types['wlse'] = {'name':'wlse',
+                                  'fileclass': self.fileclass, 
+                                  'filetype':'se_shapelet'}
+        self.run_types['wlme'] = {'name':'wlme',
+                                  'fileclass': self.fileclass, 
+                                  'filetype':'me_shapelet'}
+
+
+        self.fileclasses = {}
+        self.fileclasses['wlse'] = self.fileclass
+
+
+        self.se_executables = ['findstars','measurepsf','measureshear']
+        self.se_filetypes = ['stars','psf','fitpsf','shear',
+                             'findstars_log', 
+                             'measurepsf_log', 
+                             'measureshear_log']
+        self.me_executables = ['multishear']
+        self.me_filetypes = ['multishear','multishear_log']
+
+        self.config={}
+        if run is not None:
+            self.load(run)
+
+    def getbasedir(self):
+        DESDATA=getenv_check('DESDATA')
+        return os.path.join(DESDATA, 'runconfig')
+
+    def getdir(self, run):
+        basedir=self.getbasedir()
+        return os.path.join(basedir, run)
+
+    def getname(self, run):
+        rdir = self.getdir(run)
+        return os.path.join(rdir, run+'-config.xml')
+
+    def load(self, run):
+        self.config = self.read(run)
+
+    def read(self, run):
+        name=self.getname(run)
+        if not os.path.exists(name):
+            mess="runconfig '%s' not found at %s\n" % (run, name)
+            raise RuntimeError(mess)
+        runconfig = xmltools.xml2dict(name, noroot=True)
+        return runconfig
+
+    def asdict(self):
+        return self.config
+
+    def __getitem__(self, name):
+        if name in self.config:
+            return self.config[name]
+        else:
+            raise KeyError("%s" % name)
+
+    def __iter__(self):
+        return self.config.__iter__()
+
+    def __repr__(self):
+        return pprint.pformat(self.config)
+
 
 def fileclass_dir(fileclass, rootdir=None):
     if rootdir is not None:
         DESDATA=rootdir
     else:
-        DESDATA=os.getenv('DESDATA')
-        if DESDATA is None:
-            raise ValueError,'DESDATA environment variable not set'
+        DESDATA=getenv_check('DESDATA')
     return os.path.join(DESDATA, fileclass)
     
 def run_dir(fileclass, run, rootdir=None):
@@ -77,13 +148,13 @@ def coadd_cat_name(catalogrun, tilename, band):
     return fname
 
 
-_mohr_map={'stars':'shpltall', 
+_MOHR_MAP={'stars':'shpltall', 
            'psf':'shpltpsf', 
            'fitpsf':'psfmodel', 
            'shear':'shear'}
 def mohrify_name(name):
-    if name in _mohr_map:
-        return _mohr_map[name]
+    if name in _MOHR_MAP:
+        return _MOHR_MAP[name]
     else:
         return name
 
@@ -94,28 +165,32 @@ def mohrify_name(name):
 # me means multi-epoch
 
 def wlse_dir(run, exposurename, rootdir=None):
-    fileclass=run_types['wlse']['fileclass']
-    filetype=run_types['wlse']['filetype']
+    rc=Runconfig()
+
+    fileclass=rc.run_types['wlse']['fileclass']
+    filetype=rc.run_types['wlse']['filetype']
 
     ftdir=filetype_dir(fileclass, run, filetype, rootdir=rootdir)
     wldir=os.path.join(ftdir, exposurename)
  
     return wldir
 
-def wlme_dir(run, tilename, rootdir=None):
-    fileclass=run_types['wlme']['fileclass']
-    filetype=run_types['wlme']['filetype']
+def wlme_dir(merun, tilename, rootdir=None):
+    rc=Runconfig()
 
-    ftdir=filetype_dir(fileclass, run, filetype, rootdir=rootdir)
+    fileclass=rc.run_types['wlme']['fileclass']
+    filetype=rc.run_types['wlme']['filetype']
+
+    ftdir=filetype_dir(fileclass, merun, filetype, rootdir=rootdir)
     wldir=os.path.join(ftdir, tilename)
  
     return wldir
 
 def wlse_name(run, redrun, exposurename, ccdnum, wltype, 
-             mohrify=True, rootdir=None, ext='fits'):
+              mohrify=True, rootdir=None, ext='.fits'):
     """
     name=wlse_name(run, redrun, exposurename, ccdnum, wltype, 
-                  mohrify=True, rootdir=None, ext='fits')
+                  mohrify=True, rootdir=None, ext='.fits')
     Return the SE output file name for the given inputs
 
     Because this is designed for single epoch image processing, the
@@ -136,16 +211,65 @@ def wlse_name(run, redrun, exposurename, ccdnum, wltype,
     fullpath = os.path.join(wldir, name)
     return fullpath
 
-def wlme_name(run, coaddrun, tilename, band, wltype):
+def wlme_basename(tilename, band, extra=None, ext='.fits'):
+    """
+    basename for multi-epoch weak lensing output files
+    """
+
+    name=[tilename,band,'multishear']
+    if extra is not None:
+        name.append(extra)
+
+    name='_'.join(name)+ext
+    return name
+
+
+def wlme_fullpath(merun, tilename, band, extra=None, 
+                  dir=None, rootdir=None, ext='.fits'):
     """
     Return a multi-epoch shear output file name
+
+    currently just for multishear and logs, etc 
     """
-    pass
+
+    name = wlme_basename(tilename, band, extra=extra,ext=ext)
+
+    if dir is None:
+        dir=wlme_dir(merun, tilename, rootdir=rootdir)
+
+    name = os.path.join(dir, name)
+    return name
+
+def wlme_srclist_name(tilename, band):
+    srclist=[tilename,band,'srclist']
+    srclist='-'.join(srclist)+'.dat'
+    return srclist
+    
+
+def wlme_srclist_fullpath(dataset, host, tilename, band):
+    srclist=wlme_srclist_name(tilename,band)
+    desfiles_dir=getenv_check('DESFILES_DIR')
+    srclist=path_join(desfiles_dir,dataset,host,'multishear-srclists',srclist)
+    return srclist
+
+
+def wlme_pbs_name(merun,tilename, band):
+    pbsfile=[tilename,band,merun]
+    pbsfile='-'.join(pbsfile)+'.pbs'
+    return pbsfile
+    
+def wlme_pbs_fullpath(dataset, host, merun, tilename, band):
+    pbsfile=wlme_pbsfile_name(tilename,band)
+    desfiles_dir=getenv_check('DESFILES_DIR')
+    pbsfile=path_join(desfiles_dir,dataset,host,merun,'multishear-pbs', pbsfile)
+    return pbsfile
+
+
 
 
 # run configurations
 def runconfig_basedir():
-    DESDATA=os.getenv('DESDATA')
+    DESDATA=getenv_check('DESDATA')
     return os.path.join(DESDATA, 'runconfig')
 
 def runconfig_dir(run):
@@ -172,9 +296,7 @@ def get_info_from_path(filepath, fileclass):
 
 
 
-    DESDATA=os.getenv('DESDATA')
-    if DESDATA is None:
-        raise ValueError,'Environment variable DESDATA does not exist'
+    DESDATA=getenv_check('DESDATA')
     if DESDATA[-1] == os.sep:
         DESDATA=DESDATA[0:len(DESDATA)-1]
 
@@ -276,12 +398,12 @@ def replacedir(oldfile, newdir):
         return None
 
 
-_fits_extstrip=re.compile( '\.fits(\.fz)?$' )
+_FITS_EXTSTRIP=re.compile( '\.fits(\.fz)?$' )
 def remove_fits_extension(fname):
     """
     See if the pattern exists and replace it with '' if it does
     """
-    return _fits_extstrip.sub('', fname)
+    return _FITS_EXTSTRIP.sub('', fname)
 
 
 

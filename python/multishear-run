@@ -10,36 +10,59 @@ import deswl
 from optparse import OptionParser
 parser = OptionParser(__doc__)
 
-parser.add_option("--debug", default=0,
-    help="Debug verbosity level. 0:none 1:dbg 2:xdbg. Default '%default'")
-parser.add_option("--srclist", default=None,
- help="srclist file name.  Overrides the default srclist. Default '%default'")
-parser.add_option("--outdir", default='.',
-                  help="Where to place the output file. Default '%default'")
+parser.add_option("--merun", default=None,
+    help="The run identifier. If sent a runconfig is "
+         "read and verified against current settings. The outdir will be "
+         "set to the usual place (see below)")
+
 parser.add_option("--dataset", default='dc4coadd',
                   help="dataset. Default '%default'")
 parser.add_option("--host", default='tutti',
                   help="data host.  Default '%default'")
 
+
+parser.add_option("--srclist", default=None,
+ help="srclist file name.  Overrides the default srclist.")
+
+
+parser.add_option("--outdir", default=None,
+                  help="Where to place the output file. Default "
+                       " is '.' if the merun is not sent,"
+                       " but if merun is sent it will be"
+                       " $DESDATA/wlbnl/run/me_shapelet/tilename")
+parser.add_option("--rootdir", default=None,
+    help="Specify the data root directory. Default $DESDATA")
+
+
+parser.add_option("--debug", default=0,
+    help="Debug verbosity level. 0:none 1:dbg 2:xdbg. Default %default")
+
 options, args = parser.parse_args(sys.argv[1:])
 
 if len(args) < 2:
     parser.print_help()
-    stdout.write('\nExample:\n    multishear-run DES2215-2853 i\n\n')
-    stdout.write('Library Documentation:'+\
-                 deswl.wlpipe.run_multishear.__doc__)
+    stdout.write('\nExample:\n    multishear-run DES2215-2853 i\n')
+    stdout.write('\nFor more information see the documentation for\n')
+    stdout.write('    deswl.wlpipe.run_multishear\n\n')
+    #stdout.write('Library Documentation:'+\
+    #             deswl.wlpipe.run_multishear.__doc__)
     sys.exit(45)
 
 tilename=args[0]
 band=args[1]
+merun=options.merun
 outdir = options.outdir
+rootdir = options.rootdir
 dataset=options.dataset
 host=options.host
 srclist=options.srclist
 debug=options.debug
 
 deswl.wlpipe.run_multishear(tilename, band, 
+                            merun=merun,
                             srclist=srclist,
-                            outdir=outdir, dataset=dataset, host=host,
+                            outdir=outdir, 
+                            rootdir=rootdir,
+                            dataset=dataset, host=host,
                             debug=debug)
 
