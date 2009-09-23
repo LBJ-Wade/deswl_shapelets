@@ -119,8 +119,7 @@ _DEFAULT_DATASET='dc4coadd'
 _DEFAULT_HOST='tutti'
 
 # root directory where scratch files go
-_SCRATCH_ROOTDIR='/scratch/DES'
-_ME_SCRATCH_DIR='/scratch/DES_WLME'
+_SCRATCH_ROOTDIR='/scratch/esheldon/DES'
 
 
 def get_red_filelist(band=None, extra=None, latest=False, return_dict=False):
@@ -265,11 +264,11 @@ def generate_runconfig(run_type):
 
     # software versions
     pyvers=get_python_version()
-    esutilvers=esutil.version
-    wlvers=deswl.version
+    esutilvers=esutil.version()
+    wlvers=deswl.version()
     tmvvers=get_tmv_version()
 
-    runconfig={'serun':run, 
+    runconfig={'run':run, 
                'run_type':run_type,
                'fileclass': fileclass,
                'filetype':filetype,
@@ -290,18 +289,26 @@ def verify_runconfig(runconfig):
     by the run configuration
     """
 
-    wlvers=deswl.version
+    wlvers=deswl.version()
+    esutilvers=esutil.version()
     tmvvers=get_tmv_version()
     pyvers=get_python_version()
 
+    if runconfig['esutilvers'] != esutilvers:
+        raise ValueError("current esutil '%s' does not match "
+                         "runconfig '%s'" % (esutilvers,runconfig['esutilvers']))
+
     if runconfig['wlvers'] != wlvers:
-        raise ValueError,'current wlvers "%s" does not match runconfig "%s"' % (wlvers,runconfig['wlvers'])
+        raise ValueError("current wlvers '%s' does not match "
+                         "runconfig '%s'" % (wlvers,runconfig['wlvers']))
 
     if runconfig['tmvvers'] != tmvvers:
-        raise ValueError,'current tmvvers "%s" does not match runconfig "%s"' % (tmvvers,runconfig['tmvvers'])
+        raise ValueError("current tmvvers '%s' does not match "
+                         "runconfig '%s'" % (tmvvers,runconfig['tmvvers']))
 
     if runconfig['pyvers'] != pyvers:
-        raise ValueError,'current pyvers "%s" does not match runconfig "%s"' % (pyvers,runconfig['pyvers'])
+        raise ValueError("current pyvers '%s' does not match "
+                         "runconfig '%s'" % (pyvers,runconfig['pyvers']))
 
 
 
@@ -1064,7 +1071,7 @@ def generate_me_srclists(tileinfo_found_latest, outdir='.'):
         %s
     Which should be a unique list of tiles.  When duplicate tiles are present
     the latest based on coaddrun-catalogrun was chosen.
-    """ % os.path.basename(tileinfo_found_latest)
+    \n""" % os.path.basename(tileinfo_found_latest)
     readme.write(mess)
     readme.close()
 
@@ -1073,7 +1080,7 @@ def _make_setup_command(prodname, vers):
     convention is that trunk is exported to ~/exports/prodname-work
     """
     setup_command = "setup %s" % prodname
-    if vers == 'trunk':
+    if vers == 'trunk' and prodname != 'desfiles':
         setup_command += ' -r ~/exports/%s-work' % prodname
     else:
         setup_command += ' %s' % vers
@@ -1082,7 +1089,71 @@ def _make_setup_command(prodname, vers):
 
 def generate_me_pbsfile(merun, tilename, band, outfile,
                         dataset=_DEFAULT_DATASET, 
-                        host=_DEFAULT_HOST):
+                        host=_DEFAULT_HOST,
+                        nodes=1, ppn=8, walltime='2:00:00'):
+
+    # the job name
+    jobname=tilename+'-'+band
+
+    # The useful log file we redirect from the actual script call
+    logf=os.path.basename(outfile).replace('.pbs','.log')
+    logf=path_join('${HOME}', 'pbslogs', 'wlme', logf)
+
+    # the generally useless pbslog
+    pbslog_file = os.path.basename(logf.replace('.log','.pbslog'))
+
+    header="""#!/bin/bash
+#PBS -S /bin/bash
+#PBS -N %s
+#PBS -j oe
+#PBS -o %s
+#PBS -m a
+#PBS -V
+#PBS -r n
+#PBS -W umask=0022
+#PBS -l walltime=%s
+#PBS -l nodes=%s:ppn=%s
+
+# explanation of above directives
+# see also: http://wiki.hpc.ufl.edu/index.php/PBS_Directives
+#
+# -N name - the name of the job
+# -j oe   - merge stdout and stderr in the output log (see -o)
+# -o name - put the output here.  Not usually useful for logging that
+#                   needs to be watched since it isn't actually written till the
+#                       script finishes.
+# -m a    - send mail when there is an abort
+# -V      - All environment variables in the qsub command's environment
+#                       are to be exported to the batch job.
+# -r n    - Don't try to rerun the job
+# -W umask=0022 - you can specify lots of things with -W. In this case make
+#                 sure the umask is correct.  I often put this in the 
+#                 script itself too
+# -l walltime=24:00:00 - "-l" is used to specify resources.  walltime gives
+#                        the max wall time the script can take before it
+#                        gets killed.
+#
+# some stuff not in this header
+#
+# -l nodes=number_of_nodes:ppn=process_per_node
+#    Note, in modern parlance, ppn is really number of cores to use.
+# -q queue  - Run in this queue
+
+umask 0022
+echo "Running on node: $(hostname)"
+
+# The main log file, updated as the script runs
+logf="%s"
+
+# make sure our log directory exists
+d=$(dirname $logf)
+if [ ! -e "$d" ]; then
+    mkdir -p "$d"
+fi
+
+# get eups ready
+source /global/data/products/eups/bin/setups.sh
+""" % (jobname, pbslog_file, walltime, nodes, ppn, logf)
 
     rc=deswl.files.Runconfig(merun)
     esutil_setup = _make_setup_command('esutil', rc['esutilvers'])
@@ -1094,37 +1165,44 @@ def generate_me_pbsfile(merun, tilename, band, outfile,
 
     # need pbs directives here
 
+    fobj.write(header)
     fobj.write(tmv_setup+'\n')
     fobj.write(esutil_setup+'\n')
     fobj.write(wl_setup+'\n')
 
-    fobj.write("multishear-run    \\  \n")
-    fobj.write('    --dataset=%s  \\  \n' % dataset)
-    fobj.write('    --host=%s     \\  \n' % host)
-    fobj.write('    --rootdir=%s  \\  \n' % _ME_SCRATCH_DIR)
-    fobj.write('    %s %s\n' % (tilename, band))
+    fobj.write("multishear-run    \\\n")
+    fobj.write('    --merun=%s  \\\n' % merun)
+    fobj.write('    --dataset=%s  \\\n' % dataset)
+    fobj.write('    --host=%s     \\\n' % host)
+    fobj.write('    --rootdir=%s  \\\n' % _SCRATCH_ROOTDIR)
+    fobj.write('    %s %s &> "$logf"\n' % (tilename, band))
 
-    # Need to write stdout/stderr for this script to something
+    fobj.write('\n')
+    fobj.close()
 
-def generate_me_pbsfiles(tileifo_found_latest,
+def generate_me_pbsfiles(tileinfo_found_latest,
                          merun, 
                          outdir='.',
                          dataset=_DEFAULT_DATASET, 
                          host=_DEFAULT_HOST):
 
-    
+
     if not os.path.exists(outdir):
         distutils.dir_util.mkpath(outdir)
 
+    stdout.write("Reading tileinfo: %s\n" % tileinfo_found_latest)
     tileinfo_dict = xmltools.xml2dict(tileinfo_found_latest)
     tileinfo = tileinfo_dict['tileinfo_local']['info']
 
+    stdout.write("Creating pbs files\n")
     for ti in tileinfo:
-        name=deswl.files.wlme_pbs_name(tilename,band)
+        tilename=ti['tilename']
+        band=ti['band']
+        name=deswl.files.wlme_pbs_name(tilename,band,merun)
 
         outfile = os.path.join(outdir, name)
         stdout.write('Writing pbs file: %s\n' % outfile)
-        generate_me_srclist(merun, tilename, band, outfile,
+        generate_me_pbsfile(merun, tilename, band, outfile,
                             dataset=dataset, host=host)
 
     
@@ -1136,7 +1214,8 @@ def generate_me_pbsfiles(tileifo_found_latest,
         %s
     Which should be a unique list of tiles.  When duplicate tiles are present
     the latest based on coaddrun-catalogrun was chosen.
-    """ % tileinfo_found_latest
+    \n""" % tileinfo_found_latest
+
     readme.write(mess)
     readme.close()
 
@@ -1201,16 +1280,16 @@ def process_me_tile(executable,
 def generate_me_filenames(tilename, band, merun=None, dir=None, rootdir=None):
     if merun is not None:
         multishear_file=deswl.files.wlme_fullpath(merun, tilename, band, 
-                                                  dir=outdir, rootdir=rootdir)
+                                                  dir=dir, rootdir=rootdir)
         stdout_file=deswl.files.wlme_fullpath(merun, tilename, band, 
                                               ext='.stdout',
-                                              dir=outdir, rootdir=rootdir)
+                                              dir=dir, rootdir=rootdir)
         stderr_file=deswl.files.wlme_fullpath(merun, tilename, band, 
                                               ext='.stderr',
-                                              dir=outdir, rootdir=rootdir)
+                                              dir=dir, rootdir=rootdir)
         log_file=deswl.files.wlme_fullpath(merun, tilename, band, 
                                            extra='log', ext='.xml',
-                                           dir=outdir, rootdir=rootdir)
+                                           dir=dir, rootdir=rootdir)
     else:
         if dir is None:
             dir='.'
@@ -1307,13 +1386,16 @@ def run_multishear(tilename, band,
             outdir = deswl.files.wlme_dir(merun, tilename, rootdir=rootdir)
     else:
         runconfig=None
+        if outdir is None:
+            outdir='.'
 
     tm1=time.time()
     wl_dir=getenv_check('WL_DIR')
     desfiles_dir=getenv_check('DESFILES_DIR')
 
     pyvers=get_python_version()
-    wlvers=deswl.version
+    esutilvers=esutil.version()
+    wlvers=deswl.version()
     tmvvers=get_tmv_version()
 
 
@@ -1336,7 +1418,7 @@ def run_multishear(tilename, band,
 
 
 
-    stdout.write('\nReading tileinfo file\n\n')
+    stdout.write('\nReading tileinfo file: %s\n\n' % tileinfo_file)
     tileinfo=xmltools.xml2dict(tileinfo_file,noroot=True)
     tileinfo=tileinfo['info']
 
@@ -1353,25 +1435,12 @@ def run_multishear(tilename, band,
         raise ValueError,"Tilename '%s' not found in '%s'" % \
                 (tilename, tileinfo_file)
 
-    multishear_file=\
-        deswl.files.remove_fits_extension(coaddimage)+'_multishear.fits'
-    multishear_file=\
-        path_join(outdir,os.path.basename(multishear_file))
-    stdout_file=multishear_file.replace('.fits','.stdout')
-    stderr_file=multishear_file.replace('.fits','.stderr')
-    log_file=multishear_file.replace('.fits','_log.xml')
-
-    multishear_file=deswl.files.wlme_name(merun, tilename, band, 
-                                          dir=outdir, rootdir=rootdir)
-    stdout_file=deswl.files.wlme_name(merun, tilename, band, 
-                                      ext='.stdout',
-                                      dir=outdir, rootdir=rootdir)
-    stderr_file=deswl.files.wlme_name(merun, tilename, band, 
-                                      ext='.stderr',
-                                      dir=outdir, rootdir=rootdir)
-    log_file=deswl.files.wlme_name(merun, tilename, band, 
-                                      extra='_log', ext='.xml',
-                                      dir=outdir, rootdir=rootdir)
+    fdict=generate_me_filenames(tilename, band, 
+                                merun=merun, dir=outdir, rootdir=rootdir)
+    multishear_file=fdict['multishear']
+    stdout_file=fdict['stdout']
+    stderr_file=fdict['stderr']
+    log_file=fdict['log']
 
 
     log={}
@@ -1385,6 +1454,7 @@ def run_multishear(tilename, band,
     log['dataset'] = dataset
     log['host'] = host
     log['pyvers'] = pyvers
+    log['esutilvers'] = esutilvers
     log['wlvers'] = wlvers
     log['tmvvers'] = tmvvers
     log['WL_DIR'] = wl_dir
