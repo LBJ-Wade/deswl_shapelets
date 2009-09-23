@@ -6,7 +6,7 @@
 # Don't edit these svn properties by hand
 _property_headurl='$HeadURL$'
 
-def get_wl_version():
+def version():
     import os
     from sys import stderr
 
@@ -33,7 +33,6 @@ def get_wl_version():
     return tag
 
 
-version=get_wl_version()
 import wlpipe
 import files
 import oracle
