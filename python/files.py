@@ -13,10 +13,12 @@ class Runconfig(object):
         self.run_types={}
         self.run_types['wlse'] = {'name':'wlse',
                                   'fileclass': self.fileclass, 
-                                  'filetype':'se_shapelet'}
+                                  'filetype':'se_shapelet',
+                                  'runvarname':'serun'}
         self.run_types['wlme'] = {'name':'wlme',
                                   'fileclass': self.fileclass, 
-                                  'filetype':'me_shapelet'}
+                                  'filetype':'me_shapelet',
+                                  'runvarname': 'merun'}
 
 
         self.fileclasses = {}
@@ -253,15 +255,22 @@ def wlme_srclist_fullpath(dataset, host, tilename, band):
     return srclist
 
 
-def wlme_pbs_name(merun,tilename, band):
+
+
+def wlme_pbs_dir(dataset, host, tilename, band, merun):
+    desfiles_dir=getenv_check('DESFILES_DIR')
+    pbsdir=path_join(desfiles_dir,dataset,host,'multishear-pbs', merun)
+    return pbsdir
+
+def wlme_pbs_name(tilename, band, merun):
     pbsfile=[tilename,band,merun]
     pbsfile='-'.join(pbsfile)+'.pbs'
     return pbsfile
     
-def wlme_pbs_fullpath(dataset, host, merun, tilename, band):
-    pbsfile=wlme_pbsfile_name(tilename,band)
-    desfiles_dir=getenv_check('DESFILES_DIR')
-    pbsfile=path_join(desfiles_dir,dataset,host,merun,'multishear-pbs', pbsfile)
+def wlme_pbs_fullpath(dataset, host, tilename, band, merun):
+    pbsfile=wlme_pbsfile_name(tilename,band, merun)
+    pbsdir=wlme_pbs_dir(tilename, band, merun)
+    pbsfile=path_join(pbsdir, pbsfile)
     return pbsfile
 
 
