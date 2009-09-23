@@ -1195,6 +1195,10 @@ def generate_me_pbsfiles(tileinfo_found_latest,
     tileinfo = tileinfo_dict['tileinfo_local']['info']
 
     stdout.write("Creating pbs files\n")
+
+    submit_fname=os.path.join(outdir, 'submit.sh')
+    submit=open(submit_fname, 'w')
+
     for ti in tileinfo:
         tilename=ti['tilename']
         band=ti['band']
@@ -1205,7 +1209,11 @@ def generate_me_pbsfiles(tileinfo_found_latest,
         generate_me_pbsfile(merun, tilename, band, outfile,
                             dataset=dataset, host=host)
 
+        submit.write('qsub %s\n' % os.path.basename(outfile))
+
     
+    submit.close()
+
     readme_fname=os.path.join(outdir, 'README')
     stdout.write('Creating %s\n' % readme_fname)
     readme=open(readme_fname, 'w')
@@ -1446,10 +1454,10 @@ def run_multishear(tilename, band,
     log={}
     if merun is not None:
         log['merun'] = merun
-        log['runconfig'] = runconfig.asdict()
+        #log['runconfig'] = runconfig.asdict()
     else:
         log['merun'] = 'unspecified'
-        log['runconfig'] = 'unspecified'
+        #log['runconfig'] = 'unspecified'
 
     log['dataset'] = dataset
     log['datahost'] = host
