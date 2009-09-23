@@ -98,6 +98,7 @@
 
 import sys
 from sys import stdout,stderr
+import platform
 import os
 import subprocess
 import time
@@ -1140,7 +1141,6 @@ def generate_me_pbsfile(merun, tilename, band, outfile,
 # -q queue  - Run in this queue
 
 umask 0022
-echo "Running on node: $(hostname)"
 
 # The main log file, updated as the script runs
 logf="%s"
@@ -1452,7 +1452,7 @@ def run_multishear(tilename, band,
         log['runconfig'] = 'unspecified'
 
     log['dataset'] = dataset
-    log['host'] = host
+    log['datahost'] = host
     log['pyvers'] = pyvers
     log['esutilvers'] = esutilvers
     log['wlvers'] = wlvers
@@ -1470,6 +1470,8 @@ def run_multishear(tilename, band,
     log['coaddimage'] = coaddimage
     log['coaddcat'] = coaddcat
     log['multishear_file'] = multishear_file
+    log['hostname'] = platform.node()
+    log['date'] = datetime.datetime.now().strftime("%Y-%m-%d-%X")
 
     # Print some info
     stdout.write('Configuration:\n')
@@ -1478,7 +1480,7 @@ def run_multishear(tilename, band,
         for key in runconfig:
             stdout.write("        rc['%s']: %s\n" % (key, runconfig[key]))
     stdout.write('    dataset: %s\n' % dataset)
-    stdout.write('    host: %s\n' % host)
+    stdout.write('    data host: %s\n' % host)
     stdout.write('    python version: %s\n' % pyvers)
     stdout.write('    tmv version: %s\n' % tmvvers)
     stdout.write('    wl version: %s\n' % wlvers)
@@ -1494,6 +1496,8 @@ def run_multishear(tilename, band,
     stdout.write('    coaddimage: %s\n' % coaddimage)
     stdout.write('    coaddcat: %s\n' % coaddcat)
     stdout.write('    multishear_file: %s\n' % multishear_file)
+    stdout.write('    date: %s\n' % log['date'])
+    stdout.write('    running on: %s\n' % log['hostname'])
 
     # make sure outdir exists
     if not os.path.exists(outdir):
