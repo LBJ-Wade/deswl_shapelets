@@ -258,35 +258,37 @@ void StarCatalog::WriteFits(std::string file) const
   CCfitsWriteParKey(params, table, "noise_method", str);
   CCfitsWriteParKey(params, table, "dist_method", str);
 
-  CCfitsWriteParKey(params, table, "stars_minsize", dbl);
-  CCfitsWriteParKey(params, table, "stars_maxsize", dbl);
-  CCfitsWriteParKey(params, table, "stars_minmag", dbl);
-  CCfitsWriteParKey(params, table, "stars_maxmag", dbl);
-  CCfitsWriteParKey(params, table, "stars_ndivx", intgr);
-  CCfitsWriteParKey(params, table, "stars_ndivy", intgr);
+  if (params.keyExists("stars_minsize")) 
+  {
+    CCfitsWriteParKey(params, table, "stars_minsize", dbl);
+    CCfitsWriteParKey(params, table, "stars_maxsize", dbl);
+    CCfitsWriteParKey(params, table, "stars_minmag", dbl);
+    CCfitsWriteParKey(params, table, "stars_maxmag", dbl);
+    CCfitsWriteParKey(params, table, "stars_ndivx", intgr);
+    CCfitsWriteParKey(params, table, "stars_ndivy", intgr);
 
-  CCfitsWriteParKey(params, table, "stars_startn1", dbl);
-  CCfitsWriteParKey(params, table, "stars_starfrac", dbl);
-  CCfitsWriteParKey(params, table, "stars_magstep1", dbl);
-  CCfitsWriteParKey(params, table, "stars_miniter1", intgr);
-  CCfitsWriteParKey(params, table, "stars_reject1", dbl);
-  CCfitsWriteParKey(params, table, "stars_binsize1", dbl);
-  CCfitsWriteParKey(params, table, "stars_maxratio1", dbl);
-  CCfitsWriteParKey(params, table, "stars_okvalcount", intgr);
-  CCfitsWriteParKey(params, table, "stars_maxrms", dbl);
-  CCfitsWriteParKey(params, table, "stars_starsperbin", intgr);
+    CCfitsWriteParKey(params, table, "stars_startn1", dbl);
+    CCfitsWriteParKey(params, table, "stars_starfrac", dbl);
+    CCfitsWriteParKey(params, table, "stars_magstep1", dbl);
+    CCfitsWriteParKey(params, table, "stars_miniter1", intgr);
+    CCfitsWriteParKey(params, table, "stars_reject1", dbl);
+    CCfitsWriteParKey(params, table, "stars_binsize1", dbl);
+    CCfitsWriteParKey(params, table, "stars_maxratio1", dbl);
+    CCfitsWriteParKey(params, table, "stars_okvalcount", intgr);
+    CCfitsWriteParKey(params, table, "stars_maxrms", dbl);
+    CCfitsWriteParKey(params, table, "stars_starsperbin", intgr);
 
-  CCfitsWriteParKey(params, table, "stars_fitorder", intgr);
-  CCfitsWriteParKey(params, table, "stars_fitsigclip", dbl);
-  CCfitsWriteParKey(params, table, "stars_startn2", dbl);
-  CCfitsWriteParKey(params, table, "stars_magstep2", dbl);
-  CCfitsWriteParKey(params, table, "stars_miniter2", intgr);
-  CCfitsWriteParKey(params, table, "stars_minbinsize", dbl);
-  CCfitsWriteParKey(params, table, "stars_reject2", dbl);
+    CCfitsWriteParKey(params, table, "stars_fitorder", intgr);
+    CCfitsWriteParKey(params, table, "stars_fitsigclip", dbl);
+    CCfitsWriteParKey(params, table, "stars_startn2", dbl);
+    CCfitsWriteParKey(params, table, "stars_magstep2", dbl);
+    CCfitsWriteParKey(params, table, "stars_miniter2", intgr);
+    CCfitsWriteParKey(params, table, "stars_minbinsize", dbl);
+    CCfitsWriteParKey(params, table, "stars_reject2", dbl);
 
-  CCfitsWriteParKey(params, table, "stars_purityratio", dbl);
-  CCfitsWriteParKey(params, table, "stars_maxrefititer", intgr);
-
+    CCfitsWriteParKey(params, table, "stars_purityratio", dbl);
+    CCfitsWriteParKey(params, table, "stars_maxrefititer", intgr);
+  }
 
 
   // Now the data columns

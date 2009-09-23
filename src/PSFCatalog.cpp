@@ -285,7 +285,7 @@ void PSFCatalog::WriteFits(std::string file) const
 
     table->column(colnames[7]).write(&b_order,1,row);
     table->column(colnames[8]).write(&b_sigma,1,row);
-    double* cptr = (double *) psf[i].cptr();
+    double* cptr = const_cast<double *>(psf[i].cptr());
     table->column(colnames[9]).write(cptr, ncoeff, 1, row);
   }
 }
@@ -467,11 +467,7 @@ void PSFCatalog::ReadFits(std::string file)
     // column into a valarray, period
     std::valarray<double> coeffs;
     table.column(coeffs_col).read(coeffs, row);
-    double* ptri = (double* ) psf[i].cptr(); 
-    for (int j=0; j<ncoeff; ++j) 
-    {
-      ptri[i] = coeffs[i];
-    }
+    for (int j=0; j<ncoeff; ++j) psf[i][j] = coeffs[j];
   }
 }
 
