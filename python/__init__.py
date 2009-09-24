@@ -7,7 +7,6 @@
 _property_headurl='$HeadURL$'
 
 def version():
-    import os
     from sys import stderr
 
     thisname='/python/__init__.py'
@@ -29,7 +28,7 @@ def version():
 
     urlfront = url.replace(thisname, '')
 
-    tag = os.path.basename(urlfront)
+    tag=urlfront.split('/')[-1]
     return tag
 
 

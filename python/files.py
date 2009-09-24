@@ -1,3 +1,4 @@
+from sys import stdout,stderr
 import os
 import re
 from esutil import xmltools
@@ -241,6 +242,49 @@ def wlme_fullpath(merun, tilename, band, extra=None,
 
     name = os.path.join(dir, name)
     return name
+
+
+def collated_coaddfiles_dir(dataset):
+    desfiles_dir=getenv_check('DESFILES_DIR')
+    return path_join(desfiles_dir,dataset)
+
+
+# need to rationalize these names
+def collated_coaddfiles_name(dataset, band, 
+                             withsrc=True, host=None, newest=True):
+    name=[dataset,'images','catalogs']
+    if withsrc:
+        name.append('withsrc')
+    
+    if host is not None:
+        name.append(host)
+        if newest:
+            name.append('newest')
+    name.append(band)
+
+    return '-'.join(name)+'.xml'
+
+def collated_coaddfiles_fullpath(dataset, band, 
+                                 withsrc=True, host=None, newest=True):
+    tdir=collated_coaddfiles_dir(dataset)
+    name = collated_coaddfiles_name(dataset, band, 
+                                    withsrc=withsrc, host=host, newest=newest)
+    return path_join(tdir, name)
+
+def collated_coaddfiles_read(dataset, band, 
+                             withsrc=True, host=None, newest=True, 
+                             getname=False):
+    f=collated_coaddfiles_fullpath(dataset, band, 
+                                   withsrc=withsrc, host=host, newest=newest)
+    stdout.write('Reading tileinfo file: %s\n' % f)
+    tileinfo=xmltools.xml2dict(f,noroot=True)
+    tileinfo=tileinfo['info']
+    if getname:
+        return tileinfo, f
+    else:
+        return tileinfo
+
+
 
 def wlme_srclist_name(tilename, band):
     srclist=[tilename,band,'srclist']

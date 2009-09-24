@@ -32,6 +32,8 @@ parser.add_option("--outdir", default=None,
                        " $DESDATA/wlbnl/run/me_shapelet/tilename")
 parser.add_option("--rootdir", default=None,
     help="Specify the data root directory. Default $DESDATA")
+parser.add_option("--copyroot", action='store_true', default=False,
+    help="Copy output files to the default path under $DESDATA")
 
 
 parser.add_option("--debug", default=0,
@@ -53,6 +55,7 @@ band=args[1]
 merun=options.merun
 outdir = options.outdir
 rootdir = options.rootdir
+copyroot=options.copyroot
 dataset=options.dataset
 host=options.host
 srclist=options.srclist
@@ -63,6 +66,7 @@ deswl.wlpipe.run_multishear(tilename, band,
                             srclist=srclist,
                             outdir=outdir, 
                             rootdir=rootdir,
+                            copyroot=copyroot,
                             dataset=dataset, host=host,
                             debug=debug)
 
