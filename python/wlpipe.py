@@ -218,7 +218,14 @@ def get_matched_red_image_catlist(band=None, combine=True):
         stdout.write('Matched %s\n' % len(outlist))
         return outlist
 
-def generate_run_name(run_type):
+def _run_name_from_type_number(run_type, number, test=False):
+    if test:
+        name='%stest%06i' % (run_type, number)
+    else:
+        name='%s%06i' % (run_type, number)
+    return name
+
+def generate_run_name(run_type, test=False):
     """
     generates a new name like run_type000002, checking against names in
     runconfig_basedir()
@@ -231,18 +238,20 @@ def generate_run_name(run_type):
 
     dir=deswl.files.runconfig_basedir()
     i=0
-    run_name = '%s%06i' % (run_type, i)
+    #run_name = '%s%06i' % (run_type, i)
+    run_name=_run_name_from_type_number(run_type, i, test=test)
     rundir=os.path.join(dir, run_name)
     while os.path.exists(rundir):
         i+=1
-        run_name = '%s%06i' % (run_type,i)
+        #run_name = '%s%06i' % (run_type,i)
+        run_name=_run_name_from_type_number(run_type, i, test=test)
         rundir=os.path.join(dir, run_name) 
 
     return run_name
 
 
 
-def generate_runconfig(run_type):
+def generate_runconfig(run_type, test=False):
     """
     Generate wl run configuration. run_types supported currently are
         'wlse': single epoch
@@ -250,7 +259,7 @@ def generate_runconfig(run_type):
     """
     # need to add a tmv version here
 
-    run = generate_run_name(run_type)
+    run = generate_run_name(run_type, test=test)
     rc=deswl.files.Runconfig()
     fileclass = rc.run_types[run_type]['fileclass']
     filetype = rc.run_types[run_type]['filetype']
@@ -1238,6 +1247,7 @@ def make_me_commandlist(executable,
                         coaddcat_file, 
                         multishear_file,
                         shear_dc4_input_format=True,
+                        merun=None,
                         debug=0):
     command = [executable,
                config_file,
@@ -1247,6 +1257,10 @@ def make_me_commandlist(executable,
                'multishear_file='+multishear_file]
     if shear_dc4_input_format:
         command.append('shear_dc4_input_format=true')
+
+    if merun is not None:
+        command.append('merun=%s' % merun)
+
 
     if debug:
         debug_file=multishear_file.replace('.fits','.debug')
@@ -1261,6 +1275,7 @@ def process_me_tile(executable,
                     multishear_file,
                     stdout_file=None,
                     stderr_file=None,
+                    merun=None,
                     timeout=60*60,
                     debug=0):
     """
@@ -1274,6 +1289,7 @@ def process_me_tile(executable,
                                   coaddimage_file, 
                                   coaddcat_file, 
                                   multishear_file,
+                                  merun=merun,
                                   debug=debug)
 
     exit_status, stdout_ret, stderr_ret = \
@@ -1370,8 +1386,10 @@ def run_multishear(tilename, band,
         band: e.g. 'i'
 
     Optional parameters:
-        merun: The multi-epoch run identifier.  If sent then the output 
+        merun: The multi-epoch run identifier.  If sent then the default output 
             directory is $DESDATA/wlbnl/run/me_shapelet/tilename.
+            Also, the merun= keyword is sent to multishear and added to the
+            header.
         outdir: The output directory.  Default '.'.  If merun is sent the
             default directory is the "standard" place.  See below.
         rootdir: The root directory when merun sent.  Default is $DESDATA.
@@ -1527,6 +1545,7 @@ def run_multishear(tilename, band,
                                   multishear_file, 
                                   stdout_file=stdout_file,
                                   stderr_file=stderr_file,
+                                  merun=merun,
                                   debug=debug)
 
     

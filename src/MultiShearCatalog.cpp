@@ -869,6 +869,13 @@ void MultiShearCatalog::WriteFits(std::string file) const
   CCfitsWriteParKey(params, table, "shear_min_gal_size", dbl);
   CCfitsWriteParKey(params, table, "shear_f_psf", dbl);
 
+  // if merun= is sent we'll put it in the header.  This allows us to 
+  // associate some more, possibly complicated, metadata with this file
+  if ( params.keyExists("merun") ) {
+	  //std::cerr<<"Writing merun="<<params["merun"]<<std::endl;
+	  CCfitsWriteParKey(params, table, "merun", str);
+  }
+
   // data
   // make vector copies for writing
   std::vector<double> ra(size());
