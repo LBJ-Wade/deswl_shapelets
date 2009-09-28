@@ -33,6 +33,7 @@
 #define SHAPE_POOR_FIT          0x80000
 #define SHEAR_BAD_COVAR         0x100000
 #define NO_SINGLE_EPOCH_IMAGES	0x200000
+#define BKG_NOPIX		0x400000
 
 
 // Errors specific to the weak lensing code

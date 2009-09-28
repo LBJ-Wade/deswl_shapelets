@@ -123,6 +123,10 @@ void GetPixList(const Image<double>& im, PixelList& pix,
     const Image<double>* wt_im, const Transformation& trans,
     double aperture, long& flag);
 
+double GetLocalSky(const Image<float>& bkg, 
+    const Position cen, const Transformation& trans,
+    double aperture, long& flag);
+
 void GetSubPixList(PixelList& pix,
     const PixelList& allpix,
     double aperture, long& flag);

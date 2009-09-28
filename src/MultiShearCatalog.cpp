@@ -577,18 +577,6 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
     // Find the nearest object in the shear catalog:
     int nearest = shearcat_tree.FindNearestTo(pos);
 
-    // Calculate the local sky value.
-    double sky=0;
-    if (sky_method == "MEAN")
-      sky = mean_sky;
-    else if (sky_method == "NEAREST")
-      sky = shearcat.sky[nearest];
-    else 
-    {
-      Assert(sky_method == "MAP");
-      Assert(!("MAP method not implemented yet." + int(sky)));
-    }
-
     Assert(i < pixlist.size());
     xxdbg<<"pixlist["<<i<<"].size = "<<pixlist[i].size()<<std::endl;
     xxdbg<<"psflist["<<i<<"].size = "<<psflist[i].size()<<std::endl;
@@ -637,6 +625,22 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
       // But expand it by 30% in case we need it.
       galap = gal_aperture * se_size * 1.3;
       if (galap > max_aperture) galap = max_aperture;
+    }
+
+    // Calculate the local sky value.
+    double sky=0;
+    if (sky_method == "MEAN")
+      sky = mean_sky;
+    else if (sky_method == "NEAREST")
+      sky = shearcat.sky[nearest];
+    else 
+    {
+      Assert(sky_method == "MAP");
+      sky = GetLocalSky(*sky_map,pos,trans,galap,flag);
+      // If no pixels in aperture, then
+      // a) something is very wrong, but
+      // b) use the NEAREST method instead.
+      if (flag & BKG_NOPIX) sky = shearcat.sky[nearest];
     }
 
     GetPixList(

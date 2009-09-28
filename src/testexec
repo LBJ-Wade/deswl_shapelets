@@ -17,6 +17,7 @@ root=decam--27--9-i-3_20
 config=../example_config/wl.config
 input=../../testdata/data
 output=../../testdata/output
+#dc4=
 dc4='shear_dc4_input_format=true'
 
 echo ./findstars $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fs.debug verbose=1 output_dots=1 $dc4
