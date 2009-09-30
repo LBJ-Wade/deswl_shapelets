@@ -1,13 +1,15 @@
 
-# version info
-# You need to run 'svn propset svn:keywords HeadURL' on the file and commit
-# before this works.
-#
-# Don't edit these svn properties by hand
-_property_headurl='$HeadURL$'
-
 def version():
     from sys import stderr
+
+    # version info
+    # You need to run 'svn propset svn:keywords HeadURL' on the file and commit
+    # before this works.
+    #
+    # Don't edit these svn properties by hand
+    _property_headurl='$HeadURL$'
+
+
 
     thisname='/python/__init__.py'
     badvers="NOTAG: unparseable"
@@ -30,6 +32,35 @@ def version():
 
     tag=urlfront.split('/')[-1]
     return tag
+
+def get_external_version(version_command):
+    """
+    Run a command to get a version string and return it through the
+    standard output
+    """
+    import subprocess
+    pobj=subprocess.Popen(version_command, shell=True, 
+                          stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # this will wait until process terminates
+    out=pobj.communicate()
+    sout=out[0]
+    serr=out[1]
+    estatus=pobj.poll()
+    if sout == '' or estatus != 0:
+        raise RuntimeError("Could not get version from "
+                           "command: %s: %s" % (version_command,serr))
+    return sout.strip()
+
+def get_tmv_version():
+    return get_external_version('tmv-version')
+
+def get_python_version():
+    import sys
+    pyvers='v%s.%s.%s' % sys.version_info[0:3]
+    return pyvers
+
+
+
 
 
 import wlpipe
