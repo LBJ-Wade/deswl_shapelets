@@ -1,14 +1,17 @@
 from sys import stdout,stderr
 import os
 import re
+import esutil
 from esutil import xmltools
 from esutil.ostools import path_join, getenv_check
 import pprint
+import deswl
 
 
 class Runconfig(object):
     def __init__(self, run=None):
         
+        self.run=run
         self.fileclass='wlbnl'
 
         self.run_types={}
@@ -38,23 +41,130 @@ class Runconfig(object):
         if run is not None:
             self.load(run)
 
-    def getbasedir(self):
-        DESDATA=getenv_check('DESDATA')
-        return os.path.join(DESDATA, 'runconfig')
+    def get_basedir(self):
+        basedir=getenv_check('DESFILES_DIR')
+        return path_join(basedir, 'runconfig')
 
-    def getdir(self, run):
-        basedir=self.getbasedir()
-        return os.path.join(basedir, run)
+    def getpath(self, run=None):
+        if run is None:
+            if self.run is None:
+                raise ValueError("Either send run= keyword or load a runconfig")
+            else:
+                run=self.run
+        rdir = self.get_basedir()
+        return path_join(rdir, run+'-config.xml')
+    
 
-    def getname(self, run):
-        rdir = self.getdir(run)
-        return os.path.join(rdir, run+'-config.xml')
+    def generate_new_runconfig_name(self, run_type, test=False):
+        """
+        generates a new name like run_type000002, checking against names in
+        the runconfig directory
+        """
+
+        if run_type not in self.run_types:
+            raise ValueError("Unknown run type: '%s'.  Must be one "
+                             "of: (%s)" % (run_type, ', '.join(self.run_types)))
+
+
+        i=0
+        run_name=self._run_name_from_type_number(run_type, i, test=test)
+        fullpath=self.getpath(run_name)
+        while os.path.exists(fullpath):
+            i+=1
+            run_name=self._run_name_from_type_number(run_type, i, test=test)
+            fullpath=self.getpath(run_name)
+
+        return run_name
+
+    def _run_name_from_type_number(self, run_type, number, test=False):
+        if test:
+            name='%stest%06i' % (run_type, number)
+        else:
+            name='%s%06i' % (run_type, number)
+        return name
+
+
+    def generate_new_runconfig(self, run_type, dataset, localid, 
+                               test=False, **extra):
+
+        # wlme runs depend on wlse runs
+        if run_type == 'wlme':
+            err="You must send serun=something for wlme"
+            if 'serun' not in extra:
+                raise RuntimeError(mess)
+
+
+        run_name=self.generate_new_runconfig_name(run_type, test=test)
+        config={}
+
+        fileclass = self.run_types[run_type]['fileclass']
+        filetype = self.run_types[run_type]['filetype']
+
+        # software versions
+        pyvers=deswl.get_python_version()
+        esutilvers=esutil.version()
+        wlvers=deswl.version()
+        tmvvers=deswl.get_tmv_version()
+
+        runconfig={'run':run_name, 
+                   'run_type':run_type,
+                   'fileclass': fileclass,
+                   'filetype':filetype,
+                   'pyvers':pyvers, 
+                   'esutilvers': esutilvers,
+                   'wlvers':wlvers,
+                   'tmvvers':tmvvers,
+                   'dataset':dataset,
+                   'localid':localid}
+        for e in extra:
+            if e not in runconfig:
+                runconfig[e] = extra[e]
+
+        fullpath=self.getpath(run_name)
+        stdout.write('Writing to file: %s\n' % fullpath)
+        xmltools.dict2xml(runconfig, fullpath, roottag='runconfig')
+
+        stdout.write("\n * Don't forget to check it into SVN!!!\n\n")
+        return runconfig
+
+    def verify(self):
+        """
+
+        verify current setup against the run config, make sure all versions and
+        such are the same.  This does not check the data set or localid or
+        serun for merun runconfigs.
+
+        """
+
+        wlvers=deswl.version()
+        esutilvers=esutil.version()
+        tmvvers=deswl.get_tmv_version()
+        pyvers=deswl.get_python_version()
+
+        if self.config['esutilvers'] != esutilvers:
+            raise ValueError("current esutil '%s' does not match "
+                    "runconfig '%s'" % (esutilvers,self.config['esutilvers']))
+
+        if self.config['wlvers'] != wlvers:
+            raise ValueError("current wlvers '%s' does not match "
+                             "runconfig '%s'" % (wlvers,self.config['wlvers']))
+
+        if self.config['tmvvers'] != tmvvers:
+            raise ValueError("current tmvvers '%s' does not match "
+                        "runconfig '%s'" % (tmvvers,self.config['tmvvers']))
+
+        if self.config['pyvers'] != pyvers:
+            raise ValueError("current pyvers '%s' does not match "
+                        "runconfig '%s'" % (pyvers,self.config['pyvers']))
+
+
 
     def load(self, run):
         self.config = self.read(run)
+        self.run=run
 
     def read(self, run):
-        name=self.getname(run)
+        name=self.getpath(run)
         if not os.path.exists(name):
             mess="runconfig '%s' not found at %s\n" % (run, name)
             raise RuntimeError(mess)
@@ -96,16 +206,27 @@ def exposure_dir(fileclass, run, filetype, exposurename, rootdir=None):
     ftdir=filetype_dir(fileclass, run, filetype, rootdir=rootdir)
     return os.path.join(ftdir, exposurename)
 
-def red_image_name(run, exposurename, ccdnum, fz=True, rootdir=None):
+def red_image_path(run, exposurename, ccdnum, fz=True, rootdir=None, check=False):
     fileclass='red'
     filetype='red'
     expdir = exposure_dir(fileclass, run, filetype, exposurename, 
-                         rootdir=rootdir)
-    imagename = '%s_%02i.fits' % (exposurename, ccdnum)
-    if fz:
-        imagename=imagename+'.fz'
-    imagename = os.path.join(expdir, imagename)
-    return imagename
+                          rootdir=rootdir)
+    imagename = '%s_%02i.fits' % (exposurename, int(ccdnum))
+    basic_path = os.path.join(expdir, imagename)
+
+    if check:
+        # check both with and without .fz
+        path=basic_path
+        if not os.path.exists(path):
+            path += '.fz'
+            if not os.path.exists(path):
+                stdout.write("SE image not found: %s(.fz)\n" % basic_path)
+                return None
+    else:
+        if fz:
+            path=basic_path + '.fz'
+        
+    return path
 
 def extract_image_exposure_names(flist):
     allinfo={}
@@ -126,19 +247,31 @@ def tile_dir(coaddrun, rootdir=None):
     tiledir=filetype_dir(fileclass, coaddrun, filetype, rootdir=rootdir)
     return tiledir
 
-def coadd_image_name(coaddrun, tilename, band, fz=True):
+def coadd_image_path(coaddrun, tilename, band, fz=True, rootdir=None, check=False):
     """
     More frustration:  the path element for "coaddrun"
     contains the tilename but in principle it can be arbitrary, so 
     we can't simply pass in pieces:  coaddrun is treated independently
-    """
-    tiledir=tile_dir(coaddrun)
-    fname=tilename+'_'+band+'.fits'
-    if fz:
-        fname+='.fz'
-    return os.path.join(tiledir, fname)
 
-def coadd_cat_name(catalogrun, tilename, band):
+    If check=True, fz will be also be tried if not already set to True
+    """
+    tiledir=tile_dir(coaddrun, rootdir=rootdir)
+    fname=tilename+'_'+band+'.fits'
+    basic_path=path_join(tiledir, fname)
+    if check:
+        # check both with and without .fz
+        path=basic_path
+        if not os.path.exists(path):
+            path += '.fz'
+            if not os.path.exists(path):
+                stdout.write("coadd image not found: %s(.fz)\n" % basic_path)
+                return None
+    else:
+        if fz:
+            path=basic_path + '.fz'
+    return path
+
+def coadd_cat_path(catalogrun, tilename, band, rootdir=None, check=False):
     """
     More frustration:  the path element for "catalogrun"
     contains the tilename but in principle it can be arbitrary, so 
@@ -146,9 +279,14 @@ def coadd_cat_name(catalogrun, tilename, band):
 
     Note often catalogrun is the same as the coaddrun
     """
-    tiledir=tile_dir(catalogrun)
+    tiledir=tile_dir(catalogrun, rootdir=rootdir)
     fname=tilename+'_'+band+'_cat.fits'
-    return fname
+    path=path_join(tiledir, fname)
+    if check:
+        if not os.path.exists(path):
+            stdout.write("coadd catalog not found: %s(.fz)\n" % path)
+            return None
+    return path
 
 
 _MOHR_MAP={'stars':'shpltall', 
@@ -189,10 +327,10 @@ def wlme_dir(merun, tilename, rootdir=None):
  
     return wldir
 
-def wlse_name(run, redrun, exposurename, ccdnum, wltype, 
+def wlse_path(run, redrun, exposurename, ccdnum, wltype, 
               mohrify=True, rootdir=None, ext='.fits'):
     """
-    name=wlse_name(run, redrun, exposurename, ccdnum, wltype, 
+    name=wlse_path(run, redrun, exposurename, ccdnum, wltype, 
                   mohrify=True, rootdir=None, ext='.fits')
     Return the SE output file name for the given inputs
 
@@ -210,7 +348,7 @@ def wlse_name(run, redrun, exposurename, ccdnum, wltype,
 
     wldir = wlse_dir(run, exposurename, rootdir=rootdir)
     name_front = redrun+'_'+os.path.basename(wldir)
-    name = '%s_%s_%02i_%s.%s' % (run,name_front, int(ccdnum), wltype_use, ext)
+    name = '%s_%s_%02i_%s%s' % (run,name_front, int(ccdnum), wltype_use, ext)
     fullpath = os.path.join(wldir, name)
     return fullpath
 
@@ -227,8 +365,8 @@ def wlme_basename(tilename, band, extra=None, ext='.fits'):
     return name
 
 
-def wlme_fullpath(merun, tilename, band, extra=None, 
-                  dir=None, rootdir=None, ext='.fits'):
+def wlme_path(merun, tilename, band, extra=None, 
+              dir=None, rootdir=None, ext='.fits'):
     """
     Return a multi-epoch shear output file name
 
@@ -244,41 +382,61 @@ def wlme_fullpath(merun, tilename, band, extra=None,
     return name
 
 
-def collated_coaddfiles_dir(dataset):
+def collated_coaddfiles_dir(dataset, localid=None):
     desfiles_dir=getenv_check('DESFILES_DIR')
-    return path_join(desfiles_dir,dataset)
+    desfiles_dir = path_join(desfiles_dir,dataset)
+    if localid is not None:
+        desfiles_dir=path_join(desfiles_dir, localid)
+    return desfiles_dir
 
 
 # need to rationalize these names
 def collated_coaddfiles_name(dataset, band, 
-                             withsrc=True, host=None, newest=True):
+                             withsrc=True, 
+                             serun=None,
+                             localid=None, 
+                             newest=True):
     name=[dataset,'images','catalogs']
     if withsrc:
         name.append('withsrc')
-    
-    if host is not None:
-        name.append(host)
+
+    if localid is not None:
+        name.append(localid)
         if newest:
             name.append('newest')
+
+    if serun is not None:
+        name.append(serun)
     name.append(band)
 
     return '-'.join(name)+'.xml'
 
-def collated_coaddfiles_fullpath(dataset, band, 
-                                 withsrc=True, host=None, newest=True):
-    tdir=collated_coaddfiles_dir(dataset)
+def collated_coaddfiles_path(dataset, band, 
+                             withsrc=True, 
+                             serun=None,
+                             localid=None, 
+                             newest=True):
+    tdir=collated_coaddfiles_dir(dataset, localid=localid)
     name = collated_coaddfiles_name(dataset, band, 
-                                    withsrc=withsrc, host=host, newest=newest)
+                                    withsrc=withsrc, 
+                                    serun=serun,
+                                    localid=localid, 
+                                    newest=newest)
     return path_join(tdir, name)
 
 def collated_coaddfiles_read(dataset, band, 
-                             withsrc=True, host=None, newest=True, 
+                             withsrc=True, 
+                             serun=None,
+                             localid=None, 
+                             newest=True, 
                              getname=False):
-    f=collated_coaddfiles_fullpath(dataset, band, 
-                                   withsrc=withsrc, host=host, newest=newest)
+    f=collated_coaddfiles_path(dataset, band, 
+                               withsrc=withsrc, 
+                               serun=serun,
+                               localid=localid, 
+                               newest=newest)
     stdout.write('Reading tileinfo file: %s\n' % f)
     tileinfo=xmltools.xml2dict(f,noroot=True)
-    tileinfo=tileinfo['info']
     if getname:
         return tileinfo, f
     else:
@@ -286,24 +444,27 @@ def collated_coaddfiles_read(dataset, band,
 
 
 
-def wlme_srclist_name(tilename, band):
-    srclist=[tilename,band,'srclist']
+def wlme_srclist_dir(dataset, localid):
+    sdir=collated_coaddfiles_dir(dataset, localid=localid)
+    sdir=path_join(sdir, 'multishear-srclists')
+    return sdir
+def wlme_srclist_name(tilename, band, serun):
+    srclist=[tilename,band,serun,'srclist']
     srclist='-'.join(srclist)+'.dat'
     return srclist
     
 
-def wlme_srclist_fullpath(dataset, host, tilename, band):
-    srclist=wlme_srclist_name(tilename,band)
+def wlme_srclist_path(dataset, localid, tilename, band, serun):
+    dir=wlme_srclist_dir(dataset, localid)
+    srclist=wlme_srclist_name(tilename,band,serun)
+    return path_join(dir, srclist)
+
+
+
+
+def wlme_pbs_dir(dataset, localid, tilename, band, merun):
     desfiles_dir=getenv_check('DESFILES_DIR')
-    srclist=path_join(desfiles_dir,dataset,host,'multishear-srclists',srclist)
-    return srclist
-
-
-
-
-def wlme_pbs_dir(dataset, host, tilename, band, merun):
-    desfiles_dir=getenv_check('DESFILES_DIR')
-    pbsdir=path_join(desfiles_dir,dataset,host,'multishear-pbs', merun)
+    pbsdir=path_join(desfiles_dir,dataset,localid,'multishear-pbs', merun)
     return pbsdir
 
 def wlme_pbs_name(tilename, band, merun):
@@ -311,27 +472,13 @@ def wlme_pbs_name(tilename, band, merun):
     pbsfile='-'.join(pbsfile)+'.pbs'
     return pbsfile
     
-def wlme_pbs_fullpath(dataset, host, tilename, band, merun):
+def wlme_pbs_path(dataset, localid, tilename, band, merun):
     pbsfile=wlme_pbsfile_name(tilename,band, merun)
     pbsdir=wlme_pbs_dir(tilename, band, merun)
     pbsfile=path_join(pbsdir, pbsfile)
     return pbsfile
 
 
-
-
-# run configurations
-def runconfig_basedir():
-    DESDATA=getenv_check('DESDATA')
-    return os.path.join(DESDATA, 'runconfig')
-
-def runconfig_dir(run):
-    basedir=runconfig_basedir()
-    return os.path.join(basedir, run)
-
-def runconfig_name(run):
-    rdir=runconfig_dir(run)
-    return os.path.join(rdir, run+'-config.xml')
 
 
 def get_info_from_path(filepath, fileclass):
