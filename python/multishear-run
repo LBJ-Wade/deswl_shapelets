@@ -15,10 +15,12 @@ parser.add_option("--merun", default=None,
          "read and verified against current settings. The outdir will be "
          "set to the usual place (see below)")
 
-parser.add_option("--dataset", default='dc4coadd',
-                  help="dataset. Default '%default'")
-parser.add_option("--host", default='tutti',
-                  help="data host.  Default '%default'")
+parser.add_option("--dataset", default=None,
+                  help="dataset. e.g. 'dc4coadd'")
+parser.add_option("--localid", default=None,
+                  help="local id. , e.g. 'tutti2'")
+parser.add_option("--serun", default=None,
+                  help="SE shear run, e.g. 'wlse000001'")
 
 
 parser.add_option("--srclist", default=None,
@@ -34,7 +36,13 @@ parser.add_option("--rootdir", default=None,
     help="Specify the data root directory. Default $DESDATA")
 parser.add_option("--copyroot", action='store_true', default=False,
     help="Copy output files to the default path under $DESDATA")
+parser.add_option("--cleanup", action='store_true', default=False,
+ help="If copyroot and cleanup then the local copy of each output is deleted.")
 
+
+parser.add_option("--redirect", dest="redirect",
+                  action='store_true', default=False,
+                  help="redirect stdout/stderr to files with the usual names")
 
 parser.add_option("--debug", default=0,
     help="Debug verbosity level. 0:none 1:dbg 2:xdbg. Default %default")
@@ -56,8 +64,12 @@ merun=options.merun
 outdir = options.outdir
 rootdir = options.rootdir
 copyroot=options.copyroot
+cleanup=options.cleanup
 dataset=options.dataset
-host=options.host
+localid=options.localid
+serun=options.serun
+redirect=options.redirect
+
 srclist=options.srclist
 debug=options.debug
 
@@ -67,6 +79,10 @@ deswl.wlpipe.run_multishear(tilename, band,
                             outdir=outdir, 
                             rootdir=rootdir,
                             copyroot=copyroot,
-                            dataset=dataset, host=host,
+                            cleanup=cleanup,
+                            dataset=dataset, 
+                            localid=localid,
+                            serun=serun,
+                            redirect=redirect,
                             debug=debug)
 
