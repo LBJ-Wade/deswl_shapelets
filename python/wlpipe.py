@@ -1249,12 +1249,15 @@ def make_me_commandlist(executable,
                         shear_dc4_input_format=True,
                         merun=None,
                         debug=0):
+
+    # eventually change multishear_sky_method to MAP when we get that data
     command = [executable,
                config_file,
                'coadd_srclist='+coadd_srclist,
                'coaddimage_file='+coaddimage_file,
                'coaddcat_file='+coaddcat_file,
-               'multishear_file='+multishear_file]
+               'multishear_file='+multishear_file,
+               'multishear_sky_method=NEAREST']
     if shear_dc4_input_format:
         command.append('shear_dc4_input_format=true')
 
