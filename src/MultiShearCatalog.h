@@ -30,9 +30,6 @@ class MultiShearCatalog
     // Read the srclist file
     void ReadFileLists();
 
-    // Setup the single-epoch data, except for pixlist
-    // So, 
-
     // Get a set of bounds with a maximum linear extent in either direction
     // of side arcminutes on a side.
     std::vector<Bounds> SplitBounds(double side);

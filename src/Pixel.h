@@ -6,7 +6,6 @@
 #include "Image.h"
 #include "Transformation.h"
 #include "ConfigFile.h"
-#include "pool_allocator.h"
 
 struct Pixel 
 { 
@@ -19,21 +18,22 @@ struct Pixel
   double I,wt;
 };
 
+
+#if 0
+typedef std::vector<Pixel> PixelList;
+#elif 1
+#include "boost/shared_ptr.hpp"
+#include "pool_allocator.h"
 #define PIXELLIST_BLOCK 1024*1024*100  // 100 MB per block
 
-#if 1
-typedef std::vector<Pixel> PixelList;
-#else
 class PixelList
 {
   public :
 
     inline PixelList() : 
-      use_block_mem(false), v1(new std::vector<Pixel>()), v2(0) {}
+      use_block_mem(false), v1(new std::vector<Pixel>()) {}
     inline PixelList(const int n) : 
-      use_block_mem(false), v1(new std::vector<Pixel>(n)), v2(0) {}
-    inline PixelList(const PixelList& p2);
-    inline PixelList& operator=(const PixelList& p2);
+      use_block_mem(false), v1(new std::vector<Pixel>(n)) {}
     inline ~PixelList() {}
 
     // My pool allocator is not thread-safe, so this should only be used
@@ -43,7 +43,7 @@ class PixelList
       // This should be done before any elements are added.
       if (v1.get()) Assert(v1->size() == 0);
       if (v2.get()) Assert(v2->size() == 0);
-      v1.reset(0);
+      v1.reset();
       v2.reset(new std::vector<Pixel,pool_alloc>());
       use_block_mem = true; 
     }
@@ -87,35 +87,43 @@ class PixelList
   private :
 
     bool use_block_mem;
-    std::auto_ptr<std::vector<Pixel> > v1;
+    boost::shared_ptr<std::vector<Pixel> > v1;
     typedef pool_allocator<Pixel,PIXELLIST_BLOCK> pool_alloc;
-    std::auto_ptr<std::vector<Pixel,pool_alloc> > v2;
+    boost::shared_ptr<std::vector<Pixel,pool_alloc> > v2;
 };
 
-PixelList::PixelList(const PixelList& p2) : 
-  use_block_mem(false), v1(new std::vector<Pixel>(p2.size())), v2(0) 
-{
-  if (p2.use_block_mem) 
-  { std::copy(p2.v2->begin(),p2.v2->end(),v1->begin()); }
-  else *v1 = *p2.v1;
-}
+#else // This one never uses the pool_allocator, but does use shared_ptr
 
-PixelList& PixelList::operator=(const PixelList& p2)
+#include "boost/shared_ptr.hpp"
+
+class PixelList
 {
-  if (use_block_mem)
-  {
-    if (p2.use_block_mem) *v2 = *p2.v2;
-    else
-    { std::copy(p2.v1->begin(),p2.v1->end(),v2->begin()); }
-  }
-  else 
-  {
-    if (p2.use_block_mem) 
-    { std::copy(p2.v2->begin(),p2.v2->end(),v1->begin()); }
-    else *v1 = *p2.v1;
-  }
-  return *this;
-}
+  public :
+
+    inline PixelList() : v1(new std::vector<Pixel>()) {}
+    inline PixelList(const int n) : v1(new std::vector<Pixel>(n)) {}
+    inline ~PixelList() {}
+
+    inline size_t size() const
+    { return v1->size(); }
+    inline void reserve(const int n)
+    { v1->reserve(n); }
+    inline void resize(const int n)
+    { v1->resize(n); }
+    inline void clear()
+    { v1->clear(); }
+    inline void push_back(const Pixel& p)
+    { v1->push_back(p); }
+    inline Pixel& operator[](const int i)
+    { return (*v1)[i]; }
+    inline const Pixel& operator[](const int i) const
+    { return (*v1)[i]; }
+
+  private :
+
+    boost::shared_ptr<std::vector<Pixel> > v1;
+};
+
 #endif
 
 void GetPixList(const Image<double>& im, PixelList& pix,

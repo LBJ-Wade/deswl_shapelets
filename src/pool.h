@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <iostream>  //for dump()
 #include <valgrind/memcheck.h>
+#include "dbg.h"
 
 template <int block_size>
 class pool
@@ -21,19 +22,19 @@ class pool
 
     pool()
     {
-      //std::cout<<"Initialize pool\n";
+      //xdbg<<"Initialize pool\n";
       pool_mem.push_back(new char[block_size]);
       VALGRIND_CREATE_MEMPOOL(&pool_mem,0,false);
       VALGRIND_MAKE_MEM_NOACCESS(pool_mem.back(),block_size);
-      std::cout<<"Adding block "<<(void*)pool_mem.back()<<" ... "<<(void*)(pool_mem.back()+block_size)<<std::endl;
-      std::cout<<"total memory = "<<total_memory_used()/(1024.*1024.)<<" MB\n";
+      xdbg<<"Adding block "<<(void*)pool_mem.back()<<" ... "<<(void*)(pool_mem.back()+block_size)<<std::endl;
+      xdbg<<"total memory = "<<total_memory_used()/(1024.*1024.)<<" MB\n";
       blocks = reinterpret_cast<block*>(*(pool_mem.begin()));
       blocks->prev = 0;
       blocks->next = 0;
       blocks->free = true;
       blocks->last = true;
       blocks->size = block_size - sizeof(block);
-      check();
+      //check();
     };
 
     ~pool()
@@ -48,9 +49,10 @@ class pool
     void* allocate(size_t size)
     {
       size_t size2 = size + sizeof(block);
-      //std::cout<<"start allocate "<<std::ios::hex<<size<<std::endl;
+      //xdbg<<"start allocate "<<std::ios::hex<<size<<std::endl;
+      //xdbg<<"start allocate "<<size<<std::endl;
       //dump();
-      check();
+      //check();
       if(size2>block_size) throw std::bad_alloc();
       block *b = blocks;
       while(!b->free || b->size < size)
@@ -58,26 +60,26 @@ class pool
 	if(!b->next) grow_pool(b);
 	b = b->next;
       }
-      //std::cout<<"b = "<<b<<std::endl;
-      //std::cout<<"b->size = "<<b->size<<std::endl;
+      //xdbg<<"b = "<<b<<std::endl;
+      //xdbg<<"b->size = "<<b->size<<std::endl;
       if(b->size - size < 2*sizeof(block))
       {
-	//std::cout<<"block works, and the rest is small"<<std::endl;
+	//xdbg<<"block works, and the rest is small"<<std::endl;
 	b->free = 0;
-	//std::cout<<"return "<<b<<std::endl;
-	checkp((char*)b + sizeof(block),size);
-	check();
+	//xdbg<<"return "<<b<<std::endl;
+	//checkp((char*)b + sizeof(block),size);
+	//check();
 	char* ret = reinterpret_cast<char *>(b) + sizeof(block);
 	VALGRIND_MEMPOOL_ALLOC(&pool_mem,ret,size);
 	return ret;
       }
       else
       {
-	//std::cout<<"block works, and the rest is not small"<<std::endl;
+	//xdbg<<"block works, and the rest is not small"<<std::endl;
 	block* new_block = reinterpret_cast<block*>(
 	    reinterpret_cast<char*>(b) + size2);
-	//std::cout<<"new block = "<<b<<" + "<<size2<<std::endl;
-	//std::cout<<"new block = "<<new_block<<std::endl;
+	//xdbg<<"new block = "<<b<<" + "<<size2<<std::endl;
+	//xdbg<<"new block = "<<new_block<<std::endl;
 
 	if (b->next) b->next->prev = new_block;
 	new_block->next = b->next;
@@ -86,9 +88,9 @@ class pool
 
 	new_block->size = b->size - size2;
 	b->size = size;
-	//std::cout<<"new_block size = "<<b->size<<" - "<<size2<<std::endl;
-	//std::cout<<"new_block size = "<<new_block->size<<std::endl;
-	//std::cout<<"b size = "<<b->size<<std::endl;
+	//xdbg<<"new_block size = "<<b->size<<" - "<<size2<<std::endl;
+	//xdbg<<"new_block size = "<<new_block->size<<std::endl;
+	//xdbg<<"b size = "<<b->size<<std::endl;
 
 	b->free = false;
 	new_block->free = true;
@@ -97,9 +99,9 @@ class pool
 	else new_block->last = false;
 	b->last = false;
 
-	//std::cout<<"return "<<b<<std::endl;
-	checkp((char*)b+sizeof(block),size);
-	check();
+	//xdbg<<"return "<<b<<std::endl;
+	//checkp((char*)b+sizeof(block),size);
+	//check();
 	char* ret = reinterpret_cast<char *>(b) + sizeof(block);
 	VALGRIND_MEMPOOL_ALLOC(&pool_mem,ret,size);
 	return ret;
@@ -108,16 +110,16 @@ class pool
 
     void deallocate(void *p, size_t = 0)
     {
-      //std::cout<<"start deallocate "<<p<<std::endl;
-      check();
+      //xdbg<<"start deallocate "<<p<<std::endl;
+      //check();
       if(!p) return;
       block* b = reinterpret_cast<block*>(
 	  static_cast<char*>(p) - sizeof(block));
-      //std::cout<<"b = "<<b<<std::endl;
+      //xdbg<<"b = "<<b<<std::endl;
       if (b->prev && b->next && !b->prev->last && !b->last && 
 	  b->prev->free && b->next->free)
       {
-	//std::cout<<"combine with prev and next\n";
+	//xdbg<<"combine with prev and next\n";
 	b->prev->size += b->size + b->next->size + 2*sizeof(block);
 	if (b->next->last) b->prev->last = true;
 	b->prev->next = b->next->next;
@@ -125,7 +127,7 @@ class pool
       }
       else if (b->prev && !b->prev->last && b->prev->free)
       {
-	//std::cout<<"combine with prev\n";
+	//xdbg<<"combine with prev\n";
 	b->prev->size += b->size + sizeof(block);
 	if (b->last) b->prev->last = true;
 	b->prev->next = b->next;
@@ -133,7 +135,7 @@ class pool
       }
       else if (!b->last && b->next && b->next->free)
       {
-	//std::cout<<"combine with next\n";
+	//xdbg<<"combine with next\n";
 	b->size += b->next->size + sizeof(block);
 	if (b->next->last) b->last = true;
 	b->next = b->next->next;
@@ -142,33 +144,33 @@ class pool
       }
       else 
       {
-	//std::cout<<"don't combine\n";
+	//xdbg<<"don't combine\n";
 	b->free = 1;
       }
-      //std::cout<<"done deallocate"<<std::endl;
-      check();
+      //xdbg<<"done deallocate"<<std::endl;
+      //check();
       VALGRIND_MEMPOOL_FREE(&pool_mem,p);
     }
     void dump()
     {
-      std::cout<<"dump:\n";
-      std::cout<<"pool_mem:\n";
+      xdbg<<"dump:\n";
+      xdbg<<"pool_mem:\n";
       typename std::list<char*>::iterator it;
       for (it=pool_mem.begin(); it!=pool_mem.end(); ++it)
       {
-	std::cout<<(void*)*it<<" ... "<<(void*)(*it+block_size)<<std::endl;
+	xdbg<<(void*)*it<<" ... "<<(void*)(*it+block_size)<<std::endl;
       }
       for (block* b = blocks; b; b=b->next)
       {
-	if (b->free) std::cout<<"F ";
-	else std::cout<<"  ";
-	if (b->last) std::cout<<"L ";
-	else std::cout<<"  ";
-	std::cout<<b<<"  Size="<<b->size;
-	std::cout<<"   prev="<<b->prev<<", next="<<b->next;
-	std::cout<<std::endl;
+	if (b->free) xdbg<<"F ";
+	else xdbg<<"  ";
+	if (b->last) xdbg<<"L ";
+	else xdbg<<"  ";
+	xdbg<<b<<"  Size="<<b->size;
+	xdbg<<"   prev="<<b->prev<<", next="<<b->next;
+	xdbg<<std::endl;
       }
-      std::cout<<"end dump\n";
+      xdbg<<"end dump\n";
     }
     void checkp(char* p, int size)
     {
@@ -177,9 +179,9 @@ class pool
       {
 	if (p >= *it && (p+size) <= (*it + block_size)) return;
       }
-      std::cout<<"p is not in pool_mem\n";
-      std::cout<<"p = "<<(void*)p<<std::endl;
-      std::cout<<"p+size = "<<(void*)(p+size)<<std::endl;
+      xdbg<<"p is not in pool_mem\n";
+      xdbg<<"p = "<<(void*)p<<std::endl;
+      xdbg<<"p+size = "<<(void*)(p+size)<<std::endl;
       dump();
       exit(1);
     }
@@ -193,10 +195,10 @@ class pool
 	{
 	  if ((char*)b+size2 > (char*)b->next && !b->last)
 	  {
-	    std::cout<<"Bad b size (1):\n";
-	    std::cout<<"b = "<<b<<"  "<<b->size<<std::endl;
-	    std::cout<<"b->next = "<<b->next<<std::endl;
-	    std::cout<<"b+size2 = "<<(void*)((char*)b+size2)<<std::endl;
+	    xdbg<<"Bad b size (1):\n";
+	    xdbg<<"b = "<<b<<"  "<<b->size<<std::endl;
+	    xdbg<<"b->next = "<<b->next<<std::endl;
+	    xdbg<<"b+size2 = "<<(void*)((char*)b+size2)<<std::endl;
 	    dump();
 	    exit(1);
 	  }
@@ -209,19 +211,19 @@ class pool
 	      if ((char*)b->next == *it) nextisinpool = true;
 	    if (!nextisinpool)
 	    { 
-	      std::cout<<"Bad b size (2):\n";
-	      std::cout<<"b = "<<b<<"  "<<b->size<<std::endl;
-	      std::cout<<"b->next = "<<b->next<<std::endl;
-	      std::cout<<"b->next is no in pool\n";
+	      xdbg<<"Bad b size (2):\n";
+	      xdbg<<"b = "<<b<<"  "<<b->size<<std::endl;
+	      xdbg<<"b->next = "<<b->next<<std::endl;
+	      xdbg<<"b->next is no in pool\n";
 	      dump();
 	      exit(1);
 	    }
 	    if (!b->last)
 	    {
-	      std::cout<<"Bad b size (3):\n";
-	      std::cout<<"b = "<<b<<"  "<<b->size<<std::endl;
-	      std::cout<<"b->next = "<<b->next<<std::endl;
-	      std::cout<<"b is not marked as last\n";
+	      xdbg<<"Bad b size (3):\n";
+	      xdbg<<"b = "<<b<<"  "<<b->size<<std::endl;
+	      xdbg<<"b->next = "<<b->next<<std::endl;
+	      xdbg<<"b is not marked as last\n";
 	      dump();
 	      exit(1);
 	    }
@@ -255,14 +257,14 @@ class pool
     static void kill(char *p){delete [] p;}
     void grow_pool(block *b)
     {
-      //std::cout<<"Start grow:"<<std::endl;
-      check();
+      //xdbg<<"Start grow:"<<std::endl;
+      //check();
       block* new_block;
       char *p = new char[block_size];
       VALGRIND_MAKE_MEM_NOACCESS(p,block_size);
       pool_mem.push_back(p);
-      std::cout<<"Adding block "<<(void*)pool_mem.back()<<" ... "<<(void*)(pool_mem.back()+block_size)<<std::endl;
-      std::cout<<"total memory = "<<total_memory_used()/(1024.*1024.)<<" MB\n";
+      xdbg<<"Adding block "<<(void*)pool_mem.back()<<" ... "<<(void*)(pool_mem.back()+block_size)<<std::endl;
+      xdbg<<"total memory = "<<total_memory_used()/(1024.*1024.)<<" MB\n";
       new_block = reinterpret_cast<block*>(p);
       new_block->prev = b;
       new_block->next = false;
@@ -270,9 +272,9 @@ class pool
       new_block->free = 1;
       new_block->size = block_size-sizeof(block);
       b->next = new_block;
-      //std::cout<<"done grow"<<std::endl;
+      //xdbg<<"done grow"<<std::endl;
       //dump();
-      check();
+      //check();
     }
 };
 
