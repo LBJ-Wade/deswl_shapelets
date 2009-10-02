@@ -162,10 +162,8 @@ class pool
       }
       for (block* b = blocks; b; b=b->next)
       {
-	if (b->free) xdbg<<"F ";
-	else xdbg<<"  ";
-	if (b->last) xdbg<<"L ";
-	else xdbg<<"  ";
+	xdbg<<(b->free ? "F " : "  ");
+	xdbg<<(b->last ? "L " : "  ");
 	xdbg<<b<<"  Size="<<b->size;
 	xdbg<<"   prev="<<b->prev<<", next="<<b->next;
 	xdbg<<std::endl;

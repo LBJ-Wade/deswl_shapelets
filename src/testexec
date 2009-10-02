@@ -34,8 +34,8 @@ echo ./measureshear $config root=$root input_prefix=$input/ output_prefix=$outpu
 time ./measureshear $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=ms.debug verbose=2 output_dots=1 $dc4
 
 echo FullPipeline
-echo ./fullpipe $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=ms.debug verbose=1 output_dots=1 $dc4
-time ./fullpipe $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=ms.debug verbose=1 output_dots=1 $dc4
+echo ./fullpipe $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fp.debug verbose=1 output_dots=1 $dc4
+time ./fullpipe $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fp.debug verbose=1 output_dots=1 $dc4
 
 #echo Try execution with bad configfile:
 #./findstars foo root=$root input_prefix=$input/ output_prefix=$output/

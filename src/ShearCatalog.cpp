@@ -421,7 +421,7 @@ ShearCatalog::ShearCatalog(const InputCatalog& incat,
       {
 	Position temp;
 	trans.Transform(pos[i],temp);
-	xdbg<<pos[i]<<"  "<<skypos[i]<<"  "<<temp;
+	xdbg<<pos[i]<<"  "<<skypos[i]/3600.<<"  "<<temp/3600.;
 	xdbg<<"  "<<temp-skypos[i]<<std::endl;
 	rmserror += std::norm(temp-skypos[i]);
 	count++;
@@ -439,6 +439,7 @@ ShearCatalog::ShearCatalog(const InputCatalog& incat,
       if (rmserror > 0.1) 
       {
 	std::cout<<"STATUS3BEG Warning: Positions from WCS transformation have rms error of "<<rmserror<<" arcsec relative to ra, dec in catalog. STATUS3END"<<std::endl;
+	//throw 1;
       }
     }
   }

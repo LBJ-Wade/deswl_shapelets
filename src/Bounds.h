@@ -50,6 +50,10 @@ inline std::complex<double> operator-(
     const std::complex<double>& z1, const Position& p2)
 { return (p2-z1); }
 
+inline std::complex<double> operator/(
+    const Position& p1, double x)
+{ Position p2 = p1;  p2 /= x; return p2; }
+
 inline std::ostream& operator<<(std::ostream& os, const Position& pos)
 { pos.Write(os); return os; }
 

@@ -679,10 +679,10 @@ void Transformation::ReadWCS(std::string fitsfile, int hdu)
 #if 0
     if (XDEBUG) {
       // Do the direct calculation here:
-      double x = 1792.75;
-      double y = 38.2455;
-      double ra = 336.24920674;
-      double dec = -39.60856451;
+      double x = 457.5703735;
+      double y = 60.30065536;
+      double ra = 334.1531982;
+      double dec = -10.3365593;
 
       tmv::Vector<double> xy(2); xy(0) = x; xy(1) = y;
       xdbg.precision(10);
