@@ -27,11 +27,11 @@ typedef std::vector<Pixel> PixelList;
 
 #include "boost/shared_ptr.hpp"
 
-//#include "pool_allocator.h"
-//#define PIXELLIST_BLOCK 1024*1024*100  // 100 MB per block
+#include "pool_allocator.h"
+#define PIXELLIST_BLOCK 1024*1024*100  // 100 MB per block
 
-#include "boost/pool/pool_alloc.hpp"
-#define PIXELLIST_BLOCK 
+//#include "boost/pool/pool_alloc.hpp"
+//#define PIXELLIST_BLOCK 
 // Still define it, since used in #ifdef, but value isn't relevant anymore.
 // Eventually change this to something like "USE_POOL" or somesuch.
 
@@ -97,8 +97,8 @@ class PixelList
 
     bool use_block_mem;
     boost::shared_ptr<std::vector<Pixel> > v1;
-    //typedef pool_allocator<Pixel,PIXELLIST_BLOCK> pool_alloc;
-    typedef boost::pool_allocator<Pixel> pool_alloc;
+    typedef pool_allocator<Pixel,PIXELLIST_BLOCK> pool_alloc;
+    //typedef boost::pool_allocator<Pixel> pool_alloc;
     boost::shared_ptr<std::vector<Pixel,pool_alloc> > v2;
 };
 

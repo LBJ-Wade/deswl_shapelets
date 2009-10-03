@@ -7,23 +7,41 @@
 #include "CoaddCatalog.h"
 #include "MultiShearCatalog.h"
 #include "BasicSetup.h"
+#include <sys/time.h>
 
 #include <iostream>
 #include <fstream>
 #include <valgrind/memcheck.h>
 
+#ifdef VG
 #ifdef __INTEL_COMPILER
-// For VALGRIND.  
 #pragma warning (disable : 593)
 #pragma warning (disable : 1469)
+#endif
 #endif
 
 static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log) 
 {
+  bool timing = params.read("timing",false);
+  timeval tp;
+  double t1=0.,t2=0.;
+
+  if (timing) {
+    gettimeofday(&tp,0);
+    t1 = tp.tv_sec + tp.tv_usec/1.e6;
+  }
+
   bool output_dots = params.read("output_dots",false);
 
   CoaddCatalog coaddcat(params);
   dbg<<"Made coaddcat\n";
+
+  if (timing) {
+    gettimeofday(&tp,0);
+    t2 = tp.tv_sec + tp.tv_usec/1.e6;
+    std::cout<<"Time: Read CoaddCatalog = "<<t2-t1<<std::endl;
+    t1 = t2;
+  }
 
   MultiShearCatalog shearcat(coaddcat,params);
   dbg<<"Made multishearcat\n";
@@ -34,6 +52,16 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
   log.ngals = shearcat.size();
   log.ngoodin = std::count(shearcat.flags.begin(),shearcat.flags.end(),0);
   dbg<<log.ngoodin<<"/"<<log.ngals<<" galaxies with no input flags\n";
+
+  if (timing) {
+    gettimeofday(&tp,0);
+    t2 = tp.tv_sec + tp.tv_usec/1.e6;
+    std::cout<<"Time: Make MultiShearCatalog = "<<t2-t1<<std::endl;
+    t1 = t2;
+  }
+
+  double loadtime=0.;
+  double calctime=0.;
 
   long nshear = 0;
   double section_size = params.get("multishear_section_size");
@@ -52,6 +80,14 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
     if (output_dots)
       std::cerr<<npix<<" galaxies in this section.\n";
 
+    if (timing) {
+      gettimeofday(&tp,0);
+      t2 = tp.tv_sec + tp.tv_usec/1.e6;
+      std::cout<<"Time: GetPixels = "<<t2-t1<<std::endl;
+      loadtime += t2-t1;
+      t1 = t2;
+    }
+
     long nshear1 = shearcat.MeasureMultiShears(section_bounds[i],log);
 
     nshear += nshear1;
@@ -62,9 +98,26 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
       std::cerr<<nshear1<<" successful shear measurements ";
       std::cerr<<"(total "<<nshear<<")\n";
     }
+
+    if (timing) {
+      gettimeofday(&tp,0);
+      t2 = tp.tv_sec + tp.tv_usec/1.e6;
+      std::cout<<"Time: MeasureMultiShears = "<<t2-t1<<std::endl;
+      calctime += t2-t1;
+      t1 = t2;
+    }
+
+#ifdef VG
     dbg<<"Valgrind Leak Check:\n";
     VALGRIND_DO_LEAK_CHECK;
     //if (VALGRIND_COUNT_ERRORS) break;
+#endif
+  }
+
+  if (timing)
+  {
+    std::cout<<"Time: Total load time = "<<loadtime;
+    std::cout<<"Time: Total calc time = "<<calctime;
   }
 
   dbg<<"Done: "<<log.ns_gamma<<" successful shear measurements, ";
@@ -107,6 +160,13 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
 
   shearcat.Write();
   dbg<<"After Write\n";
+
+  if (timing) {
+    gettimeofday(&tp,0);
+    t2 = tp.tv_sec + tp.tv_usec/1.e6;
+    std::cout<<"Time: Write = "<<t2-t1<<std::endl;
+    t1 = t2;
+  }
 
   if (nshear == 0) throw ProcessingError("No successful shear measurements");
 
