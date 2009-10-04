@@ -1,130 +1,100 @@
 
 #include "Pixel.h"
-#include "Params.h"
-#include "dbg.h"
 
-void GetPixList(const Image<double>& im, PixelList& pix,
-    const Position cen, double sky, double noise, double gain,
-    const Image<double>* wt_im, const Transformation& trans,
-    double aperture, long& flag)
+PixelList::PixelList() :
+  use_block_mem(false), v1(new std::vector<Pixel>()) {}
+
+PixelList::PixelList(const int n) :
+  use_block_mem(false), v1(new std::vector<Pixel>(n)) {}
+
+PixelList::~PixelList()
 {
-  xdbg<<"Start GetPixList\n";
-  if (wt_im) {
-    xdbg<<"Using weight image for pixel noise.\n";
-  } else {
-    xdbg<<"noise = "<<noise<<std::endl;
-    xdbg<<"gain = "<<gain<<std::endl;
-  }
-
-  tmv::SmallMatrix<double,2,2> D;
-  trans.GetDistortion(cen,D);
-
-  double det = std::abs(D.Det());
-  double pixscale = sqrt(det); // arcsec/pixel
-  xdbg<<"pixscale = "<<pixscale<<std::endl;
-
-  // xap,yap are the maximum deviation from the center in x,y
-  // such that u^2+v^2 = aperture^2
-  double xap = aperture / det * sqrt(D(0,0)*D(0,0) + D(0,1)*D(0,1));
-  double yap = aperture / det * sqrt(D(1,0)*D(1,0) + D(1,1)*D(1,1));
-  xdbg<<"aperture = "<<aperture<<std::endl;
-  xdbg<<"xap = "<<xap<<", yap = "<<yap<<std::endl;
-
-  int xmin = im.GetXMin();
-  int ymin = im.GetYMin();
-
-  double xcen = cen.GetX();
-  double ycen = cen.GetY();
-  // xcen,ycen are given on a 1-based grid.
-  // ie. where the lower left corner pixel is (1,1), rather than (0,0).
-  // The easiest way to do this is to just decrease xcen,ycen by 1 each:
-  //--xcen; --ycen;
-  // === This is now handled by x_offset, y_offset in ReadCatalog
-
-  int i1 = int(floor(xcen-xap-xmin));
-  int i2 = int(ceil(xcen+xap-xmin));
-  int j1 = int(floor(ycen-yap-ymin));
-  int j2 = int(ceil(ycen+yap-ymin));
-  xdbg<<"i1,i2,j1,j2 = "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
-
-  if (i1 < 0) { i1 = 0; flag |= EDGE; }
-  if (i2 > int(im.GetMaxI())) { i2 = im.GetMaxI(); flag |= EDGE; }
-  if (j1 < 0) { j1 = 0; flag |= EDGE; }
-  if (j2 > int(im.GetMaxJ())) { j2 = im.GetMaxJ(); flag |= EDGE; }
-  xdbg<<"i1,i2,j1,j2 => "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
-
-  double apsq = aperture*aperture;
-
-  // Do this next loop in two passes.  First figure out which 
-  // pixels we want to use.  Then we can resize pix to the full size
-  // we will need, and go back through and enter the pixels.
-  // This saves us a lot of resizing calls in vector, which are
-  // both slow and can fragment the memory.
-  xdbg<<"nx = "<<i2-i1+1<<std::endl;
-  xdbg<<"ny = "<<j2-j1+1<<std::endl;
-  Assert(i2-i1+1 >= 0);
-  Assert(j2-j1+1 >= 0);
-  std::vector<std::vector<bool> > usepix(i2-i1+1,
-      std::vector<bool>(j2-j1+1,false));
-  int npix = 0;
-
-  double chipx = xmin+i1-xcen;
-  for(int i=i1;i<=i2;i++,chipx+=1.) {
-    double chipy = ymin+j1-ycen;
-    double u = D(0,0)*chipx+D(0,1)*chipy;
-    double v = D(1,0)*chipx+D(1,1)*chipy;
-    for(int j=j1;j<=j2;j++,u+=D(0,1),v+=D(1,1)) {
-      // u,v are in arcsec
-      double rsq = u*u + v*v;
-      if (rsq <= apsq) 
-      {
-	usepix[i-i1][j-j1] = true;
-	npix++;
-      }
-    }
-  }
-
-  xdbg<<"npix = "<<npix<<std::endl;
 #ifdef _OPENMP
 #pragma omp critical
 #endif
   {
-    pix.resize(npix);
+    v2.reset();
   }
-  xdbg<<"pixlist size = "<<npix<<" = "<<npix*sizeof(Pixel)<<" bytes = "<<npix*sizeof(Pixel)/1024.<<" KB\n";
-  int k=0;
+}
 
-  chipx = xmin+i1-xcen;
-  for(int i=i1;i<=i2;i++,chipx+=1.) {
-    double chipy = ymin+j1-ycen;
-    double u = D(0,0)*chipx+D(0,1)*chipy;
-    double v = D(1,0)*chipx+D(1,1)*chipy;
-    for(int j=j1;j<=j2;j++,u+=D(0,1),v+=D(1,1)) {
-      if (usepix[i-i1][j-j1]) {
-	double I = im(i,j)-sky;
-	double wt;
-	if (wt_im) {
-	  wt = (*wt_im)(i,j);
-	} else {
-	  double var = noise;
-	  if (gain != 0.) var += im(i,j)/gain;
-	  wt = 1./var;
-	}
-	if (wt > 0.0) 
-	{
-	  Assert(k < int(pix.size()));
-	  pix[k++] = Pixel(u,v,I,wt);
-	}
-      }
-    }
+void PixelList::UseBlockMem() 
+{
+  // This should be done before any elements are added.
+  if (v1.get()) Assert(v1->size() == 0);
+  if (v2.get()) Assert(v2->size() == 0);
+  v1.reset();
+#ifdef _OPENMP
+#pragma omp critical
+#endif
+  {
+    v2.reset(new std::vector<Pixel,pool_alloc>());
   }
-  Assert(k <= int(pix.size()));
-  // Not necessarily == because we skip pixels with 0.0 variance
-  pix.resize(k);
-  //pix.erase(pix.begin()+k,pix.end());
-  Assert(k == int(pix.size()));
-  npix = pix.size(); // may have changed.
-  xdbg<<"npix => "<<npix<<std::endl;
-  if (npix < 10) flag |= LT10PIX;
+  use_block_mem = true; 
+}
+
+size_t PixelList::size() const
+{
+  if (use_block_mem) return v2->size();
+  else return v1->size();
+}
+
+void PixelList::reserve(const int n)
+{
+  if (use_block_mem) 
+#ifdef _OPENMP
+#pragma omp critical
+#endif
+  {
+    v2->reserve(n);
+  }
+  else v1->reserve(n);
+}
+
+void PixelList::resize(const int n)
+{
+  if (use_block_mem) 
+#ifdef _OPENMP
+#pragma omp critical
+#endif
+  {
+    v2->resize(n);
+  }
+  else v1->resize(n);
+}
+
+void PixelList::clear()
+{
+  if (use_block_mem) 
+#ifdef _OPENMP
+#pragma omp critical
+#endif
+  {
+    v2->clear();
+  }
+  else v1->clear();
+}
+
+void PixelList::push_back(const Pixel& p)
+{
+  if (use_block_mem) 
+#ifdef _OPENMP
+#pragma omp critical
+#endif
+  {
+    v2->push_back(p);
+  }
+  else v1->push_back(p);
+}
+
+Pixel& PixelList::operator[](const int i)
+{
+  if (use_block_mem) return (*v2)[i];
+  else return (*v1)[i];
+}
+
+const Pixel& PixelList::operator[](const int i) const
+{
+  if (use_block_mem) return (*v2)[i];
+  else return (*v1)[i];
 }
 

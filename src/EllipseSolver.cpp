@@ -22,12 +22,12 @@ class ESImpl
     friend class EllipseSolver;
 
     ESImpl(const std::vector<PixelList>& _pix,
-	int _order, double _sigma, bool desqa,
+	int _order, double _sigma, 
 	bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux);
 
     ESImpl(const std::vector<PixelList>& _pix,
 	const std::vector<BVec>& _psf, 
-	double _fp, int _order, double _sigma, bool desqa,
+	double _fp, int _order, double _sigma, 
 	bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux);
 
     void F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const;
@@ -85,16 +85,16 @@ class ESImpl
 };
 
 EllipseSolver::EllipseSolver(const std::vector<PixelList>& pix,
-    int order, double sigma, bool desqa,
+    int order, double sigma, 
     bool fixcen, bool fixgam, bool fixmu, bool useflux) :
-  pimpl(new ESImpl(pix,order,sigma,desqa,fixcen,fixgam,fixmu,useflux))
+  pimpl(new ESImpl(pix,order,sigma,fixcen,fixgam,fixmu,useflux))
 {}
 
 EllipseSolver::EllipseSolver(const std::vector<PixelList>& pix,
     const std::vector<BVec>& psf, double fp,
-    int order, double sigma, bool desqa,
+    int order, double sigma, 
     bool fixcen, bool fixgam, bool fixmu, bool useflux) :
-  pimpl(new ESImpl(pix,psf,fp,order,sigma,desqa,fixcen,fixgam,fixmu,useflux))
+  pimpl(new ESImpl(pix,psf,fp,order,sigma,fixcen,fixgam,fixmu,useflux))
 {}
 
 EllipseSolver::~EllipseSolver()
@@ -120,7 +120,7 @@ static size_t SumSize(const std::vector<PixelList>& v)
 }
 
 ESImpl::ESImpl(const std::vector<PixelList>& _pix, 
-    int _order, double _sigma, bool desqa,
+    int _order, double _sigma, 
     bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux) :
   nsize((_order+1)*(_order+2)/2),
   np2size((_order+3)*(_order+4)/2), b(_order,_sigma),
@@ -186,7 +186,7 @@ static int CalcMaxPSFOrder(const std::vector<BVec>& psf)
 #define SIZE_5 (maxpsforder+3)*(maxpsforder+4)/2
 ESImpl::ESImpl(const std::vector<PixelList>& _pix, 
     const std::vector<BVec>& _psf,
-    double _fp, int _order, double _sigma, bool desqa,
+    double _fp, int _order, double _sigma, 
     bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux) :
   nsize((_order+1)*(_order+2)/2),
   np2size((_order+3)*(_order+4)/2), b(_order,_sigma),

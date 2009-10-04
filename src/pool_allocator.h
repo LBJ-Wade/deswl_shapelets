@@ -54,7 +54,7 @@ class pool_allocator
 
     pointer allocate(
 	size_type size, 
-	typename pool_allocator<void,block_size>::const_pointer hint = 0)
+	typename pool_allocator<void,block_size>::const_pointer = 0)
     {
       return static_cast<pointer>(mem.allocate(size*sizeof(T)));
     }

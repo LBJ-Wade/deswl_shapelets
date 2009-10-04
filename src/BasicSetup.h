@@ -58,7 +58,6 @@ inline int BasicSetup(int argc, char **argv,
   // Setup debugging
   if (params.read("verbose",0) > 0) {
     if (params.read<int>("verbose") > 1) XDEBUG = true;
-    std::string dbgfile = "";
     if (params.keyExists("debug_file") || params.keyExists("debug_ext"))
     {
       std::string dbgfile = Name(params,"debug");

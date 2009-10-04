@@ -26,12 +26,12 @@ class EllipseSolver : public BaseEllipseSolver
   public :
 
     EllipseSolver(const std::vector<PixelList>& pix, 
-	int order, double sigma, bool desqa,
+	int order, double sigma, 
 	bool fixcen=false, bool fixgam=false, bool fixmu=false,
 	bool useflux=false);
     EllipseSolver(const std::vector<PixelList>& pix, 
 	const std::vector<BVec>& psf, double fp,
-	int order, double sigma, bool desqa,
+	int order, double sigma, 
 	bool fixcen=false, bool fixgam=false, bool fixmu=false,
 	bool useflux=false);
     ~EllipseSolver();

@@ -29,7 +29,7 @@ pool<block_size>::pool()
   block* b = grow_pool();
   free_blocks.insert(b);
   //check();
-};
+}
 
 template <int block_size>
 pool<block_size>::~pool()
