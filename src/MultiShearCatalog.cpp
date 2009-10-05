@@ -221,14 +221,16 @@ template <class T, class Alloc>
 inline long long MemoryFootprint(const std::vector<T,Alloc>& x)
 {
   long long res=sizeof(x);
-  for(size_t i=0;i<x.size();++i) res += MemoryFootprint(x[i]);
+  const size_t xsize = x.size();
+  for(size_t i=0;i<xsize;++i) res += MemoryFootprint(x[i]);
   return res;
 }
 
 inline long long MemoryFootprint(const PixelList& x)
 {
   long long res=sizeof(x);
-  for(size_t i=0;i<x.size();++i) res += MemoryFootprint(x[i]);
+  res += x.size() * sizeof(Pixel);
+  //for(size_t i=0;i<x.size();++i) res += MemoryFootprint(x[i]);
   return res;
 }
 

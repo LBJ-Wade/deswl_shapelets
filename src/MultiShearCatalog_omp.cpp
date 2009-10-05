@@ -148,6 +148,164 @@ int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
   return nsuccess;
 }
 
+static void GetImagePixList(
+    std::vector<PixelList>& pixlist,
+    std::vector<BVec>& psflist,
+    std::vector<std::complex<double> >& se_shearlist,
+    std::vector<double>& se_sizelist,
+    long& input_flags, int& nimages_found, int& nimages_gotpix,
+    const Position& skypos,
+    const Image<double>& im,
+    const Transformation& trans,
+    const Transformation& invtrans,
+    BVec& psf, const FittedPSF& fitpsf,
+    const ShearCatalog& shearcat,
+    const ShearCatalogTree& shearcat_tree,
+    const Image<double>*const weight_im,
+    const double noise, const double gain,
+    const std::string& sky_method, const double mean_sky, 
+    const Image<float>*const sky_map,
+    const double gal_aperture, const double max_aperture)
+{
+  Assert(psflist.size() == pixlist.size());
+  Assert(se_shearlist.size() == pixlist.size());
+  Assert(se_sizelist.size() == pixlist.size());
+
+  // Convert ra/dec to x,y in this image
+
+  // First, figure out a good starting point for the nonlinear solver:
+  Position pos;
+  dbg<<"skypos = "<<skypos<<std::endl;
+  invtrans.Transform(skypos,pos);
+  xdbg<<"invtrans(skypos) = "<<pos<<std::endl;
+
+  // Now do the full non-linear solver, which should be pretty fast
+  // given the decent initial guess.
+  if (!trans.InverseTransform(skypos, pos) ) {
+    dbg << "InverseTransform failed for position "<<skypos<<".\n";
+    dbg << "Initial guess was "<<pos<<".\n";
+    input_flags |= TRANSFORM_EXCEPTION;
+    //std::stringstream err;
+    //err << "InverseTransform failed for position "<<skypos<<".";
+    //throw TransformationError(err.str());
+  }
+  xdbg<<"after exact InverseTransform: pos -> "<<pos<<std::endl;
+  if (!(fitpsf.GetBounds().Includes(pos))) 
+  {
+    xdbg<<"Reject pos "<<pos<<" not in fitpsf bounds ";
+    xdbg<<fitpsf.GetBounds()<<std::endl;
+    return;
+  }
+
+  nimages_found++;
+
+  try {
+    psf = fitpsf(pos);
+  } catch (Range_error& e) {
+    xdbg<<"fittedpsf range error: \n";
+    xdbg<<"p = "<<pos<<", b = "<<e.b<<std::endl;
+    input_flags |= FITTEDPSF_EXCEPTION;
+    return;
+  }
+
+  // Make sure the use of trans in GetPixList won't throw:
+  try {
+    // We don't need to save skypos.  We just want to catch the range
+    // error here, so we don't need to worry about it for dudx, etc.
+    Position skypos1;
+    trans.Transform(pos,skypos1);
+  } catch (Range_error& e) {
+    dbg<<"distortion range error: \n";
+    xdbg<<"p = "<<pos<<", b = "<<e.b<<std::endl;
+    input_flags |= TRANSFORM_EXCEPTION;
+    return;
+  }
+
+  // Find the nearest object in the shear catalog:
+  int nearest = shearcat_tree.FindNearestTo(pos);
+
+  xxdbg<<"pixlist.size = "<<pixlist.size()<<std::endl;
+  xxdbg<<"psflist.size = "<<psflist.size()<<std::endl;
+  xxdbg<<"se_shearlist.size = "<<se_shearlist.size()<<std::endl;
+  xxdbg<<"se_sizelist.size = "<<se_sizelist.size()<<std::endl;
+  Assert(psflist.size() == pixlist.size());
+  Assert(se_shearlist.size() == pixlist.size());
+  Assert(se_sizelist.size() == pixlist.size());
+
+  std::complex<double> se_shear = 0.;
+  double se_size = 0.;
+  double galap = max_aperture;
+  if (std::abs(shearcat.pos[nearest] - pos) < 1.)
+  { 
+    se_shear = shearcat.shear[nearest];
+    se_size = shearcat.shape[nearest].GetSigma();
+    // If we have a good measurement from the single_epoch image, use
+    // that sigma for the size.
+    // But expand it by 30% in case we need it.
+    galap = gal_aperture * se_size * 1.3;
+    if (galap > max_aperture) galap = max_aperture;
+  }
+
+  // Calculate the local sky value.
+  long flag = 0;
+  double sky=0;
+  if (sky_method == "MEAN")
+    sky = mean_sky;
+  else if (sky_method == "NEAREST")
+    sky = shearcat.sky[nearest];
+  else 
+  {
+    Assert(sky_method == "MAP");
+    sky = GetLocalSky(*sky_map,pos,trans,galap,flag);
+    // If no pixels in aperture, then
+    // a) something is very wrong, but
+    // b) use the NEAREST method instead.
+    if (flag & BKG_NOPIX) sky = shearcat.sky[nearest];
+    input_flags |= flag;
+  }
+
+  pixlist.push_back(PixelList());
+#ifdef PIXELLIST_BLOCK
+  pixlist.back().UseBlockMem();
+#endif
+  xdbg<<"pixlist.size = "<<pixlist.size()<<std::endl;
+
+  flag = 0;
+  GetPixList(
+      im,pixlist.back(),pos,
+      sky,noise,gain,weight_im,trans,galap,flag);
+  xdbg<<"Got pixellist, flag = "<<flag<<std::endl;
+
+  // Make sure not (edge or < 10 pixels) although edge is already
+  // checked above
+  if (flag == 0) {
+    dbg<<"pixlist.size = "<<pixlist.size()<<std::endl;
+    psflist.push_back(psf);
+
+    // If object in the ShearCatalog is within 1 arcsec of the position
+    // then assume it is the correct object.
+    // Otherwise put in 0's to indicate we don't have an initial
+    // guess for this object (on this image).
+    if (std::abs(shearcat.pos[nearest] - pos) < 1.)
+    { 
+      se_shearlist.push_back(shearcat.shear[nearest]);
+      se_sizelist.push_back(shearcat.shape[nearest].GetSigma());
+    }
+    else 
+    {
+      se_shearlist.push_back(0.);
+      se_sizelist.push_back(0.);
+    }
+    xxdbg<<"se_shearlist.size = "<<se_shearlist.size()<<std::endl;
+    xxdbg<<"se_sizelist.size = "<<se_sizelist.size()<<std::endl;
+    nimages_gotpix++;
+  } else {
+    input_flags |= flag;
+    pixlist.pop_back();
+    xxdbg<<"pixlist.size = "<<pixlist.size()<<std::endl;
+  }
+}
+
 // Get pixel lists from the file specified in params
 void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
 {
@@ -242,162 +400,32 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
 
   const int n_size = size();
 #ifdef _OPENMP
-#pragma omp parallel for
+//#pragma omp parallel for
 #endif
-  for (int i=0; i<n_size; ++i) if (!flags[i]) {
-    Assert(psflist[i].size() == pixlist[i].size());
-    Assert(se_shearlist[i].size() == pixlist[i].size());
-    Assert(se_sizelist[i].size() == pixlist[i].size());
-    if (!b.Includes(skypos[i])) continue;
-
-    // Convert ra/dec to x,y in this image
-
-    // First, figure out a good starting point for the nonlinear solver:
-    Position pos;
-    dbg<<"i = "<<i<<", skypos = "<<skypos[i]<<std::endl;
-    if (!invb.Includes(skypos[i])) {
-      xxdbg<<"skypos "<<skypos[i]<<" not in "<<invb<<std::endl;
-      continue;
-    }
-    invtrans.Transform(skypos[i],pos);
-    xdbg<<"invtrans(skypos) = "<<pos<<std::endl;
-
-    // Now do the full non-linear solver, which should be pretty fast
-    // given the decent initial guess.
-    if (!trans.InverseTransform(skypos[i], pos) ) {
-      std::stringstream err;
-      err << "InverseTransform failed for position "<<skypos[i]<<".";
-      dbg << "InverseTransform failed for position "<<skypos[i]<<".\n";
-      dbg << "Initial guess was "<<pos<<".\n";
-      throw TransformationError(err.str());
-    }
-    xdbg<<"after exact InverseTransform: pos -> "<<pos<<std::endl;
-    if (!(fitpsf.GetBounds().Includes(pos))) 
+  for (int i=0; i<n_size; ++i) 
+  {
+    Assert(i < int(flags.size()));
+    Assert(i < int(skypos.size()));
+    Assert(i < int(pixlist.size()));
+    Assert(i < int(psflist.size()));
+    Assert(i < int(se_shearlist.size()));
+    Assert(i < int(se_sizelist.size()));
+    Assert(i < int(input_flags.size()));
+    Assert(i < int(nimages_found.size()));
+    Assert(i < int(nimages_gotpix.size()));
+    if (!flags[i] && 
+	b.Includes(skypos[i]) &&
+	invb.Includes(skypos[i]))
     {
-      xdbg<<"Reject pos "<<pos<<" not in fitpsf bounds ";
-      xdbg<<fitpsf.GetBounds()<<std::endl;
-      continue;
+      GetImagePixList(
+	  pixlist[i], psflist[i], se_shearlist[i], se_sizelist[i],
+	  input_flags[i], nimages_found[i], nimages_gotpix[i], skypos[i], 
+	  im, trans, invtrans, psf, fitpsf, shearcat, shearcat_tree,
+	  weight_im.get(), noise, gain,
+	  sky_method, mean_sky, sky_map.get(),
+	  gal_aperture, max_aperture);
     }
-
-    nimages_found[i]++;
-
-    try {
-      psf = fitpsf(pos);
-    } catch (Range_error& e) {
-      xdbg<<"fittedpsf range error: \n";
-      xdbg<<"p = "<<pos<<", b = "<<e.b<<std::endl;
-      input_flags[i] |= FITTEDPSF_EXCEPTION;
-      continue;
-    }
-
-    // Make sure the use of trans in GetPixList won't throw:
-    try {
-      // We don't need to save skypos.  We just want to catch the range
-      // error here, so we don't need to worry about it for dudx, etc.
-      Position skypos1;
-      trans.Transform(pos,skypos1);
-    } catch (Range_error& e) {
-      dbg<<"distortion range error: \n";
-      xdbg<<"p = "<<pos<<", b = "<<e.b<<std::endl;
-      input_flags[i] |= TRANSFORM_EXCEPTION;
-      continue;
-    }
-
-    // Find the nearest object in the shear catalog:
-    int nearest = shearcat_tree.FindNearestTo(pos);
-
-    Assert(i < pixlist.size());
-    xxdbg<<"pixlist["<<i<<"].size = "<<pixlist[i].size()<<std::endl;
-    xxdbg<<"psflist["<<i<<"].size = "<<psflist[i].size()<<std::endl;
-    xxdbg<<"se_shearlist["<<i<<"].size = "<<se_shearlist[i].size()<<std::endl;
-    xxdbg<<"se_sizelist["<<i<<"].size = "<<se_sizelist[i].size()<<std::endl;
-    Assert(psflist[i].size() == pixlist[i].size());
-    Assert(se_shearlist[i].size() == pixlist[i].size());
-    Assert(se_sizelist[i].size() == pixlist[i].size());
-
-    std::complex<double> se_shear = 0.;
-    double se_size = 0.;
-    double galap = max_aperture;
-    if (std::abs(shearcat.pos[nearest] - pos) < 1.)
-    { 
-      se_shear = shearcat.shear[nearest];
-      se_size = shearcat.shape[nearest].GetSigma();
-      // If we have a good measurement from the single_epoch image, use
-      // that sigma for the size.
-      // But expand it by 30% in case we need it.
-      galap = gal_aperture * se_size * 1.3;
-      if (galap > max_aperture) galap = max_aperture;
-    }
-
-    // Calculate the local sky value.
-    long flag = 0;
-    double sky=0;
-    if (sky_method == "MEAN")
-      sky = mean_sky;
-    else if (sky_method == "NEAREST")
-      sky = shearcat.sky[nearest];
-    else 
-    {
-      Assert(sky_method == "MAP");
-      sky = GetLocalSky(*sky_map,pos,trans,galap,flag);
-      // If no pixels in aperture, then
-      // a) something is very wrong, but
-      // b) use the NEAREST method instead.
-      if (flag & BKG_NOPIX) sky = shearcat.sky[nearest];
-      input_flags[i] |= flag;
-    }
-
-    pixlist[i].push_back(PixelList());
-#ifdef PIXELLIST_BLOCK
-    pixlist[i].back().UseBlockMem();
-#endif
-    xdbg<<"pixlist["<<i<<"].size = "<<pixlist[i].size()<<std::endl;
-
-    flag = 0;
-    GetPixList(
-	im,pixlist[i].back(),pos,
-	sky,noise,gain,weight_im.get(),trans,galap,flag);
-    xdbg<<"Got pixellist, flag = "<<flag<<std::endl;
-
-    // Make sure not (edge or < 10 pixels) although edge is already
-    // checked above
-    if (flag == 0) {
-      dbg<<"i = "<<i<<", pixlist.size = "<<pixlist.size()<<std::endl;
-      Assert(i < psflist.size());
-      Assert(i < se_shearlist.size());
-      Assert(i < se_sizelist.size());
-      Assert(i < nimages_gotpix.size());
-      psflist[i].push_back(psf);
-
-      // If object in the ShearCatalog is within 1 arcsec of the position
-      // then assume it is the correct object.
-      // Otherwise put in 0's to indicate we don't have an initial
-      // guess for this object (on this image).
-      if (std::abs(shearcat.pos[nearest] - pos) < 1.)
-      { 
-	se_shearlist[i].push_back(shearcat.shear[nearest]);
-	se_sizelist[i].push_back(shearcat.shape[nearest].GetSigma());
-      }
-      else 
-      {
-	se_shearlist[i].push_back(0.);
-	se_sizelist[i].push_back(0.);
-      }
-      xxdbg<<"se_shearlist["<<i<<"].size = "<<se_shearlist[i].size()<<std::endl;
-      xxdbg<<"se_sizelist["<<i<<"].size = "<<se_sizelist[i].size()<<std::endl;
-      nimages_gotpix[i]++;
-    } else {
-      input_flags[i] |= flag;
-      pixlist[i].pop_back();
-      xxdbg<<"pixlist["<<i<<"].size = "<<pixlist[i].size()<<std::endl;
-    }
-    xxdbg<<"pixlist["<<i<<"].size = "<<pixlist[i].size()<<std::endl;
-    xxdbg<<"se_shearlist["<<i<<"].size = "<<se_shearlist[i].size()<<std::endl;
-    xxdbg<<"se_sizelist["<<i<<"].size = "<<se_sizelist[i].size()<<std::endl;
-    Assert(se_shearlist[i].size() == pixlist[i].size());
-    Assert(se_sizelist[i].size() == pixlist[i].size());
-  } // loop over objects
-
+  } 
   // Keep track of how much memory we are using.
   // TODO: introduce a parameter max_memory and check to make sure
   // we stay within the allowed memory usage.

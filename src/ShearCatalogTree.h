@@ -13,7 +13,7 @@ class ShearCatalogTree
     ShearCatalogTree(const ShearCatalog& _incat);
     ~ShearCatalogTree();
 
-    int FindNearestTo(const Position& pos);
+    int FindNearestTo(const Position& pos) const;
 
   private :
 

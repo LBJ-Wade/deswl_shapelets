@@ -55,7 +55,7 @@ struct ShearCatalogTree::Node
     if (right) delete right;
   }
 
-  void FindNearestTo(const Position& p, int& besti, double& best)
+  void FindNearestTo(const Position& p, int& besti, double& best) const
   {
     xxdbg<<"Node::FindNearestTo: "<<p<<"  "<<besti<<"  "<<best<<std::endl;
     xxdbg<<"bounds = "<<b<<std::endl;
@@ -142,7 +142,7 @@ ShearCatalogTree::~ShearCatalogTree()
   delete top;
 }
 
-int ShearCatalogTree::FindNearestTo(const Position& pos)
+int ShearCatalogTree::FindNearestTo(const Position& pos) const
 {
   xdbg<<"FindNearest for pos = "<<pos<<std::endl;
   int index = -1;
