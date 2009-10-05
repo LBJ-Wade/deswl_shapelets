@@ -44,8 +44,8 @@ Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im)
       Image<float> badpix_im(badpix_name,badpix_hdu);
       dbg<<"Opened badpix image.\n";
 
-      for(size_t i=0;i<=weight_im->GetMaxI();++i)
-	for(size_t j=0;j<=weight_im->GetMaxJ();++j)
+      for(int i=0;i<=weight_im->GetMaxI();++i)
+	for(int j=0;j<=weight_im->GetMaxJ();++j)
 	{
 	  if (badpix_im(i,j) > 0.0) (*weight_im)(i,j) = 0.0;
 	}
@@ -116,6 +116,198 @@ void Image<T>::ReadFits(std::string filename, int hdu)
   fits_read_pix(fptr,DataType<T>(),fpixel,long(xmax*ymax),0,
       sourcem->ptr(),&anynul,&fitserr);
   xdbg<<"done readpix  "<<fitserr<<std::endl;
+  xdbg<<"anynul = "<<anynul<<std::endl;
+  xdbg<<"fitserr = "<<fitserr<<std::endl;
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
+  Assert(fitserr==0);
+
+  itsm.reset(new tmv::MatrixView<T>(sourcem->View()));
+  xdbg<<"Done make matrixview"<<std::endl;
+
+  fits_close_file(fptr, &fitserr);
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
+  Assert(fitserr==0);
+  xdbg<<"Leaving Image ReadFits"<<std::endl;
+}
+
+// Load Subimage
+// These next three are basically the same as the above constructors,
+// and ReadFits function, but with a range of pixels to read in.
+// I could probably combine these pretty easily, since most of the
+// code is identical, but for now there is some significant code 
+// repetition here.
+template <class T>
+Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im,
+    int x1, int x2, int y1, int y2)
+{
+  filename = Name(params,"image",true);
+  hdu = params.read("image_hdu",1);
+  ReadFits(filename,hdu,x1,x2,y1,y2);
+  xdbg<<"Opened image "<<Name(params,"image",true)<<std::endl;
+
+  // Load weight image (if necessary)
+  if (params["noise_method"] == "WEIGHT_IMAGE") 
+  {
+    int weight_hdu = params.read("weight_hdu",1);
+    weight_im.reset(
+	new Image<T>(Name(params,"weight",true),weight_hdu,x1,x2,y1,y2));
+    dbg<<"Opened weight image.\n";
+
+    // Make sure any bad pixels are marked with 0 variance.
+    if (params.keyExists("badpix_file") || params.keyExists("badpix_ext"))
+    {
+      int badpix_hdu = params.read("badpix_hdu",1);
+      std::string badpix_name = Name(params,"badpix",true);
+      dbg<<"badpix name = "<<badpix_name<<std::endl;
+      dbg<<"hdu = "<<badpix_hdu<<std::endl;
+      Image<float> badpix_im(badpix_name,badpix_hdu,x1,x2,y1,y2);
+      dbg<<"Opened badpix image.\n";
+
+      for(int i=0;i<=weight_im->GetMaxI();++i)
+	for(int j=0;j<=weight_im->GetMaxJ();++j)
+	{
+	  if (badpix_im(i,j) > 0.0) (*weight_im)(i,j) = 0.0;
+	}
+    }
+  }
+}
+
+template <class T>
+Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im,
+    const Bounds& b)
+{
+  int x1 = int(floor(b.GetXMin()));
+  int x2 = int(ceil(b.GetXMax()));
+  int y1 = int(floor(b.GetYMin()));
+  int y2 = int(ceil(b.GetYMax()));
+  filename = Name(params,"image",true);
+  hdu = params.read("image_hdu",1);
+  ReadFits(filename,hdu,x1,x2,y1,y2);
+  xdbg<<"Opened image "<<Name(params,"image",true)<<std::endl;
+
+  // Load weight image (if necessary)
+  if (params["noise_method"] == "WEIGHT_IMAGE") 
+  {
+    int weight_hdu = params.read("weight_hdu",1);
+    weight_im.reset(
+	new Image<T>(Name(params,"weight",true),weight_hdu,b));
+    dbg<<"Opened weight image.\n";
+
+    // Make sure any bad pixels are marked with 0 variance.
+    if (params.keyExists("badpix_file") || params.keyExists("badpix_ext"))
+    {
+      int badpix_hdu = params.read("badpix_hdu",1);
+      std::string badpix_name = Name(params,"badpix",true);
+      dbg<<"badpix name = "<<badpix_name<<std::endl;
+      dbg<<"hdu = "<<badpix_hdu<<std::endl;
+      Image<float> badpix_im(badpix_name,badpix_hdu,b);
+      dbg<<"Opened badpix image.\n";
+
+      for(int i=0;i<=weight_im->GetMaxI();++i)
+	for(int j=0;j<=weight_im->GetMaxJ();++j)
+	{
+	  if (badpix_im(i,j) > 0.0) (*weight_im)(i,j) = 0.0;
+	}
+    }
+  }
+}
+
+template <class T>
+Image<T>::Image(const ConfigFile& params, int x1, int x2, int y1, int y2)
+{
+  filename = Name(params,"image",true);
+  hdu = params.read("image_hdu",1);
+  ReadFits(Name(params,"image",true),hdu,x1,x2,y1,y2);
+  xdbg<<"Opened image "<<Name(params,"image",true)<<std::endl;
+}
+
+template <class T>
+Image<T>::Image(const ConfigFile& params, const Bounds& b)
+{
+  int x1 = int(floor(b.GetXMin()));
+  int x2 = int(ceil(b.GetXMax()));
+  int y1 = int(floor(b.GetYMin()));
+  int y2 = int(ceil(b.GetYMax()));
+  filename = Name(params,"image",true);
+  hdu = params.read("image_hdu",1);
+  ReadFits(Name(params,"image",true),hdu,x1,x2,y1,y2);
+  xdbg<<"Opened image "<<Name(params,"image",true)<<std::endl;
+}
+
+template <class T> 
+Image<T>::Image(std::string _filename, int _hdu,
+    int x1, int x2, int y1, int y2) :
+  filename(_filename), hdu(_hdu)
+{
+  ReadFits(filename,hdu,x1,x2,y1,y2);
+}
+
+template <class T> 
+Image<T>::Image(std::string _filename, int _hdu, const Bounds& b) :
+  filename(_filename), hdu(_hdu)
+{
+  int x1 = int(floor(b.GetXMin()));
+  int x2 = int(ceil(b.GetXMax()));
+  int y1 = int(floor(b.GetYMin()));
+  int y2 = int(ceil(b.GetYMax()));
+  ReadFits(filename,hdu,x1,x2,y1,y2);
+}
+
+template <class T> 
+void Image<T>::ReadFits(std::string filename, int hdu,
+    int x1, int x2, int y1, int y2) 
+{
+  xdbg<<"Start read fitsimage"<<std::endl;
+  xdbg<<"filename = "<<filename<<std::endl;
+  xdbg<<"hdu = "<<hdu<<std::endl;
+  // TODO: Use CCFits
+  fitsfile *fptr;
+  int fitserr=0;
+
+  fits_open_file(&fptr,filename.c_str(),READONLY,&fitserr);
+  xdbg<<"Done open"<<std::endl;
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
+  Assert(fitserr==0);
+
+  fits_movabs_hdu(fptr,hdu,0,&fitserr);
+  xdbg<<"Moved to hdu "<<hdu<<std::endl;
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
+  Assert(fitserr==0);
+
+  int bitpix, naxes;
+  long sizes[2];
+  fits_get_img_param(fptr, int(2), &bitpix, &naxes, sizes, &fitserr);
+  xdbg<<"done getimgparam"<<std::endl;
+  xdbg<<"naxes = "<<naxes<<std::endl;
+  xdbg<<"bitpix = "<<bitpix<<std::endl;
+  xdbg<<"FLOAT_IMG = "<<FLOAT_IMG<<std::endl;
+  if (fitserr != 0) fits_report_error(stderr,fitserr);
+  Assert(fitserr==0);
+  //Assert(bitpix == FLOAT_IMG);
+  Assert(naxes == 2);
+  xdbg<<"sizes = "<<sizes[0]<<"  "<<sizes[1]<<std::endl;
+
+  xmin = 0;
+  xmax = sizes[0];
+  ymin = 0;
+  ymax = sizes[1];
+
+  if (xmin < x1) xmin = x1;
+  if (xmax > x2) xmax = x2; if (xmax < xmin+1) xmax = xmin+1;
+  if (ymin < y1) ymin = y1;
+  if (ymax > y2) ymax = y2; if (ymax < ymin+1) ymax = ymin+1;
+  sourcem.reset(new tmv::Matrix<T,tmv::ColMajor>(xmax-xmin,ymax-ymin));
+  xdbg<<"done make matrix of image"<<std::endl;
+ 
+  long fpixel[2] = {xmin+1,ymin+1};
+  long lpixel[2] = {xmax,ymax};
+  long inc[2] = {1,1};
+  int anynul;
+  xdbg<<"Before read_subset\n";
+  Assert(DataType<T>());
+  fits_read_subset(fptr,DataType<T>(),fpixel,lpixel,inc,
+      0,sourcem->ptr(),&anynul,&fitserr);
+  xdbg<<"done read_subset "<<fitserr<<std::endl;
   xdbg<<"anynul = "<<anynul<<std::endl;
   xdbg<<"fitserr = "<<fitserr<<std::endl;
   if (fitserr != 0) fits_report_error(stderr,fitserr);
@@ -201,19 +393,19 @@ void Image<T>::Write(std::string _filename) const
 }
 
 template <class T> 
-std::vector<Image<T>*> Image<T>::Divide(size_t nx, size_t ny) const
+std::vector<Image<T>*> Image<T>::Divide(int nx, int ny) const
 {
   std::vector<size_t> x(nx+1);
   std::vector<size_t> y(ny+1);
   x[0] = xmin;  x[nx] = xmax;
   y[0] = ymin;  y[ny] = ymax;
-  size_t xstep = (xmax-xmin)/nx;
-  size_t ystep = (ymax-ymin)/ny;
-  for(size_t i=1;i<nx;i++) x[i] = x[i-1]+xstep;
-  for(size_t j=1;j<ny;j++) y[j] = y[j-1]+ystep;
+  int xstep = (xmax-xmin)/nx;
+  int ystep = (ymax-ymin)/ny;
+  for(int i=1;i<nx;i++) x[i] = x[i-1]+xstep;
+  for(int j=1;j<ny;j++) y[j] = y[j-1]+ystep;
   std::vector<Image*> blockimages;
   blockimages.reserve(nx*ny);
-  for(size_t i=0;i<nx;i++) for(size_t j=0;j<ny;j++) 
+  for(int i=0;i<nx;i++) for(int j=0;j<ny;j++) 
     blockimages.push_back(new Image(itsm->SubMatrix(x[i],x[i+1],y[j],y[j+1]),
 	  x[i],x[i+1],y[j],y[j+1]));
   return blockimages;
@@ -261,16 +453,16 @@ T Image<T>::Interpolate(double x, double y) const
 template <class T> 
 T Image<T>::QuadInterpolate(double x, double y) const
 {
-  //static size_t count=0;
+  //static int count=0;
   //++count;
   Assert(x>=xmin && x< xmax);
   Assert(y>=ymin && y< ymax);
-  size_t i = size_t (floor(x));
+  int i = int (floor(x));
   double dx = x - (i+0.5);
-  size_t j = size_t (floor(y));
+  int j = int (floor(y));
   double dy = y - (j+0.5);
-  Assert(i<itsm->colsize());
-  Assert(j<itsm->rowsize());
+  Assert(i<int(itsm->colsize()));
+  Assert(j<int(itsm->rowsize()));
   Assert (std::abs(dx) <= 0.5);
   Assert (std::abs(dy) <= 0.5);
 
@@ -288,20 +480,20 @@ T Image<T>::QuadInterpolate(double x, double y) const
 */
   T f0 = (*itsm)(i,j);
   T f1 = (i > 0) ? (*itsm)(i-1,j) : 0.;
-  T f2 = (i < itsm->colsize()-1) ? (*itsm)(i+1,j) : 0.;
+  T f2 = (i < int(itsm->colsize())-1) ? (*itsm)(i+1,j) : 0.;
   T f3 = (j > 0) ? (*itsm)(i,j-1) : 0.;
-  T f4 = (j < itsm->rowsize()-1) ? (*itsm)(i,j+1) : 0.;
+  T f4 = (j < int(itsm->rowsize())-1) ? (*itsm)(i,j+1) : 0.;
   T f5 = (i > 0 && j > 0) ? (*itsm)(i-1,j-1) : 0.;
-  T f6 = (i < itsm->colsize()-1 && j > 0) ? (*itsm)(i+1,j-1) : 0.;
-  T f7 = (i > 0 && j < itsm->rowsize()-1) ? (*itsm)(i-1,j+1) : 0.;
-  T f8 = (i < itsm->colsize()-1 && j < itsm->rowsize()-1) ?
+  T f6 = (i < int(itsm->colsize())-1 && j > 0) ? (*itsm)(i+1,j-1) : 0.;
+  T f7 = (i > 0 && j < int(itsm->rowsize())-1) ? (*itsm)(i-1,j+1) : 0.;
+  T f8 = (i < int(itsm->colsize())-1 && j < int(itsm->rowsize())-1) ?
     (*itsm)(i+1,j+1) : 0.;
   if (i == 0) {
     f1 = 2*f0 - f2;
     f5 = 2*f3 - f6;
     f7 = 2*f4 - f8;
   }
-  if (i == itsm->colsize()-1) {
+  if (i == int(itsm->colsize())-1) {
     f2 = 2*f0 - f1;
     f6 = 2*f3 - f5;
     f8 = 2*f4 - f7;
@@ -311,7 +503,7 @@ T Image<T>::QuadInterpolate(double x, double y) const
     f5 = 2*f1 - f7;
     f6 = 2*f2 - f8;
   }
-  if (j == itsm->rowsize()-1) {
+  if (j == int(itsm->rowsize())-1) {
     f4 = 2*f0 - f3;
     f7 = 2*f1 - f5;
     f8 = 2*f2 - f6;

@@ -40,6 +40,8 @@ class Transformation {
 
     // Calculate u,v = u(x,y),v(x,y)
     void Transform(Position pxy, Position& puv) const;
+    Position operator()(Position pxy) const
+    { Position puv; Transform(pxy,puv); return puv; }
 
     // Update second moments ixx -> iuu, etc. according to the 
     // jacobian of the transformation

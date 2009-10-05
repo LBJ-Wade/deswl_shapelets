@@ -35,6 +35,8 @@ void GetPixList(const Image<double>& im, PixelList& pix,
 
   double xcen = cen.GetX();
   double ycen = cen.GetY();
+  xdbg<<"cen = "<<xcen<<"  "<<ycen<<std::endl;
+  xdbg<<"xmin, ymin = "<<xmin<<"  "<<ymin<<std::endl;
   // xcen,ycen are given on a 1-based grid.
   // ie. where the lower left corner pixel is (1,1), rather than (0,0).
   // The easiest way to do this is to just decrease xcen,ycen by 1 each:
@@ -110,6 +112,8 @@ void GetPixList(const Image<double>& im, PixelList& pix,
 	{
 	  Assert(k < int(pix.size()));
 	  pix[k++] = Pixel(u,v,I,wt);
+	  //if (xmin > 0 || ymin > 0)
+	    //xdbg<<k-1<<"  "<<i<<"  "<<j<<"  "<<u<<"  "<<v<<"  "<<I<<"  "<<wt<<std::endl;
 	}
       }
     }

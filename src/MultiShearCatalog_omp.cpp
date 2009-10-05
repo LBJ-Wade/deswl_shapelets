@@ -327,6 +327,7 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
   // Read the shear catalog
   ShearCatalog shearcat(params);
   Bounds se_skybounds = shearcat.skybounds;
+  Bounds se_bounds = shearcat.bounds;
   dbg<<"bounds for image "<<se_index<<" = "<<se_skybounds;
 
   // Skip this file if none of the objects in it are in this section of sky.
@@ -340,10 +341,6 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
     dbg<<"Skipping index "<<se_index<<" because bounds don't intersect\n";
     return;
   }
-
-  // Load the image
-  std::auto_ptr<Image<double> > weight_im;
-  Image<double> im(params,weight_im);
 
   // Read transformation between ra/dec and x/y
   Transformation trans(params);
@@ -378,17 +375,49 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
   // Make an inverse transformation that we will use as a starting 
   // point for the more accurate InverseTransform function.
   Transformation invtrans;
-  Bounds invb = invtrans.MakeInverseOf(trans,im.GetBounds(),4);
-
-  // We are using the weight image so the noise and gain are dummy variables
-  Assert(weight_im.get());
-  double noise = 0.0;
-  double gain = 0.0;
+  Bounds invb = invtrans.MakeInverseOf(trans,se_bounds,4);
+  dbg<<"skybounds = "<<skybounds<<std::endl;
+  dbg<<"se_skybounds = "<<se_skybounds<<std::endl;
+  dbg<<"se_bounds = "<<se_bounds<<std::endl;
+  dbg<<"invb = "<<invb<<std::endl;
 
   // We always use the maximum aperture size here, since we don't know
   // how big the galaxy is yet, so we don't know what galap will be.
   double gal_aperture = params.get("shear_aperture");
   double max_aperture = params.get("shear_max_aperture");
+
+  // Load the image
+  // The bounds needed are 
+  std::auto_ptr<Image<double> > im;
+  std::auto_ptr<Image<double> > weight_im;
+  if (skybounds.Includes(se_skybounds))
+    im.reset(new Image<double>(params,weight_im));
+  else
+  {
+    Bounds intersect = invb & skybounds;
+    dbg<<"intersect = invb & skybounds = "<<intersect<<std::endl;
+
+    Bounds subb;
+    subb += invtrans(intersect.Get00());
+    subb += invtrans(intersect.Get01());
+    subb += invtrans(intersect.Get10());
+    subb += invtrans(intersect.Get11());
+
+    // Grow bounds by max_aperture
+    tmv::SmallMatrix<double,2,2> D;
+    trans.GetDistortion(subb.Center(),D);
+    double det = std::abs(D.Det());
+    double pixscale = sqrt(det); // arcsec/pixel
+    subb.AddBorder(max_aperture / pixscale);
+
+    dbg<<"subb = "<<subb<<std::endl;
+    im.reset(new Image<double>(params,weight_im,subb));
+  }
+
+  // We are using the weight image so the noise and gain are dummy variables
+  Assert(weight_im.get());
+  double noise = 0.0;
+  double gain = 0.0;
 
   dbg<<"Extracting pixel lists\n";
   // loop over the the objects, if the object falls on the image get
@@ -420,7 +449,7 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
       GetImagePixList(
 	  pixlist[i], psflist[i], se_shearlist[i], se_sizelist[i],
 	  input_flags[i], nimages_found[i], nimages_gotpix[i], skypos[i], 
-	  im, trans, invtrans, psf, fitpsf, shearcat, shearcat_tree,
+	  *im, trans, invtrans, psf, fitpsf, shearcat, shearcat_tree,
 	  weight_im.get(), noise, gain,
 	  sky_method, mean_sky, sky_map.get(),
 	  gal_aperture, max_aperture);
