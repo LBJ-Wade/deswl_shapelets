@@ -1,5 +1,8 @@
 -------------------------------------------------------------------------
 v0.5.0  (Date here)
 
+Mike: Please add some notes here with respect to recent changes.
+
+src/MultiShearCatalog.cpp:  record maximum memory usage in header.
 
 this file begun at revision 4514.

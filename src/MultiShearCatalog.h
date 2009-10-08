@@ -53,7 +53,7 @@ class MultiShearCatalog
 
     // Calculate the current memory footprint of the entire structure in MB.
     // (Optionally output some info to os.)
-    double CalcMemoryFootprint() const;
+    double CalcMemoryFootprint(bool getmax=false) const;
 
     // flags related to i/o and psf interpolation
     std::vector<long> input_flags;

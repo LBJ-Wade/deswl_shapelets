@@ -90,6 +90,9 @@ int MultiShearCatalog::GetPixels(const Bounds& b)
     GetImagePixelLists(fnum,b);
     dbg<<"\n";
   }
+
+  params["maxmem"] = CalcMemoryFootprint(true);
+
   int npix=0;
   for (size_t i=0;i<size();++i) if (pixlist[i].size() > 0) ++npix;
   return npix;
@@ -257,8 +260,11 @@ inline long long MemoryFootprint(const tmv::Matrix<T>& x)
   return res;
 }
 
-double MultiShearCatalog::CalcMemoryFootprint() const
+double MultiShearCatalog::CalcMemoryFootprint(bool getmax) const
 {
+
+  static double maxmem=0.;
+
   dbg<<"Memory usage:\n";
   dbg<<"input_flags: "<<MemoryFootprint(input_flags)/1024./1024.<<" MB\n";
   dbg<<"nimages_found: "<<MemoryFootprint(nimages_found)/1024./1024.<<" MB\n";
@@ -301,7 +307,15 @@ double MultiShearCatalog::CalcMemoryFootprint() const
   totmem /= 1024.*1024.;  // B -> MB
   dbg<<"totmem = "<<totmem<<std::endl;
 
-  return totmem;
+  if (totmem > maxmem) {
+	maxmem = totmem;
+  }
+
+  if (getmax) {
+	return maxmem;
+  } else {
+	return totmem;
+  }
 }
 
 void MultiShearCatalog::Write() const
@@ -439,6 +453,8 @@ void MultiShearCatalog::WriteFits(std::string file) const
   CCfitsWriteParKey(params, table, "shear_gal_order2", intgr);
   CCfitsWriteParKey(params, table, "shear_min_gal_size", dbl);
   CCfitsWriteParKey(params, table, "shear_f_psf", dbl);
+
+  CCfitsWriteParKey(params, table, "maxmem", dbl);
 
   // if merun= is sent we'll put it in the header.  This allows us to 
   // associate some more, possibly complicated, metadata with this file
@@ -805,6 +821,7 @@ void MeasureMultiShear(
     dbg<<"allpix["<<i<<"].size = "<<allpix[i].size()<<std::endl;
   dbg<<"psf.size = "<<psf.size()<<std::endl;
   Assert(psf.size() == allpix.size());
+
 
   try 
   {
