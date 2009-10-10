@@ -36,6 +36,9 @@ parser.add_option("--cleanup", action='store_true', default=False,
 parser.add_option("--nodots", action='store_true', default=False,
  help="Don't print progress dots.")
 
+parser.add_option("--writelog", action='store_true', default=False,
+ help="Write QS/STATUS messages to a QA log file")
+
 
 #parser.add_option("--debug", default=0,
 #    help="Debug verbosity level. 0:none 1:dbg 2:xdbg. Default %default")
@@ -64,6 +67,7 @@ copyroot=options.copyroot
 cleanup=options.cleanup
 dataset=options.dataset
 nodots=options.nodots
+writelog=options.writelog
 
 #debug=options.debug
 
@@ -74,5 +78,6 @@ deswl.wlpipe.run_shear(exposurename, ccd,
                        copyroot=copyroot,
                        cleanup=cleanup,
                        dataset=dataset,
+                       writelog=writelog,
                        nodots=nodots)
 

@@ -39,6 +39,11 @@ parser.add_option("--copyroot", action='store_true', default=False,
 parser.add_option("--cleanup", action='store_true', default=False,
  help="If copyroot and cleanup then the local copy of each output is deleted.")
 
+parser.add_option("--nodots", action='store_true', default=False,
+ help="Don't print progress dots.")
+
+parser.add_option("--writelog", action='store_true', default=False,
+ help="Write QS/STATUS messages to a QA log file")
 
 #parser.add_option("--redirect", dest="redirect",
 #                  action='store_true', default=False,
@@ -73,6 +78,10 @@ serun=options.serun
 srclist=options.srclist
 debug=options.debug
 
+writelog=options.writelog
+
+nodots=options.nodots
+
 deswl.wlpipe.run_multishear(tilename, band, 
                             merun=merun,
                             srclist=srclist,
@@ -83,5 +92,7 @@ deswl.wlpipe.run_multishear(tilename, band,
                             dataset=dataset, 
                             localid=localid,
                             serun=serun,
-                            debug=debug)
+                            debug=debug,
+                            writelog=writelog,
+                            nodots=nodots)
 

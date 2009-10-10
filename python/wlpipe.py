@@ -532,6 +532,7 @@ source /global/data/products/eups/bin/setups.sh
     fobj.write('    --copyroot    \\\n')
     fobj.write('    --cleanup     \\\n')
     fobj.write('    --nodots      \\\n')
+    fobj.write('    --writelog    \\\n')
     fobj.write('    %s %s &> "$logf"\n' % (exposurename, ccd))
 
     fobj.write('\n')
@@ -629,6 +630,7 @@ source /global/data/products/eups/bin/setups.sh
     fobj.write('    --copyroot    \\\n')
     fobj.write('    --cleanup     \\\n')
     fobj.write('    --nodots      \\\n')
+    fobj.write('    --writelog    \\\n')
     fobj.write('    %s &> "$logf"\n' % (exposurename,))
 
     fobj.write('\n')
@@ -714,8 +716,7 @@ def make_se_commandlist(fdict):
              'stars_file='+fdict['stars'],
              'fitpsf_file='+fdict['fitpsf'],
              'psf_file='+fdict['psf'],
-             'shear_file='+fdict['shear'],
-             'log_file='+fdict['qa']]
+             'shear_file='+fdict['shear'] ]
 
     if fdict['nodots']:
         command.append('output_dots=false')
@@ -724,14 +725,22 @@ def make_se_commandlist(fdict):
         command.append('serun=%s' % fdict['serun'])
     return command
 
-def process_se_image(fdict, timeout=5*60):
+def process_se_image(fdict, writelog=False, timeout=5*60):
+
+    # should we re-direct stdout (which is only QA and STATUS messages)
+    # to the QA log file?
+    if writelog:
+        stdout.write('\nWill write QA/STATUS to %s\n\n' % fdict['qa'])
+        stdout_file=open(fdict['qa'], 'w')
+    else:
+        stdout_file=None
 
     command = make_se_commandlist(fdict)
 
     # stdout_file=None because we want to allow the caller to redirect that
     exit_status, stdout_ret, stderr_ret = \
         execute_command(command, timeout=timeout,
-                        stdout_file=None,stderr_file=None)
+                        stdout_file=stdout_file,stderr_file=None)
 
     stdout.write('exit_status: %s\n' % exit_status)
     return exit_status
@@ -751,7 +760,7 @@ def run_shear(exposurename, ccd=None,
               cleanup=False,
               serun=None,
               dataset=None, 
-              redirect=False,
+              writelog=False,
               nodots=False,
               debug=0):
     """
@@ -844,7 +853,7 @@ def run_shear(exposurename, ccd=None,
                       cleanup=cleanup,
                       serun=serun,
                       dataset=dataset, 
-                      redirect=redirect,
+                      writelog=writelog,
                       nodots=nodots,
                       debug=debug)
         ptime(time.time() - tmall0, format='Time for all 62 ccds: %s\n')
@@ -985,7 +994,7 @@ def run_shear(exposurename, ccd=None,
     stdout.write('    cleanup: %s\n' % cleanup)
     stdout.write('    debug: %s\n' % debug)
     for f in fdict:
-        stdout.write('    %s_file: %s\n' % (f,fdict[f]))
+        stdout.write("        fdict['%s']: %s\n" % (f,fdict[f]))
     stdout.write('    date: %s\n' % stat['date'])
     stdout.write('    running on: %s\n' % stat['hostname'])
 
@@ -996,11 +1005,11 @@ def run_shear(exposurename, ccd=None,
 
 
     # need to write one of these for se
-    exit_status = process_se_image(fdict)
+    exit_status = process_se_image(fdict, writelog=writelog)
 
     
     stat['exit_status'] = exit_status
-    stdout.write('Writing stat file: %s\n' % fdict['stat'])
+    stdout.write('\nWriting stat file: %s\n' % fdict['stat'])
     execbase=os.path.basename(executable)
     xmltools.dict2xml(stat, fdict['stat'], roottag=execbase+'_stats')
 
@@ -1473,6 +1482,8 @@ source /global/data/products/eups/bin/setups.sh
     fobj.write('    --rootdir=%s  \\\n' % scratch_rootdir)
     fobj.write('    --copyroot    \\\n')
     fobj.write('    --cleanup     \\\n')
+    fobj.write('    --nodots      \\\n')
+    fobj.write('    --writelog    \\\n')
     fobj.write('    %s %s &> "$logf"\n' % (tilename, band))
 
     fobj.write('\n')
@@ -1543,6 +1554,10 @@ def make_me_commandlist(fdict,shear_dc4_input_format=True, debug=0):
              'multishear_sky_method=NEAREST',
              'log_file='+fdict['qa'] ]
 
+
+    if fdict['nodots']:
+        command.append('output_dots=false')
+
     if shear_dc4_input_format:
         command.append('shear_dc4_input_format=true')
 
@@ -1555,6 +1570,7 @@ def make_me_commandlist(fdict,shear_dc4_input_format=True, debug=0):
     return command
 
 def process_me_tile(fdict, 
+                    writelog=False,
                     timeout=2*60*60,  # two hours
                     debug=0):
     """
@@ -1562,10 +1578,20 @@ def process_me_tile(fdict,
     specify a smaller subset
     """
 
+    # should we re-direct stdout (which is only QA and STATUS messages)
+    # to the QA log file?
+    if writelog:
+        stdout.write('\nWill write QA/STATUS to %s\n\n' % fdict['qa'])
+        stdout_file=open(fdict['qa'], 'w')
+    else:
+        stdout_file=None
+
+
     command = make_me_commandlist(fdict,debug=debug)
+
     exit_status, stdout_ret, stderr_ret = \
         execute_command(command, timeout=timeout,
-                        stdout_file=None,stderr_file=None)
+                        stdout_file=stdout_file,stderr_file=None)
 
     stdout.write('exit_status: %s\n' % exit_status)
     return exit_status
@@ -1582,7 +1608,8 @@ def run_multishear(tilename, band,
                    localid=None,
                    serun=None,
                    srclist=None,
-                   redirect=False,
+                   writelog=False,
+                   nodots=False,
                    debug=0):
     """
 
@@ -1596,7 +1623,7 @@ def run_multishear(tilename, band,
                                 localid=None,
                                 serun=None,
                                 srclist=None,
-                                redirect=True,
+                                writelog=False,
                                 debug=0)                               
 
     Wrapper function requiring minimial info to process a tile, namely the
@@ -1743,6 +1770,7 @@ def run_multishear(tilename, band,
     fdict['coaddimage'] = coaddimage
     fdict['coaddcat'] = coaddcat
     fdict['srclist'] = srclist
+    fdict['nodots'] = nodots
     if merun is not None:
         fdict['merun'] = merun
 
@@ -1811,7 +1839,7 @@ def run_multishear(tilename, band,
     stdout.write('    date: %s\n' % stat['date'])
     stdout.write('    running on: %s\n' % stat['hostname'])
     for f in fdict:
-        stdout.write('    %s_file: %s\n' % (f,fdict[f]))
+        stdout.write("        fdict['%s']: %s\n" % (f,fdict[f]))
 
     # make sure outdir exists
     if not os.path.exists(outdir):
@@ -1819,7 +1847,7 @@ def run_multishear(tilename, band,
         os.makedirs(outdir)
 
 
-    exit_status = process_me_tile(fdict, debug=debug)
+    exit_status = process_me_tile(fdict, writelog=writelog, debug=debug)
     
     stat['exit_status'] = exit_status
     stdout.write('Writing stat file: %s\n' % fdict['stat'])
