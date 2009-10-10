@@ -1,5 +1,6 @@
 -------------------------------------------------------------------------
-(tag version here)  (Date here)  (short explanation here)
+v0.50  (2009-10-10)  This tag represents substantive changes in the
+	python framework and the C++ code.  Hence the jump from 0.43 to 0.50
 
 src/MultiShearCatalog.cpp:  record maximum memory usage in header.
 src/FittedPSF.cpp,PSFCatalog.cpp,ShearCatalog.cpp,StarCatalog.cpp: 
