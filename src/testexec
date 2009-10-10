@@ -18,16 +18,17 @@ config=../example_config/wl.config
 input=../../testdata/data
 output=../../testdata/output
 #dc4=
-dc4='shear_dc4_input_format=true'
+#dc4='shear_dc4_input_format=true'
+dc4='+dc4.config'
 
 echo ./findstars $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fs.debug verbose=1 output_dots=1 $dc4
-#time ./findstars $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fs.debug verbose=1 output_dots=1 $dc4
+time ./findstars $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fs.debug verbose=1 output_dots=1 $dc4
 #/bin/cp $output${root}_stars.dat $output$stardat
 #exit
 
 echo MeasurePSF:
 echo ./measurepsf $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=mp.debug verbose=1 output_dots=1 $dc4
-#time ./measurepsf $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=mp.debug verbose=1 output_dots=1 $dc4
+time ./measurepsf $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=mp.debug verbose=1 output_dots=1 $dc4
 
 echo MeasureShear:
 echo ./measureshear $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=ms.debug verbose=1 output_dots=1 $dc4

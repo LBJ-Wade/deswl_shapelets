@@ -308,6 +308,7 @@ class ConfigFile
   protected:
     std::string myDelimiter;  // separator between key and value
     std::string myComment;    // separator between value and comments
+    std::string myInclude;    // directive for including another file
     std::string mySentry;     // optional string to signal end of file
     std::map<std::string,ConvertibleString> myContents;   
     // extracted keys and values
@@ -317,17 +318,37 @@ class ConfigFile
 
     // Methods
   public:
+    // Create a blank config file with default values of delimter, etc.
+    ConfigFile();
+
+    // Create and read from the specified file
     ConfigFile( std::string filename,
 	std::string delimiter = "=",
 	std::string comment = "#",
+	std::string include = "+",
 	std::string sentry = "EndConfigFile" );
-    ConfigFile();
 
+    // Load more value from a file.
+    void Load( std::string filename )
+    { std::ifstream fs(filename.c_str()); Read(fs); }
+
+    // Load a file that uses different delimiter or comment or ...
+    // Note: these delimiter, comment, etc. are temporary for this load only.
     // "" means use existing values
     void Load( std::string filename,
-	std::string delimiter = "",
+	std::string delimiter,
 	std::string comment = "",
+	std::string include = "",
 	std::string sentry = "" );
+
+    // Read more values from stream or a string:
+    void Read(std::istream& is);
+    void Append(const std::string& s)
+    { std::istringstream ss(s); Read(ss); }
+
+    // Write configuration
+    void Write(std::ostream& os) const;
+    void WriteAsComment(std::ostream& os) const;
 
     // Search for key and read value or optional default value
     ConvertibleString& getnocheck( const std::string& key );
@@ -356,18 +377,17 @@ class ConfigFile
     // Check or change configuration syntax
     std::string getDelimiter() const { return myDelimiter; }
     std::string getComment() const { return myComment; }
+    std::string getInclude() const { return myInclude; }
     std::string getSentry() const { return mySentry; }
+
     std::string setDelimiter( const std::string& s )
     { std::string old = myDelimiter;  myDelimiter = s;  return old; }  
     std::string setComment( const std::string& s )
     { std::string old = myComment;  myComment = s;  return old; }
-
-    // Write or read configuration
-    void Write(std::ostream& os) const;
-    void WriteAsComment(std::ostream& os) const;
-    void Read(std::istream& is);
-    void Append(const std::string& s)
-    { std::istringstream ss(s); Read(ss); }
+    std::string setInclude( const std::string& s )
+    { std::string old = myInclude;  myInclude = s;  return old; }  
+    std::string setSentry( const std::string& s )
+    { std::string old = mySentry;  mySentry = s;  return old; }  
 
   protected:
     static void trim( std::string& s );

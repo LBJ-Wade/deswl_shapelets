@@ -2,9 +2,15 @@
 
 #include "ConfigFile.h"
 
+ConfigFile::ConfigFile() :
+  myDelimiter("="), myComment("#"), myInclude("+"), mySentry("EndConfigFile")
+{
+  // Construct an empty ConfigFile
+}
+
 ConfigFile::ConfigFile( std::string filename, std::string delimiter,
-    std::string comment, std::string sentry ) : 
-  myDelimiter(delimiter), myComment(comment), mySentry(sentry)
+    std::string comment, std::string inc, std::string sentry ) : 
+  myDelimiter(delimiter), myComment(comment), myInclude(inc), mySentry(sentry)
 {
   // Construct a ConfigFile, getting keys and values from given file
 
@@ -20,22 +26,19 @@ ConfigFile::ConfigFile( std::string filename, std::string delimiter,
   in >> (*this);
 }
 
-ConfigFile::ConfigFile() : myDelimiter("="), myComment("#")
-{
-  // Construct a ConfigFile without a file; empty
-}
-
 void ConfigFile::Load( std::string filename, std::string delimiter,
-    std::string comment, std::string sentry )
+    std::string comment, std::string inc, std::string sentry )
 {
   // Construct a ConfigFile, getting keys and values from given file
 
   std::string delimiter1 = myDelimiter;
   std::string comment1 = myComment;
+  std::string inc1 = myInclude;
   std::string sentry1 = mySentry;
 
   if (delimiter != "") myDelimiter = delimiter;
   if (comment != "") myComment = comment;
+  if (inc != "") myInclude = inc;
   if (sentry != "") mySentry = sentry;
 
   std::ifstream in( filename.c_str() );
@@ -51,6 +54,7 @@ void ConfigFile::Load( std::string filename, std::string delimiter,
 
   myDelimiter = delimiter1;
   myComment = comment1;
+  myInclude = inc1;
   mySentry = sentry1;
 }
 
@@ -135,17 +139,18 @@ void ConfigFile::Read(std::istream& is)
   typedef std::string::size_type pos;
   const std::string& delim  = myDelimiter;  // separator
   const std::string& comm   = myComment;    // comment
+  const std::string& inc  = myInclude;      // include directive
   const std::string& sentry = mySentry;     // end of file sentry
-  const pos skip = delim.length();        // length of separator
+  const pos skip = delim.size();            // length of separator
 
   std::string nextline = "";  
   // might need to read ahead to see where value ends
 
-  while( is || nextline.length() > 0 )
+  while( is || nextline.size() > 0 )
   {
     // Read an entire line at a time
     std::string line;
-    if( nextline.length() > 0 )
+    if( nextline.size() > 0 )
     {
       line = nextline;  // we read ahead; use it now
       nextline = "";
@@ -157,6 +162,24 @@ void ConfigFile::Read(std::istream& is)
 
     // Ignore comments
     line = line.substr( 0, line.find(comm) );
+
+    // Remove leading and trailing whitespace
+    trim(line);
+
+    // If line is blank, go on to next line.
+    if (line.size() == 0) continue;
+
+    // Check for include directive (only at start of line)
+    if (line.find(inc) == 0) 
+    { 
+      line.erase(0,inc.size());
+      std::stringstream ss(line);
+      std::string filename;
+      ss >> filename;
+      Load(filename);
+      // implcitly skip the rest of the line.
+      continue;
+    }
 
     // Check for end of file sentry
     if( sentry != "" && line.find(sentry) != std::string::npos ) return;

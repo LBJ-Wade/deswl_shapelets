@@ -32,7 +32,9 @@ inline int BasicSetup(int argc, char **argv,
   }
 
   // Read parameters
+  // These are all the defaults, but might as well be explicit.
   params.setDelimiter("=");
+  params.setInclude("+");
   params.setComment("#");
   params.Load(argv[1]);
   for(int k=2;k<argc;k++) params.Append(argv[k]);
