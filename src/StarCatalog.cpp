@@ -179,9 +179,11 @@ int StarCatalog::FindStars(FindStarsLog& log)
 
   if (params.read("des_qa",false)) {
     if (count < 100) {
-      std::cout<<"STATUS3BEG Warning: Only "<<count
-	<<" stars found for Name="<<Name(params,"stars")
-	<<". STATUS3END"<<std::endl;
+		std::stringstream mess;
+		mess<<"STATUS3BEG Warning: Only "<<count
+			<<" stars found for Name="<<Name(params,"stars")
+			<<". STATUS3END"<<std::endl;
+		log.WriteMessage(mess.str());
     }
   }
 

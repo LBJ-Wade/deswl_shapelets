@@ -43,6 +43,36 @@ Log::~Log()
   NoWriteLog(); // deletes logout
 }
 
+
+void Log::WriteMessage(std::string mess) const
+{
+  if (logout) {
+	*logout << mess;
+  }
+}
+
+void FindStarsLog::WriteMessage(std::string mess) const
+{
+  if (logout) {
+	*logout << mess;
+  }
+}
+void PSFLog::WriteMessage(std::string mess) const
+{
+  if (logout) {
+	*logout << mess;
+  }
+}
+void ShearLog::WriteMessage(std::string mess) const
+{
+  if (logout) {
+	*logout << mess;
+  }
+}
+
+
+
+
 void Log::NoWriteLog() 
 {
   if (logout && logout != &std::cout) 
@@ -367,33 +397,33 @@ void FindStarsLog::WriteLog() const
 {
   if (logout) 
   {
-    // Emit logging information
-    if (exitcode) 
-    {
-      *logout << 
-	StatusText1(exitcode,this->params)<<" "<<
-	Text(exitcode)<<" "<<
-	extraexitinfo<<" ";
-      if (fits_file != "")
-	*logout << " (Name="<<fits_file<<") ";
-      *logout<< StatusText2(exitcode,this->params)<<std::endl;
-    } 
-    else 
-    {
-      std::string name = "findstars";
-      if (fits_file != "") name = fits_file;
-      *logout << 
-	"QA2BEG "<<
-	"Name="<<name <<" & "<<
-	"ntot="<<ntot <<" & "<<
-	"nr_flag="<<nr_flag <<" & "<<
-	"nr_mag="<<nr_mag <<" & "<<
-	"nr_size="<<nr_size <<" & "<<
-	"nobj="<<nobj <<" & "<<
-	"nallstars="<<nallstars <<" & "<<
-	"nstars="<<nstars <<
-	" QA2END"<<std::endl;
-    }
+	// Emit logging information
+	if (exitcode) 
+	{
+	  *logout << 
+		StatusText1(exitcode,this->params)<<" "<<
+		Text(exitcode)<<" "<<
+		extraexitinfo<<" ";
+	  if (fits_file != "")
+		*logout << " (Name="<<fits_file<<") ";
+	  *logout<< StatusText2(exitcode,this->params)<<std::endl;
+	} 
+	else 
+	{
+	  std::string name = "findstars";
+	  if (fits_file != "") name = fits_file;
+	  *logout << 
+		"QA2BEG "<<
+		"Name="<<name <<" & "<<
+		"ntot="<<ntot <<" & "<<
+		"nr_flag="<<nr_flag <<" & "<<
+		"nr_mag="<<nr_mag <<" & "<<
+		"nr_size="<<nr_size <<" & "<<
+		"nobj="<<nobj <<" & "<<
+		"nallstars="<<nallstars <<" & "<<
+		"nstars="<<nstars <<
+		" QA2END"<<std::endl;
+	}
   }
 }
 

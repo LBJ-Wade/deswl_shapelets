@@ -14,6 +14,8 @@ class Log
     virtual ~Log();
 
     void NoWriteLog(); // Don't write the log on deletion.
+
+	virtual void WriteMessage(std::string mess) const=0;
     virtual void WriteLog() const = 0;
     virtual void WriteLogToFitsHeader() const = 0;
     virtual void Write(std::ostream& os) const = 0;
@@ -37,6 +39,7 @@ class ShearLog : public Log
 	std::string logfile="", std::string fits_file="");
     virtual ~ShearLog();
 
+	virtual void WriteMessage(std::string mess) const;
     virtual void WriteLog() const;
     virtual void WriteLogToFitsHeader() const;
     virtual void Write(std::ostream& os) const;
@@ -84,6 +87,7 @@ class PSFLog : public Log
 	std::string logfile="", std::string fits_file="");
     virtual ~PSFLog();
 
+	virtual void WriteMessage(std::string mess) const;
     virtual void WriteLog() const;
     virtual void WriteLogToFitsHeader() const;
     virtual void Write(std::ostream& os) const;
@@ -119,6 +123,7 @@ class FindStarsLog : public Log
 	std::string logfile="", std::string fits_file="");
     virtual ~FindStarsLog();
 
+	virtual void WriteMessage(std::string mess) const;
     virtual void WriteLog() const;
     virtual void WriteLogToFitsHeader() const;
     virtual void Write(std::ostream& os) const;

@@ -494,10 +494,23 @@ def collated_redfiles_path(dataset, band):
     name = collated_redfiles_name(dataset, band)
     return path_join(tdir, name)
 
+_redfiles_cache={'dataset':None,'band':None,'data':None,'filename':None}
 def collated_redfiles_read(dataset, band, getpath=False):
-    f=collated_redfiles_path(dataset, band)
-    stdout.write('Reading tileinfo file: %s\n' % f)
-    tileinfo=xmltools.xml2dict(f,noroot=True)
+    if (_redfiles_cache['dataset'] == dataset 
+            and _redfiles_cache['band'] == band):
+        stdout.write('Re-using redfiles cache\n')
+        f=_redfiles_cache['filename']
+        tileinfo=_redfiles_cache['data']
+    else:
+        f=collated_redfiles_path(dataset, band)
+        stdout.write('Reading tileinfo file: %s\n' % f)
+        tileinfo=xmltools.xml2dict(f,noroot=True)
+
+        _redfiles_cache['filename'] = f
+        _redfiles_cache['data'] = tileinfo
+        _redfiles_cache['dataset'] = dataset
+        _redfiles_cache['band'] = band
+
     if getpath:
         return tileinfo, f
     else:

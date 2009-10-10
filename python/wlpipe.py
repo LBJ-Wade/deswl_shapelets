@@ -403,7 +403,7 @@ def execute_command(command, timeout=None,
         if verbose:
             stdout.write('%s\n' % cmd)
 
-
+    #tm0=time.time()
 
     stdout.flush()
     stderr.flush()
@@ -419,6 +419,8 @@ def execute_command(command, timeout=None,
         stdout_ret, stderr_ret = pobj.communicate()
         # this is not set until we call pobj.communicate()
         exit_status = pobj.returncode
+
+    #ptime(time.time()-tm0,format='Execution time: %s\n')
 
     if exit_status > 100:
         if exit_status > 100:
@@ -441,8 +443,12 @@ def execute_command(command, timeout=None,
 
 
 def generate_se_pbsfile_byccd(serun, exposurename, ccd, outfile,
-                              nodes=1, ppn=8, walltime='1:00:00'):
+                              nodes=1, ppn=1, walltime='1:00:00'):
 
+    """
+    These jobs can run on a single core/processor.  So we set
+    nodes=1 and ppn=1
+    """
     # the job name
     jobname=exposurename+'-%02i' % int(ccd)
 
@@ -533,7 +539,12 @@ source /global/data/products/eups/bin/setups.sh
 
 
 def generate_se_pbsfile(serun, exposurename, outfile,
-                        nodes=1, ppn=8, walltime='4:00:00'):
+                        nodes=1, ppn=1, walltime='4:00:00'):
+
+    """
+    These jobs can run on a single core/processor.  So we set
+    nodes=1 and ppn=1
+    """
 
     # the job name
     jobname=exposurename
@@ -824,6 +835,7 @@ def run_shear(exposurename, ccd=None,
 
     # if ccd not sent, process the whole exposure
     if ccd is None:
+        tmall0=time.time()
         for ccd in range(1,62+1):
             run_shear(exposurename, ccd,
                       outdir=outdir, 
@@ -835,9 +847,12 @@ def run_shear(exposurename, ccd=None,
                       redirect=redirect,
                       nodots=nodots,
                       debug=debug)
+        ptime(time.time() - tmall0, format='Time for all 62 ccds: %s\n')
+        return
 
 
 
+    tm1=time.time()
 
 
     band=getband_from_exposurename(exposurename)
@@ -862,7 +877,6 @@ def run_shear(exposurename, ccd=None,
 
 
 
-    tm1=time.time()
     wl_dir=getenv_check('WL_DIR')
     desfiles_dir=getenv_check('DESFILES_DIR')
 
