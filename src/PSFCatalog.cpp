@@ -245,6 +245,14 @@ void PSFCatalog::WriteFits(std::string file) const
   table->addKey("tmvvers", tmvvers, "version of TMV code");
   table->addKey("wlvers", wlvers, "version of weak lensing code");
 
+
+  // if serun= is sent we'll put it in the header.  This allows us to 
+  // associate some more, possibly complicated, metadata with this file
+  if ( params.keyExists("serun") ) {
+	  CCfitsWriteParKey(params, table, "serun", str);
+  }
+
+
   //CCfitsWriteParKey(params, table, "version", str);
   CCfitsWriteParKey(params, table, "noise_method", str);
   CCfitsWriteParKey(params, table, "dist_method", str);

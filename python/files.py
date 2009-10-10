@@ -1,4 +1,5 @@
 from sys import stdout,stderr
+import platform
 import os
 import re
 import esutil
@@ -30,12 +31,12 @@ class Runconfig(object):
 
 
         self.se_executables = ['findstars','measurepsf','measureshear']
-        self.se_filetypes = ['stars','psf','fitpsf','shear',
-                             'findstars_log', 
-                             'measurepsf_log', 
-                             'measureshear_log']
+
+        self.se_filetypes = ['stars','psf','fitpsf','shear','qa','stat']
+        self.me_filetypes = ['multishear','qa','stat']
+
+
         self.me_executables = ['multishear']
-        self.me_filetypes = ['multishear','multishear_log']
 
         self.config={}
         if run is not None:
@@ -62,9 +63,9 @@ class Runconfig(object):
         """
 
         if run_type not in self.run_types:
-            raise ValueError("Unknown run type: '%s'.  Must be one "
-                             "of: (%s)" % (run_type, ', '.join(self.run_types)))
-
+            mess="Unknown run type: '%s'.  Must be one "+\
+                 "of: (%s)" % (run_type, ', '.join(self.run_types))
+            raise ValueError(mess)
 
         i=0
         run_name=self._run_name_from_type_number(run_type, i, test=test)
@@ -78,9 +79,9 @@ class Runconfig(object):
 
     def _run_name_from_type_number(self, run_type, number, test=False):
         if test:
-            name='%stest%06i' % (run_type, number)
+            name='%stest%04i' % (run_type, number)
         else:
-            name='%s%06i' % (run_type, number)
+            name='%s%04i' % (run_type, number)
         return name
 
 
@@ -89,9 +90,8 @@ class Runconfig(object):
 
         # wlme runs depend on wlse runs
         if run_type == 'wlme':
-            err="You must send serun=something for wlme"
             if 'serun' not in extra:
-                raise RuntimeError(mess)
+                raise RuntimeError("You must send serun=something for wlme")
 
 
         run_name=self.generate_new_runconfig_name(run_type, test=test)
@@ -186,17 +186,22 @@ class Runconfig(object):
     def __repr__(self):
         return pprint.pformat(self.config)
 
+def des_rootdir():
+    return getenv_check('DESDATA')
+
 
 def fileclass_dir(fileclass, rootdir=None):
-    if rootdir is not None:
-        DESDATA=rootdir
-    else:
-        DESDATA=getenv_check('DESDATA')
-    return os.path.join(DESDATA, fileclass)
-    
+    if rootdir is None:
+        rootdir=des_rootdir()
+    return os.path.join(rootdir, fileclass)
+
+
 def run_dir(fileclass, run, rootdir=None):
-    fcdir = fileclass_dir(fileclass, rootdir=rootdir)
-    return os.path.join(fcdir, run)
+    if rootdir is None:
+        rootdir=des_rootdir()
+    dir=path_join(rootdir, fileclass, run)
+    return dir
+ 
 
 def filetype_dir(fileclass, run, filetype, rootdir=None):
     rundir=run_dir(fileclass, run, rootdir=rootdir)
@@ -206,12 +211,12 @@ def exposure_dir(fileclass, run, filetype, exposurename, rootdir=None):
     ftdir=filetype_dir(fileclass, run, filetype, rootdir=rootdir)
     return os.path.join(ftdir, exposurename)
 
-def red_image_path(run, exposurename, ccdnum, fz=True, rootdir=None, check=False):
+def red_image_path(run, exposurename, ccd, fz=True, rootdir=None, check=False):
     fileclass='red'
     filetype='red'
     expdir = exposure_dir(fileclass, run, filetype, exposurename, 
                           rootdir=rootdir)
-    imagename = '%s_%02i.fits' % (exposurename, int(ccdnum))
+    imagename = '%s_%02i.fits' % (exposurename, int(ccd))
     basic_path = os.path.join(expdir, imagename)
 
     if check:
@@ -309,55 +314,104 @@ def wlse_dir(run, exposurename, rootdir=None):
     rc=Runconfig()
 
     fileclass=rc.run_types['wlse']['fileclass']
-    filetype=rc.run_types['wlse']['filetype']
+    rundir=run_dir(fileclass, run, rootdir=rootdir)
+    dir=path_join(rundir, exposurename)
+    return dir
 
-    ftdir=filetype_dir(fileclass, run, filetype, rootdir=rootdir)
-    wldir=os.path.join(ftdir, exposurename)
- 
-    return wldir
+def wlse_basename(exposurename, ccd, ftype,
+                  serun=None,
+                  mohrify=False, ext='.fits'):
+
+    el=[exposurename, '%02i' % ccd, ftype]
+
+    if serun is not None:
+        el=[serun]+el
+
+    basename='_'.join(el) + ext
+    return basename
+
+
+
+def wlse_path(exposurename, ccd, ftype, 
+              serun=None,
+              mohrify=False, 
+              dir=None, 
+              rootdir=None, 
+              ext='.fits'):
+    """
+    name=wlse_path(exposurename, ccd, ftype, serun=None,
+                   mohrify=False, rootdir=None, ext='.fits')
+    Return the SE output file name for the given inputs
+    """
+    if mohrify:
+        ftype_use=mohrify_name(ftype)
+    else:
+        ftype_use=ftype
+
+    if dir is None:
+        if serun is not None:
+            dir = wlse_dir(serun, exposurename, rootdir=rootdir)
+        else:
+            dir='.'
+
+    name = wlse_basename(exposurename, ccd, ftype_use, 
+                         serun=serun,
+                         mohrify=mohrify, ext=ext)
+    path=path_join(dir,name)
+    return path
+
+
+
+def generate_se_filenames(exposurename, ccd, serun=None,
+                          rootdir=None, dir=None):
+    fdict={}
+
+    rc=deswl.files.Runconfig()
+
+    # output file names
+    for ftype in rc.se_filetypes:
+        if ftype == 'qa':
+            ext='.dat'
+        elif ftype == 'stat':
+            ext='.xml'
+        else:
+            ext='.fits'
+
+        name= wlse_path(exposurename, 
+                        ccd, 
+                        ftype,
+                        serun=serun,
+                        dir=dir,
+                        rootdir=rootdir,
+                        ext=ext)
+        fdict[ftype] = name
+
+
+    return fdict
+
+
+
+
+
 
 def wlme_dir(merun, tilename, rootdir=None):
     rc=Runconfig()
 
     fileclass=rc.run_types['wlme']['fileclass']
-    filetype=rc.run_types['wlme']['filetype']
-
-    ftdir=filetype_dir(fileclass, merun, filetype, rootdir=rootdir)
-    wldir=os.path.join(ftdir, tilename)
- 
+    rundir=run_dir(fileclass, merun, rootdir=rootdir)
+    wldir=os.path.join(rundir, tilename)
     return wldir
 
-def wlse_path(run, redrun, exposurename, ccdnum, wltype, 
-              mohrify=True, rootdir=None, ext='.fits'):
-    """
-    name=wlse_path(run, redrun, exposurename, ccdnum, wltype, 
-                  mohrify=True, rootdir=None, ext='.fits')
-    Return the SE output file name for the given inputs
-
-    Because this is designed for single epoch image processing, the
-    resulting directory structure is different than uiuc one running
-    from the tiling:
-
-    fileclass/run/filetype/redrun_exposurename/
-                                  redrun_exposurename_ccd_wltype.fits
-    """
-    if mohrify:
-        wltype_use=mohrify_name(wltype)
-    else:
-        wltype_use=wltype
-
-    wldir = wlse_dir(run, exposurename, rootdir=rootdir)
-    name_front = redrun+'_'+os.path.basename(wldir)
-    name = '%s_%s_%02i_%s%s' % (run,name_front, int(ccdnum), wltype_use, ext)
-    fullpath = os.path.join(wldir, name)
-    return fullpath
-
-def wlme_basename(tilename, band, extra=None, ext='.fits'):
+def wlme_basename(tilename, band, ftype, merun=None, extra=None, ext='.fits'):
     """
     basename for multi-epoch weak lensing output files
     """
 
-    name=[tilename,band,'multishear']
+    name=[tilename,band,ftype]
+    
+    if merun is not None:
+        name=[merun] + name
+
     if extra is not None:
         name.append(extra)
 
@@ -365,7 +419,8 @@ def wlme_basename(tilename, band, extra=None, ext='.fits'):
     return name
 
 
-def wlme_path(merun, tilename, band, extra=None, 
+def wlme_path(tilename, band, ftype, merun=None, 
+              extra=None, 
               dir=None, rootdir=None, ext='.fits'):
     """
     Return a multi-epoch shear output file name
@@ -373,13 +428,92 @@ def wlme_path(merun, tilename, band, extra=None,
     currently just for multishear and logs, etc 
     """
 
-    name = wlme_basename(tilename, band, extra=extra,ext=ext)
 
     if dir is None:
-        dir=wlme_dir(merun, tilename, rootdir=rootdir)
+        if merun is not None:
+            dir = wlme_dir(merun, tilename, rootdir=rootdir)
+        else:
+            dir='.'
 
-    name = os.path.join(dir, name)
+    name = wlme_basename(tilename, band, ftype, 
+                         merun=merun, extra=extra, ext=ext)
+    name = path_join(dir, name)
     return name
+
+
+def generate_me_filenames(tilename, band, merun=None, dir=None, rootdir=None):
+
+    fdict={}
+
+    rc=deswl.files.Runconfig()
+
+    # output file names
+    for ftype in rc.me_filetypes:
+        if ftype == 'qa':
+            ext='.dat'
+        elif ftype == 'stat':
+            ext='.xml'
+        else:
+            ext='.fits'
+
+        name= wlme_path(tilename,
+                        band,
+                        ftype,
+                        merun=merun,
+                        dir=dir,
+                        rootdir=rootdir,
+                        ext=ext)
+        fdict[ftype] = name
+
+
+    return fdict
+
+
+
+
+
+def collated_redfiles_dir(dataset):
+    desfiles_dir=getenv_check('DESFILES_DIR')
+    desfiles_dir = path_join(desfiles_dir,dataset)
+    return desfiles_dir
+
+def collated_redfiles_name(dataset, band):
+    name=[dataset,'images','catalogs']
+    name.append(band)
+    return '-'.join(name)+'.xml'
+
+def collated_redfiles_path(dataset, band):
+    tdir=collated_redfiles_dir(dataset)
+    name = collated_redfiles_name(dataset, band)
+    return path_join(tdir, name)
+
+def collated_redfiles_read(dataset, band, getpath=False):
+    f=collated_redfiles_path(dataset, band)
+    stdout.write('Reading tileinfo file: %s\n' % f)
+    tileinfo=xmltools.xml2dict(f,noroot=True)
+    if getpath:
+        return tileinfo, f
+    else:
+        return tileinfo
+
+def collated_redfiles_write(dataset, band, flist):
+    f=collated_redfiles_path(dataset, band)
+    fdir=os.path.dirname(f)
+    if not os.path.exists(fdir):
+        stdout.write("Creating directory tree: %s\n" % fdir)
+        os.makedirs(fdir)
+
+    output={'rootdir':deswl.files.des_rootdir(),
+            'hostname': platform.node(),
+            'flist':flist}
+
+    stdout.write('Writing tileinfo file: %s\n' % f)
+    xmltools.dict2xml(output, f, roottag='redlist')
+    stdout.write("    Don't forget to check it into SVN!!!!!")
+
+
+
+
 
 
 def collated_coaddfiles_dir(dataset, localid=None):
@@ -429,7 +563,7 @@ def collated_coaddfiles_read(dataset, band,
                              serun=None,
                              localid=None, 
                              newest=True, 
-                             getname=False):
+                             getpath=False):
     f=collated_coaddfiles_path(dataset, band, 
                                withsrc=withsrc, 
                                serun=serun,
@@ -437,7 +571,7 @@ def collated_coaddfiles_read(dataset, band,
                                newest=newest)
     stdout.write('Reading tileinfo file: %s\n' % f)
     tileinfo=xmltools.xml2dict(f,noroot=True)
-    if getname:
+    if getpath:
         return tileinfo, f
     else:
         return tileinfo
@@ -529,6 +663,8 @@ def get_info_from_path(filepath, fileclass):
 
         base=os.path.basename(odict['root'])
 
+        if base[-4:] == '_cat':
+            base=base[:-4]
 
         # last 3 bytes are _[ccd number]
         odict['ccd']=int(base[-2:])

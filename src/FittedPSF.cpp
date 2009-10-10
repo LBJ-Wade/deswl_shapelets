@@ -367,6 +367,13 @@ void FittedPSF::WriteFits(std::string file) const
   int intgr;
 
   dbg<<"Before Write Par Keys"<<std::endl;
+
+  // if serun= is sent we'll put it in the header.  This allows us to 
+  // associate some more, possibly complicated, metadata with this file
+  if ( params.keyExists("serun") ) {
+	  CCfitsWriteParKey(params, table, "serun", str);
+  }
+
   //CCfitsWriteParKey(params, table, "version", str);
   CCfitsWriteParKey(params, table, "noise_method", str);
   CCfitsWriteParKey(params, table, "dist_method", str);
