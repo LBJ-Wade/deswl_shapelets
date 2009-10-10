@@ -15,7 +15,7 @@ python/files.py: Simplified directory structure.  File routines for
 python/wlpipe.py: Rewrote SE shear pipelines to use standardized
 	file routines and execution framework.  Made ME also conform
 	to this.  Moved lots of file routines to files.py.  stdout,stderr
-    now not redirected, QA stuff is redirected using log_file keyword.
+    now not redirected, QA stuff is redirected using writelog keyword.
 	Write PBS files for ME and SE.  SE can be by ccd or exposurename.
 
 

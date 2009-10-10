@@ -706,7 +706,7 @@ def generate_se_pbsfiles(serun, dataset, band, byccd=False):
 
 
 
-def make_se_commandlist(fdict):
+def make_se_commandlist(fdict, debug=0):
     command=[fdict['executable'],
              fdict['config'],
              'image_file='+fdict['image'],
@@ -721,9 +721,15 @@ def make_se_commandlist(fdict):
 
     if 'serun' in fdict:
         command.append('serun=%s' % fdict['serun'])
+
+
+    if debug:
+        debug_file=fdict['qa'].replace('qa','debug')
+        command += ['verbose=%s' % debug, 'debug_file='+debug_file]
+
     return command
 
-def process_se_image(fdict, writelog=False, timeout=5*60):
+def process_se_image(fdict, writelog=False, debug=0, timeout=5*60):
 
     # should we re-direct stdout (which is only QA and STATUS messages)
     # to the QA log file?
@@ -733,7 +739,7 @@ def process_se_image(fdict, writelog=False, timeout=5*60):
     else:
         stdout_file=None
 
-    command = make_se_commandlist(fdict)
+    command = make_se_commandlist(fdict, debug=debug)
 
     # stdout_file=None because we want to allow the caller to redirect that
     exit_status, stdout_ret, stderr_ret = \
@@ -1003,7 +1009,7 @@ def run_shear(exposurename, ccd=None,
 
 
     # need to write one of these for se
-    exit_status = process_se_image(fdict, writelog=writelog)
+    exit_status = process_se_image(fdict, writelog=writelog, debug=debug)
 
     
     stat['exit_status'] = exit_status
@@ -1549,8 +1555,7 @@ def make_me_commandlist(fdict,shear_dc4_input_format=True, debug=0):
              'coaddimage_file='+fdict['coaddimage'],
              'coaddcat_file='+fdict['coaddcat'],
              'multishear_file='+fdict['multishear'],
-             'multishear_sky_method=NEAREST',
-             'log_file='+fdict['qa'] ]
+             'multishear_sky_method=NEAREST']
 
 
     if fdict['nodots']:
