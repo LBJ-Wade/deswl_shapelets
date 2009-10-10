@@ -1,5 +1,5 @@
 -------------------------------------------------------------------------
-(tag version here)  (Date here)
+(tag version here)  (Date here)  (short explanation here)
 
 src/MultiShearCatalog.cpp:  record maximum memory usage in header.
 src/FittedPSF.cpp,PSFCatalog.cpp,ShearCatalog.cpp,StarCatalog.cpp: 
@@ -17,6 +17,65 @@ python/wlpipe.py: Rewrote SE shear pipelines to use standardized
 	to this.  Moved lots of file routines to files.py.  stdout,stderr
     now not redirected, QA stuff is redirected using log_file keyword.
 	Write PBS files for ME and SE.  SE can be by ccd or exposurename.
+
+
+* Memory leak fixed when using regions in multi-epoch code combined with openmp.
+ (Mike can you give more details?, I've just copied the svn log below)  
+
+ I still don't really understand what was causing the bug, especially why it
+ only showed up with openmp compilations, but basically what seemed to be
+ happening was the memory was getting very fragmented, eventually 90% of the
+ memory allocated by the program would be technically available, but not large
+ enough for the block sizes I needed.
+
+ The solution was twofold:
+ 1) 
+   I now use a shared_ptr<vector<Pixel> > for the underlying data in PixelList
+   rather than auto_ptr<vector<Pixel> >.  This let me change the copy
+   constructor's behavior to allow shallow copies, so a second copy of a
+   PixelList shares the same actual vector<Pixel> as the original.
+   This is important, since we do push_back(pixlist) on a vector of
+   PixelLists.  When vector runs out of space, it needs to copy all its
+   elements to new storage.  Now, this operation is both more efficient
+   (no actual element copying) and leads to fewer new/delete cycles of the
+   PixelList data, so less fragmentation.
+
+ 2) 
+   I now use a pool allocator for the vector<Pixel> stored in PixelList.  This
+   forces the program to keep any memory used for these vectors earmarked for
+   future PixelList allocations after the memory is nominally freed up.  This
+   keeps this memory for getting used by other smaller allocations between the
+   time when I free it (after one section is done) and when I need it again (in
+   the next section).
+
+   It turns out that the boost pool allocator is not that great.
+
+   First, while it's faster that what I had for allocating, it is _way_ slow
+   for deallocating.  So the net result is that it is much slower overall.
+
+   And second, because of its strategy of doubling the block size each time, it
+   ends up allocating up to nearly twice as much as it needs.  So, since we are
+   often semi-close to the memory limit as it is, this is unacceptable for our
+   needs.
+
+   So I went back to my custom allocator and found out why it was slow, and
+   fixed it, so it now seems to be working pretty fast.  Not quite as fast as
+   the native new and delete functions probably, but close enough that the
+   difference isn't noticeable anymore.
+
+
+
+
+
+ It seems that neither of the above steps works to solve the problem, but both
+ together do solve the problem.  Go figure.
+
+ Anyway, this fix means that the memory usage seems to scale more or less as
+ const + size^2.  The const is for some memory allocations that are needed
+ regargless of what size is used.  But the bulk of the memory usage is
+ proportionaly to the largest number of galaxies in one of the sections, which
+ scales approximately as size^2.
+
 
 
 this file begun at revision 4514.
