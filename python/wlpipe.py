@@ -443,11 +443,9 @@ def execute_command(command, timeout=None,
 
 
 def generate_se_pbsfile_byccd(serun, exposurename, ccd, outfile,
-                              nodes=1, ppn=1, walltime='1:00:00'):
+                              nodes=1, ppn=8, walltime='1:00:00'):
 
     """
-    These jobs can run on a single core/processor.  So we set
-    nodes=1 and ppn=1
     """
     # the job name
     jobname=exposurename+'-%02i' % int(ccd)
@@ -540,7 +538,7 @@ source /global/data/products/eups/bin/setups.sh
 
 
 def generate_se_pbsfile(serun, exposurename, outfile,
-                        nodes=1, ppn=1, walltime='4:00:00'):
+                        nodes=1, ppn=8, walltime='4:00:00'):
 
     """
     These jobs can run on a single core/processor.  So we set
