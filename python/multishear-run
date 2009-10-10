@@ -31,7 +31,7 @@ parser.add_option("--outdir", default=None,
                   help="Where to place the output file. Default "
                        " is '.' if the merun is not sent,"
                        " but if merun is sent it will be"
-                       " $DESDATA/wlbnl/run/me_shapelet/tilename")
+                       " $DESDATA/wlbnl/run/tilename")
 parser.add_option("--rootdir", default=None,
     help="Specify the data root directory. Default $DESDATA")
 parser.add_option("--copyroot", action='store_true', default=False,
@@ -40,9 +40,9 @@ parser.add_option("--cleanup", action='store_true', default=False,
  help="If copyroot and cleanup then the local copy of each output is deleted.")
 
 
-parser.add_option("--redirect", dest="redirect",
-                  action='store_true', default=False,
-                  help="redirect stdout/stderr to files with the usual names")
+#parser.add_option("--redirect", dest="redirect",
+#                  action='store_true', default=False,
+#                  help="redirect stdout/stderr to files with the usual names")
 
 parser.add_option("--debug", default=0,
     help="Debug verbosity level. 0:none 1:dbg 2:xdbg. Default %default")
@@ -68,7 +68,7 @@ cleanup=options.cleanup
 dataset=options.dataset
 localid=options.localid
 serun=options.serun
-redirect=options.redirect
+#redirect=options.redirect
 
 srclist=options.srclist
 debug=options.debug
@@ -83,6 +83,5 @@ deswl.wlpipe.run_multishear(tilename, band,
                             dataset=dataset, 
                             localid=localid,
                             serun=serun,
-                            redirect=redirect,
                             debug=debug)
 

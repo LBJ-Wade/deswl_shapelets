@@ -18,6 +18,8 @@ static void DoFullPipeline(ConfigFile& params,
   log.reset(new FindStarsLog(params,logfile,Name(params,"stars")));
 
   // Load image:
+
+  std::cerr<<"Running FindStars\n";
   std::auto_ptr<Image<double> > weight_im;
   Image<double> im(params,weight_im);
 
@@ -56,6 +58,7 @@ static void DoFullPipeline(ConfigFile& params,
 
   log.reset(new PSFLog(params,logfile,Name(params,"psf")));
 
+  std::cerr<<"Determining PSF\n";
   // Create PSFCatalog from StarCatalog
   PSFCatalog psfcat(starcat,params);
 
@@ -84,6 +87,7 @@ static void DoFullPipeline(ConfigFile& params,
 
   log.reset(new ShearLog(params,logfile,Name(params,"shear")));
 
+  std::cerr<<"Measuring Shears\n";
   // Create shear catalog
   ShearCatalog shearcat(incat,trans,params);
 

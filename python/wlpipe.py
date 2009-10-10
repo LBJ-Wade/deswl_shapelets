@@ -154,8 +154,6 @@ def get_red_filelist(band=None, extra=None, newest=False, return_dict=False):
     """
     Send extra="_cat" to get the catalog list
     """
-    fileclass='red'
-    filetype='red'
 
     command="des-list-files -c red -e ''"
     if band is not None:
@@ -442,6 +440,261 @@ def execute_command(command, timeout=None,
 
 
 
+def generate_se_pbsfile_byccd(serun, exposurename, ccd, outfile,
+                              nodes=1, ppn=8, walltime='1:00:00'):
+
+    # the job name
+    jobname=exposurename+'-%02i' % int(ccd)
+
+    # The useful log file we redirect from the actual script call
+    logf=outfile+'.log'
+
+    # the generally useless pbslog
+    pbslog_file = os.path.basename(outfile.replace('.pbs','.pbslog'))
+
+    scratch_rootdir=default_scratch_rootdir()
+
+    header="""#!/bin/bash
+#PBS -S /bin/bash
+#PBS -N %s
+#PBS -j oe
+#PBS -o %s
+#PBS -m a
+#PBS -V
+#PBS -r n
+#PBS -W umask=0022
+#PBS -l walltime=%s
+#PBS -l nodes=%s:ppn=%s
+
+# explanation of above directives
+# see also: http://wiki.hpc.ufl.edu/index.php/PBS_Directives
+#
+# -N name - the name of the job
+# -j oe   - merge stdout and stderr in the output log (see -o)
+# -o name - put the output here.  Not usually useful for logging that
+#                   needs to be watched since it isn't actually written till the
+#                       script finishes.
+# -m a    - send mail when there is an abort
+# -V      - All environment variables in the qsub command's environment
+#                       are to be exported to the batch job.
+# -r n    - Don't try to rerun the job
+# -W umask=0022 - you can specify lots of things with -W. In this case make
+#                 sure the umask is correct.  I often put this in the 
+#                 script itself too
+# -l walltime=24:00:00 - "-l" is used to specify resources.  walltime gives
+#                        the max wall time the script can take before it
+#                        gets killed.
+#
+# some stuff not in this header
+#
+# -l nodes=number_of_nodes:ppn=process_per_node
+#    Note, in modern parlance, ppn is really number of cores to use.
+# -q queue  - Run in this queue
+
+umask 0022
+
+# The main log file, updated as the script runs
+logf="%s"
+
+# make sure our log directory exists
+d=$(dirname $logf)
+if [ ! -e "$d" ]; then
+    mkdir -p "$d"
+fi
+
+# get eups ready
+source /global/data/products/eups/bin/setups.sh
+""" % (jobname, pbslog_file, walltime, nodes, ppn, logf)
+
+    rc=deswl.files.Runconfig(serun)
+    esutil_setup = _make_setup_command('esutil', rc['esutilvers'])
+    tmv_setup = _make_setup_command('tmv',rc['tmvvers'])
+    wl_setup = _make_setup_command('wl',rc['wlvers'])
+
+    
+    fobj=open(outfile, 'w')
+
+    fobj.write(header)
+    fobj.write(tmv_setup+'\n')
+    fobj.write(wl_setup+'\n')
+    # must come after if it is not the current version
+    fobj.write(esutil_setup+'\n')
+
+    fobj.write("shear-run    \\\n")
+    fobj.write('    --serun=%s    \\\n' % serun)
+    fobj.write('    --rootdir=%s  \\\n' % scratch_rootdir)
+    fobj.write('    --copyroot    \\\n')
+    fobj.write('    --cleanup     \\\n')
+    fobj.write('    --nodots      \\\n')
+    fobj.write('    %s %s &> "$logf"\n' % (exposurename, ccd))
+
+    fobj.write('\n')
+    fobj.close()
+
+
+def generate_se_pbsfile(serun, exposurename, outfile,
+                        nodes=1, ppn=8, walltime='4:00:00'):
+
+    # the job name
+    jobname=exposurename
+
+    # The useful log file we redirect from the actual script call
+    logf=outfile+'.log'
+
+    # the generally useless pbslog
+    pbslog_file = os.path.basename(outfile.replace('.pbs','.pbslog'))
+
+    scratch_rootdir=default_scratch_rootdir()
+
+    header="""#!/bin/bash
+#PBS -S /bin/bash
+#PBS -N %s
+#PBS -j oe
+#PBS -o %s
+#PBS -m a
+#PBS -V
+#PBS -r n
+#PBS -W umask=0022
+#PBS -l walltime=%s
+#PBS -l nodes=%s:ppn=%s
+
+# explanation of above directives
+# see also: http://wiki.hpc.ufl.edu/index.php/PBS_Directives
+#
+# -N name - the name of the job
+# -j oe   - merge stdout and stderr in the output log (see -o)
+# -o name - put the output here.  Not usually useful for logging that
+#                   needs to be watched since it isn't actually written till the
+#                       script finishes.
+# -m a    - send mail when there is an abort
+# -V      - All environment variables in the qsub command's environment
+#                       are to be exported to the batch job.
+# -r n    - Don't try to rerun the job
+# -W umask=0022 - you can specify lots of things with -W. In this case make
+#                 sure the umask is correct.  I often put this in the 
+#                 script itself too
+# -l walltime=24:00:00 - "-l" is used to specify resources.  walltime gives
+#                        the max wall time the script can take before it
+#                        gets killed.
+#
+# some stuff not in this header
+#
+# -l nodes=number_of_nodes:ppn=process_per_node
+#    Note, in modern parlance, ppn is really number of cores to use.
+# -q queue  - Run in this queue
+
+umask 0022
+
+# The main log file, updated as the script runs
+logf="%s"
+
+# make sure our log directory exists
+d=$(dirname $logf)
+if [ ! -e "$d" ]; then
+    mkdir -p "$d"
+fi
+
+# get eups ready
+source /global/data/products/eups/bin/setups.sh
+""" % (jobname, pbslog_file, walltime, nodes, ppn, logf)
+
+    rc=deswl.files.Runconfig(serun)
+    esutil_setup = _make_setup_command('esutil', rc['esutilvers'])
+    tmv_setup = _make_setup_command('tmv',rc['tmvvers'])
+    wl_setup = _make_setup_command('wl',rc['wlvers'])
+
+    
+    fobj=open(outfile, 'w')
+
+    fobj.write(header)
+    fobj.write(tmv_setup+'\n')
+    fobj.write(wl_setup+'\n')
+    # must come after if it is not the current version
+    fobj.write(esutil_setup+'\n')
+
+    fobj.write("shear-run    \\\n")
+    fobj.write('    --serun=%s    \\\n' % serun)
+    fobj.write('    --rootdir=%s  \\\n' % scratch_rootdir)
+    fobj.write('    --copyroot    \\\n')
+    fobj.write('    --cleanup     \\\n')
+    fobj.write('    --nodots      \\\n')
+    fobj.write('    %s &> "$logf"\n' % (exposurename,))
+
+    fobj.write('\n')
+    fobj.close()
+
+
+
+
+def generate_se_pbsfiles(serun, dataset, band, byccd=False): 
+
+    stdout.write("Creating pbs files\n")
+
+
+    # get the file lists
+    infodict,infodict_file = \
+        deswl.files.collated_redfiles_read(dataset, band, getpath=True)
+    fileinfo = infodict['flist']
+
+
+    if byccd:
+        outdir=deswl.files.pbs_dir(serun, subdir='byccd')
+    else:
+        outdir=deswl.files.pbs_dir(serun)
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+
+
+    submit_fname=os.path.join(outdir, 'submit.sh')
+    if byccd:
+        submit_fname=submit_fname.replace('submit','submit-byccd')
+
+    submit=open(submit_fname, 'w')
+
+    if not byccd:
+        # get unique exposure names
+        edict={}
+        for fi in fileinfo:
+            edict[fi['exposurename']] = fi
+        
+        for exposurename in edict:
+            outfile = deswl.files.wlse_pbs_path(serun,exposurename)
+            stdout.write('Writing pbs file: %s\n' % outfile)
+            generate_se_pbsfile(serun, exposurename, outfile)
+            submit.write('qsub %s\n' % os.path.basename(outfile))
+    else:
+        for fi in fileinfo:
+            exposurename=fi['exposurename']
+            ccd=fi['ccd']
+
+            outfile = deswl.files.wlse_pbs_path(serun,exposurename,ccd)
+            stdout.write('Writing pbs file: %s\n' % outfile)
+            generate_se_pbsfile_byccd(serun, exposurename, ccd, outfile)
+
+            submit.write('qsub %s\n' % os.path.basename(outfile))
+
+    
+    submit.close()
+
+    readme_fname=os.path.join(outdir, 'README')
+    stdout.write('Creating %s\n' % readme_fname)
+    readme=open(readme_fname, 'w')
+    mess="""
+    Input file list: 
+        %s
+    Which should be a unique list of files.  When duplicateis are present
+    the newest based on run ids was chosen.
+    \n""" % infodict_file
+
+    readme.write(mess)
+    readme.close()
+
+
+
+
+
+
+
 def make_se_commandlist(fdict):
     command=[fdict['executable'],
              fdict['config'],
@@ -451,7 +704,10 @@ def make_se_commandlist(fdict):
              'fitpsf_file='+fdict['fitpsf'],
              'psf_file='+fdict['psf'],
              'shear_file='+fdict['shear'],
-             'log_file='+fdict['qa'] ]
+             'log_file='+fdict['qa']]
+
+    if fdict['nodots']:
+        command.append('output_dots=false')
 
     if 'serun' in fdict:
         command.append('serun=%s' % fdict['serun'])
@@ -470,123 +726,14 @@ def process_se_image(fdict, timeout=5*60):
     return exit_status
 
 
+def getband_from_exposurename(exposurename):
+    for band in ['g','r','i','z','Y']:
+        pattern='-%s-' % band
+        if exposurename.find(pattern) != -1:
+            return band
+    raise ValueError("No band found in exposurename: %s\n" % exposurename)
 
-
-
-
-
-def process_serun_imagelist(serun, executable, 
-                            config_file=None, 
-                            imlist_file=None,
-                            flist=None,
-                            badlist_file=None,
-                            outdir=None,
-                            rootdir=None,
-                            verbose=True,
-                            mohrify=False):
-    """
-    This is for processing one of the big lists such as generated from
-    GenerateSeRunFileList()
-
-    The run is required for generating file names and for verifying the
-    configuration is as expected
-    """
-
-    import time
-
-    if config_file is None:
-        config_file=os.path.join(getenv_check('WL_DIR'),'etc/wl_dc4.config')
-
-    tm0 = time.time()
-
-    runconfig = deswl.files.Runconfig(serun)
-    runconfig.verify()
-
-    # flist takes precedence
-    if flist is None:
-        if imlist_file is None:
-            raise ValueError,'Either enter flist or imlist_file'
-        imdict = xmltools.xml2dict(imlist_file, noroot=True)
-        flist = imdict['files']
-
-    if type(flist) != type([]):
-        flist=[flist]
-
-    if badlist_file is not None:
-        badlist=xmltools.xml2dict(badlist_file)
-        badlist=badlist['filelist']['files']
-        badlist = [fd['imfile'] for fd in badlist]
-    else:
-        badlist=[]
-
-    if verbose:
-        stdout.write('Run: %s\n' % serun)
-
-    execbase=os.path.basename(executable)
-    for fdict in flist:
-
-        imfile=fdict['imfile']
-        catfile=fdict['catfile']
-
-        tm1=time.time()
-        if verbose:
-            m='Running %s on Image file: %s\n               cat file: %s\n' % \
-                    (executable, imfile, catfile)
-            stdout.write(m)
-
-        sefdict=deswl.files.generate_se_filenames(serun, imfile, 
-                                                  mohrify=mohrify, 
-                                                  rootdir=rootdir,
-                                                  outdir=outdir)
-
-        outd = os.path.dirname(sefdict['stars'])
-        if not os.path.exists(outd):
-            if verbose:
-                stdout.write('    Making output directory path: %s\n' % outd)
-            os.makedirs(outd)
-
-        stdout_file=sefdict[execbase+'_stdout']
-        stderr_file=sefdict[execbase+'_stderr']
-        log_file=sefdict[execbase+'_log']
-
-        if imfile in badlist:
-            if verbose:
-                stdout.write('Skipping known bad image: %s\n' % imfile)
-            exit_status=-9999
-            skipped=True
-        else:
-            skipped=False
-            exit_status = process_se_image(executable, config_file, imfile, 
-                                           cat_file=catfile,
-                                           stars_file=sefdict['stars'],
-                                           psf_file=sefdict['psf'],
-                                           fitpsf_file=sefdict['fitpsf'],
-                                           shear_file=sefdict['shear'],
-                                           stdout_file=stdout_file,
-                                           stderr_file=stderr_file,
-                                           verbose=verbose)
-        # add config info to the log
-        log=sefdict
-        log['image'] = imfile
-        log['catalog'] = catfile
-        log['exit_status'] = exit_status
-        log['executable'] = executable
-        log['skipped'] = skipped
-        for k in runconfig:
-            log[k] = runconfig[k]
-
-        xmltools.dict2xml(log, log_file, roottag=execbase+'_log')
-        tm2=time.time()
-        ptime(tm2-tm1, fobj=stderr, format='    %s\n')
-
-    tmfinal=time.time()
-    ptime(tmfinal-tm0, fobj=stderr)
-
-
-
-
-
-def run_shear(exposurename, band, ccd,
+def run_shear(exposurename, ccd=None,
               outdir=None, 
               rootdir=None,
               copyroot=False,
@@ -594,6 +741,7 @@ def run_shear(exposurename, band, ccd,
               serun=None,
               dataset=None, 
               redirect=False,
+              nodots=False,
               debug=0):
     """
 
@@ -671,8 +819,28 @@ def run_shear(exposurename, band, ccd,
         debug: The level of debugging information printed.  Default 0.  
             1 gives "dbg" level and 2 gives "xdbg" level.\n\n"""
 
-    # for making full directory trees
 
+
+
+    # if ccd not sent, process the whole exposure
+    if ccd is None:
+        for ccd in range(1,62+1):
+            run_shear(exposurename, ccd,
+                      outdir=outdir, 
+                      rootdir=rootdir,
+                      copyroot=copyroot,
+                      cleanup=cleanup,
+                      serun=serun,
+                      dataset=dataset, 
+                      redirect=redirect,
+                      nodots=nodots,
+                      debug=debug)
+
+
+
+
+
+    band=getband_from_exposurename(exposurename)
 
     if serun is not None:
         runconfig=deswl.files.Runconfig(serun)
@@ -721,7 +889,7 @@ def run_shear(exposurename, band, ccd,
     # Here we rely on the fact that we picked out the unique, newest
     # version for each tile
     image=None
-    bname = exposurename+'_%02i' % ccd
+    bname = exposurename+'_%02i' % int(ccd)
     for ti in infolist:
         tbname=deswl.files.remove_fits_extension(ti['basename'])
         if tbname == bname:
@@ -743,6 +911,7 @@ def run_shear(exposurename, band, ccd,
     fdict['executable'] = executable
     fdict['image'] = image
     fdict['cat'] = cat
+    fdict['nodots'] = nodots
     if serun is not None:
         fdict['serun'] = serun
 
@@ -750,7 +919,7 @@ def run_shear(exposurename, band, ccd,
 
     stat={}
     if serun is not None:
-        stat['serun'] = merun
+        stat['serun'] = serun
     else:
         stat['serun'] = 'unspecified'
 
@@ -778,6 +947,8 @@ def run_shear(exposurename, band, ccd,
     stat['date'] = datetime.datetime.now().strftime("%Y-%m-%d-%X")
     for f in fdict:
         stat[f] = fdict[f]
+
+    hostshort=stat['hostname'].split('.')[0]
 
     # Print some info
     stdout.write('Configuration:\n')
@@ -832,16 +1003,17 @@ def run_shear(exposurename, band, ccd,
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
             # copy the files
+            rc=deswl.files.Runconfig()
             for ftype in rc.se_filetypes:
                 f=fdict[ftype]
                 df=fdict_def[ftype]
-                stdout.write(' * copying %s to %s\n' % (f,df) )
+                stdout.write(' * copying %s:%s to %s\n' % (hostshort,f,df) )
                 if not os.path.exists(f):
                     stdout.write('    Source file does not exist\n')
                 else:
                     shutil.copy2(f, df)
                     if cleanup:
-                        stdout.write(' * deleting %s\n' % (f,) )
+                        stdout.write(' * deleting %s:%s\n' % (hostshort,f,) )
                         os.remove(f)
 
 
@@ -1209,11 +1381,10 @@ def generate_me_pbsfile(merun, tilename, band, outfile,
     jobname=tilename+'-'+band
 
     # The useful log file we redirect from the actual script call
-    logf=os.path.basename(outfile).replace('.pbs','.log')
-    logf=path_join('${HOME}', 'desprocess', 'pbs', merun, logf)
+    logf=outfile+'.log'
 
     # the generally useless pbslog
-    pbslog_file = os.path.basename(logf.replace('.log','.pbslog'))
+    pbslog_file = os.path.basename(outfile.replace('.pbs','.pbslog'))
 
     scratch_rootdir=default_scratch_rootdir()
 
@@ -1293,32 +1464,35 @@ source /global/data/products/eups/bin/setups.sh
     fobj.write('\n')
     fobj.close()
 
-def generate_me_pbsfiles(merun, dataset, localid, band, serun, outdir=None): 
+def generate_me_pbsfiles(merun, dataset, localid, band, serun): 
 
-    if outdir is None:
-        outdir=path_join('~','desprocess','pbs',merun)
+    stdout.write("Creating pbs files\n")
 
-    outdir=os.path.expanduser(outdir)
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
 
+    # get the file lists
     infodict,tileinfo_file = \
         deswl.files.collated_coaddfiles_read(dataset, band, 
                                              localid=localid,
                                              serun=serun,getpath=True)
     tileinfo = infodict['info']
 
-    stdout.write("Creating pbs files\n")
+
+
+    outdir=deswl.files.pbs_dir(merun)
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+
 
     submit_fname=os.path.join(outdir, 'submit.sh')
     submit=open(submit_fname, 'w')
 
+
+
     for ti in tileinfo:
         tilename=ti['tilename']
         band=ti['band']
-        name=deswl.files.wlme_pbs_name(tilename,band,merun)
 
-        outfile = os.path.join(outdir, name)
+        outfile = deswl.files.wlme_pbs_path(merun,tilename,band)
         stdout.write('Writing pbs file: %s\n' % outfile)
         generate_me_pbsfile(merun, tilename, band, outfile)
 
@@ -1595,6 +1769,8 @@ def run_multishear(tilename, band,
     stat['hostname'] = platform.node()
     stat['date'] = datetime.datetime.now().strftime("%Y-%m-%d-%X")
 
+    hostshort=stat['hostname'].split('.')[0]
+
     # Print some info
     stdout.write('Configuration:\n')
     if merun is not None:
@@ -1649,16 +1825,17 @@ def run_multishear(tilename, band,
             if not os.path.exists(dirname):
                 os.makedirs(dirname)
             # copy the files
+            rc=deswl.files.Runconfig()
             for ftype in rc.me_filetypes:
                 f=fdict[ftype]
                 df=fdict_def[ftype]
-                stdout.write(' * copying %s to %s\n' % (f,df) )
+                stdout.write(' * copying %s:%s to %s\n' % (hostshort,f,df) )
                 if not os.path.exists(f):
                     stdout.write('    Source file does not exist\n')
                 else:
                     shutil.copy2(f, df)
                     if cleanup:
-                        stdout.write(' * deleting %s\n' % (f,) )
+                        stdout.write(' * deleting %s:%s\n' % (hostshort,f,) )
                         os.remove(f)
 
 

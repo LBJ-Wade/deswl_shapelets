@@ -6,14 +6,17 @@ src/FittedPSF.cpp,PSFCatalog.cpp,ShearCatalog.cpp,StarCatalog.cpp:
   Write serun if sent as a parameteer
 
 src/fitparams.config:  Added merun,serun support.
+src/FullPipeline.cpp: Print short status messages.
 
-
+python/shear-run:  New executable for running SE code.
+python/SConscript: Install shear-run
 python/files.py: Simplified directory structure.  File routines for
-	dealing with SE image and file lists.
+	dealing with SE image and file lists.  PBS files and directories.
 python/wlpipe.py: Rewrote SE shear pipelines to use standardized
 	file routines and execution framework.  Made ME also conform
 	to this.  Moved lots of file routines to files.py.  stdout,stderr
     now not redirected, QA stuff is redirected using log_file keyword.
+	Write PBS files for ME and SE.  SE can be by ccd or exposurename.
 
 
 this file begun at revision 4514.

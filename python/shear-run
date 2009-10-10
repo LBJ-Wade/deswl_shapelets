@@ -1,0 +1,78 @@
+#!/usr/bin/env python
+"""
+    shear-run exposurename [ ccd ]
+
+Run a single image through findstars, measurepsf and measureshear.  If
+ccd is not sent, process all ccds in the exposure
+"""
+
+import sys
+from sys import stdout,stderr
+import deswl
+
+from optparse import OptionParser
+parser = OptionParser(__doc__)
+
+parser.add_option("--serun", default=None,
+    help="The run identifier. If sent a runconfig is "
+         "read and verified against current settings. The outdir will be "
+         "set to the usual place (see below)")
+
+parser.add_option("--dataset", default=None,
+                  help="dataset. e.g. 'dc4'")
+
+parser.add_option("--outdir", default=None,
+                  help="Where to place the output file. Default "
+                       " is '.' if the merun is not sent,"
+                       " but if merun is sent it will be"
+                       " $DESDATA/wlbnl/run/exposurename")
+parser.add_option("--rootdir", default=None,
+    help="Specify the data root directory. Default $DESDATA")
+parser.add_option("--copyroot", action='store_true', default=False,
+    help="Copy output files to the default path under $DESDATA")
+parser.add_option("--cleanup", action='store_true', default=False,
+ help="If copyroot and cleanup then the local copy of each output is deleted.")
+
+parser.add_option("--nodots", action='store_true', default=False,
+ help="Don't print progress dots.")
+
+
+#parser.add_option("--debug", default=0,
+#    help="Debug verbosity level. 0:none 1:dbg 2:xdbg. Default %default")
+
+options, args = parser.parse_args(sys.argv[1:])
+
+if len(args) < 1:
+    parser.print_help()
+    stdout.write('\nSingle CCD Example:\n    shear-run decam--24--11-i-1 15\n')
+    stdout.write('\nFull Exposure Example:\n    shear-run decam--24--11-i-1\n')
+    stdout.write('\nFor more information see the documentation for\n')
+    stdout.write('    deswl.wlpipe.run_shear\n\n')
+    sys.exit(45)
+
+exposurename=args[0]
+
+if len(args) > 1:
+    ccd=args[1]
+else:
+    ccd=None
+
+serun=options.serun
+outdir = options.outdir
+rootdir = options.rootdir
+copyroot=options.copyroot
+cleanup=options.cleanup
+dataset=options.dataset
+nodots=options.nodots
+
+#debug=options.debug
+
+deswl.wlpipe.run_shear(exposurename, ccd, 
+                       serun=serun,
+                       outdir=outdir, 
+                       rootdir=rootdir,
+                       copyroot=copyroot,
+                       cleanup=cleanup,
+                       dataset=dataset,
+                       nodots=nodots)
+

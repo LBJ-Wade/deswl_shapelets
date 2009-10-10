@@ -85,13 +85,15 @@ class Runconfig(object):
         return name
 
 
-    def generate_new_runconfig(self, run_type, dataset, localid, 
-                               test=False, **extra):
+    def generate_new_runconfig(self, run_type, dataset, localid=None, 
+                               test=False, dryrun=False, **extra):
 
         # wlme runs depend on wlse runs
         if run_type == 'wlme':
             if 'serun' not in extra:
                 raise RuntimeError("You must send serun=something for wlme")
+            if localid is None:
+                raise RuntimeError("You must send localid= for wlme runs")
 
 
         run_name=self.generate_new_runconfig_name(run_type, test=test)
@@ -109,22 +111,27 @@ class Runconfig(object):
         runconfig={'run':run_name, 
                    'run_type':run_type,
                    'fileclass': fileclass,
-                   'filetype':filetype,
                    'pyvers':pyvers, 
                    'esutilvers': esutilvers,
                    'wlvers':wlvers,
                    'tmvvers':tmvvers,
-                   'dataset':dataset,
-                   'localid':localid}
+                   'dataset':dataset}
+
+        if localid is not None:
+            runconfig['localid'] = localid
+
         for e in extra:
             if e not in runconfig:
                 runconfig[e] = extra[e]
 
         fullpath=self.getpath(run_name)
         stdout.write('Writing to file: %s\n' % fullpath)
-        xmltools.dict2xml(runconfig, fullpath, roottag='runconfig')
+        if not dryrun:
+            xmltools.dict2xml(runconfig, fullpath, roottag='runconfig')
+            stdout.write("\n * Don't forget to check it into SVN!!!\n\n")
+        else:
+            stdout.write(" .... dry run, skipping file write\n")
 
-        stdout.write("\n * Don't forget to check it into SVN!!!\n\n")
         return runconfig
 
     def verify(self):
@@ -322,7 +329,7 @@ def wlse_basename(exposurename, ccd, ftype,
                   serun=None,
                   mohrify=False, ext='.fits'):
 
-    el=[exposurename, '%02i' % ccd, ftype]
+    el=[exposurename, '%02i' % int(ccd), ftype]
 
     if serun is not None:
         el=[serun]+el
@@ -595,20 +602,41 @@ def wlme_srclist_path(dataset, localid, tilename, band, serun):
 
 
 
+def pbs_dir(run, subdir=None):
+    outdir=path_join('~','pbs',run)
+    if subdir is not None:
+        outdir=path_join(outdir, subdir)
+    outdir=os.path.expanduser(outdir)
+    return outdir
 
-def wlme_pbs_dir(dataset, localid, tilename, band, merun):
-    desfiles_dir=getenv_check('DESFILES_DIR')
-    pbsdir=path_join(desfiles_dir,dataset,localid,'multishear-pbs', merun)
-    return pbsdir
 
-def wlme_pbs_name(tilename, band, merun):
-    pbsfile=[tilename,band,merun]
+def wlme_pbs_name(tilename, band):
+    pbsfile=[tilename,band]
     pbsfile='-'.join(pbsfile)+'.pbs'
     return pbsfile
     
-def wlme_pbs_path(dataset, localid, tilename, band, merun):
-    pbsfile=wlme_pbsfile_name(tilename,band, merun)
-    pbsdir=wlme_pbs_dir(tilename, band, merun)
+def wlme_pbs_path(merun, tilename, band):
+    pbsdir=pbs_dir(merun)
+    pbsfile=wlme_pbs_name(tilename,band)
+    pbsfile=path_join(pbsdir, pbsfile)
+    return pbsfile
+
+
+def wlse_pbs_name(exposurename, ccd=None):
+    pbsfile=[exposurename]
+    if ccd is not None:
+        pbsfile.append('%02i' % int(ccd))
+    pbsfile='-'.join(pbsfile)+'.pbs'
+    return pbsfile
+    
+def wlse_pbs_path(serun, exposurename, ccd=None):
+    if ccd is not None:
+        subdir='byccd'
+    else:
+        subdir=None
+
+    pbsdir=pbs_dir(serun, subdir=subdir)
+    pbsfile=wlse_pbs_name(exposurename, ccd=ccd)
     pbsfile=path_join(pbsdir, pbsfile)
     return pbsfile
 
