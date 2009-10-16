@@ -1,44 +1,26 @@
 """
     Order of doing things for SE image processing:
 
+        Find the collated, newest versions of SE "red" images and catalogs
 
-    Find the collated, newest versions of SE "red" images and catalogs
-        deswl.wlpipe.find_collated_redfiles(dataset, band)
-    dataset is just a label, this command currently will look for all
-    such files. Files get put under
-        $DESFILES_DIR/(dataset)/(dataset)-images-catalogs-(band).xml
+            deswl.wlpipe.find_collated_redfiles(dataset, band)
 
+        dataset is just a label, this command currently will look for all
+        such files. Files get put under
+            $DESFILES_DIR/(dataset)/(dataset)-images-catalogs-(band).xml
 
-
-        (note this is the old pre-batch system notes)
 
         # create a run name and its configuration
-        rc=deswl.files.Runconfig()
-        rc.generate_new_runconfig('wlse')
-
-        # For a given run, band generate an input file list.  Also split
-        # it up into chunks for each processor
-        # also write out a python script to run each chunk.  
-        # these go under $DESDATA/runconfig/runname/images-cats-$band-split 
+            rc=deswl.files.Runconfig()
+            rc.generate_new_runconfig('wlse', dataset)
         
-        generate_serun_filelists_scripts(run, band, rootdir=default_scratch_rootdir, badlist=None)
+        You can send test=True and dryrun=True also
 
-        # each script calls This
-        # run through image list and execute the code
-        process_serun_imagelist(serun, executable, 
-                          config_file=None, 
-                          imlist_file=None,
-                          flist=None,
-                          badlist_file=None,
-                          outdir=None,
-                          rootdir=None,
-                          verbose=True,
-                          mohrify=False):
 
-        # you can run a set of scripts for the 8 processors on each machine
-        # with this shell script. Run in the directory with the scripts.
-        run-wlpipe machine_number executable
-        (need to convert to batch system)
+        # create pbs scripts, either by pointing or by ccd number
+        # these files execute the shear-run stand alone code
+
+        generate_se_pbsfiles(serun, dataset, band, byccd=False): 
 
 
     For coadds, using multishear:
@@ -61,32 +43,60 @@
         To process data on your local machine, you need to find the files on
         local disk:
 
-            deswl.wlpipe.find_collated_coaddfiles(collated_file, toxml=outfile,
-                                                wlserun=run_for_fitpsf_shear)
+            deswl.wlpipe.find_collated_coaddfiles(dataset, band, localid, 
+                                                  withsrc=True,
+                                                  serun=None,
+                                                  rootdir=None,
+                                                  verbosity=1,
+                                                  dowrite=True)
+        most common usage will be
+            find_collated_coaddfiles(dataset, band, localid, serun=something)
+        because this will be the input to the coadd stuff later.
 
-        which I'm keeping here:
-            $DESFILES_DIR/(dataset)/(localid)/(dataset)-images-catalogs-withsrc-(localid)-(band).xml
+        I'm keeping these here:
+            $DESFILES_DIR/(dataset)/(localid)/
+               (dataset)-images-catalogs-withsrc-(localid)-(band).xml
 
         And to get the newest versions, send that file to:
             deswl.wlpipe.get_newest_coaddfiles(infofile, output_file)
+
+
         Stored in
-            $DESFILES_DIR/(dataset)/(localid)/(dataset)-images-catalogs-withsrc-(localid)-newest-(band).xml
+            $DESFILES_DIR/(dataset)/(localid)/
+              (dataset)-images-catalogs-withsrc-(localid)-newest-(band).xml
 
-        Then this file is used to generate source lists (SE images that contribute to the 
-        coadd tiles) for input to multishear.
 
-            deswl.wlpipe.generate_me_srclists(dataset, band, localid, outdir='.')
+        Then this file is used to generate source lists (SE images that 
+        contribute to the coadd tiles) for input to multishear.
+
+            deswl.wlpipe.generate_me_srclists(dataset,band,localid,serun)
 
         Which calls generate_me_srclist.  This will put files under the
-        given output directory.  Results are usually checked into desfiles under
-            $DESFILES_DIR/(dataset)/(localid)/multishear-srclist/(tilename)-(band)-srclist.dat
+        given output directory.  Results are usually checked into desfiles 
+        under
+            $DESFILES_DIR/(dataset)/(localid)/multishear-srclist/
+                          (tilename)-(band)-srclist.dat
 
-        This calls the function run_multishear(tilename,band,...) defined
-        in this module.  This requires only the tilename and band to
-        be set, and figures out all the input files and srclist files.
 
+
+
+
+        create a run name and its configuration
+            rc=deswl.files.Runconfig()
+            rc.generate_new_runconfig('wlme',dataset,localid=,serrun=)
+
+        You can send test=True and dryrun=True also
 
         
+
+
+        CHECK THE ABOVE FILES INTO SVN!!!
+
+
+        To write out the pbs files needed to process the new run:
+            deswl.wlpipe.generate_me_pbsfiles(merun,dataset,localid,band,serun)
+
+
         Running the code is easiest from the stand-alone wrapper
         multishear-run. If you use eups to manager your code, all you should
         need to run the code is to type the following command, or put it into
@@ -519,9 +529,10 @@ source /global/data/products/eups/bin/setups.sh
     fobj=open(outfile, 'w')
 
     fobj.write(header)
-    fobj.write(tmv_setup+'\n')
     fobj.write(wl_setup+'\n')
+
     # must come after if it is not the current version
+    fobj.write(tmv_setup+'\n')
     fobj.write(esutil_setup+'\n')
 
     fobj.write("shear-run    \\\n")
@@ -617,9 +628,10 @@ source /global/data/products/eups/bin/setups.sh
     fobj=open(outfile, 'w')
 
     fobj.write(header)
-    fobj.write(tmv_setup+'\n')
     fobj.write(wl_setup+'\n')
+
     # must come after if it is not the current version
+    fobj.write(tmv_setup+'\n')
     fobj.write(esutil_setup+'\n')
 
     fobj.write("shear-run    \\\n")
@@ -877,7 +889,7 @@ def run_shear(exposurename, ccd=None,
         runconfig.verify()
         stdout.write('OK\n')
         if outdir is None:
-            outdir = deswl.files.wlse_dir(serun, exposurename, rootdir=rootdir)
+            outdir=deswl.files.wlse_dir(serun, exposurename, rootdir=rootdir)
 
         dataset=runconfig['dataset']
     else:
@@ -1051,11 +1063,76 @@ def run_shear(exposurename, ccd=None,
 
 
 
+def check_shear(serun, band, rootdir=None, outdir=None):
+    """
+    rootdir= and outdir= refer to the directories where the outputs
+    are located, not outputs of this program
+    """
 
+    rc=deswl.files.Runconfig(serun)
+    dataset = rc['dataset']
 
+    infodict=deswl.files.collated_redfiles_read(dataset, band)
+    infolist = infodict['flist']
 
+    badlist=[]
+    for info in infolist:
+        exposurename=info['exposurename']
+        ccd=info['ccd']
 
+        fdict=deswl.files.generate_se_filenames(exposurename,ccd,
+                                                serun=serun, 
+                                                dir=outdir, 
+                                                rootdir=rootdir)
+        info['outputs'] = fdict
+        stars_file  = fdict['stars'],
+        fitpsf_file = fdict['fitpsf']
+        psf_file    = fdict['psf']
+        shear_file  = fdict['shear']
 
+        for ftype in ['stars','fitpsf','psf','shear','qa','stat']:
+            fpath=fdict[ftype]
+            if not os.path.exists(fpath):
+                stdout.write("%s file missing: %s\n" % (ftype,fpath))
+                info['failtype'] = ftype
+                badlist.append(info)
+                # break out of file type loop
+                break
+            if ftype == 'stat':
+                stat=xmltools.xml2dict(fpath, noroot=True)
+                exit_status = int( stat['exit_status'] )
+                if exit_status != 0:
+                    stdout.write("bad exit_status: %s\n" % exit_status)
+                    info['failtype'] = 'exit_status'
+                    badlist.append(info)
+    stdout.write('Found %s/%s problems\n' % (len(badlist),len(infolist)))
+    return badlist
+
+def check_shear_qa(badlist):
+    for b in badlist:
+        qa=b['outputs']['qa']
+        data = open(qa,'r').read()
+
+        stdout.write('from: %s\n' % qa)
+        stdout.write(data)
+        stdout.write('-'*50 + '\n')
+        key=raw_input('hit a key ')
+        if key.strip().lower() == 'q': 
+            return
+
+def check_shear_input_images(badlist, ext=1):
+    import pyfits
+    for b in badlist:
+        imfile=b['imfile']
+        stdout.write('\nReading %s[%s]\n' % (imfile,ext))
+        try:
+            data=pyfits.getdata(imfile,ext=ext)
+        except:
+            stdout.write("Error: %s\n" % repr(sys.exc_info()))
+
+        key=raw_input('hit a key ')
+        if key.strip().lower() == 'q': 
+            return
 
 
 def bach_split_imagecat_filelist(input_fname, roottag='bachsplit'):
@@ -1134,11 +1211,10 @@ def bach_split_imagecat_filelist(input_fname, roottag='bachsplit'):
 
 
 def _find_wl_output(wlserun, src, typename, mohrify=False):
-    fname=deswl.files.wlse_path(wlserun, 
-                                src['run'],
-                                src['exposurename'],
+    fname=deswl.files.wlse_path(src['exposurename'],
                                 int(src['ccd']),
                                 typename,
+                                serun=wlserun,
                                 mohrify=mohrify)
     if not os.path.exists(fname):
         stdout.write("WL file not found: %s\n" % fname)
@@ -1162,7 +1238,7 @@ def find_collated_coaddfiles(dataset, band, localid,
     Find coadd files on the local disk.  The collated_coaddfiles, created
     from the db, is used as the starting point.
 
-    If withsrc=True then the SE images that when into the coadd are also
+    If withsrc=True then the SE images that went into the coadd are also
     searched for.
 
     If serun is not None then the corresponding WL outputs for the SE images
@@ -1250,7 +1326,7 @@ def find_collated_coaddfiles(dataset, band, localid,
 
 
                 # check for the fitted psf file and shear file
-                if serun is not None:
+                if serun is not None and keepsrc:
                     for ftype in ['fitpsf','shear']:
                         res=_find_wl_output(serun,src,ftype,mohrify=mohrify)
                         if not res:
@@ -1476,9 +1552,10 @@ source /global/data/products/eups/bin/setups.sh
     fobj=open(outfile, 'w')
 
     fobj.write(header)
-    fobj.write(tmv_setup+'\n')
     fobj.write(wl_setup+'\n')
+
     # must come after if it is not the current version
+    fobj.write(tmv_setup+'\n')
     fobj.write(esutil_setup+'\n')
 
     fobj.write("multishear-run    \\\n")
@@ -1486,7 +1563,7 @@ source /global/data/products/eups/bin/setups.sh
     fobj.write('    --rootdir=%s  \\\n' % scratch_rootdir)
     fobj.write('    --copyroot    \\\n')
     fobj.write('    --cleanup     \\\n')
-    fobj.write('    --nodots      \\\n')
+    #fobj.write('    --nodots      \\\n')
     fobj.write('    --writelog    \\\n')
     fobj.write('    %s %s &> "$logf"\n' % (tilename, band))
 
@@ -1546,7 +1623,7 @@ def generate_me_pbsfiles(merun, dataset, localid, band, serun):
 
 
 
-def make_me_commandlist(fdict,shear_dc4_input_format=True, debug=0):
+def make_me_commandlist(fdict,shear_dc4_input_format=False, debug=0):
 
     # eventually change multishear_sky_method to MAP when we get that data
     command=[fdict['executable'],
@@ -1594,7 +1671,8 @@ def process_me_tile(fdict,
 
     exit_status, stdout_ret, stderr_ret = \
         execute_command(command, timeout=timeout,
-                        stdout_file=stdout_file,stderr_file=None)
+                        stdout_file=stdout_file,stderr_file=None,
+                        verbose=True)
 
     stdout.write('exit_status: %s\n' % exit_status)
     return exit_status
@@ -1902,7 +1980,9 @@ def check_multishear(merun, band,
     dataset=rc['dataset']
     localid=rc['localid']
     if tilelist is None:
-        infodict=deswl.files.collated_coaddfiles_read(dataset, band, localid=localid)
+        infodict=deswl.files.collated_coaddfiles_read(dataset, 
+                                                      band, 
+                                                      localid=localid)
         tileinfo=infodict['info']
     else:
         # fake up a tileinfo structure

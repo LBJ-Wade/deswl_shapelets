@@ -1,4 +1,32 @@
 -------------------------------------------------------------------------
+v0.51   (2009-10-16)  Incremental changes. The main reason for a new tag
+	is that shear_dc4_input_format=False now; there was no easy keyword
+	for this from the command line tool.
+
+src/ConfigFile.  Added feature to allow +filename include an extra config
+	file.  This also works on the command line.
+python/wlpipe.py:  
+	make_me_commandlist():  shear_dc4_input_format=False.  This will 
+		require tagging a new version for the ME run based on wlse0001.
+	check_shear(): new function to check the outputs of the SE shear
+		measurements
+	check_shear_qa(): Print the qa file for the input file info list.
+	check_shear_input_images(): Try to read the image file.  Used for
+		testing the fitserr messages which are the most common 
+		failure mode.
+	
+	Moved to using the new wlse_path()/wlme_path() code everywhere.
+
+	find_collated_coaddfiles()  work with more standardized inputs:  
+		dataset, band, localid, serun=, rootdir=
+	
+	pbs creation routines, make sure tmv and esutil setups come after wl,
+	in case they are not current.  Also allow dots by default for the 
+	multishear code.
+	
+	Extensive additions to the doc string.
+
+-------------------------------------------------------------------------
 v0.50  (2009-10-10)  This tag represents substantive changes in the
 	python framework and the C++ code.  Hence the jump from 0.43 to 0.50
 
