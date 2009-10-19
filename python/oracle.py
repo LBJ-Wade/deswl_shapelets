@@ -5,7 +5,7 @@ try:
 except:
     stderr.write('Could not import oracle utilities\n')
 
-import xmltools
+from esutil import json_util
 
 def get_tile_run(tilename, verbose=False, multi=False):
     """
@@ -185,7 +185,7 @@ def get_coadd_src_locations(coadd_id=None, tilename=None, band=None, run=None,
         i += 1
 
     if ftype != 'red':
-        raise ValueError,"Reach itmax=%s before finding 'red' images. last is %s" % (itmax, ftype)
+        raise ValueError("Reach itmax=%s before finding 'red' images. last is %s" % (itmax, ftype))
 
     # now the idlist comes from id instead of parentid
     idstrings = [str(id) for id in res['id']]
@@ -215,7 +215,7 @@ def get_coadd_src_locations(coadd_id=None, tilename=None, band=None, run=None,
 
 
 
-def collate_coadd_catim(band, xmlfile, getsrc=False):
+def collate_coadd_catim(band, outfile, getsrc=False):
     """
 
     join the catalog table (catalogtype='coadd_cat' and project='DES') to the
@@ -281,12 +281,11 @@ def collate_coadd_catim(band, xmlfile, getsrc=False):
             coadd_id = res[i]['parentid']
             srclist = get_coadd_src_locations(coadd_id,dictlist=True)
             if srclist is None:
-                raise ValueError,\
-                    'Could not get source list for id=%s\n' % coadd_id
+                raise ValueError('Could not get source list for id=%s\n' % coadd_id)
             ftype_bad = \
                 [sl['filetype'] for sl in srclist if sl['filetype'] != 'red']
             if len(ftype_bad) > 0:
-                raise ValueError,"Expected 'red' type got '%s'\n" % ftype_bad[0]
+                raise ValueError("Expected 'red' type got '%s'\n" % ftype_bad[0])
 
             # fix up the bands
             for sl in srclist:
@@ -296,8 +295,8 @@ def collate_coadd_catim(band, xmlfile, getsrc=False):
             res[i]['srclist'] = srclist
 
 
-    stdout.write('Writing to xml file: %s\n' % xmlfile)
-    xmltools.dict2xml({'info':res}, xmlfile, roottag='coaddinfo')
+    stdout.write('Writing to file: %s\n' % outfile)
+    json_util.write(res, outfile)
 
 
 def dump_query(q, fname):

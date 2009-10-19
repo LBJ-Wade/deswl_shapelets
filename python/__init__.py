@@ -1,3 +1,4 @@
+import sys
 
 def version():
     from sys import stderr
@@ -54,9 +55,13 @@ def get_external_version(version_command):
 def get_tmv_version():
     return get_external_version('tmv-version')
 
-def get_python_version():
+def get_python_version(numerical=False):
     import sys
-    pyvers='v%s.%s.%s' % sys.version_info[0:3]
+    if numerical:
+        v=sys.version_info[0:3]
+        pyvers=v[0] + 0.1*v[1] + 0.01*v[2]
+    else:
+        pyvers='v%s.%s.%s' % sys.version_info[0:3]
     return pyvers
 
 

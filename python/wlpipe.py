@@ -7,7 +7,7 @@
 
         dataset is just a label, this command currently will look for all
         such files. Files get put under
-            $DESFILES_DIR/(dataset)/(dataset)-images-catalogs-(band).xml
+            $DESFILES_DIR/(dataset)/(dataset)-images-catalogs-(band).json
 
 
         # create a run name and its configuration
@@ -34,8 +34,8 @@
         For dc4 I'm putting all this stuff into the nyu repo 'desfiles':
             $DESFILES_DIR/dc4coadd
         Generally
-            $DESFILES_DIR/(dataset)/(dataset)-images-catalogs-(band).xml
-            $DESFILES_DIR/(dataset)/(dataset)-images-catalogs-withsrc-(band).xml
+          $DESFILES_DIR/(dataset)/(dataset)-images-catalogs-(band).json
+          $DESFILES_DIR/(dataset)/(dataset)-images-catalogs-withsrc-(band).json
 
         This data is not really versioned.  The product should be installed and
         set up so that DESFILES_DIR is set (this is also done by setup wl).
@@ -55,7 +55,7 @@
 
         I'm keeping these here:
             $DESFILES_DIR/(dataset)/(localid)/
-               (dataset)-images-catalogs-withsrc-(localid)-(band).xml
+               (dataset)-images-catalogs-withsrc-(localid)-(band).json
 
         And to get the newest versions, send that file to:
             deswl.wlpipe.get_newest_coaddfiles(infofile, output_file)
@@ -63,7 +63,7 @@
 
         Stored in
             $DESFILES_DIR/(dataset)/(localid)/
-              (dataset)-images-catalogs-withsrc-(localid)-newest-(band).xml
+              (dataset)-images-catalogs-withsrc-(localid)-newest-(band).json
 
 
         Then this file is used to generate source lists (SE images that 
@@ -94,7 +94,7 @@
 
 
         To write out the pbs files needed to process the new run:
-            deswl.wlpipe.generate_me_pbsfiles(merun,dataset,localid,band,serun)
+            deswl.wlpipe.generate_me_pbsfiles(merun,band)
 
 
         Running the code is easiest from the stand-alone wrapper
@@ -142,8 +142,13 @@ import deswl
 
 import esutil
 from esutil.ostools import path_join, getenv_check
-from esutil import xmltools
+from esutil import json_util
 from esutil.misc import ptime
+
+if deswl.get_python_version(numerical=True) >= 3:
+    inputfunc = input
+else:
+    inputfunc = raw_input
 
 
 def default_dataset(run_type):
@@ -174,8 +179,8 @@ def get_red_filelist(band=None, extra=None, newest=False, return_dict=False):
     exit_status, flist, serr = execute_command(command, verbose=True)
 
     if exit_status != 0:
-        raise RuntimeError,\
-          'des-list-files: exit status: %s stderr: %s' % (exit_status, serr)
+        raise RuntimeError("des-list-files: exit status: "
+                           "%s stderr: %s" % (exit_status, serr))
     
     flist=flist.split('\n')
     while flist[-1] == '':
@@ -276,69 +281,6 @@ def find_collated_redfiles(dataset, band):
 
     deswl.files.collated_redfiles_write(dataset, band, infolist)
 
-
-def generate_serun_filelists_scripts(run, band, 
-                                     rootdir=None, badlist=None):
-    """
-    This is partially no longer needed since we have a batch system in place
-
-
-    This is very generic, you will also want to do do more finely grained 
-    selections, especially when debugging.  In that case it may make more
-    sense to run individual files than work in the full framework.
-
-    Note badlist is used as an input to the *processing* of this filelist
-    later, not in building the file list.
-    """
-
-    if rootdir is None:
-        rootdir=default_scratch_rootdir()
-    runconfig_dir=deswl.files.runconfig_dir(run)
-    runconfig_file=deswl.files.runconfig_name(run)
-    runconfig=xmltools.xml2dict(runconfig_file)
-
-    allfile = os.path.join(runconfig_dir, 'images-cats-'+band+'.xml')
-    splitdir=os.path.join(runconfig_dir, 'images-cats-'+band+'-bachsplit')
-    
-    stdout.write('Getting matched image and catalog lists\n')
-    flist = get_matched_red_image_catlist(band=band)
-
-    stdout.write('Found %s images\n' % len(flist))
-
-    fdict={'files':flist}
-    stdout.write('Writing all to: %s\n' % allfile)
-    xmltools.dict2xml(fdict, allfile, roottag='filelist')
-
-    stdout.write('Splitting files\n')
-    # this splits the file list and writes out new xml files.  Also returns
-    # the names of those files
-    splitfiles = bach_split_imagecat_filelist(allfile)
-
-    # Now write out python scripts
-    conf_file=os.path.join(getenv_check('WL_DIR'),'etc/wl_dc4.config')
-    rc=deswl.files.Runconfig()
-    for ex in rc.se_executables:
-        for f in splitfiles:
-            pyfilename=f.replace('.xml','-'+ex+'.py')
-            stdout.write('Writing python script: %s\n' % pyfilename)
-            pyfile=open(pyfilename,'w')
-            pyfile.write('from deswl import wlpipe\n')
-            pyfile.write('\n')
-            pyfile.write('run="%s"\n' % run)
-            pyfile.write('ex="%s"\n' % ex)
-            pyfile.write('conf="%s"\n' % conf_file)
-            pyfile.write('flist="%s"\n' % f)
-            pyfile.write('\n')
-            extra=''
-            if rootdir is not None:
-                extra += ', rootdir="%s"' % rootdir
-            if badlist is not None:
-                extra +=', badlist_file="%s"' % badlist
-
-            command=\
-                'wlpipe.process_serun_imagelist(run, ex, conf, flist'+extra+')'
-            pyfile.write(command+'\n')
-            pyfile.close()
 
 
 def _poll_subprocess(pobj, timeout_in):
@@ -805,7 +747,7 @@ def run_shear(exposurename, ccd=None,
     the file
 
         $DESFILES_DIR/(dataset)/
-           (dataset)-images-catalogs-withsrc-(localid)-newest-(band).xml
+           (dataset)-images-catalogs-withsrc-(localid)-newest-(band).json
 
     This contains a list of the newest versions of all the unique tiles.  The
     exececutable file for multishear and the config file are under $WL_DIR/bin
@@ -1027,7 +969,7 @@ def run_shear(exposurename, ccd=None,
     stat['exit_status'] = exit_status
     stdout.write('\nWriting stat file: %s\n' % fdict['stat'])
     execbase=os.path.basename(executable)
-    xmltools.dict2xml(stat, fdict['stat'], roottag=execbase+'_stats')
+    json_util.write(stat, fdict['stat'])
 
 
     # If requested, and if rootdir != the default, then copy the data files
@@ -1099,7 +1041,7 @@ def check_shear(serun, band, rootdir=None, outdir=None):
                 # break out of file type loop
                 break
             if ftype == 'stat':
-                stat=xmltools.xml2dict(fpath, noroot=True)
+                stat=json_util.read(fpath)
                 exit_status = int( stat['exit_status'] )
                 if exit_status != 0:
                     stdout.write("bad exit_status: %s\n" % exit_status)
@@ -1116,7 +1058,7 @@ def check_shear_qa(badlist):
         stdout.write('from: %s\n' % qa)
         stdout.write(data)
         stdout.write('-'*50 + '\n')
-        key=raw_input('hit a key ')
+        key=inputfunc('hit a key ')
         if key.strip().lower() == 'q': 
             return
 
@@ -1130,77 +1072,10 @@ def check_shear_input_images(badlist, ext=1):
         except:
             stdout.write("Error: %s\n" % repr(sys.exc_info()))
 
-        key=raw_input('hit a key ')
+        key=inputfunc('hit a key ')
         if key.strip().lower() == 'q': 
             return
 
-
-def bach_split_imagecat_filelist(input_fname, roottag='bachsplit'):
-    """
-    We don't need this any more since we have a batch system
-
-    Split list into files for input to the pipeline, one for each core on each
-    bachNN machine
-
-    """
-
-    flistdict, roottag = xmltools.xml2dict(input_fname, seproot=True)
-    flist=flistdict['files']
-
-    ntot = len(flist)
-
-    # number of processors
-    # number of machines
-    nmachine = 4
-    cores_per_machine = 8
-
-    ncores = nmachine*cores_per_machine
-
-    npercore = ntot/ncores
-    nleft = ntot % ncores
-
-    machine_front = 'bach'
-
-    # get basename without extension
-    dname=os.path.dirname(input_fname)
-    ifb=os.path.basename(input_fname)
-    doti=ifb.find('.')
-    if doti == -1:
-        raise ValueError,'filehas no extension'
-
-    ifb=ifb[0:doti]
-
-    outdir=os.path.join(dname, ifb+'-split')
-    if not os.path.exists(outdir):
-        os.mkdir(outdir)
-
-
-    i=0
-    minlist=[]
-    maxlist=[]
-    filenames=[]
-    for imach in range(nmachine):
-        for icore in range(cores_per_machine):
-            name=ifb+'-'+machine_front + '%02i-%02i.xml' % (imach, icore)
-            name = os.path.join(outdir, name)
-            filenames.append(name)
-            stdout.write(name+'\n')
-            stdout.write('    %i : %i\n' % (i*npercore,(i+1)*npercore))
-
-            minlist.append(i*npercore)
-            maxlist.append((i+1)*npercore)
-            i+=1
-    if nleft > 0:
-        stdout.write('    and with remainder: %i\n' % (i*npercore+nleft) )
-        maxlist[-1] = i*npercore+nleft
-
-    for i in range(ncores):
-        flist_sub = flist[minlist[i]:maxlist[i]]
-        fdict={'input_file':os.path.abspath(input_fname),
-               'files':flist_sub}
-        xmltools.dict2xml(fdict, filenames[i], roottag=roottag)
-
-    return filenames
 
 
 
@@ -1267,7 +1142,7 @@ def find_collated_coaddfiles(dataset, band, localid,
 
     infodict = deswl.files.collated_coaddfiles_read(dataset, band,
                                                     withsrc=withsrc)
-    allinfo=infodict['info']
+    #allinfo=infodict['info']
 
     # where to look
     if rootdir is None:
@@ -1368,7 +1243,7 @@ def find_collated_coaddfiles(dataset, band, localid,
         if not os.path.exists(outdir):
             os.makedirs(outdir)
         outdict={'rootdir':rootdir, 'info': output}
-        xmltools.dict2xml(outdict, output_path, roottag='tileinfo_local')
+        json_util.write(outdict, output_path)
         stdout.write("\n  * Don't forget to check it into SVN!!!\n\n")
 
 
@@ -1414,13 +1289,15 @@ def get_newest_coaddfiles(dataset, band, localid, withsrc=True, serun=None,
                 stdout.write("Replacing '%s' with '%s'\n" % (oldkey,newkey))
                 tmpdict[tilename] = info
 
-    output = {'info': tmpdict.values(), 'rootdir':infodict['rootdir']}
+    # convert to list for py3k
+    values = list( tmpdict.values() )
+    output = {'info': values, 'rootdir':infodict['rootdir']}
 
     stdout.write('Finally keeping %s/%s\n' % (len(tmpdict), len(allinfo)))
     stdout.write('Output file: %s\n' % output_path)
 
     if dowrite:
-        xmltools.dict2xml(output, output_path, roottag='tileinfo_local')
+        json_util.write(output, output_path)
 
 def generate_me_srclist(dataset, band, localid, serun, tileinfo):
     """
@@ -1570,10 +1447,17 @@ source /global/data/products/eups/bin/setups.sh
     fobj.write('\n')
     fobj.close()
 
-def generate_me_pbsfiles(merun, dataset, localid, band, serun): 
+def generate_me_pbsfiles(merun, band): 
+    """
+    generate_me_pbsfiles(merun, band)
+    """
 
     stdout.write("Creating pbs files\n")
 
+    rc = deswl.files.Runconfig(merun)
+    dataset = rc['dataset']
+    localid = rc['localid']
+    serun   = rc['serun']
 
     # get the file lists
     infodict,tileinfo_file = \
@@ -1718,7 +1602,7 @@ def run_multishear(tilename, band,
     the file
 
         $DESFILES_DIR/(dataset)/
-           (dataset)-images-catalogs-withsrc-(localid)-newest-(band).xml
+           (dataset)-images-catalogs-withsrc-(localid)-newest-(band).json
 
     This contains a list of the newest versions of all the unique tiles.  The
     exececutable file for multishear and the config file are under $WL_DIR/bin
@@ -1837,8 +1721,8 @@ def run_multishear(tilename, band,
             break
 
     if coaddimage is None:
-        raise ValueError,"Tilename '%s' not found in '%s'" % \
-                (tilename, tileinfo_file)
+        raise ValueError("Tilename '%s' not found in '%s'" % \
+                         (tilename, tileinfo_file))
 
     fdict=deswl.files.generate_me_filenames(tilename, band, 
                                             merun=merun, dir=outdir, 
@@ -1933,7 +1817,7 @@ def run_multishear(tilename, band,
     stat['exit_status'] = exit_status
     stdout.write('Writing stat file: %s\n' % fdict['stat'])
     execbase=os.path.basename(executable)
-    xmltools.dict2xml(stat, fdict['stat'], roottag=execbase+'_stats')
+    json_util.write(stat, fdict['stat'])
 
 
     # If requested, and if rootdir != the default, then copy the data files
@@ -1976,13 +1860,15 @@ def check_multishear(merun, band,
     Currently only works by merun identifier
     """
 
-    rc=deswl.files.Runconfig('merun')
+    rc=deswl.files.Runconfig(merun)
     dataset=rc['dataset']
     localid=rc['localid']
+    serun=rc['serun']
+
     if tilelist is None:
-        infodict=deswl.files.collated_coaddfiles_read(dataset, 
-                                                      band, 
-                                                      localid=localid)
+        infodict=deswl.files.collated_coaddfiles_read(dataset, band, 
+                                                      localid=localid,
+                                                      serun=serun)
         tileinfo=infodict['info']
     else:
         # fake up a tileinfo structure
@@ -1994,25 +1880,21 @@ def check_multishear(merun, band,
     badlist=[]
     for ti in tileinfo:
         tilename=ti['tilename']
-        fdict=generate_me_filenames(tilename, band, 
-                                    merun=merun, rootdir=rootdir)
+        fdict=deswl.files.generate_me_filenames(tilename, band, 
+                                                merun=merun, rootdir=rootdir)
 
         
-        logfile=fdict['log']
-        stdofile=fdict['stdout']
-        stdefile=fdict['stderr']
+        statfile=fdict['stat']
+        qafile=fdict['qa']
         msfile=fdict['multishear']
 
         error_found=False
         missing=[]
-        if not os.path.exists(logfile):
-            missing.append('logfile')
+        if not os.path.exists(statfile):
+            missing.append('statfile')
             error_found=True
-        if not os.path.exists(stdofile):
-            missing.append('stdout')
-            error_found=True
-        if not os.path.exists(stdefile):
-            missing.append('stderr')
+        if not os.path.exists(qafile):
+            missing.append('qa')
             error_found=True
         if not os.path.exists(msfile):
             missing.append('multishear')
@@ -2021,20 +1903,22 @@ def check_multishear(merun, band,
         if len(missing) > 0:
             missmess=','.join(missing)
             stdout.write('%s-%s: %s missing\n' % (tilename,band,missmess))
+            stdout.write('    %s\n' % fdict['stat'])
 
-        if 'logfile' not in missing:
-            log=xmltools.xml2dict(logfile,noroot=True)
-            exit_status=int( log['exit_status'] )
+        if 'statfile' not in missing:
+            stat=json_util.read(statfile)
+            # left over from old xml format
+            exit_status=int( stat['exit_status'] )
             if exit_status != 0:
                 stdout.write("%s-%s: Found non-zero exit "
-                             "status %s in logfile %s\n" % \
-                                (tilename,band,exit_status,logfile))
+                             "status %s in stat file %s\n" % \
+                                (tilename,band,exit_status,statfile))
                 error_found=True
             
         if error_found:
             badlist.append(ti)
 
     if badlist_file is not None:
-        xmltools.dict2xml({'files':badlist}, badlist_file, roottag='filelist')
+        json_util.write(badlist, badlist_file)
     return badlist
         

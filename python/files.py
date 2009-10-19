@@ -3,7 +3,7 @@ import platform
 import os
 import re
 import esutil
-from esutil import xmltools
+from esutil import json_util
 from esutil.ostools import path_join, getenv_check
 import pprint
 import deswl
@@ -49,11 +49,12 @@ class Runconfig(object):
     def getpath(self, run=None):
         if run is None:
             if self.run is None:
-                raise ValueError("Either send run= keyword or load a runconfig")
+                raise ValueError("Either send run= keyword or "
+                                 "load a runconfig")
             else:
                 run=self.run
         rdir = self.get_basedir()
-        return path_join(rdir, run+'-config.xml')
+        return path_join(rdir, run+'-config.json')
     
 
     def generate_new_runconfig_name(self, run_type, test=False):
@@ -85,8 +86,17 @@ class Runconfig(object):
         return name
 
 
-    def generate_new_runconfig(self, run_type, dataset, localid=None, 
-                               test=False, dryrun=False, **extra):
+    def generate_new_runconfig(self, 
+                               run_type, 
+                               dataset, 
+                               localid=None, 
+                               test=False, 
+                               dryrun=False, 
+                               pyvers=None,
+                               esutilvers=None,
+                               wlvers=None,
+                               tmvvers=None,
+                               **extra):
 
         # wlme runs depend on wlse runs
         if run_type == 'wlme':
@@ -103,10 +113,14 @@ class Runconfig(object):
         filetype = self.run_types[run_type]['filetype']
 
         # software versions
-        pyvers=deswl.get_python_version()
-        esutilvers=esutil.version()
-        wlvers=deswl.version()
-        tmvvers=deswl.get_tmv_version()
+        if pyvers is None:
+            pyvers=deswl.get_python_version()
+        if esutilvers is None:
+            esutilvers=esutil.version()
+        if wlvers is None:
+            wlvers=deswl.version()
+        if tmvvers is None:
+            tmvvers=deswl.get_tmv_version()
 
         runconfig={'run':run_name, 
                    'run_type':run_type,
@@ -127,7 +141,7 @@ class Runconfig(object):
         fullpath=self.getpath(run_name)
         stdout.write('Writing to file: %s\n' % fullpath)
         if not dryrun:
-            xmltools.dict2xml(runconfig, fullpath, roottag='runconfig')
+            json_util.write(runconfig, fullpath)
             stdout.write("\n * Don't forget to check it into SVN!!!\n\n")
         else:
             stdout.write(" .... dry run, skipping file write\n")
@@ -175,7 +189,7 @@ class Runconfig(object):
         if not os.path.exists(name):
             mess="runconfig '%s' not found at %s\n" % (run, name)
             raise RuntimeError(mess)
-        runconfig = xmltools.xml2dict(name, noroot=True)
+        runconfig = json_util.read(name)
         return runconfig
 
     def asdict(self):
@@ -246,7 +260,8 @@ def extract_image_exposure_names(flist):
         info=get_info_from_path(imfile, 'red')
         allinfo[info['exposurename']] = info['exposurename']
 
-    return allinfo.keys()
+    # list() of for py3k
+    return list( allinfo.keys() )
 
 
 def tile_dir(coaddrun, rootdir=None):
@@ -380,7 +395,7 @@ def generate_se_filenames(exposurename, ccd, serun=None,
         if ftype == 'qa':
             ext='.dat'
         elif ftype == 'stat':
-            ext='.xml'
+            ext='.json'
         else:
             ext='.fits'
 
@@ -448,7 +463,8 @@ def wlme_path(tilename, band, ftype, merun=None,
     return name
 
 
-def generate_me_filenames(tilename, band, merun=None, dir=None, rootdir=None):
+def generate_me_filenames(tilename, band, 
+                          merun=None, dir=None, rootdir=None):
 
     fdict={}
 
@@ -459,7 +475,7 @@ def generate_me_filenames(tilename, band, merun=None, dir=None, rootdir=None):
         if ftype == 'qa':
             ext='.dat'
         elif ftype == 'stat':
-            ext='.xml'
+            ext='.json'
         else:
             ext='.fits'
 
@@ -487,7 +503,7 @@ def collated_redfiles_dir(dataset):
 def collated_redfiles_name(dataset, band):
     name=[dataset,'images','catalogs']
     name.append(band)
-    return '-'.join(name)+'.xml'
+    return '-'.join(name)+'.json'
 
 def collated_redfiles_path(dataset, band):
     tdir=collated_redfiles_dir(dataset)
@@ -504,7 +520,7 @@ def collated_redfiles_read(dataset, band, getpath=False):
     else:
         f=collated_redfiles_path(dataset, band)
         stdout.write('Reading tileinfo file: %s\n' % f)
-        tileinfo=xmltools.xml2dict(f,noroot=True)
+        tileinfo=json_util.read(f)
 
         _redfiles_cache['filename'] = f
         _redfiles_cache['data'] = tileinfo
@@ -528,7 +544,7 @@ def collated_redfiles_write(dataset, band, flist):
             'flist':flist}
 
     stdout.write('Writing tileinfo file: %s\n' % f)
-    xmltools.dict2xml(output, f, roottag='redlist')
+    json_util.write(output, f)
     stdout.write("    Don't forget to check it into SVN!!!!!")
 
 
@@ -563,7 +579,7 @@ def collated_coaddfiles_name(dataset, band,
         name.append(serun)
     name.append(band)
 
-    return '-'.join(name)+'.xml'
+    return '-'.join(name)+'.json'
 
 def collated_coaddfiles_path(dataset, band, 
                              withsrc=True, 
@@ -590,7 +606,7 @@ def collated_coaddfiles_read(dataset, band,
                                localid=localid, 
                                newest=newest)
     stdout.write('Reading tileinfo file: %s\n' % f)
-    tileinfo=xmltools.xml2dict(f,noroot=True)
+    tileinfo=json_util.read(f)
     if getpath:
         return tileinfo, f
     else:
@@ -689,14 +705,14 @@ def get_info_from_path(filepath, fileclass):
     if fileclass == 'red':
         nparts = 6
         if len(fsplit) < nparts:
-            raise ValueError,\
-                'Found too few file elements, '+\
-                '%s instead of %s: "%s"\n' % (len(fsplit), nparts, filepath)
+            tmp=(len(fsplit), nparts, filepath)
+            mess="Found too few file elements, %s instead of %s: '%s'\n" % tmp
+            raise ValueError(mess)
 
         if fsplit[1] != 'red' or fsplit[3] != 'red':
             mess="In file path %s expected 'red' in positions "+\
                 "1 and 3 after DESDATA=%s" % (filepath,DESDATA)
-            raise ValueError,mess
+            raise ValueError(mess)
 
         odict['redrun'] = fsplit[2]
         odict['exposurename'] = fsplit[4]
@@ -726,21 +742,21 @@ def get_info_from_path(filepath, fileclass):
         # just remove the decam-
         # might have to alter this some time if they change the names
         if base[0:6] != 'decam-':
-            raise ValueError,'Expected "decam-" at beginning'
+            raise ValueError('Expected "decam-" at beginning')
         odict['pointing'] = base.replace('decam-','')
 
         
     elif fileclass == 'coadd':
         nparts = 5
         if len(fsplit) < nparts:
-            raise ValueError,\
-                'Found too few file elements, '+\
+            mess= 'Found too few file elements, '+\
                 '%s instead of %s: "%s"\n' % (len(fsplit), nparts, filepath)
+            raise ValueError(mess)
 
         if fsplit[1] != 'coadd' or fsplit[3] != 'coadd':
             mess="In file path %s expected 'red' in positions "+\
                 "1 and 3 after DESDATA=%s" % (filepath,DESDATA)
-            raise ValueError,mess
+            raise ValueError(mess)
 
 
         odict['coaddrun'] = fsplit[2]
@@ -757,8 +773,8 @@ def get_info_from_path(filepath, fileclass):
 
         last_underscore = tmp.rfind('_')
         if last_underscore == -1:
-            raise ValueError,\
-                'Expected t find an underscore in basename of %s' % filepath
+            mess='Expected t find an underscore in basename of %s' % filepath
+            raise ValueError(mess)
         odict['tilename'] = tmp[0:last_underscore]
 
     
