@@ -52,63 +52,210 @@ python/wlpipe.py: Rewrote SE shear pipelines to use standardized
 	Write PBS files for ME and SE.  SE can be by ccd or exposurename.
 
 
-* Memory leak fixed when using regions in multi-epoch code combined with openmp.
- (Mike can you give more details?, I've just copied the svn log below)  
+Fixed memory leak when using regions in multi-epoch code combined with openmp.
+The problem was basically that the memory was getting fragmented.  So 
+the program over time was allocating much more memory than it was actually 
+using.  The rest of the memory was presumably is pieces that were too small
+for the allocator to use.  So top reported that the program was using much
+more memory than valgrind (for example) said the program acutally had 
+allocated.  In other words, not a normal memory leak, but it still caused
+the computer to run out of memory.
 
- I still don't really understand what was causing the bug, especially why it
- only showed up with openmp compilations, but basically what seemed to be
- happening was the memory was getting very fragmented, eventually 90% of the
- memory allocated by the program would be technically available, but not large
- enough for the block sizes I needed.
+The fix required two changes: 1) using boost::shared_ptr to minimize the 
+number of reallocations, and 2) using a pool allocator to sequester
+the memory used for the PixelList objects.  (I tried using the boost
+pool_allocator, but it turns out to be not very good for our purpose, so 
+I ended up writing my own.)
 
- The solution was twofold:
- 1) 
-   I now use a shared_ptr<vector<Pixel> > for the underlying data in PixelList
-   rather than auto_ptr<vector<Pixel> >.  This let me change the copy
-   constructor's behavior to allow shallow copies, so a second copy of a
-   PixelList shares the same actual vector<Pixel> as the original.
-   This is important, since we do push_back(pixlist) on a vector of
-   PixelLists.  When vector runs out of space, it needs to copy all its
-   elements to new storage.  Now, this operation is both more efficient
-   (no actual element copying) and leads to fewer new/delete cycles of the
-   PixelList data, so less fragmentation.
+See the log entry for r4465 for more details.
 
- 2) 
-   I now use a pool allocator for the vector<Pixel> stored in PixelList.  This
-   forces the program to keep any memory used for these vectors earmarked for
-   future PixelList allocations after the memory is nominally freed up.  This
-   keeps this memory for getting used by other smaller allocations between the
-   time when I free it (after one section is done) and when I need it again (in
-   the next section).
-
-   It turns out that the boost pool allocator is not that great.
-
-   First, while it's faster that what I had for allocating, it is _way_ slow
-   for deallocating.  So the net result is that it is much slower overall.
-
-   And second, because of its strategy of doubling the block size each time, it
-   ends up allocating up to nearly twice as much as it needs.  So, since we are
-   often semi-close to the memory limit as it is, this is unacceptable for our
-   needs.
-
-   So I went back to my custom allocator and found out why it was slow, and
-   fixed it, so it now seems to be working pretty fast.  Not quite as fast as
-   the native new and delete functions probably, but close enough that the
-   difference isn't noticeable anymore.
+Anyway, this fix means that the memory usage seems to scale more or less as
+const + size^2.  The const is for some memory allocations that are needed
+regargless of what size is used.  But the bulk of the memory usage is
+proportionaly to the largest number of galaxies in one of the sections, which
+scales approximately as size^2.
 
 
+-------------------------------------------------------------------------
+v0.43   (2009-09-30)  DC5 development version:
+
+Added ability to use background maps for the sky values.
+This was needed for the multishear program, since the objects detected
+on the coadd image are not necessarily detected on the single-epoch
+images.  Thus, there is no catalog that lists the sky values for these
+objects, which is needed for doing any measurements on those objects.
+
+Updated metadata file handling to keep track of more data and make it 
+more robust to errors.
+
+-------------------------------------------------------------------------
+v0.42   (2009-09-23)  DC5 development version:
+
+New framework for running multishear code.  Ready for full run on dc4
+data at BNL.
+
+-------------------------------------------------------------------------
+v0.41   (2009-09-22)  DC5 development version:
+
+Bug fixes since v0.40 from tests of rerunning single-epoch pipeline on 
+reprocessed DC4 and GSN data.  Also, some work in fixing bugs in multishear.
+
+
+-------------------------------------------------------------------------
+v0.40   (2009-09-01)  DC5 development version:
+
+This is the first version to include the multishear program.
+
+See:
+https://desweb.cosmology.uiuc.edu/confluence/display/WLPipe/WL+Code+and+Data+Products#WLCodeandDataProducts-Multishearprogram
+for information on how to run multishear.
+
+Current status:
+
+Works with g++ versions 4.1, 4.3, 4.4.
+
+Works with icpc version 10.1.
+
+Works with icpc version 9 only WITH_OPENMP=false.
+  - I am getting segmentation faults with openmp turned on.
+  - I suspect this was a bug in icpc 9 that was fixed in version 10.
+
+In all cases, I recommend compiling both tmv and wl with the scons option
+WITH_LAPACK=false, especially if you are going to run withopenmp.  
+Many lapack distributions are not properly thread-safe, and the native TMV
+code is about as fast as lapack, so there isn't much advantage to using
+lapack anyway.  So the safest thing to do is compile without it.
+
+The default configuration uses a lot of memory (about 13 GB for a DC4
+    i-band tile).
+
+To use less memory, use command line option: "multishear_section_size=SIZE"
+- SIZE=10 uses about 700 MB
+- SIZE=20 uses about 2 GB
+- SIZE=30 uses about 4.5 GB
+- In general memory scales roughly as SIZE^2
+The trade off, of course, is that using a larger SIZE value is more efficient,
+so you should use as large a size as your machine can handle.
+NB: The memory usage is dependent on the number of component single-epoch
+images.  The numbers above are for i-band.  Less memory would be used for
+g,r and more for z.
 
 
 
- It seems that neither of the above steps works to solve the problem, but both
- together do solve the problem.  Go figure.
+Known problem:
 
- Anyway, this fix means that the memory usage seems to scale more or less as
- const + size^2.  The const is for some memory allocations that are needed
- regargless of what size is used.  But the bulk of the memory usage is
- proportionaly to the largest number of galaxies in one of the sections, which
- scales approximately as size^2.
+There seems to be a memory leak when running with openmp when using the 
+above multishear_section_size option.
+- It's a strage leak, since valgrind doesn't detect it.
+- The symptom is that with each section, top reports more memory usage, 
+  but valgrind reports that the memory usage is the same as for the 
+  single-threaded run (ie. more or less constant as it progresses through 
+  the sections).
+- So it seems to be not a normal memory leak, but rather some kind of 
+  problem where the OS is fragmenting the memory or something so that 
+  the amount it blocks out for the program keeps growing.
+- The leak didn't occur on my MacBook with either g++ 4.3 or 4.4,
+  so this seems to have something to do with the OS.  Maybe the way 
+  the OS allocates and releases memory.
+- The leak doesn't seem to happen (or at least was much less severe)
+  with icpc 10.1 with a block size of 5.  
+  Not sure if this is true for icpc 10.1 with larger block sizes, since
+  the computer I tested with 10.1 only has 1 GB of memory.  Also, it could
+  be something about this computers OS, rather than icpc 10.1.  Hard
+  to say.
+
+Recommended solutions:
+- Use a computer with enough memory to run with one section.
+- Use openmp and hope that your OS doesn't show this symptom. (And then
+  watch the memory usage in top to make sure you don't run out.)
+- Use openmp, but set the section size to 5 or lower.
+  (And still watch to make sure you don't run out of memory.)
+- Don't use openmp.
+
+I'm still trying to track down what in the code might be causing it, so
+hopefully I'll find a way to fix it by the next tagged version.
 
 
+Current To-do List:
 
-this file begun at revision 4514.
+- Implement baackground map method for calculating sky values.  I need to 
+  see what kind of format the background map comes in, so this has
+  to wait until the DM team has implemented the creation of the maps.
+- I suspect it would be faster to calculate the first crude estimate of the 
+  size and shape from the coadd image, rather than the se images.  
+- Need to calculate the robust singal-to-noise estimate
+- I don't think the shear covariance matrix is accurate, so I want to 
+  implement a calculation that surveys the local likelihood to calculate
+  the covariance.
+
+
+-------------------------------------------------------------------------
+v0.30.1   (2009-05-01)  DC5 development version:
+
+Minor bugfixes since v0.30.
+
+-------------------------------------------------------------------------
+v0.30   (2009-04-14)  DC5 development version:
+
+Added the program fullpipe, which runs all three of the programs
+(findstars, measurepsf, measureshear) in one execution to save on 
+disk I/O.  The input image and catalog are only read once.  Also, the
+intermediate catalogs are written, but the unneccessary read step is skipped.
+
+Also, changed all (well, most) of the fitsio stuff to CCFits for better
+stability with the type names.  We had been having a number of problems
+with long vs. int on different machines.  This seems to have fixed that.
+
+Also enabled the code to more easily keep track of what versions each of the
+components are, which can be put into the headers.
+
+Other bug fixes.  Mostly related to errors on specific platforms.
+
+
+-------------------------------------------------------------------------
+v0.21   (2009-01-14)  This version was the final version used in DC4 testing.
+
+It includes the programs:
+
+1) findstars -- Measure a robust size of each object in the input
+   catalog, and then use the resulting size-magnitude diagram
+   to determine which objects are stars.
+
+2) measurepsf -- Measure a shapelet-based description of the
+   the PSF for each star, and do a polynomial interpolation 
+   within the bounds of a single chip.
+
+3) measureshear -- Measure the shear of each detected galaxy
+   based on a single detection image.
+   It uses the distortion given by the WCS information in the FITS
+   header, and the single-image PSF interpolation found by measurepsf.
+
+All input and output are done with binary fits files for the catalogs.
+
+The parameter file is given as the first command line parameter for each
+program.  See example_config/wl.config for a sample file.  Many aspects
+of the programs are configurable, especially including various ways of
+specifying the names of the files to use.  
+
+All subsequent command line parameters are expected to be of the form:
+param=value.  These are used to supersede the values found in the parameter
+file.  For example, one might specify the names of the extensions and 
+file directories in the configuration file, and just specify root=[whatever]
+on the command line.  Or one might specify all of the filenames directly
+on the command line and not use root at all.  (This is the mode that the 
+DESDM team seems to prefer.)
+
+The DES QA outputs are made if the parameter desqa=true.  These are output
+either to stdout or to the logfile, if the logfile name is defined.
+
+For more information about running the code and other details, see:
+https://desweb.cosmology.uiuc.edu/confluence/display/WLPipe/WL+Code+and+Data+Products
+
+-------------------------------------------------------------------------
+v0.20   (2008-12-18)  A working version during DC4 development.
+
+
+-------------------------------------------------------------------------
+v0.10   (2008-12-08)  A working version during DC4 development.
+
+
