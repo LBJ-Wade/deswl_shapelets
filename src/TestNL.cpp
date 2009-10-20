@@ -61,6 +61,7 @@ class NonLinear : public NLSolver
     NonLinear(double sigma) : b(MM), t(MM)
     {
       //double xa[] = {-4.,-5.,4.,-4.};
+      //tmv::Vector<double> x(4,xa);
       tmv::Vector<double> x(4);
       x = tmv::ListInit, -4., -5., 4., -4.;
 
@@ -123,12 +124,8 @@ class NonLinear2 : public NLSolver
     void F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
     {
       for(size_t i=0;i<MM;i++) {
-	if (x(0)*t(i) > 20.) A(i,0) = 5.e8;
-	else if (x(0)*t(i) < -20.) A(i,0) = 2.e-9;
-	else A(i,0) = exp(x(0)*t(i));
-	if (x(1)*t(i) > 20.) A(i,1) = 5.e8;
-	else if (x(1)*t(i) < -20.) A(i,1) = 2.e-9;
-	else A(i,1) = exp(x(1)*t(i));
+	A(i,0) = exp(x(0)*t(i));
+	A(i,1) = exp(x(1)*t(i));
       }
       A.ReSetDiv();
       y = b/A;
@@ -255,16 +252,24 @@ int main() try
     std::cout<<"xfinal = "<<x<<std::endl;
     //std::cout<<"f = "<<f<<std::endl;
     std::cout<<"Norm(f) = "<<Norm(f)<<std::endl;
+    // This one usually finds an exact f == 0, since the problem is 
+    // so easy.
+    if (!(Norm(f) <= 1.e-10)) 
+    {
+      std::cout<<"Linear Test failed.\n";
+      return 1;
+    }
   }
 #endif
 
 #ifdef DONONLINEAR
   {
     std::cout<<"Test NonLinear:\n";
-    NonLinear nlin(1.e-2);
+    double sigma = 1.e-2;
+    NonLinear nlin(sigma);
     SETMETHOD(nlin);
 #ifdef USEBEST
-    nlin.method = NLSolver::Newton;
+    nlin.method = NLSolver::LM;
 #endif
     nlin.min_step = 1.e-12;
     //double x0a[] = {-1., -2., 1., -1.};
@@ -281,10 +286,18 @@ int main() try
     std::cout<<"xfinal = "<<x<<std::endl;
     //std::cout<<"f = "<<f<<std::endl;
     std::cout<<"Norm(f) = "<<Norm(f)<<std::endl;
+    // This one is looking for a local minimum, not an exact answer.
+    // The minimum should have Norm(f) ~= 2*sigma
+    if (!(Norm(f) <= 3*sigma)) 
+    {
+      std::cout<<"NonLinear Test failed.\n";
+      return 1;
+    }
   }
   {
     std::cout<<"Test NonLinear2:\n";
-    NonLinear2 nlin(1.e-2);
+    double sigma = 1.e-3;
+    NonLinear2 nlin(sigma);
     SETMETHOD(nlin);
 #ifdef USEBEST
     nlin.method = NLSolver::LM;
@@ -306,6 +319,13 @@ int main() try
     std::cout<<"xfinal = "<<xtot<<std::endl;
     //std::cout<<"f = "<<f<<std::endl;
     std::cout<<"Norm(f) = "<<Norm(f)<<std::endl;
+    // This one is looking for a local minimum, not an exact answer.
+    // The minimum should have Norm(f) ~= 4*sigma.
+    if (!(Norm(f) <= 5*sigma)) 
+    {
+      std::cout<<"NonLinear2 Test failed.\n";
+      return 1;
+    }
   }
 #endif
 
@@ -332,6 +352,14 @@ int main() try
     std::cout<<"xfinal = "<<x<<std::endl;
     //std::cout<<"f = "<<f<<std::endl;
     std::cout<<"Norm(f) = "<<Norm(f)<<std::endl;
+    // This test is hard for most solvers, but Dogleg should get it.
+    // It will probably come back as finding the local minimum instead 
+    // of the exact answer, but the two are equivalent in this case.
+    if (!(Norm(f) <= 1.e-15)) 
+    {
+      std::cout<<"Powell Test failed.\n";
+      return 1;
+    }
   }
 #endif
 
@@ -348,8 +376,8 @@ int main() try
       ros.tau = 1.e-3;
       SETMETHOD(ros);
 #ifdef USEBEST
-      if (i == 0) ros.method = NLSolver::Dogleg;
-      else ros.method = NLSolver::Hybrid;
+      /*if (i == 0) ros.method = NLSolver::Dogleg;
+      else*/ ros.method = NLSolver::Hybrid;
 #endif
       tmv::Vector<double> x(2); x(0) = -1.2; x(1) = 1.;
       tmv::Vector<double> x0(2); x0(0) = 1.; x0(1) = 1.;
@@ -364,9 +392,19 @@ int main() try
       //std::cout<<"Norm(xf-x0) = "<<Norm(x0-x)<<std::endl;
       //std::cout<<"f = "<<f<<std::endl;
       std::cout<<"Norm(f) = "<<Norm(f)<<std::endl;
+      // Lambda > 0 is a challenge for most solvers.
+      // Hybrid should get it even when lambda is very large.
+      if (!(Norm(x-x0) <= 1.e-8)) 
+      {
+	std::cout<<"Rosenbrock Test failed for lambda = "<<lambda<<".\n";
+	return 1;
+      }
+      
     }
   }
 #endif
+
+  std::cout<<"\n\nNLSolver passed all tests.\n\n";
   return 0;
 } 
 catch (tmv::Error& e)

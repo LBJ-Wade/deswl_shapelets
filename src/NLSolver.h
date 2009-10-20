@@ -111,11 +111,31 @@
 // The algorithm will increase or decrease this as appropriate.
 // The default value is 1.
 //
-// You can have progress text sent to an ostream by defining
-// nlout = &os;  (e.g. nlout = &std::cout;)
+// nlout is a stream where you can have progress text sent.
+// Simply set nlout = &os.  (e.g. nlout = &std::cout)
 // This will print basic information about each iteration.
 // If you want much more information about what's going on, 
-// you can set verbose = true;
+// you can set verbose = true.
+//
+// hasdirecth indicates whether you have defined the H function.
+// If you have, you should set hasdirecth = true.  
+// This is only used for the Hybrid method.
+//
+// startwithch indicates if you want to start out using Cholesky 
+// decomposition for the matrix solvers in LM, Hybrid and SecantLM.
+// This is the default, and is usually faster.  The algorithm automatically
+// detects if the matrix becomes non-positive-definite, in which case,
+// the solver uses Bunch-Kauffman decomposition instead.
+// A (very) slight improvement in speed could be obtained if you know that
+// your matrix is not going to remain positive definite very long,
+// in which case setting startwithch=false will use Bunch-Kauffman from
+// the beginning.
+//
+// trysvd indicates whether you want to try using singular value decomposition
+// for the division if a matrix becomes singular.  The default is false,
+// since this rarely works.  But in some cases, SVD can find a valid step
+// that moves you closer to the correct solution (and often away from
+// singularity).  So to give it a try, set trysvd=true.
 
 class NLSolver 
 {

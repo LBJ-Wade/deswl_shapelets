@@ -1,3 +1,11 @@
+// The algorithms contained in this file are taken from the paper
+// "Methods for Nonlinear Least-Squares Problems", by Madsen, Nielsen,
+// and Tingleff (2004).  
+// A copy of this paper should be included with the code in the file
+// madsen04.pdf.  Please refer to this paper for more details about
+// how the algorithms work.
+
+
 #include "NLSolver.h"
 #include <iostream>
 #include <limits>
