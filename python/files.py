@@ -32,8 +32,18 @@ class Runconfig(object):
 
         self.se_executables = ['findstars','measurepsf','measureshear']
 
-        self.se_filetypes = ['stars','psf','fitpsf','shear','qa','stat']
-        self.me_filetypes = ['multishear','qa','stat']
+        self.se_filetypes = ['stars', 'psf',  'fitpsf','shear','qa',  'stat']
+        self.se_ext       = {'stars':  '.fits', 
+                             'psf':    '.fits',
+                             'fitpsf': '.fits', 
+                             'shear':  '.fits',
+                             'qa':     '.dat',
+                             'stat':   '.json'}
+
+        self.me_filetypes = ['multishear','qa',  'stat']
+        self.me_ext       = {'multishear':'.fits',
+                             'qa':'.dat',
+                             'stat':'.json'}
 
 
         self.me_executables = ['multishear']
@@ -207,6 +217,30 @@ class Runconfig(object):
     def __repr__(self):
         return pprint.pformat(self.config)
 
+
+
+def readfile(fname, ext=None, ftype=None):
+    if ftype is None:
+        fext=fname.split('.')[-1]
+        if fext == 'fits':
+            import pyfits
+            if ext is None:
+                # binary tables usually in the 1st extension
+                ext=1
+            return pyfits.getdata(fname, ext=ext, header=True)
+        elif fext == 'json':
+            return esutil.json_util.read(fname)
+        elif fext == 'rec':
+            return esutil.sfile.read(fname, header=True)
+        elif fext == 'pya':
+            return esutil.sfile.read(fname, header=True)
+        else:
+            raise ValueError("Don't know how to read '%s' files" % fext)
+
+
+
+
+
 def des_rootdir():
     return getenv_check('DESDATA')
 
@@ -342,7 +376,14 @@ def wlse_dir(run, exposurename, rootdir=None):
 
 def wlse_basename(exposurename, ccd, ftype,
                   serun=None,
-                  mohrify=False, ext='.fits'):
+                  mohrify=False, ext=None):
+
+    if ext is None:
+        rc=Runconfig()
+        if ftype in rc.se_ext:
+            ext=rc.se_ext[ftype]
+        else:
+            ext='.fits'
 
     el=[exposurename, '%02i' % int(ccd), ftype]
 
@@ -359,10 +400,10 @@ def wlse_path(exposurename, ccd, ftype,
               mohrify=False, 
               dir=None, 
               rootdir=None, 
-              ext='.fits'):
+              ext=None):
     """
     name=wlse_path(exposurename, ccd, ftype, serun=None,
-                   mohrify=False, rootdir=None, ext='.fits')
+                   mohrify=False, rootdir=None, ext=None)
     Return the SE output file name for the given inputs
     """
     if mohrify:
@@ -383,6 +424,21 @@ def wlse_path(exposurename, ccd, ftype,
     return path
 
 
+def wlse_read(exposurename, ccd, ftype, 
+              serun=None,
+              mohrify=False, 
+              dir=None, 
+              rootdir=None, 
+              ext=None):
+
+    fpath=wlse_path(exposurename, ccd, ftype, 
+                    serun=serun,
+                    mohrify=mohrify, 
+                    dir=dir, 
+                    rootdir=rootdir, 
+                    ext=ext)
+
+
 
 def generate_se_filenames(exposurename, ccd, serun=None,
                           rootdir=None, dir=None):
@@ -392,20 +448,13 @@ def generate_se_filenames(exposurename, ccd, serun=None,
 
     # output file names
     for ftype in rc.se_filetypes:
-        if ftype == 'qa':
-            ext='.dat'
-        elif ftype == 'stat':
-            ext='.json'
-        else:
-            ext='.fits'
 
         name= wlse_path(exposurename, 
                         ccd, 
                         ftype,
                         serun=serun,
                         dir=dir,
-                        rootdir=rootdir,
-                        ext=ext)
+                        rootdir=rootdir)
         fdict[ftype] = name
 
 
@@ -424,10 +473,18 @@ def wlme_dir(merun, tilename, rootdir=None):
     wldir=os.path.join(rundir, tilename)
     return wldir
 
-def wlme_basename(tilename, band, ftype, merun=None, extra=None, ext='.fits'):
+def wlme_basename(tilename, band, ftype, merun=None, extra=None, ext=None):
     """
     basename for multi-epoch weak lensing output files
     """
+
+
+    if ext is None:
+        rc=Runconfig()
+        if ftype in rc.me_ext:
+            ext=rc.me_ext[ftype]
+        else:
+            ext='.fits'
 
     name=[tilename,band,ftype]
     
@@ -443,7 +500,7 @@ def wlme_basename(tilename, band, ftype, merun=None, extra=None, ext='.fits'):
 
 def wlme_path(tilename, band, ftype, merun=None, 
               extra=None, 
-              dir=None, rootdir=None, ext='.fits'):
+              dir=None, rootdir=None, ext=None):
     """
     Return a multi-epoch shear output file name
 
@@ -472,20 +529,12 @@ def generate_me_filenames(tilename, band,
 
     # output file names
     for ftype in rc.me_filetypes:
-        if ftype == 'qa':
-            ext='.dat'
-        elif ftype == 'stat':
-            ext='.json'
-        else:
-            ext='.fits'
-
         name= wlme_path(tilename,
                         band,
                         ftype,
                         merun=merun,
                         dir=dir,
-                        rootdir=rootdir,
-                        ext=ext)
+                        rootdir=rootdir)
         fdict[ftype] = name
 
 
