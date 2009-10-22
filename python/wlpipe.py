@@ -1007,7 +1007,7 @@ def run_shear(exposurename, ccd=None,
 
 def check_shear(serun, band, rootdir=None, outdir=None):
     """
-    rootdir= and outdir= refer to the directories where the outputs
+    rootdir= and outdir= refer to the directories where the shear outputs
     are located, not outputs of this program
     """
 
@@ -1018,7 +1018,11 @@ def check_shear(serun, band, rootdir=None, outdir=None):
     infolist = infodict['flist']
 
     badlist=[]
+    goodlist=[]
     for info in infolist:
+
+        problem_found=False
+
         exposurename=info['exposurename']
         ccd=info['ccd']
 
@@ -1037,6 +1041,7 @@ def check_shear(serun, band, rootdir=None, outdir=None):
             if not os.path.exists(fpath):
                 stdout.write("%s file missing: %s\n" % (ftype,fpath))
                 info['failtype'] = ftype
+                problem_found=True
                 badlist.append(info)
                 # break out of file type loop
                 break
@@ -1046,9 +1051,24 @@ def check_shear(serun, band, rootdir=None, outdir=None):
                 if exit_status != 0:
                     stdout.write("bad exit_status: %s\n" % exit_status)
                     info['failtype'] = 'exit_status'
+                    problem_found=True
                     badlist.append(info)
+        if not problem_found:
+            goodlist.append(info)
+
     stdout.write('Found %s/%s problems\n' % (len(badlist),len(infolist)))
-    return badlist
+
+    goodfile=deswl.files.wlse_collated_path(serun, 'goodlist')
+    badfile=deswl.files.wlse_collated_path(serun, 'badlist')
+    dir=deswl.files.wlse_collated_dir(serun)
+    if not os.path.exists(dir):
+        stdout.write("Creating output dir: %s\n" % dir)
+        os.makedirs(dir)
+    stdout.write("Writing goodlist: %s\n" % goodfile)
+    json_util.write(goodlist, goodfile)
+    stdout.write("Writing badlist: %s\n" % badfile)
+    json_util.write(badlist, badfile)
+    
 
 def check_shear_qa(badlist):
     for b in badlist:

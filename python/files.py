@@ -33,17 +33,21 @@ class Runconfig(object):
         self.se_executables = ['findstars','measurepsf','measureshear']
 
         self.se_filetypes = ['stars', 'psf',  'fitpsf','shear','qa',  'stat']
-        self.se_ext       = {'stars':  '.fits', 
-                             'psf':    '.fits',
-                             'fitpsf': '.fits', 
-                             'shear':  '.fits',
-                             'qa':     '.dat',
-                             'stat':   '.json'}
+        self.se_fext       = {'stars':  '.fits', 
+                              'psf':    '.fits',
+                              'fitpsf': '.fits', 
+                              'shear':  '.fits',
+                              'qa':     '.dat',
+                              'stat':   '.json'}
+        self.se_collated_type = ['badlist','goodlist','collated']
+        self.se_collated_filetypes = {'badlist':'json',
+                                      'goodlist':'json',
+                                      'shear':'fits'}
 
         self.me_filetypes = ['multishear','qa',  'stat']
-        self.me_ext       = {'multishear':'.fits',
-                             'qa':'.dat',
-                             'stat':'.json'}
+        self.me_fext       = {'multishear':'.fits',
+                              'qa':'.dat',
+                              'stat':'.json'}
 
 
         self.me_executables = ['multishear']
@@ -218,24 +222,69 @@ class Runconfig(object):
         return pprint.pformat(self.config)
 
 
+_fextension2ftype_map={'fits':'fits',
+                      'json':'json',
+                      'rec':'rec',
+                      'pya':'rec'}
+_ftype2fextension_map={'fits':'.fits',
+                      'json':'.json',
+                      'rec':'.rec'}
 
-def readfile(fname, ext=None, ftype=None):
+def ftype2fext(ftype):
+    if ftype in _ftype2fextension_map:
+        fext = _ftype2fextension_map[ftype]
+    else:
+        raise ValueError("Don't know about '%s' files" % ftype)
+    return fext
+
+def fext2ftype(fext):
+    if fext in _fextension2ftype_map:
+        ftype = _fextension2ftype_map[fext]
+    else:
+        raise ValueError("Don't know about files with '%s' extension" % fext)
+    return ftype
+
+def convert_to_degrees(data):
+    try:
+        if 'ra' in data.dtype.names:
+            data['ra'] /= 3600
+
+        if 'dec' in data.dtype.names:
+            data['dec'] /= 3600
+    except:
+        # probably names is None
+        pass
+
+def read_bintable(fname, ext=1, view=None, header=False):
+    import pyfits
+    if view is None:
+        import numpy
+        view = numpy.ndarray
+    if header:
+        d,h = pyfits.getdata(fname, ext=ext, header=header)
+        d=d.view(view)
+        return d,h
+    else:
+        d = pyfits.getdata(fname, ext=ext)
+        d=d.view(view)
+        return d
+
+
+def readfile(fname, ftype=None, header=False, fixpos=False):
     if ftype is None:
         fext=fname.split('.')[-1]
-        if fext == 'fits':
-            import pyfits
-            if ext is None:
-                # binary tables usually in the 1st extension
-                ext=1
-            return pyfits.getdata(fname, ext=ext, header=True)
-        elif fext == 'json':
-            return esutil.json_util.read(fname)
-        elif fext == 'rec':
-            return esutil.sfile.read(fname, header=True)
-        elif fext == 'pya':
-            return esutil.sfile.read(fname, header=True)
-        else:
-            raise ValueError("Don't know how to read '%s' files" % fext)
+        ftype = fext2ftype(fext)
+
+    if ftype == 'fits':
+        return read_bintable(fname, header=header)
+
+    elif ftype == 'json':
+        return esutil.json_util.read(fname)
+
+    elif ftype == 'rec':
+        return esutil.sfile.read(fname, header=header)
+    else:
+        raise ValueError("Don't know about file type '%s'" %ftype)
 
 
 
@@ -376,21 +425,21 @@ def wlse_dir(run, exposurename, rootdir=None):
 
 def wlse_basename(exposurename, ccd, ftype,
                   serun=None,
-                  mohrify=False, ext=None):
+                  mohrify=False, fext=None):
 
-    if ext is None:
+    if fext is None:
         rc=Runconfig()
-        if ftype in rc.se_ext:
-            ext=rc.se_ext[ftype]
+        if ftype in rc.se_fext:
+            fext=rc.se_fext[ftype]
         else:
-            ext='.fits'
+            fext='.fits'
 
     el=[exposurename, '%02i' % int(ccd), ftype]
 
     if serun is not None:
         el=[serun]+el
 
-    basename='_'.join(el) + ext
+    basename='_'.join(el) + fext
     return basename
 
 
@@ -400,10 +449,10 @@ def wlse_path(exposurename, ccd, ftype,
               mohrify=False, 
               dir=None, 
               rootdir=None, 
-              ext=None):
+              fext=None):
     """
     name=wlse_path(exposurename, ccd, ftype, serun=None,
-                   mohrify=False, rootdir=None, ext=None)
+                   mohrify=False, rootdir=None, fext=None)
     Return the SE output file name for the given inputs
     """
     if mohrify:
@@ -419,7 +468,7 @@ def wlse_path(exposurename, ccd, ftype,
 
     name = wlse_basename(exposurename, ccd, ftype_use, 
                          serun=serun,
-                         mohrify=mohrify, ext=ext)
+                         mohrify=mohrify, fext=fext)
     path=path_join(dir,name)
     return path
 
@@ -429,16 +478,18 @@ def wlse_read(exposurename, ccd, ftype,
               mohrify=False, 
               dir=None, 
               rootdir=None, 
-              ext=None):
+              fext=None,
+              header=False,
+              fixpos=True):
 
     fpath=wlse_path(exposurename, ccd, ftype, 
                     serun=serun,
                     mohrify=mohrify, 
                     dir=dir, 
                     rootdir=rootdir, 
-                    ext=ext)
+                    fext=fext)
 
-
+    return readfile(fpath, header=header, fixpos=fixpos)
 
 def generate_se_filenames(exposurename, ccd, serun=None,
                           rootdir=None, dir=None):
@@ -462,6 +513,57 @@ def generate_se_filenames(exposurename, ccd, serun=None,
 
 
 
+def wlse_collated_dir(serun):
+    dir=run_dir('wlbnl',serun)
+    dir = path_join(dir, 'collated')
+    return dir
+
+def wlse_collated_path(serun, collated_type, 
+                       ftype=None, 
+                       delim=None,
+                       region=None,
+                       dir=None):
+    """
+    Can add more functionality later
+    """
+    fname=[serun,collated_type]
+
+    # add a region identifier
+    if region is not None:
+        addstr='region%s' % region
+        fname.append(addstr)
+
+    fname='-'.join(fname)
+
+
+    # determine the file type
+    if ftype is None:
+        rc=Runconfig()
+        if collated_type in rc.se_collated_filetypes:
+            ftype=rc.se_collated_filetypes[collated_type]
+        else:
+            ftype='fits'
+        
+    # determine the extension
+    fext = ftype2fext(ftype)
+
+
+    # add delimiter info to the file name
+    if fext == '.rec' and delim is not None:
+        if delim == '\t':
+            fname += '-tab'
+        elif delim == ',':
+            fname += '-csv'
+        else:
+            raise ValueError,'delim should be , or tab'
+
+    fname += fext
+
+    if dir is None:
+        dir = wlse_collated_dir(serun)
+    return path_join(dir,fname)
+
+
 
 
 
@@ -481,8 +583,8 @@ def wlme_basename(tilename, band, ftype, merun=None, extra=None, ext=None):
 
     if ext is None:
         rc=Runconfig()
-        if ftype in rc.me_ext:
-            ext=rc.me_ext[ftype]
+        if ftype in rc.me_fext:
+            ext=rc.me_fext[ftype]
         else:
             ext='.fits'
 
