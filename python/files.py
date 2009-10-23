@@ -270,7 +270,16 @@ def read_bintable(fname, ext=1, view=None, header=False):
         return d
 
 
-def readfile(fname, ftype=None, header=False, fixpos=False):
+def read(fname, ftype=None, header=False):
+    if isinstance(fname, list):
+        alldata = []
+        for f in fname:
+            data = read(f, ftype=ftype)
+            alldata.append(data)
+        alldata = numpy_util.combine_arrlist(alldata)
+        return alldata
+
+
     if ftype is None:
         fext=fname.split('.')[-1]
         ftype = fext2ftype(fext)
@@ -479,8 +488,7 @@ def wlse_read(exposurename, ccd, ftype,
               dir=None, 
               rootdir=None, 
               fext=None,
-              header=False,
-              fixpos=True):
+              header=False):
 
     fpath=wlse_path(exposurename, ccd, ftype, 
                     serun=serun,
@@ -489,7 +497,7 @@ def wlse_read(exposurename, ccd, ftype,
                     rootdir=rootdir, 
                     fext=fext)
 
-    return readfile(fpath, header=header, fixpos=fixpos)
+    return read(fpath, header=header)
 
 def generate_se_filenames(exposurename, ccd, serun=None,
                           rootdir=None, dir=None):
@@ -530,7 +538,11 @@ def wlse_collated_path(serun, collated_type,
 
     # add a region identifier
     if region is not None:
-        addstr='region%s' % region
+        if isinstance(region, list):
+            regstr = '-'.join(region)
+        else:
+            regstr=str(region)
+        addstr='region%s' % regstr
         fname.append(addstr)
 
     fname='-'.join(fname)
