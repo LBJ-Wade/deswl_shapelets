@@ -5,6 +5,7 @@ import re
 import esutil
 from esutil import json_util
 from esutil.ostools import path_join, getenv_check
+
 import pprint
 import deswl
 
@@ -42,7 +43,7 @@ class Runconfig(object):
         self.se_collated_type = ['badlist','goodlist','collated']
         self.se_collated_filetypes = {'badlist':'json',
                                       'goodlist':'json',
-                                      'shear':'fits'}
+                                      'gal':'fits'}
 
         self.me_filetypes = ['multishear','qa',  'stat']
         self.me_fext       = {'multishear':'.fits',
@@ -222,28 +223,6 @@ class Runconfig(object):
         return pprint.pformat(self.config)
 
 
-_fextension2ftype_map={'fits':'fits',
-                      'json':'json',
-                      'rec':'rec',
-                      'pya':'rec'}
-_ftype2fextension_map={'fits':'.fits',
-                      'json':'.json',
-                      'rec':'.rec'}
-
-def ftype2fext(ftype):
-    if ftype in _ftype2fextension_map:
-        fext = _ftype2fextension_map[ftype]
-    else:
-        raise ValueError("Don't know about '%s' files" % ftype)
-    return fext
-
-def fext2ftype(fext):
-    if fext in _fextension2ftype_map:
-        ftype = _fextension2ftype_map[fext]
-    else:
-        raise ValueError("Don't know about files with '%s' extension" % fext)
-    return ftype
-
 def convert_to_degrees(data):
     try:
         if 'ra' in data.dtype.names:
@@ -254,46 +233,6 @@ def convert_to_degrees(data):
     except:
         # probably names is None
         pass
-
-def read_bintable(fname, ext=1, view=None, header=False):
-    import pyfits
-    if view is None:
-        import numpy
-        view = numpy.ndarray
-    if header:
-        d,h = pyfits.getdata(fname, ext=ext, header=header)
-        d=d.view(view)
-        return d,h
-    else:
-        d = pyfits.getdata(fname, ext=ext)
-        d=d.view(view)
-        return d
-
-
-def read(fname, ftype=None, header=False):
-    if isinstance(fname, list):
-        alldata = []
-        for f in fname:
-            data = read(f, ftype=ftype)
-            alldata.append(data)
-        alldata = numpy_util.combine_arrlist(alldata)
-        return alldata
-
-
-    if ftype is None:
-        fext=fname.split('.')[-1]
-        ftype = fext2ftype(fext)
-
-    if ftype == 'fits':
-        return read_bintable(fname, header=header)
-
-    elif ftype == 'json':
-        return esutil.json_util.read(fname)
-
-    elif ftype == 'rec':
-        return esutil.sfile.read(fname, header=header)
-    else:
-        raise ValueError("Don't know about file type '%s'" %ftype)
 
 
 
@@ -497,7 +436,7 @@ def wlse_read(exposurename, ccd, ftype,
                     rootdir=rootdir, 
                     fext=fext)
 
-    return read(fpath, header=header)
+    return esutil.io.read(fpath, header=header)
 
 def generate_se_filenames(exposurename, ccd, serun=None,
                           rootdir=None, dir=None):
@@ -526,7 +465,8 @@ def wlse_collated_dir(serun):
     dir = path_join(dir, 'collated')
     return dir
 
-def wlse_collated_path(serun, collated_type, 
+def wlse_collated_path(serun, 
+                       objclass, 
                        ftype=None, 
                        delim=None,
                        region=None,
@@ -534,12 +474,13 @@ def wlse_collated_path(serun, collated_type,
     """
     Can add more functionality later
     """
-    fname=[serun,collated_type]
+    fname=[serun,objclass]
 
     # add a region identifier
     if region is not None:
         if isinstance(region, list):
-            regstr = '-'.join(region)
+            regstr=[str(r) for r in region]
+            regstr = '-'.join(regstr)
         else:
             regstr=str(region)
         addstr='region%s' % regstr
@@ -551,13 +492,13 @@ def wlse_collated_path(serun, collated_type,
     # determine the file type
     if ftype is None:
         rc=Runconfig()
-        if collated_type in rc.se_collated_filetypes:
-            ftype=rc.se_collated_filetypes[collated_type]
+        if objclass in rc.se_collated_filetypes:
+            ftype=rc.se_collated_filetypes[objclass]
         else:
-            ftype='fits'
+            typ='fits'
         
     # determine the extension
-    fext = ftype2fext(ftype)
+    fext = esutil.io.ftype2fext(ftype)
 
 
     # add delimiter info to the file name
@@ -569,11 +510,13 @@ def wlse_collated_path(serun, collated_type,
         else:
             raise ValueError,'delim should be , or tab'
 
-    fname += fext
+    fname += '.'+fext
 
     if dir is None:
         dir = wlse_collated_dir(serun)
-    return path_join(dir,fname)
+    outpath = path_join(dir,fname)
+
+    return outpath
 
 
 
