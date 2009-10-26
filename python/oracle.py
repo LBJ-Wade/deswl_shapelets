@@ -3,7 +3,7 @@ try:
     from esutil import oracle_util
     cxo = oracle_util.cxo
 except:
-    stderr.write('Could not import oracle utilities\n')
+    pass
 
 from esutil import json_util
 

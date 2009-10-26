@@ -519,7 +519,23 @@ def wlse_collated_path(serun,
     return outpath
 
 
+def wlse_collated_read(serun, 
+                       objclass, 
+                       ftype=None, 
+                       delim=None,
+                       region=None,
+                       dir=None,
+                       ext=0,
+                       header=False,
+                       rows=None,columns=None,fields=None,
+                       norecfile=False, verbose=False):
 
+    fpath=wlse_collated_path(serun, objclass, ftype=ftype, delim=delim, 
+                             region=region, dir=dir)
+
+    return esutil.io.read(fpath, header=header, 
+                          rows=rows, columns=columns, fields=fields,
+                          norecfile=norecfile, verbose=verbose) 
 
 
 def wlme_dir(merun, tilename, rootdir=None):
