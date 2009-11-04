@@ -37,6 +37,7 @@ class Transformation {
     void SetToJacobian(
 	double dudx, double dudy, double dvdx, double dvdy);
     void WriteFunc2D(std::ostream& os) const;
+    bool isRaDec() const { return _isRaDec; }
 
     // Calculate u,v = u(x,y),v(x,y)
     void Transform(Position pxy, Position& puv) const;
@@ -70,9 +71,9 @@ class Transformation {
     Bounds MakeInverseOf(const Transformation& t2, 
 	const Bounds& bounds, int order);
 
-
-
   private :
+
+    bool _isRaDec;
 
     std::auto_ptr<Function2D<double> > up;
     std::auto_ptr<Function2D<double> > vp;

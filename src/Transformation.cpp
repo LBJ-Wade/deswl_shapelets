@@ -18,11 +18,11 @@ const double PI = 4.*atan(1.);
 //
 
 Transformation::Transformation() : 
-  up(0), vp(0), dudxp(0), dudyp(0), dvdxp(0), dvdyp(0)
+  _isRaDec(false), up(0), vp(0), dudxp(0), dudyp(0), dvdxp(0), dvdyp(0)
 {}
 
 Transformation::Transformation(const ConfigFile& params) : 
-  up(0), vp(0), dudxp(0), dudyp(0), dvdxp(0), dvdyp(0)
+  _isRaDec(false), up(0), vp(0), dudxp(0), dudyp(0), dvdxp(0), dvdyp(0)
 {
   Assert(params.keyExists("dist_method"));
 
@@ -70,6 +70,7 @@ void Transformation::SetToScale(double pixel_scale)
   dudyp.reset(new Constant2D<double>(0.));
   dvdxp.reset(new Constant2D<double>(0.));
   dvdyp.reset(new Constant2D<double>(pixel_scale));
+  _isRaDec = false;
 }
 
 void Transformation::SetToJacobian(
@@ -84,6 +85,7 @@ void Transformation::SetToJacobian(
   dudyp.reset(new Constant2D<double>(dudy));
   dvdxp.reset(new Constant2D<double>(dvdx));
   dvdyp.reset(new Constant2D<double>(dvdy));
+  _isRaDec = false;
 }
 
 void Transformation::ReadFunc2D(std::istream& is) 
@@ -102,6 +104,7 @@ void Transformation::ReadFunc2D(std::istream& is)
   dudyp = up->DFDY();
   dvdxp = vp->DFDX();
   dvdyp = vp->DFDY();
+  _isRaDec = false;
 }
 
 void Transformation::WriteFunc2D(std::ostream& os) const
@@ -152,11 +155,23 @@ void Transformation::Distort(Position pos,
 void Transformation::GetDistortion(Position pos,
     double& dudx, double& dudy, double& dvdx, double& dvdy) const
 {
+  const double ARCSEC_PER_RAD = 206264.806247;
+
   if (up.get()) {
     dudx = (*dudxp)(pos);
     dudy = (*dudyp)(pos);
     dvdx = (*dvdxp)(pos);
     dvdy = (*dvdyp)(pos);
+
+    if (_isRaDec) {
+      // Then u is RA, v is Dec.
+      // Need to scale du (RA) by 1/cos(Dec).
+      double dec = (*vp)(pos); // this is in arcsec.
+      dec /= ARCSEC_PER_RAD; // now it is in radians.
+      double cosdec = cos(dec);
+      dudx /= cosdec;
+      dudy /= cosdec;
+    }
   } else {
     dudx = 1.;
     dudy = 0.;
@@ -286,6 +301,7 @@ Bounds Transformation::MakeInverseOf(const Transformation& t2,
   dudyp = up->DFDY();
   dvdxp = vp->DFDX();
   dvdyp = vp->DFDY();
+  _isRaDec = false;
 
   return newbounds;
 }
@@ -848,4 +864,9 @@ void Transformation::ReadWCS(std::string fitsfile, int hdu)
   dudyp = up->DFDY();
   dvdxp = vp->DFDX();
   dvdyp = vp->DFDY();
+
+  // The transformed variables u,v are RA and Dec.
+  // This has implications for how we want to use dudx, etc. so keep
+  // track of this fact in the variable _isRaDec.
+  _isRaDec = true;
 }
