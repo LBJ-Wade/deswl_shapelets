@@ -208,7 +208,9 @@ class Runconfig(object):
         return runconfig
 
     def asdict(self):
-        return self.config
+        from copy import copy
+        conf=copy(self.config)
+        return conf
 
     def __getitem__(self, name):
         if name in self.config:
@@ -427,7 +429,8 @@ def wlse_read(exposurename, ccd, ftype,
               dir=None, 
               rootdir=None, 
               fext=None,
-              header=False):
+              header=False, 
+              ext=0):
 
     fpath=wlse_path(exposurename, ccd, ftype, 
                     serun=serun,
@@ -436,7 +439,7 @@ def wlse_read(exposurename, ccd, ftype,
                     rootdir=rootdir, 
                     fext=fext)
 
-    return esutil.io.read(fpath, header=header)
+    return esutil.io.read(fpath, header=header, ext=ext)
 
 def generate_se_filenames(exposurename, ccd, serun=None,
                           rootdir=None, dir=None):
@@ -502,7 +505,7 @@ def wlse_collated_path(serun,
 
 
     # add delimiter info to the file name
-    if fext == '.rec' and delim is not None:
+    if fext == 'rec' and delim is not None:
         if delim == '\t':
             fname += '-tab'
         elif delim == ',':
