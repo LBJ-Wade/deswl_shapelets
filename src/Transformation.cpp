@@ -164,13 +164,36 @@ void Transformation::GetDistortion(Position pos,
     dvdy = (*dvdyp)(pos);
 
     if (_isRaDec) {
+#if 0
+      std::cerr<<"pos = "<<pos<<std::endl;
+      std::cerr<<"D = "<<dudx<<','<<dudy<<','<<dvdx<<','<<dvdy<<std::endl;
+      std::cerr<<"u values in x steps = "<<
+	(*up)(pos.GetX()+1,pos.GetY())-(*up)(pos)<<"  "<<
+	(*up)(pos.GetX()+2,pos.GetY())-(*up)(pos)<<"  "<<
+	(*up)(pos.GetX()+3,pos.GetY())-(*up)(pos)<<std::endl;
+      std::cerr<<"v values in x steps = "<<
+	(*vp)(pos.GetX()+1,pos.GetY())-(*vp)(pos)<<"  "<<
+	(*vp)(pos.GetX()+2,pos.GetY())-(*vp)(pos)<<"  "<<
+	(*vp)(pos.GetX()+3,pos.GetY())-(*vp)(pos)<<std::endl;
+      std::cerr<<"u values in y steps = "<<
+	(*up)(pos.GetX(),pos.GetY()+1)-(*up)(pos)<<"  "<<
+	(*up)(pos.GetX(),pos.GetY()+2)-(*up)(pos)<<"  "<<
+	(*up)(pos.GetX(),pos.GetY()+3)-(*up)(pos)<<std::endl;
+      std::cerr<<"v values in y steps = "<<
+	(*vp)(pos.GetX(),pos.GetY()+1)-(*vp)(pos)<<"  "<<
+	(*vp)(pos.GetX(),pos.GetY()+2)-(*vp)(pos)<<"  "<<
+	(*vp)(pos.GetX(),pos.GetY()+3)-(*vp)(pos)<<std::endl;
+#endif
       // Then u is RA, v is Dec.
-      // Need to scale du (RA) by 1/cos(Dec).
+      // Need to scale du (RA) by cos(Dec).
       double dec = (*vp)(pos); // this is in arcsec.
       dec /= ARCSEC_PER_RAD; // now it is in radians.
       double cosdec = cos(dec);
-      dudx /= cosdec;
-      dudy /= cosdec;
+      dudx *= cosdec;
+      dudy *= cosdec;
+#if 0
+      std::cerr<<"D => "<<dudx<<','<<dudy<<','<<dvdx<<','<<dvdy<<std::endl;
+#endif
     }
   } else {
     dudx = 1.;
