@@ -618,8 +618,9 @@ void ShearCatalog::WriteFits(std::string file) const
   }
   for(size_t i=0;i<size();i++) 
   {
-    ra[i] = skypos[i].GetX();
-    dec[i] = skypos[i].GetY();
+	// internally we use arcseconds
+    ra[i] = skypos[i].GetX()/3600;
+    dec[i] = skypos[i].GetY()/3600;
   }
   for(size_t i=0;i<size();i++) 
   {
@@ -695,8 +696,8 @@ void ShearCatalog::WriteAscii(std::string file, std::string delim) const
       << sky[i] << delim
       << noise[i] << delim
       << hexform(flags[i]) << delim
-      << skypos[i].GetX() << delim
-      << skypos[i].GetY() << delim
+      << skypos[i].GetX()/3600 << delim // internally we use arcsec
+      << skypos[i].GetY()/3600 << delim
       << real(shear[i]) << delim
       << imag(shear[i]) << delim
       << nu[i] << delim
