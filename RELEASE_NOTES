@@ -1,6 +1,9 @@
 -------------------------------------------------------------------------
 
 python/*:  Converted to py3k.  Move to using JSON files instead of XML.
+src/ShearCatalog.cpp:  Output ra/dec in degrees.  E.S.S. 2009-11-05
+src/Transformation*: Fixed bug in coordinate transformation from pixels
+  to radec.  Mike Jarvis, 2009-11
 
 -------------------------------------------------------------------------
 v0.51   (2009-10-16)  Incremental changes. The main reason for a new tag
