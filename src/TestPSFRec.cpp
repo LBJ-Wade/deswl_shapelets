@@ -3,9 +3,6 @@
 #include <vector>
 #include <string>
 
-#include "TMV.h"
-#include "TMV_Small.h"
-
 #include "dbg.h"
 
 #include "PSFCatalog.h"
@@ -16,8 +13,6 @@
 
 // for Position
 #include "Bounds.h"
-
-#include <CCfits/CCfits>
 
 using namespace std;
 
@@ -54,20 +49,26 @@ int main(int argc, char **argv)
 
 
 	cout<<"Loading a PSFCatalog\n";
-	PSFCatalog psf(params, psf_file);
+	PSFCatalog psfcat(params, psf_file);
 
 	cout<<"Loading a FittedPSF\n";
 	FittedPSF fitpsf(params, fitpsf_file);
 
+	BVec ipsf(fitpsf.GetPSFOrder(), fitpsf.GetSigma());
+
 	// Test the reconstructions
-	for (int i=0; i<psf.pos.size(); i++) {
-		double b00 = psf.psf[i][0];
-		cout<<"b00 = "<<b00<<"\n";
-		cout<<"1 = "<<psf.psf[i][1]<<"\n";
-		cout<<"2 = "<<psf.psf[i][2]<<"\n";
-		double e1 = psf.psf[i][3]; // e1/sqrt(2)
-		double e2 = psf.psf[i][4]; // e2/sqrt(2)
-		cout<<"e1: "<<e1<<" e2: "<<e2<<"\n";
+	for (int i=0; i<psfcat.pos.size(); i++) {
+		cout<<psfcat.id[i]<<"\n";
+
+		double e1 = psfcat.psf[i][3]; // e1/sqrt(2)
+		double e2 = psfcat.psf[i][4]; // e2/sqrt(2)
+		cout<<"\te1: "<<e1<<" e2: "<<e2<<"\n";
+
+		fitpsf.Interpolate(psfcat.pos[i], ipsf);
+
+		double ie1 = ipsf[3];
+		double ie2 = ipsf[4];
+		cout<<"\tie1: "<<ie1<<" ie2: "<<ie2<<"\n";
 	}
 
 	exit(0);
