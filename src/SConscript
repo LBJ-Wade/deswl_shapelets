@@ -96,7 +96,7 @@ testwl = env2.Program('testwl', 'TestWL.cpp')
 
 testnl = env2.Program('testnl', 'TestNL.cpp')
 
-test_psfrec = env2.Program('test_psfrec', 'TestPSFRec.cpp')
+test_psfrec = env2.Program('test-psfrec', 'TestPSFRec.cpp')
 
 bin_install_dir = os.path.join(env['PREFIX'], 'bin')
 

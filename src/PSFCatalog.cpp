@@ -173,6 +173,22 @@ PSFCatalog::PSFCatalog(const ConfigFile& _params) : params(_params)
   Assert(psf.size() == size());
 }
 
+// this one we don't have to deal with root= stuff
+PSFCatalog::PSFCatalog(const ConfigFile& _params, std::string file) : params(_params)
+{
+  Read(file);
+
+  Assert(id.size() == size());
+  Assert(pos.size() == size());
+  Assert(sky.size() == size());
+  Assert(noise.size() == size());
+  Assert(flags.size() == size());
+  Assert(nu.size() == size());
+  Assert(psf.size() == size());
+}
+
+
+
 void PSFCatalog::WriteFits(std::string file) const
 {
   Assert(id.size() == size());
@@ -552,10 +568,14 @@ void PSFCatalog::ReadAscii(std::string file, std::string delim)
   }
 }
 
-
 void PSFCatalog::Read()
 {
   std::string file = Name(params,"psf",false,true);
+  Read(file);
+}
+
+void PSFCatalog::Read(std::string file)
+{
   // false,true = input_prefix=false, mustexist=true.
   // It is an input here, but it is in the output_prefix directory.
   dbg<< "Reading PSF cat from file: " << file << std::endl;

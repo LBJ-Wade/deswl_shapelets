@@ -20,9 +20,12 @@ class PSFCatalog
 
     // Read from file
     PSFCatalog(const ConfigFile& _params);
+	// this one we don't have to deal with root= stuff
+    PSFCatalog(const ConfigFile& _params, std::string file);
 
     size_t size() const { return id.size(); }
     void Read();
+    void Read(std::string file);
     void Write() const;
 
     void ReadFits(std::string file);

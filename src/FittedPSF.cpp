@@ -143,6 +143,14 @@ FittedPSF::FittedPSF(const ConfigFile& _params) : params(_params)
   Read();
 }
 
+// With this one we don't have to use the whole root= thing
+FittedPSF::FittedPSF(const ConfigFile& _params, std::string file) : params(_params)
+{
+  Read(file);
+}
+
+
+
 void FittedPSF::WriteAscii(std::string file) const
 {
   std::ofstream fout(file.c_str());
@@ -226,7 +234,11 @@ void FittedPSF::Write() const
 
 void FittedPSF::Read()
 {
-  std::string file = Name(params,"fitpsf",false,true);
+	std::string file = Name(params,"fitpsf",false,true);
+	Read(file);
+}
+void FittedPSF::Read(std::string file)
+{
   // false,true = input_prefix=false, mustexist=true.
   // It is an input here, but it is in the output_prefix directory.
   dbg<< "Reading FittedPSF from file: " << file << std::endl;

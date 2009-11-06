@@ -20,6 +20,8 @@ class FittedPSF {
 
     // Read from file
     FittedPSF(const ConfigFile& params);
+	// With this one we don't have to use the whole root= thing
+    FittedPSF(const ConfigFile& params, std::string file);
 
     int GetPSFOrder() const { return psforder; }
     int GetPSFSize() const { return (psforder+1)*(psforder+2)/2; }
@@ -40,6 +42,7 @@ class FittedPSF {
     void WriteFitsOld(std::string file) const;
 
     void Read();
+    void Read(std::string file);
     void ReadAscii(std::string file);
     void ReadFits(std::string file);
 
