@@ -29,7 +29,7 @@ int main(int argc, char **argv)
 		std::cout<<"usage: test_psfrec config psf_file fitpsf_file\n";
 		exit(45);
 	}
-	
+
 	dbgout = &std::cout;
 
 	string config_file=argv[1];
@@ -43,8 +43,8 @@ int main(int argc, char **argv)
 
 	cout<<"Loading config...\n";
 	ConfigFile params(config_file);
-	std::string fp((const char*)fitsparams_config,fitsparams_config_len);
-	std::istringstream is(fp);
+	string fp((const char*)fitsparams_config,fitsparams_config_len);
+	istringstream is(fp);
 	params.Read(is);
 
 
@@ -58,17 +58,20 @@ int main(int argc, char **argv)
 
 	// Test the reconstructions
 	for (int i=0; i<psfcat.pos.size(); i++) {
-		cout<<psfcat.id[i]<<"\n";
 
 		double e1 = psfcat.psf[i][3]; // e1/sqrt(2)
 		double e2 = psfcat.psf[i][4]; // e2/sqrt(2)
-		cout<<"\te1: "<<e1<<" e2: "<<e2<<"\n";
 
 		fitpsf.Interpolate(psfcat.pos[i], ipsf);
 
 		double ie1 = ipsf[3];
 		double ie2 = ipsf[4];
-		cout<<"\tie1: "<<ie1<<" ie2: "<<ie2<<"\n";
+		cout<<psfcat.id[i]
+			<<"  "<<e1
+			<<"  "<<ie1
+			<<"  "<<e2
+			<<"  "<<ie2
+			<<"\n";
 	}
 
 	exit(0);
