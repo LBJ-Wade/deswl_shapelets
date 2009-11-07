@@ -206,6 +206,15 @@ class NLSolver
     virtual bool TestJ(const tmv::Vector<double>& , tmv::Vector<double>& ,
 	std::ostream* os=0, double relerr=0.) const;
 
+    // H(i,j) = d^2 Q / dx_i dx_j
+    // where Q = 1/2 Sum_k |f_k|^2
+    // H = JT J + Sum_k f_k d^2f_k/(dx_i dx_j)
+    virtual void numericH(
+	const tmv::Vector<double>& x,
+	const tmv::Vector<double>& f, 
+	const tmv::Matrix<double>& j, 
+	tmv::SymMatrix<double>& h) const;
+
     // Note: I just left these public, so they can be modified directly.
     // I could have put in Set and Get methods, but I didn't bother.
     Method method;

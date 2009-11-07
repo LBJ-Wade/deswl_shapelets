@@ -37,7 +37,7 @@ static std::complex<double> GammaAdd(const std::complex<double> g1,
 
 bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
     const std::vector<BVec>* psf,
-    int order, double sigma, bool use_integ, long& flag, bool desqa,
+    int order, double sigma, bool use_integ, long& flag, 
     tmv::Matrix<double>* cov, BVec* bret, tmv::Matrix<double>* bcov)
 {
   timeval tp;
@@ -46,11 +46,12 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
   // The non-linear solver is pretty sensitive to having a good
   // initial estimate.  So start with a simple estimate.
   if (order > 3) {
-    //if (!DoMeasure(pix,psf,order-2,sigma,use_integ,flag,desqa)) return false;
-    DoMeasure(pix,psf,order-2,sigma,use_integ,flag,desqa);
+    //if (!DoMeasure(pix,psf,order-2,sigma,use_integ,flag)) return false;
+    DoMeasure(pix,psf,order-2,sigma,use_integ,flag);
   }
 
   xdbg<<"Start DoMeasure: order = "<<order<<", psf = "<<bool(psf)<<std::endl;
+  xdbg<<"fix = "<<fixcen<<"  "<<fixgam<<"  "<<fixmu<<std::endl;
   for(size_t i=0;i<pix.size();i++) xdbg<<"npix["<<i<<"] = "<<pix[i].size()<<std::endl;
 
   std::auto_ptr<BaseEllipseSolver> solver;
@@ -216,10 +217,10 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
 #endif
     {
       if (psf)
-	solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,desqa,
+	solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,
 	      false,true,true));
       else
-	solver.reset(new EllipseSolver(pix,order,sigma,desqa,
+	solver.reset(new EllipseSolver(pix,order,sigma,
 	      false,true,true));
     }
     xdbg<<"xinit = "<<x<<std::endl;
@@ -286,10 +287,10 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
 #endif
     {
       if (psf)
-	solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,desqa,
+	solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,
 	      true,false,true));
       else
-	solver.reset(new EllipseSolver(pix,order,sigma,desqa,
+	solver.reset(new EllipseSolver(pix,order,sigma,
 	      true,false,true));
     }
     xdbg<<"xinit = "<<x<<std::endl;
@@ -342,10 +343,10 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
 #endif
     {
       if (psf)
-	solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,desqa,
+	solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,
 	      true,true,false));
       else
-	solver.reset(new EllipseSolver(pix,order,sigma,desqa,
+	solver.reset(new EllipseSolver(pix,order,sigma,
 	      true,true,false));
     }
     xdbg<<"xinit = "<<x<<std::endl;
@@ -401,10 +402,10 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
 #endif
   {
     if (psf)
-      solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,desqa,
+      solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,
 	    fixcen,fixgam,fixmu,true));
     else
-      solver.reset(new EllipseSolver(pix,order,sigma,desqa,
+      solver.reset(new EllipseSolver(pix,order,sigma,
 	    fixcen,fixgam,fixmu,true));
   }
   xdbg<<"xinit = "<<x<<std::endl;
@@ -456,10 +457,10 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
 #endif
   {
     if (psf)
-      solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,desqa,
+      solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,
 	    fixcen,fixgam,fixmu));
     else
-      solver.reset(new EllipseSolver(pix,order,sigma,desqa,
+      solver.reset(new EllipseSolver(pix,order,sigma,
 	    fixcen,fixgam,fixmu));
   }
   xdbg<<"xinit = "<<x<<std::endl;
@@ -541,10 +542,10 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
 #endif
     {
       if (psf)
-	solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,desqa,
+	solver.reset(new EllipseSolver(pix,*psf,f_psf,order,sigma,
 	      fixcen,fixgam,true));
       else
-	solver.reset(new EllipseSolver(pix,order,sigma,desqa,
+	solver.reset(new EllipseSolver(pix,order,sigma,
 	      fixcen,fixgam,true));
     }
 

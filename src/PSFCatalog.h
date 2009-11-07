@@ -58,13 +58,13 @@ void MeasureSinglePSF(
     Position cen, const Image<double>& im, double sky,
     const Transformation& trans,
     double noise, double gain, const Image<double>* weight_im,
-    double sigma_p, double psfap, int psforder, bool desqa,
+    double sigma_p, double psfap, int psforder,
     PSFLog& log, BVec& psf, double& nu, long& flag);
 void MeasureSinglePSF1(
     Position cen, const Image<double>& im, double sky,
     const Transformation& trans,
     double noise, double gain, const Image<double>* weight_im,
-    double sigma_p, double psfap, int psforder, bool desqa,
+    double sigma_p, double psfap, int psforder,
     PSFLog& log, BVec& psf, double& nu, long& flag);
 
 #endif

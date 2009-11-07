@@ -74,8 +74,18 @@ bool NLSolver::TestJ(
       }
     }
   }
-
   return err < relerr;
+}
+
+// H(i,j) = d^2 Q / dx_i dx_j
+// where Q = 1/2 Sum_k |f_k|^2
+// H = JT J + Sum_k f_k d^2f_k/(dx_i dx_j)
+void NLSolver::numericH(
+    const tmv::Vector<double>& x,
+    const tmv::Vector<double>& f, 
+    const tmv::Matrix<double>& j, 
+    tmv::SymMatrix<double>& h) const
+{
 }
 
 

@@ -30,7 +30,7 @@ void MeasureSingleShear1(
     double noise, double gain, const Image<double>* weight_im, 
     double gal_aperture, double max_aperture,
     int gal_order, int gal_order2,
-    double f_psf, double min_gal_size, bool desqa,
+    double f_psf, double min_gal_size,
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
@@ -70,7 +70,7 @@ void MeasureSingleShear1(
 
   if (times) ell.DoTimings();
   long flag1=0;
-  if (ell.Measure(pix,go,sigma_obs,true,flag1,desqa)) 
+  if (ell.Measure(pix,go,sigma_obs,true,flag1)) 
   {
     if (times) 
     {
@@ -119,7 +119,7 @@ void MeasureSingleShear1(
 
   // Check - mu should now be zero:
   // This one works
-  //ell.Measure(pix,go,sigma_obs,true,flag1,desqa);
+  //ell.Measure(pix,go,sigma_obs,true,flag1);
   //xdbg<<"After native fit #2:\n";
   //xdbg<<"Mu = "<<ell.GetMu()<<std::endl;
 
@@ -135,7 +135,7 @@ void MeasureSingleShear1(
   ell.SetFP(f_psf);
   if (times) ell.ResetTimes();
   flag1 = 0;
-  if (ell.Measure(pix,psf,go,sigma,false,flag1,desqa)) 
+  if (ell.Measure(pix,psf,go,sigma,false,flag1)) 
   {
     if (times) 
     {
@@ -188,7 +188,7 @@ void MeasureSingleShear1(
   // Check - mu should now be zero:
   b_gal.SetSigma(sigma);
   dbg<<"Meausre with sigma = "<<sigma<<std::endl;
-  ell.Measure(pix,psf,go,sigma,false,flag1,desqa,&b_gal);
+  ell.Measure(pix,psf,go,sigma,false,flag1,&b_gal);
   dbg<<"After deconvolving fit #2:\n";
   dbg<<"Mu = "<<ell.GetMu()<<std::endl;
   dbg<<"b_gal = "<<b_gal<<std::endl;
@@ -235,7 +235,7 @@ void MeasureSingleShear1(
   }
   if (times) ell.ResetTimes();
   tmv::Matrix<double> cov(5,5);
-  if (ell.Measure(pix,psf,go,sigma,false,flag,desqa,&cov)) 
+  if (ell.Measure(pix,psf,go,sigma,false,flag,&cov)) 
   {
     if (times) 
     {
@@ -289,7 +289,7 @@ void MeasureSingleShear(
     double noise, double gain, const Image<double>* weight_im, 
     double gal_aperture, double max_aperture,
     int gal_order, int gal_order2,
-    double f_psf, double min_gal_size, bool desqa,
+    double f_psf, double min_gal_size,
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
@@ -343,7 +343,7 @@ void MeasureSingleShear(
 	noise, gain, weight_im, 
 	// Parameters:
 	gal_aperture, max_aperture, gal_order, gal_order2, 
-	f_psf, min_gal_size, desqa,
+	f_psf, min_gal_size, 
 	// Time stats if desired:
 	times,
 	// Log information

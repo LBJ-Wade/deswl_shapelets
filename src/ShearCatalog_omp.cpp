@@ -28,7 +28,6 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
   double f_psf = params.read<double>("shear_f_psf");
   double gain = params.read("image_gain",0.);
   double min_gal_size = params.read<double>("shear_min_gal_size");
-  bool desqa = params.read("des_qa",false);
   bool output_dots = params.read("output_dots",false);
   bool timing = params.read("timing",false);
 
@@ -94,7 +93,7 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
 	    noise[i], gain, weight_im, 
 	    // Parameters:
 	    gal_aperture, max_aperture, gal_order, gal_order2, 
-	    f_psf, min_gal_size, desqa,
+	    f_psf, min_gal_size, 
 	    // Time stats if desired:
 	    timing ? &times : 0, 
 	    // Log information

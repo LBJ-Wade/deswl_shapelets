@@ -109,7 +109,7 @@ void MeasureMultiShear(
     const std::vector<BVec>& psf,
     double gal_aperture, double max_aperture,
     int gal_order, int gal_order2,
-    double f_psf, double min_gal_size, bool desqa,
+    double f_psf, double min_gal_size,
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,

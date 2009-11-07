@@ -261,7 +261,6 @@ ESImpl2::ESImpl2(const std::vector<PixelList>& _pix,
 
 void ESImpl2::F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
 {
-  xxdbg<<"Start F: x = "<<x<<std::endl;
   Assert(x.size() == U.colsize());
   if (useflux) Assert(f.size() == U.colsize()+1);
   else Assert(f.size() == U.colsize());
@@ -280,10 +279,6 @@ void ESImpl2::F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
 
   if (NormInf(xx-xinit) > 4.) 
   {
-    xxdbg<<"ES2::F large diversion:\n";
-    xxdbg<<"xinit = "<<xinit<<std::endl;
-    xxdbg<<"xx = "<<xx<<std::endl;
-    xxdbg<<"Norm(xx-xinit) = "<<Norm(xx-xinit)<<std::endl;
     if (flux == 0.) flux = b(0);
     if (useflux) {
       f(0) = 2.*(b(0)/flux-1.);
@@ -300,11 +295,6 @@ void ESImpl2::F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
 
   if (gsq > 0.99 || (mu < -2. && Norm(xx-xinit) > 0.3))
   {
-    xxdbg<<"ES2::F bad gsq or mu value:\n";
-    xxdbg<<"gsq = "<<gsq<<std::endl;
-    xxdbg<<"mu = "<<mu<<std::endl;
-    xxdbg<<"xinit = "<<xinit<<std::endl;
-    xxdbg<<"xx = "<<xx<<std::endl;
     if (flux == 0.) flux = b(0);
     if (flux == 0.) flux = 1.;
     if (useflux) {
@@ -360,15 +350,12 @@ void ESImpl2::F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
   } else {
     f = U*b.SubVector(1,6)/flux;
   }
-  xxdbg<<"Done F: f = "<<f<<std::endl;
   b *= exp(-2.*mu);
 }
 
 void ESImpl2::J(const tmv::Vector<double>& x, const tmv::Vector<double>& f,
     tmv::Matrix<double>& df) const
 {
-  xxdbg<<"Start J: x = "<<x<<std::endl;
-  xxdbg<<"f = "<<f<<std::endl;
   // b = exp(-2 mu) C^-1 normD AT I
   // db/dE = exp(-2 mu) C^-1 normD (dA/dE)T I
   //         - exp(-2 mu) C^-1 (dC/dE) C^-1 normD AT I
@@ -488,7 +475,6 @@ void ESImpl2::J(const tmv::Vector<double>& x, const tmv::Vector<double>& f,
   //df *= exp(2.*mu)/flux;
   df /= flux;
   //df.col(4) += 2.*f;
-  xxdbg<<"Done J: df = "<<df<<std::endl;
 }
 
 void EllipseSolver2::CallF(const tmv::Vector<double>& x,

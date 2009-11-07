@@ -14,17 +14,17 @@
 
 bool Ellipse::Measure(const std::vector<PixelList>& pix,
     const std::vector<BVec>& psf,
-    int order, double sigma, bool use_integ, long& flag, bool desqa,
+    int order, double sigma, bool use_integ, long& flag,
     tmv::Matrix<double>* cov, BVec* bret, tmv::Matrix<double>* bcov)
 { 
-  return DoMeasure(pix,&psf,order,sigma,use_integ,flag,desqa,cov,bret,bcov); 
+  return DoMeasure(pix,&psf,order,sigma,use_integ,flag,cov,bret,bcov); 
 }
 
 bool Ellipse::Measure(const std::vector<PixelList>& pix,
-    int order, double sigma, bool use_integ, long& flag, bool desqa,
+    int order, double sigma, bool use_integ, long& flag, 
     tmv::Matrix<double>* cov, BVec* bret, tmv::Matrix<double>* bcov)
 {
-  return DoMeasure(pix,0,order,sigma,use_integ,flag,desqa,cov,bret,bcov);
+  return DoMeasure(pix,0,order,sigma,use_integ,flag,cov,bret,bcov);
 }
 
 void Ellipse::DoMeasureShapelet(const std::vector<PixelList>& pix,
@@ -96,9 +96,7 @@ void Ellipse::DoMeasureShapelet(const std::vector<PixelList>& pix,
   }
   b = I/A;
   if (bcov) {
-    tmv::UpperTriMatrix<double> Rinv = A.QRD().GetR();
-    Rinv.InvertSelf();
-    *bcov = Rinv * Rinv.Transpose();
+    A.InverseATA(*bcov);
   }
 }
 

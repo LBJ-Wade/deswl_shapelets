@@ -76,7 +76,6 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
   // Read some needed parameters
   int psforder = params.read<int>("psf_order");
   bool output_dots = params.read("output_dots",false);
-  bool desqa = params.read("des_qa",false);
   double gain = params.read("image_gain",0.);
   double psfap = params.read<double>("psf_aperture");
   dbg<<"psfap = "<<psfap<<std::endl;
@@ -149,7 +148,7 @@ int PSFCatalog::MeasurePSF(const Image<double>& im,
 	    // Noise values:
 	    noise[i], gain, weight_im,
 	    // Parameters:
-	    sigma_p, psfap, psforder, desqa,
+	    sigma_p, psfap, psforder, 
 	    // Log information
 	    log1,
 	    // Ouput value:

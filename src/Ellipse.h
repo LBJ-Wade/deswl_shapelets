@@ -31,11 +31,11 @@ class Ellipse {
 
     bool Measure(const std::vector<PixelList>& pix, 
 	const std::vector<BVec>& psf,
-	int order, double sigma, bool use_iteg, long& flag, bool desqa,
+	int order, double sigma, bool use_iteg, long& flag, 
 	tmv::Matrix<double>* cov=0, 
 	BVec* bret=0, tmv::Matrix<double>* bcov=0);
     bool Measure(const std::vector<PixelList>& pix, 
-	int order, double sigma, bool use_integ, long& flag, bool desqa,
+	int order, double sigma, bool use_integ, long& flag, 
 	tmv::Matrix<double>* cov=0, 
 	BVec* bret=0, tmv::Matrix<double>* bcov=0);
 
@@ -73,6 +73,10 @@ class Ellipse {
     void UnFixGam() { fixgam = false; }
     void UnFixMu() { fixmu = false; }
 
+    bool isFixCen() const { return fixcen; }
+    bool isFixGam() const { return fixgam; }
+    bool isFixMu() const { return fixmu; }
+
     void SetFP(double fp) { f_psf = fp; }
     double GetFP() const { return f_psf; }
 
@@ -84,7 +88,7 @@ class Ellipse {
 
     bool DoMeasure(const std::vector<PixelList>& pix, 
 	const std::vector<BVec>* psf, int order, double sigma,
-	bool use_integ, long& flag, bool desqa, tmv::Matrix<double>* cov=0, 
+	bool use_integ, long& flag, tmv::Matrix<double>* cov=0, 
 	BVec* bret=0, tmv::Matrix<double>* bcov=0);
     void DoMeasureShapelet(const std::vector<PixelList>& pix, 
 	const std::vector<BVec>* psf, BVec& bret,

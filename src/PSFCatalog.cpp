@@ -25,7 +25,7 @@ void MeasureSinglePSF1(
     Position cen, const Image<double>& im, double sky,
     const Transformation& trans,
     double noise, double gain, const Image<double>* weight_im,
-    double sigma_p, double psfap, int psforder, bool desqa,
+    double sigma_p, double psfap, int psforder,
     PSFLog& log, BVec& psf, double& nu, long& flag)
 {
   std::vector<PixelList> pix(1);
@@ -42,7 +42,7 @@ void MeasureSinglePSF1(
   tmv::Matrix<double> cov(psf.size(),psf.size());
 
   long flag1=0;
-  if (ell.Measure(pix,psforder,sigma_p,false,flag1,desqa,0,&psf,&cov)) 
+  if (ell.Measure(pix,psforder,sigma_p,false,flag1,0,&psf,&cov)) 
   {
     xdbg<<"psf = "<<psf<<std::endl;
     nu = psf[0] / std::sqrt(cov(0,0));
@@ -66,7 +66,7 @@ void MeasureSinglePSF(
     Position cen, const Image<double>& im, double sky,
     const Transformation& trans,
     double noise, double gain, const Image<double>* weight_im,
-    double sigma_p, double psfap, int psforder, bool desqa,
+    double sigma_p, double psfap, int psforder,
     PSFLog& log, BVec& psf, double& nu, long& flag)
 {
   try 
@@ -89,7 +89,7 @@ void MeasureSinglePSF(
   try 
   {
     MeasureSinglePSF1(cen,im,sky,trans,noise,gain,weight_im,
-	sigma_p,psfap,psforder,desqa,log,psf,nu,flag);
+	sigma_p,psfap,psforder,log,psf,nu,flag);
   } 
   catch (tmv::Error& e) 
   {

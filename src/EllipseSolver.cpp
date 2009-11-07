@@ -256,7 +256,6 @@ ESImpl::ESImpl(const std::vector<PixelList>& _pix,
 
 void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
 {
-  xxdbg<<"Start EllipseSolver F\n";
   Assert(x.size() == 5);
   Assert(f.size() == 6);
 
@@ -278,13 +277,8 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
   // Typically, these large values end up with overflows, which 
   // lead to nans and/or inf's in the resulting f.
   // Use 2 x the previous value;
-  xxdbg<<"x = "<<x<<std::endl;
   if (NormInf(x-xinit) > 4.) 
   {
-    xxdbg<<"ES::F large diversion:\n";
-    xxdbg<<"xinit = "<<xinit<<std::endl;
-    xxdbg<<"x = "<<x<<std::endl;
-    xxdbg<<"Norm(x-xinit) = "<<Norm(x-xinit)<<std::endl;
     f = b.SubVector(0,6);
     if (flux == 0.) flux = b(0);
     f /= flux;
@@ -301,11 +295,6 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
   // factor below.
   if (gsq > 0.99 || (mu < -3. && Norm(x-xinit) > 0.3))
   {
-    xxdbg<<"ES::F bad gsq or mu value:\n";
-    xxdbg<<"gsq = "<<gsq<<std::endl;
-    xxdbg<<"mu = "<<mu<<std::endl;
-    xxdbg<<"xinit = "<<xinit<<std::endl;
-    xxdbg<<"x = "<<x<<std::endl;
     f = b.SubVector(0,6);
     if (flux == 0.) flux = b(0);
     f /= flux;
@@ -340,14 +329,11 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
       PSFConvolve(newpsf,b.GetOrder(),b.GetSigma(),C[k]);
       AC.Rows(n,nx) = A.Rows(n,nx) * C[k];
     }
-    xxdbg<<"after psf correction"<<std::endl;
     AC.ReSetDiv();
     if (AC.Singular()) {
       // I used to keep going and just give an error. But these never 
       // eventually work, so just bail on the whole calculation.
       dbg<<"Found singular AC.  Bail.\n";
-      xxdbg<<"AC = "<<AC<<std::endl;
-      xxdbg<<"AC.R = "<<AC.QRD().GetR()<<std::endl;
       throw tmv::Singular();
     }
     b = I/AC;
@@ -355,20 +341,15 @@ void ESImpl::DoF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
     A.ReSetDiv();
     if (A.Singular()) {
       dbg<<"Found singular A.  Bail.\n";
-      xxdbg<<"A = "<<A<<std::endl;
-      xxdbg<<"A.R = "<<A.QRD().GetR()<<std::endl;
       throw tmv::Singular();
     }
     b = I/A;
   }
 
-  xxdbg<<"b = "<<b<<std::endl;
   f = b.SubVector(0,6);
   if (flux == 0.) flux = b(0);
   f /= flux;
   if (useflux) f(0) -= 1.;
-  xxdbg<<"f = "<<f<<std::endl;
-  xxdbg<<"Done EllipseSolver DoF\n";
 }
 
 void ESImpl::F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
@@ -455,7 +436,6 @@ void ESImpl::DoJ(const tmv::Vector<double>& x, const tmv::Vector<double>& ,
   //        = dT/dE T^-1 [TC0T^-1] - [TC0T^-1] dT/dE T^-1
   //        = G T^-1 C - C G T^-1
 
-  xxdbg<<"Start DoJ: x = "<<x<<std::endl;
   Assert(x.size() == 5);
   Assert(df.rowsize() == 5);
   Assert(df.colsize() == 6);
@@ -474,9 +454,6 @@ void ESImpl::DoJ(const tmv::Vector<double>& x, const tmv::Vector<double>& ,
 #ifdef JTEST
   tmv::Matrix<double> A_aux2(Z1.size(),np2size);
   MakePsi(A_aux2.View(),Z1,b.GetOrder()+2,&W);
-  xxdbg<<"A_aux = "<<A_aux.Rows(0,6);
-  xxdbg<<"A_aux2 = "<<A_aux2.Rows(0,6);
-  xxdbg<<"Norm(diff) = "<<Norm(A_aux2-A_aux)<<std::endl;
   Test(Norm(A_aux2-A_aux) < 1.e-8*Norm(A_aux),"A_aux");
 #endif
 
@@ -955,15 +932,11 @@ void ESImpl::DoJ(const tmv::Vector<double>& x, const tmv::Vector<double>& ,
   dbg<<"analytic: "<<df.Clip(1.e-5)<<std::endl;
   dbg<<"Norm(diff) = "<<Norm(df-df_num)<<std::endl;
 #endif
-  xxdbg<<"Done DoJ\n";
 }
 
 void ESImpl::J(const tmv::Vector<double>& x, const tmv::Vector<double>& f,
     tmv::Matrix<double>& df) const
 {
-  xxdbg<<"Start J: x = "<<x<<std::endl;
-  xxdbg<<"f = "<<f<<std::endl;
-  xxdbg<<"df = "<<df<<std::endl;
   Assert(x.size() == U.colsize());
   Assert(df.rowsize() == U.colsize());
   if (useflux) {
@@ -976,19 +949,14 @@ void ESImpl::J(const tmv::Vector<double>& x, const tmv::Vector<double>& f,
   if (fixcen) { xx[0] = fixuc;  xx[1] = fixvc; }
   if (fixgam) { xx[2] = fixg1;  xx[3] = fixg2; }
   if (fixmu) { xx[4] = fixm; }
-  xxdbg<<"xx = "<<xx<<std::endl;
 
-  xxdbg<<"dff = "<<dff<<std::endl;
   DoJ(xx,f,dff);
-  xxdbg<<"dff => "<<dff<<std::endl;
   if (useflux) {
     df.row(0) = dff.row(0)*U.Transpose();
     df.Rows(1,df.colsize()) = U*dff.Rows(1,6)*U.Transpose();
   } else {
     df = U*dff.Rows(1,6)*U.Transpose();
   }
-  xxdbg<<"df => "<<df<<std::endl;
-  xxdbg<<"Done J\n";
 }
 
 void EllipseSolver::UseNumericJ() { pimpl->numeric_j = true; }
@@ -997,10 +965,8 @@ const BVec& EllipseSolver::GetB() const { return pimpl->b; }
 
 void EllipseSolver::GetBCov(tmv::Matrix<double>& bcov) const 
 {
-  tmv::UpperTriMatrixView<double> Rinv = bcov.UpperTri();
-  Rinv = pimpl->psf ? pimpl->AC.QRD().GetR() : pimpl->A.QRD().GetR();
-  Rinv.InvertSelf();
-  bcov = Rinv * Rinv.Transpose();
+  if (pimpl->psf) pimpl->AC.InverseATA(bcov);
+  else pimpl->A.InverseATA(bcov);
 }
 
 void EllipseSolver::CallF(const tmv::Vector<double>& x,
@@ -1049,7 +1015,7 @@ bool EllipseSolver::Solve(tmv::Vector<double>& x, tmv::Vector<double>& f,
 
   if (ret && cov) {
     // C_E = (dbdE^-1) C_b (dbdE^-1)^T
-    // C_b = (A^T A)^-1 = R^T R)^-1
+    // C_b = (A^T A)^-1 = (R^T R)^-1
     //     = R^-1 R^-1^T
     // C_E = (dbdE^-1 R^-1) (dbdE^-1 R^-1)^T
     tmv::UpperTriMatrix<double> Rinv = 
