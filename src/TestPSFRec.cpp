@@ -30,33 +30,44 @@ int main(int argc, char **argv)
 		exit(45);
 	}
 
-	dbgout = &std::cout;
+	dbgout = &std::cerr;
 
 	string config_file=argv[1];
 	string psf_file=argv[2];
 	string fitpsf_file=argv[3];
 
 
-	cout<<"config_file: "<<config_file<<"\n";
-	cout<<"psf_file: "<<psf_file<<"\n";
-	cout<<"fitpsf_file: "<<fitpsf_file<<"\n";
+	cerr<<"config_file: "<<config_file<<"\n";
+	cerr<<"psf_file: "<<psf_file<<"\n";
+	cerr<<"fitpsf_file: "<<fitpsf_file<<"\n";
 
-	cout<<"Loading config...\n";
+	cerr<<"Loading config...\n";
 	ConfigFile params(config_file);
 	string fp((const char*)fitsparams_config,fitsparams_config_len);
 	istringstream is(fp);
 	params.Read(is);
 
 
-	cout<<"Loading a PSFCatalog\n";
+	cerr<<"Loading a PSFCatalog\n";
 	PSFCatalog psfcat(params, psf_file);
 
-	cout<<"Loading a FittedPSF\n";
+	cerr<<"Loading a FittedPSF\n";
 	FittedPSF fitpsf(params, fitpsf_file);
 
 	BVec ipsf(fitpsf.GetPSFOrder(), fitpsf.GetSigma());
 
 	// Test the reconstructions
+	cout<<"NROWS = "<<psfcat.pos.size()<<"\n";
+	cout<<"{'_DELIM': ' ',\n";
+	cout<<" '_DTYPE': [('id','i4'),\n";
+	cout<<"            ('x','f4'),('y','f4'),\n";
+	cout<<"            ('e1','f4'),('e2','f4'),\n";
+	cout<<"            ('e1interp','f4'),('e2interp','f4')],\n";
+	cout<<" 'config_file': '"<<config_file<<"',\n";
+	cout<<" 'psf_file': '"<<psf_file<<"',\n";
+	cout<<" 'fitpsf_file': '"<<fitpsf_file<<"'}\n";
+	cout<<"END\n";
+	cout<<"\n";
 	for (int i=0; i<psfcat.pos.size(); i++) {
 
 		double e1 = psfcat.psf[i][3]; // e1/sqrt(2)
@@ -67,10 +78,12 @@ int main(int argc, char **argv)
 		double ie1 = ipsf[3];
 		double ie2 = ipsf[4];
 		cout<<psfcat.id[i]
-			<<"  "<<e1
-			<<"  "<<ie1
-			<<"  "<<e2
-			<<"  "<<ie2
+			<<" "<<psfcat.pos[i].GetX()
+			<<" "<<psfcat.pos[i].GetY()
+			<<" "<<e1
+			<<" "<<e2
+			<<" "<<ie1
+			<<" "<<ie2
 			<<"\n";
 	}
 
