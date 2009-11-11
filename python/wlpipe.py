@@ -391,6 +391,123 @@ def execute_command(command, timeout=None,
     return exit_status, stdout_ret, stderr_ret
 
 
+def generate_se_checkpsf_pbsfile(serun, exposurename, outfile,
+                                 nodes=1, ppn=1, walltime='1:00:00'):
+
+    """
+    """
+
+    # the job name
+    jobname=exposurename
+
+    # The useful log file we redirect from the actual script call
+    logf=outfile+'.log'
+
+    # the generally useless pbslog
+    pbslog_file = os.path.basename(outfile.replace('.pbs','.pbslog'))
+
+    scratch_rootdir=default_scratch_rootdir()
+
+    header="""#!/bin/bash
+#PBS -S /bin/bash
+#PBS -N %s
+#PBS -j oe
+#PBS -o %s
+#PBS -m a
+#PBS -V
+#PBS -r n
+#PBS -W umask=0022
+#PBS -l walltime=%s
+#PBS -l nodes=%s:ppn=%s
+
+# explanation of above directives
+# see also: http://wiki.hpc.ufl.edu/index.php/PBS_Directives
+#
+# -N name - the name of the job
+# -j oe   - merge stdout and stderr in the output log (see -o)
+# -o name - put the output here.  Not usually useful for logging that
+#                   needs to be watched since it isn't actually written till the
+#                       script finishes.
+# -m a    - send mail when there is an abort
+# -V      - All environment variables in the qsub command's environment
+#                       are to be exported to the batch job.
+# -r n    - Don't try to rerun the job
+# -W umask=0022 - you can specify lots of things with -W. In this case make
+#                 sure the umask is correct.  I often put this in the 
+#                 script itself too
+# -l walltime=24:00:00 - "-l" is used to specify resources.  walltime gives
+#                        the max wall time the script can take before it
+#                        gets killed.
+#
+# some stuff not in this header
+#
+# -l nodes=number_of_nodes:ppn=process_per_node
+#    Note, in modern parlance, ppn is really number of cores to use.
+# -q queue  - Run in this queue
+
+umask 0022
+
+# The main log file, updated as the script runs
+logf="%s"
+
+# make sure our log directory exists
+d=$(dirname $logf)
+if [ ! -e "$d" ]; then
+    mkdir -p "$d"
+fi
+
+# get eups, DESDATA, etc ready
+source /home/users/dataman/.bashrc
+SCRATCH=/scratch/esheldon/DES
+
+""" % (jobname, pbslog_file, walltime, nodes, ppn, logf)
+
+    rc=deswl.files.Runconfig(serun)
+    esutil_setup = _make_setup_command('esutil', rc['esutilvers'])
+    tmv_setup = _make_setup_command('tmv',rc['tmvvers'])
+    wl_setup = _make_setup_command('wl',rc['wlvers'])
+
+    
+    fobj=open(outfile, 'w')
+
+    fobj.write(header)
+    fobj.write(wl_setup+'\n')
+
+    # must come after if it is not the current version
+    fobj.write(tmv_setup+'\n')
+    fobj.write(esutil_setup+'\n')
+
+    script="""
+config=${WL_DIR}/etc/wl.config
+
+serun=%s
+exposurename=%s
+input_dir=${DESDATA}/wlbnl/${serun}/${exposurename}
+outdir=${SCRATCH}/wlbnl/${serun}/${exposurename}
+
+if [ ! -e $outdir ]; then
+    mkdir -p $outdir
+fi
+
+ccds=$(seq -w 1 62)
+
+for ccd in $ccds; do
+
+    froot=${serun}_${exposurename}_${ccd}
+
+    psf_file=${input_dir}/${froot}_psf.fits
+    fitpsf_file=${input_dir}/${froot}_fitpsf.fits
+    out_file=${outdir}/${froot}_checkpsf.rec
+
+    test-psfrec $config $psf_file $fitpsf_file > $out_file
+    echo "output file: $out_file"
+done
+    """ % (serun, exposurename)
+
+    fobj.write(script)
+
+    fobj.close()
+
 
 
 
@@ -494,8 +611,6 @@ def generate_se_pbsfile(serun, exposurename, outfile,
                         nodes=1, ppn=8, walltime='4:00:00'):
 
     """
-    These jobs can run on a single core/processor.  So we set
-    nodes=1 and ppn=1
     """
 
     # the job name
@@ -591,7 +706,7 @@ source /global/data/products/eups/bin/setups.sh
 
 
 
-def generate_se_pbsfiles(serun, dataset, band, byccd=False): 
+def generate_se_pbsfiles(serun, dataset, band, typ='fullpipe', byccd=False): 
 
     stdout.write("Creating pbs files\n")
 
@@ -610,7 +725,12 @@ def generate_se_pbsfiles(serun, dataset, band, byccd=False):
         os.makedirs(outdir)
 
 
-    submit_fname=os.path.join(outdir, 'submit.sh')
+    if typ == 'fullpipe':
+        submit_fname = 'submit.sh'
+    else:
+        submit_fname = 'submit-%s.sh' % typ
+    submit_fname=os.path.join(outdir, submit_fname)
+
     if byccd:
         submit_fname=submit_fname.replace('submit','submit-byccd')
 
@@ -623,16 +743,21 @@ def generate_se_pbsfiles(serun, dataset, band, byccd=False):
             edict[fi['exposurename']] = fi
         
         for exposurename in edict:
-            outfile = deswl.files.wlse_pbs_path(serun,exposurename)
+            outfile = deswl.files.wlse_pbs_path(serun,exposurename,typ=typ)
             stdout.write('Writing pbs file: %s\n' % outfile)
-            generate_se_pbsfile(serun, exposurename, outfile)
+            if typ == 'checkpsf':
+                generate_se_checkpsf_pbsfile(serun, exposurename, outfile)
+            else:
+                generate_se_pbsfile(serun, exposurename, outfile)
+
             submit.write('qsub %s\n' % os.path.basename(outfile))
     else:
         for fi in fileinfo:
             exposurename=fi['exposurename']
             ccd=fi['ccd']
 
-            outfile = deswl.files.wlse_pbs_path(serun,exposurename,ccd)
+            outfile = deswl.files.wlse_pbs_path(serun,exposurename,
+                                                ccd=ccd,typ=typ)
             stdout.write('Writing pbs file: %s\n' % outfile)
             generate_se_pbsfile_byccd(serun, exposurename, ccd, outfile)
 
@@ -988,7 +1113,7 @@ def run_shear(exposurename, ccd=None,
             for ftype in rc.se_filetypes:
                 f=fdict[ftype]
                 df=fdict_def[ftype]
-                stdout.write(' * copying %s:%s to %s\n' % (hostshort,f,df) )
+                stdout.write(' * copying %s:%s to\n    %s\n' % (hostshort,f,df))
                 if not os.path.exists(f):
                     stdout.write('    Source file does not exist\n')
                 else:
@@ -1856,7 +1981,7 @@ def run_multishear(tilename, band,
             for ftype in rc.me_filetypes:
                 f=fdict[ftype]
                 df=fdict_def[ftype]
-                stdout.write(' * copying %s:%s to %s\n' % (hostshort,f,df) )
+                stdout.write(' * copying %s:%s to\n    %s\n' % (hostshort,f,df))
                 if not os.path.exists(f):
                     stdout.write('    Source file does not exist\n')
                 else:

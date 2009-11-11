@@ -100,7 +100,8 @@ test_psfrec = env2.Program('test-psfrec', 'TestPSFRec.cpp')
 
 bin_install_dir = os.path.join(env['PREFIX'], 'bin')
 
-bin_targets = [measurepsf, measureshear, findstars, multishear, fullpipe]
+bin_targets = [measurepsf, measureshear, findstars, multishear, fullpipe, 
+               test_psfrec]
 
 if 'install' in COMMAND_LINE_TARGETS:
     env.Alias(target='install',

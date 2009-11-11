@@ -30,13 +30,14 @@ int main(int argc, char **argv)
 		exit(45);
 	}
 
-	dbgout = &std::cerr;
+	//dbgout = &std::cerr;
 
 	string config_file=argv[1];
 	string psf_file=argv[2];
 	string fitpsf_file=argv[3];
 
 
+	cerr<<"\n";
 	cerr<<"config_file: "<<config_file<<"\n";
 	cerr<<"psf_file: "<<psf_file<<"\n";
 	cerr<<"fitpsf_file: "<<fitpsf_file<<"\n";
@@ -70,13 +71,13 @@ int main(int argc, char **argv)
 	cout<<"\n";
 	for (int i=0; i<psfcat.pos.size(); i++) {
 
-		double e1 = psfcat.psf[i][3]; // e1/sqrt(2)
-		double e2 = psfcat.psf[i][4]; // e2/sqrt(2)
+		double e1 = sqrt(2)*psfcat.psf[i][3];
+		double e2 = sqrt(2)*psfcat.psf[i][4];
 
 		fitpsf.Interpolate(psfcat.pos[i], ipsf);
 
-		double ie1 = ipsf[3];
-		double ie2 = ipsf[4];
+		double ie1 = sqrt(2)*ipsf[3];
+		double ie2 = sqrt(2)*ipsf[4];
 		cout<<psfcat.id[i]
 			<<" "<<psfcat.pos[i].GetX()
 			<<" "<<psfcat.pos[i].GetY()

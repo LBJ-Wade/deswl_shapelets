@@ -39,7 +39,8 @@ class Runconfig(object):
                               'fitpsf': '.fits', 
                               'shear':  '.fits',
                               'qa':     '.dat',
-                              'stat':   '.json'}
+                              'stat':   '.json',
+                              'checkpsf':'.rec'}
         self.se_collated_type = ['badlist','goodlist','collated']
         self.se_collated_filetypes = {'badlist':'json',
                                       'goodlist':'json',
@@ -111,6 +112,7 @@ class Runconfig(object):
                                esutilvers=None,
                                wlvers=None,
                                tmvvers=None,
+                               comment=None,
                                **extra):
 
         # wlme runs depend on wlse runs
@@ -122,7 +124,6 @@ class Runconfig(object):
 
 
         run_name=self.generate_new_runconfig_name(run_type, test=test)
-        config={}
 
         fileclass = self.run_types[run_type]['fileclass']
         filetype = self.run_types[run_type]['filetype']
@@ -145,6 +146,9 @@ class Runconfig(object):
                    'wlvers':wlvers,
                    'tmvvers':tmvvers,
                    'dataset':dataset}
+
+        if comment is not None:
+            runconfig['comment'] = comment
 
         if localid is not None:
             runconfig['localid'] = localid
@@ -538,7 +542,8 @@ def wlse_collated_read(serun,
 
     return esutil.io.read(fpath, header=header, 
                           rows=rows, columns=columns, fields=fields,
-                          norecfile=norecfile, verbose=verbose) 
+                          norecfile=norecfile, verbose=verbose, 
+                          ext=ext) 
 
 
 def wlme_dir(merun, tilename, rootdir=None):
@@ -776,21 +781,25 @@ def wlme_pbs_path(merun, tilename, band):
     return pbsfile
 
 
-def wlse_pbs_name(exposurename, ccd=None):
+def wlse_pbs_name(exposurename, typ='fullpipe', ccd=None):
     pbsfile=[exposurename]
+
+    if typ != 'fullpipe':
+        pbsfile.append(typ)
+
     if ccd is not None:
         pbsfile.append('%02i' % int(ccd))
     pbsfile='-'.join(pbsfile)+'.pbs'
     return pbsfile
     
-def wlse_pbs_path(serun, exposurename, ccd=None):
+def wlse_pbs_path(serun, exposurename, typ='fullpipe', ccd=None):
     if ccd is not None:
         subdir='byccd'
     else:
         subdir=None
 
     pbsdir=pbs_dir(serun, subdir=subdir)
-    pbsfile=wlse_pbs_name(exposurename, ccd=ccd)
+    pbsfile=wlse_pbs_name(exposurename, typ=typ, ccd=ccd)
     pbsfile=path_join(pbsdir, pbsfile)
     return pbsfile
 
