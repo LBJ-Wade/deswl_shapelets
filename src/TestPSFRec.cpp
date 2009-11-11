@@ -61,6 +61,7 @@ int main(int argc, char **argv)
 	cout<<"NROWS = "<<psfcat.pos.size()<<"\n";
 	cout<<"{'_DELIM': ' ',\n";
 	cout<<" '_DTYPE': [('id','i4'),\n";
+	cout<<"            ('psf_flags','i4'),\n";
 	cout<<"            ('x','f4'),('y','f4'),\n";
 	cout<<"            ('e1','f4'),('e2','f4'),\n";
 	cout<<"            ('e1interp','f4'),('e2interp','f4')],\n";
@@ -79,6 +80,7 @@ int main(int argc, char **argv)
 		double ie1 = sqrt(2)*ipsf[3];
 		double ie2 = sqrt(2)*ipsf[4];
 		cout<<psfcat.id[i]
+			<<" "<<psfcat.flags[i]
 			<<" "<<psfcat.pos[i].GetX()
 			<<" "<<psfcat.pos[i].GetY()
 			<<" "<<e1
