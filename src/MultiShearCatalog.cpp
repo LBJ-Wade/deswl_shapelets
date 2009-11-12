@@ -373,60 +373,145 @@ void MultiShearCatalog::WriteFits(std::string file) const
   // ! means overwrite existing file
   CCfits::FITS fits("!"+file, CCfits::Write);
 
-  const int nfields=20;
-  std::vector<string> colnames(nfields);
-  std::vector<string> colfmts(nfields);
-  std::vector<string> colunits(nfields);
+  //const int nfields=20;
+  //const int nfields=16;
+  //std::vector<string> colnames(nfields);
+  //std::vector<string> colfmts(nfields);
+  std::vector<string> colnames;
+  std::vector<string> colfmts;
 
-  colnames[0] = params.get("multishear_id_col");
-  // MJ: These don't make sense anymore.  Remove them, right?
-  //colnames[1] = params.get("multishear_x_col");
-  //colnames[2] = params.get("multishear_y_col");
-  //colnames[3] = params.get("multishear_sky_col");
-  //colnames[4] = params.get("multishear_noise_col");
-  colnames[5] = params.get("multishear_flags_col");
-  colnames[6] = params.get("multishear_ra_col");
-  colnames[7] = params.get("multishear_dec_col");
-  colnames[8] = params.get("multishear_shear1_col");
-  colnames[9] = params.get("multishear_shear2_col");
-  colnames[10] = params.get("multishear_nu_col");
-  colnames[11] = params.get("multishear_cov00_col");
-  colnames[12] = params.get("multishear_cov01_col");
-  colnames[13] = params.get("multishear_cov11_col");
-  colnames[14] = params.get("multishear_order_col");
-  colnames[15] = params.get("multishear_sigma_col");
-  colnames[16] = params.get("multishear_coeffs_col");
+  colnames.push_back(params.get("multishear_id_col")); 
+  colfmts.push_back("1J");
+  int id_colnum = colnames.size()-1;
 
-  colnames[17] = params.get("multishear_nimages_found_col");
-  colnames[18] = params.get("multishear_nimages_gotpix_col");
-  colnames[19] = params.get("multishear_input_flags_col");
+  colnames.push_back(params.get("multishear_flags_col"));
+  colfmts.push_back("1J"); // flags
+  int flags_colnum = colnames.size()-1;
+
+  colnames.push_back(params.get("multishear_ra_col"));
+  colfmts.push_back("1D"); // ra
+  int ra_colnum = colnames.size()-1;
+
+  colnames.push_back(params.get("multishear_dec_col"));
+  colfmts.push_back("1D"); // dec
+  int dec_colnum = colnames.size()-1;
+
+  colnames.push_back(params.get("multishear_shear1_col"));
+  colfmts.push_back("1D"); // shear1
+  int shear1_colnum = colnames.size()-1;
+
+  colnames.push_back(params.get("multishear_shear2_col"));
+  colfmts.push_back("1D"); // shear2
+  int shear2_colnum = colnames.size()-1;
+
+  colnames.push_back(params.get("multishear_nu_col"));
+  colfmts.push_back("1D"); // nu
+  int nu_colnum = colnames.size()-1;
+
+  colnames.push_back(params.get("multishear_cov00_col"));
+  colfmts.push_back("1D"); // cov00
+  int cov00_colnum = colnames.size()-1;
+
+  colnames.push_back(params.get("multishear_cov01_col"));
+  colfmts.push_back("1D"); // cov01
+  int cov01_colnum = colnames.size()-1;
+
+  colnames.push_back(params.get("multishear_cov11_col"));
+  colfmts.push_back("1D"); // cov11
+  int cov11_colnum = colnames.size()-1;
+
+  colnames.push_back(params.get("multishear_order_col"));
+  colfmts.push_back("1J"); // order
+  int order_colnum = colnames.size()-1;
+
+  colnames.push_back(params.get("multishear_sigma_col"));
+  colfmts.push_back("1D"); // sigma
+  int sigma_colnum = colnames.size()-1;
+
+
+  colnames.push_back(params.get("multishear_coeffs_col"));
 
   int ncoeff = shape[0].size();
   dbg<<"ncoeff = "<<ncoeff<<std::endl;
   std::stringstream coeff_form;
   coeff_form << ncoeff << "D";
-  colfmts[16] = coeff_form.str(); // shapelet coeffs
- 
-  colfmts[0] = "1J"; // id
-  colfmts[1] = "1D"; // x
-  colfmts[2] = "1D"; // y
-  colfmts[3] = "1D"; // sky
-  colfmts[4] = "1D"; // noise
-  colfmts[5] = "1J"; // flags
-  colfmts[6] = "1D"; // ra
-  colfmts[7] = "1D"; // dec
-  colfmts[8] = "1D"; // shear1
-  colfmts[9] = "1D"; // shear2
-  colfmts[10] = "1D"; // nu
-  colfmts[11] = "1D"; // cov00
-  colfmts[12] = "1D"; // cov01
-  colfmts[13] = "1D"; // cov11
-  colfmts[14] = "1J"; // order
-  colfmts[15] = "1D"; // sigma
+  colfmts.push_back(coeff_form.str()); // shapelet coeffs
 
-  colfmts[17] = "1J"; // nimages_found
-  colfmts[18] = "1J"; // nimages_gotpix
-  colfmts[19] = "1J"; // input_flags
+  int coeffs_colnum = colnames.size()-1;
+
+
+  colnames.push_back(params.get("multishear_nimages_found_col"));
+  colfmts.push_back("1J"); // nimages_found
+  int nimages_found_colnum = colnames.size()-1;
+
+  colnames.push_back(params.get("multishear_nimages_gotpix_col"));
+  colfmts.push_back("1J"); // nimages_gotpix
+  int nimages_gotpix_colnum = colnames.size()-1;
+
+  colnames.push_back(params.get("multishear_input_flags_col"));
+  colfmts.push_back("1J"); // input_flags
+  int input_flags_colnum = colnames.size()-1;
+
+
+  /*
+
+
+  int icol=0;
+  colnames[icol] = params.get("multishear_id_col");
+  colfmts[icol++] = "1J"; // id
+  colnames[icol] = params.get("multishear_flags_col");
+  colfmts[icol++] = "1J"; // flags
+  colnames[icol] = params.get("multishear_ra_col");
+  colfmts[icol++] = "1D"; // ra
+  colnames[icol] = params.get("multishear_dec_col");
+  colfmts[icol++] = "1D"; // dec
+  colnames[icol] = params.get("multishear_shear1_col");
+  colfmts[icol++] = "1D"; // shear1
+  colnames[icol] = params.get("multishear_shear2_col");
+  colfmts[icol++] = "1D"; // shear2
+  colnames[icol] = params.get("multishear_nu_col");
+  colfmts[icol++] = "1D"; // nu
+  colnames[icol] = params.get("multishear_cov00_col");
+  colfmts[icol++] = "1D"; // cov00
+  colnames[icol] = params.get("multishear_cov01_col");
+  colfmts[icol++] = "1D"; // cov01
+  colnames[icol] = params.get("multishear_cov11_col");
+  colfmts[icol++] = "1D"; // cov11
+  colnames[icol] = params.get("multishear_order_col");
+  colfmts[icol++] = "1J"; // order
+  colnames[icol] = params.get("multishear_sigma_col");
+  colfmts[icol++] = "1D"; // sigma
+
+
+  colnames[icol] = params.get("multishear_coeffs_col");
+
+  int ncoeff = shape[0].size();
+  dbg<<"ncoeff = "<<ncoeff<<std::endl;
+  std::stringstream coeff_form;
+  coeff_form << ncoeff << "D";
+  colfmts[icol++] = coeff_form.str(); // shapelet coeffs
+
+
+
+  colnames[icol] = params.get("multishear_nimages_found_col");
+  colfmts[icol++] = "1J"; // nimages_found
+  colnames[icol] = params.get("multishear_nimages_gotpix_col");
+  colfmts[icol++] = "1J"; // nimages_gotpix
+  colnames[icol] = params.get("multishear_input_flags_col");
+  colfmts[icol++] = "1J"; // input_flags
+
+  // MJ: These don't make sense anymore.  Remove them, right?
+  //colnames[1] = params.get("multishear_x_col");
+  //colnames[2] = params.get("multishear_y_col");
+  //colnames[3] = params.get("multishear_sky_col");
+  //colnames[4] = params.get("multishear_noise_col");
+  //colfmts[1] = "1D"; // x
+  //colfmts[2] = "1D"; // y
+  //colfmts[3] = "1D"; // sky
+  //colfmts[4] = "1D"; // noise
+
+  */
+  std::vector<string> colunits(colfmts.size());
 
 
   dbg<<"Before Create table"<<std::endl;
@@ -473,8 +558,9 @@ void MultiShearCatalog::WriteFits(std::string file) const
 
   for(size_t i=0;i<size();i++) 
   {
-    ra[i] = skypos[i].GetX();
-    dec[i] = skypos[i].GetY();
+	// internally we use arcseconds
+    ra[i] = skypos[i].GetX()/3600.;
+    dec[i] = skypos[i].GetY()/3600.;
   }
   for(size_t i=0;i<size();i++) 
   {
@@ -491,32 +577,32 @@ void MultiShearCatalog::WriteFits(std::string file) const
 
   int startrow=1;
 
-  table->column(colnames[0]).write(id,startrow);
-  table->column(colnames[5]).write(flags,startrow);
-  table->column(colnames[6]).write(ra,startrow);
-  table->column(colnames[7]).write(dec,startrow);
-  table->column(colnames[8]).write(shear1,startrow);
-  table->column(colnames[9]).write(shear2,startrow);
-  table->column(colnames[10]).write(nu,startrow);
-  table->column(colnames[11]).write(cov00,startrow);
-  table->column(colnames[12]).write(cov01,startrow);
-  table->column(colnames[13]).write(cov11,startrow);
+  table->column(colnames[id_colnum]).write(id,startrow);
+  table->column(colnames[flags_colnum]).write(flags,startrow);
+  table->column(colnames[ra_colnum]).write(ra,startrow);
+  table->column(colnames[dec_colnum]).write(dec,startrow);
+  table->column(colnames[shear1_colnum]).write(shear1,startrow);
+  table->column(colnames[shear2_colnum]).write(shear2,startrow);
+  table->column(colnames[nu_colnum]).write(nu,startrow);
+  table->column(colnames[cov00_colnum]).write(cov00,startrow);
+  table->column(colnames[cov01_colnum]).write(cov01,startrow);
+  table->column(colnames[cov11_colnum]).write(cov11,startrow);
 
   for (size_t i=0; i<size(); i++) {
     size_t row = i+1;
     long b_order = shape[i].GetOrder();
     double b_sigma = shape[i].GetSigma();
 
-    table->column(colnames[14]).write(&b_order,1,row);
-    table->column(colnames[15]).write(&b_sigma,1,row);
+    table->column(colnames[order_colnum]).write(&b_order,1,row);
+    table->column(colnames[sigma_colnum]).write(&b_sigma,1,row);
     double* cptr = (double *) shape[i].cptr();
-    table->column(colnames[16]).write(cptr, ncoeff, 1, row);
+    table->column(colnames[coeffs_colnum]).write(cptr, ncoeff, 1, row);
 
   }
 
-  table->column(colnames[17]).write(nimages_found,startrow);
-  table->column(colnames[18]).write(nimages_gotpix,startrow);
-  table->column(colnames[19]).write(input_flags,startrow);
+  table->column(colnames[nimages_found_colnum]).write(nimages_found,startrow);
+  table->column(colnames[nimages_gotpix_colnum]).write(nimages_gotpix,startrow);
+  table->column(colnames[input_flags_colnum]).write(input_flags,startrow);
 }
 
 void MultiShearCatalog::WriteAscii(std::string file, std::string delim) const
@@ -542,8 +628,8 @@ void MultiShearCatalog::WriteAscii(std::string file, std::string delim) const
   for(size_t i=0;i<size();i++) {
     fout
       << id[i] << delim
-      << skypos[i].GetX() << delim
-      << skypos[i].GetY() << delim
+      << skypos[i].GetX()/3600. << delim
+      << skypos[i].GetY()/3600. << delim
       << hexform(flags[i]) << delim
       << real(shear[i]) << delim
       << imag(shear[i]) << delim
