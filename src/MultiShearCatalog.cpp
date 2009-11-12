@@ -373,10 +373,6 @@ void MultiShearCatalog::WriteFits(std::string file) const
   // ! means overwrite existing file
   CCfits::FITS fits("!"+file, CCfits::Write);
 
-  //const int nfields=20;
-  //const int nfields=16;
-  //std::vector<string> colnames(nfields);
-  //std::vector<string> colfmts(nfields);
   std::vector<string> colnames;
   std::vector<string> colfmts;
 
@@ -453,64 +449,7 @@ void MultiShearCatalog::WriteFits(std::string file) const
   int input_flags_colnum = colnames.size()-1;
 
 
-  /*
-
-
-  int icol=0;
-  colnames[icol] = params.get("multishear_id_col");
-  colfmts[icol++] = "1J"; // id
-  colnames[icol] = params.get("multishear_flags_col");
-  colfmts[icol++] = "1J"; // flags
-  colnames[icol] = params.get("multishear_ra_col");
-  colfmts[icol++] = "1D"; // ra
-  colnames[icol] = params.get("multishear_dec_col");
-  colfmts[icol++] = "1D"; // dec
-  colnames[icol] = params.get("multishear_shear1_col");
-  colfmts[icol++] = "1D"; // shear1
-  colnames[icol] = params.get("multishear_shear2_col");
-  colfmts[icol++] = "1D"; // shear2
-  colnames[icol] = params.get("multishear_nu_col");
-  colfmts[icol++] = "1D"; // nu
-  colnames[icol] = params.get("multishear_cov00_col");
-  colfmts[icol++] = "1D"; // cov00
-  colnames[icol] = params.get("multishear_cov01_col");
-  colfmts[icol++] = "1D"; // cov01
-  colnames[icol] = params.get("multishear_cov11_col");
-  colfmts[icol++] = "1D"; // cov11
-  colnames[icol] = params.get("multishear_order_col");
-  colfmts[icol++] = "1J"; // order
-  colnames[icol] = params.get("multishear_sigma_col");
-  colfmts[icol++] = "1D"; // sigma
-
-
-  colnames[icol] = params.get("multishear_coeffs_col");
-
-  int ncoeff = shape[0].size();
-  dbg<<"ncoeff = "<<ncoeff<<std::endl;
-  std::stringstream coeff_form;
-  coeff_form << ncoeff << "D";
-  colfmts[icol++] = coeff_form.str(); // shapelet coeffs
-
-
-
-  colnames[icol] = params.get("multishear_nimages_found_col");
-  colfmts[icol++] = "1J"; // nimages_found
-  colnames[icol] = params.get("multishear_nimages_gotpix_col");
-  colfmts[icol++] = "1J"; // nimages_gotpix
-  colnames[icol] = params.get("multishear_input_flags_col");
-  colfmts[icol++] = "1J"; // input_flags
-
-  // MJ: These don't make sense anymore.  Remove them, right?
-  //colnames[1] = params.get("multishear_x_col");
-  //colnames[2] = params.get("multishear_y_col");
-  //colnames[3] = params.get("multishear_sky_col");
-  //colnames[4] = params.get("multishear_noise_col");
-  //colfmts[1] = "1D"; // x
-  //colfmts[2] = "1D"; // y
-  //colfmts[3] = "1D"; // sky
-  //colfmts[4] = "1D"; // noise
-
-  */
+  // We don't output units yet, just make it same size as others
   std::vector<string> colunits(colfmts.size());
 
 
