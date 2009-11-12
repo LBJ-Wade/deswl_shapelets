@@ -43,7 +43,7 @@ static void SetPRow(size_t fitorder, Position pos, const Bounds& bounds,
   Assert(pq == Prow.size());
 }
 
-FittedPSF::FittedPSF(const PSFCatalog& psfcat, const ConfigFile& _params) :
+FittedPSF::FittedPSF(PSFCatalog& psfcat, const ConfigFile& _params) :
   params(_params), psforder(params.read<int>("psf_order")),
   fitorder(params.read<int>("fitpsf_order")),
   fitsize((fitorder+1)*(fitorder+2)/2)
@@ -63,79 +63,162 @@ FittedPSF::FittedPSF(const PSFCatalog& psfcat, const ConfigFile& _params) :
     break;
   }
 
-  // Calculate the average psf vector
-  avepsf.reset(new BVec(psforder,sigma));
-  avepsf->Zero();
-  size_t psfsize = avepsf->size();
-  size_t ngoodpsf=0;
-  for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
-    xxdbg<<"n = "<<n<<", psf[n] = "<<psfcat.psf[n]<<std::endl;
-    xxdbg<<"sigma = "<<sigma<<std::endl;
-    xxdbg<<"psfcat.psf["<<n<<"].sigma = "<<psfcat.psf[n].GetSigma()<<std::endl;
-    xxdbg<<"diff = "<<std::abs(sigma-psfcat.psf[n].GetSigma())<<std::endl;
-    Assert(psfcat.psf[n].GetSigma() == sigma);
-    *avepsf += psfcat.psf[n];
-    ngoodpsf++;
-  }
-  *avepsf /= double(ngoodpsf);
-  xxdbg<<"ngoodpsf = "<<ngoodpsf<<std::endl;
-  xxdbg<<"average psf = "<<*avepsf<<std::endl;
+  const size_t psfsize = (psforder+1)*(psforder+2)/2;
+  const double nSigmaClip = params["fitpsf_nsigma_outlier"];
 
-  // Rotate the vectors into their eigen directions.
-  // The matrix V is stored to let us get back to the original basis.
-  tmv::Matrix<double> M(ngoodpsf,psfsize);
-  tmv::DiagMatrix<double> invsig(ngoodpsf);
-  size_t i=0;
-  for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
-    Assert(psfcat.psf[n].size() == psfsize);
-    Assert(i < ngoodpsf);
-    M.row(i) = psfcat.psf[n] - *avepsf;
-    invsig(i) = psfcat.nu[n];
-    bounds += psfcat.pos[n];
-    i++;
-  }
-  Assert(i == ngoodpsf);
-  xdbg<<"bounds = "<<bounds<<std::endl;
-  M = invsig * M;
+  // This is an empirical fit to the chisq level that corresponds to 
+  // a 3-sigma outlier for more than 1 dimension.
+  // I calculated the values up to n=100 and for n>30, they form a pretty
+  // good approximation to a straight line.
+  // This is almost certainly wrong for nSigmaClip != 3, so if we start 
+  // choosing other values for nSigmaClip, it might be worth doing this 
+  // right.
+  // That means calculating the 1-d critical value for the given nSigma.
+  // e.g. nSigma = 3 -> alpha = P(chisq > 9) = 0.0027.
+  // Then calculate the critical value of chisq for that alpha with 
+  // the full degrees of freedom = psfsize
+  const double chisqLevel = 0.14*psfsize + 2.13;
 
-  size_t K = std::min(ngoodpsf,psfsize);
-  tmv::DiagMatrix<double> S(K);
-  tmv::MatrixView<double> U = M.Cols(0,K);
-  V.reset(new tmv::Matrix<double,tmv::RowMajor>(K,psfsize));
-  if (ngoodpsf > psfsize) {
-    SV_Decompose(U.View(),S.View(),V->View(),true);
-  } else {
-    *V = M;
-    SV_Decompose(V->Transpose(),S.View(),U.Transpose());
-  }
-  xdbg<<"In FittedPSF: SVD S = "<<S.diag()<<std::endl;
-  if (params.keyExists("fitpsf_npca")) {
-    npca = params["fitpsf_npca"];
-    xdbg<<"npca = "<<npca<<" from parameter file\n";
-  } else {
-    double thresh = S(0);
-    if (params.keyExists("fitpsf_pca_thresh")) 
-      thresh *= double(params["fitpsf_pca_thresh"]);
-    else thresh *= tmv::Epsilon<double>();
-    xdbg<<"thresh = "<<thresh<<std::endl;
-    for(npca=1;npca<int(M.rowsize());npca++) if (S(npca) < thresh) break;
-    xdbg<<"npca = "<<npca<<std::endl;
-  }
-  U.Cols(0,npca) *= S.SubDiagMatrix(0,npca);
-  // U S = M(orig) * Vt
+  const double outlierThresh = nSigmaClip * nSigmaClip * chisqLevel;
+  dbg<<"outlierThresh = "<<outlierThresh<<std::endl;
 
-  tmv::Matrix<double> P(ngoodpsf,fitsize,0.);
-  i=0;
-  for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
-    SetPRow(fitorder,psfcat.pos[n],bounds,P.row(i));
-    i++;
-  }
-  Assert(i == ngoodpsf);
-  P = invsig * P;
+  int nOutliers;
+  do {
 
-  // TODO: need to implement outlier rejection.
-  f.reset(new tmv::Matrix<double>(U.Cols(0,npca)/P));
-  xdbg<<"Done making FittedPSF\n";
+    // Calculate the average psf vector
+    avepsf.reset(new BVec(psforder,sigma));
+    Assert(psfsize == avepsf->size());
+    avepsf->Zero();
+    size_t ngoodpsf = 0;
+    for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
+      xxdbg<<"n = "<<n<<", psf[n] = "<<psfcat.psf[n]<<std::endl;
+      xxdbg<<"sigma = "<<sigma<<std::endl;
+      xxdbg<<"psfcat.psf["<<n<<"].sigma = "<<psfcat.psf[n].GetSigma()<<std::endl;
+      xxdbg<<"diff = "<<std::abs(sigma-psfcat.psf[n].GetSigma())<<std::endl;
+      Assert(psfcat.psf[n].GetSigma() == sigma);
+      *avepsf += psfcat.psf[n];
+      ngoodpsf++;
+    }
+    if (ngoodpsf == 0) {
+      dbg<<"ngoodpsf = 0 in FittedPsf constructor\n";
+      throw ProcessingError("No good stars found for interpolation.");
+    }
+    *avepsf /= double(ngoodpsf);
+    xxdbg<<"ngoodpsf = "<<ngoodpsf<<std::endl;
+    xxdbg<<"average psf = "<<*avepsf<<std::endl;
+
+    // Rotate the vectors into their eigen directions.
+    // The matrix V is stored to let us get back to the original basis.
+    tmv::Matrix<double> M(ngoodpsf,psfsize);
+    tmv::DiagMatrix<double> invsig(ngoodpsf);
+    size_t i=0;
+    for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
+      Assert(psfcat.psf[n].size() == psfsize);
+      Assert(i < ngoodpsf);
+      M.row(i) = psfcat.psf[n] - *avepsf;
+      invsig(i) = psfcat.nu[n];
+      bounds += psfcat.pos[n];
+      i++;
+    }
+    Assert(i == ngoodpsf);
+    xdbg<<"bounds = "<<bounds<<std::endl;
+    M = invsig * M;
+
+    size_t K = std::min(ngoodpsf,psfsize);
+    tmv::DiagMatrix<double> S(K);
+    tmv::MatrixView<double> U = M.Cols(0,K);
+    V.reset(new tmv::Matrix<double,tmv::RowMajor>(K,psfsize));
+    if (ngoodpsf > psfsize) {
+      SV_Decompose(U.View(),S.View(),V->View(),true);
+    } else {
+      *V = M;
+      SV_Decompose(V->Transpose(),S.View(),U.Transpose());
+    }
+    xdbg<<"In FittedPSF: SVD S = "<<S.diag()<<std::endl;
+    if (params.keyExists("fitpsf_npca")) {
+      npca = params["fitpsf_npca"];
+      xdbg<<"npca = "<<npca<<" from parameter file\n";
+    } else {
+      double thresh = S(0);
+      if (params.keyExists("fitpsf_pca_thresh")) 
+	thresh *= double(params["fitpsf_pca_thresh"]);
+      else thresh *= tmv::Epsilon<double>();
+      xdbg<<"thresh = "<<thresh<<std::endl;
+      for(npca=1;npca<int(M.rowsize());npca++) if (S(npca) < thresh) break;
+      xdbg<<"npca = "<<npca<<std::endl;
+    }
+    U.Cols(0,npca) *= S.SubDiagMatrix(0,npca);
+    // U S = M(orig) * Vt
+
+    while (ngoodpsf <= fitsize && fitsize > 1) {
+      --fitorder;
+      fitsize = (fitorder+1)*(fitorder+2)/2;
+      dbg<<"Too few good stars... reducing order of fit to "<<
+	fitorder<<std::endl;
+    }
+    tmv::Matrix<double> P(ngoodpsf,fitsize,0.);
+    i=0;
+    for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
+      SetPRow(fitorder,psfcat.pos[n],bounds,P.row(i));
+      i++;
+    }
+    Assert(i == ngoodpsf);
+    P = invsig * P;
+
+    f.reset(new tmv::Matrix<double>(U.Cols(0,npca)/P));
+    xdbg<<"Done making FittedPSF\n";
+
+    //
+    // Remove outliers from the fit using the empirical covariance matrix
+    // of the data with respect to the fitted values.
+    //
+    xdbg<<"Checking for outliers:\n";
+
+    // Calculate the covariance matrix
+    tmv::Matrix<double> cov(psfsize,psfsize,0.);
+    for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
+      const BVec& data = psfcat.psf[n];
+      BVec fit(psforder,sigma);
+      Interpolate(psfcat.pos[n],fit);
+      xxdbg<<"pos = "<<psfcat.pos[n]<<std::endl;
+      xxdbg<<"data = "<<data<<std::endl;
+      xxdbg<<"fit = "<<fit<<std::endl;
+      tmv::Vector<double> diff = data - fit;
+      cov += diff ^ diff;
+    }
+    if (ngoodpsf > fitsize) { // only <= if both == 1, so basically always true
+      cov /= double(ngoodpsf-fitsize);
+    }
+    xxdbg<<"cov = "<<cov<<std::endl;
+    cov.DivideUsing(tmv::SV);
+    cov.SaveDiv();
+    cov.SetDiv();
+    xdbg<<"cov S = "<<cov.SVD().GetS().diag()<<std::endl;
+
+    // Clip out 3 sigma outliers:
+    nOutliers = 0;
+    for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
+      const BVec& data = psfcat.psf[n];
+      BVec fit(psforder,sigma);
+      Interpolate(psfcat.pos[n],fit);
+      tmv::Vector<double> diff = data - fit;
+      double dev = diff * cov.Inverse() * diff;
+      if (dev > outlierThresh) {
+	xdbg<<"n = "<<n<<" is an outlier.\n";
+	xdbg<<"data = "<<data<<std::endl;
+	xdbg<<"fit = "<<fit<<std::endl;
+	xdbg<<"diff = "<<diff<<std::endl;
+	xdbg<<"diff/cov = "<<diff/cov<<std::endl;
+	xdbg<<"dev = "<<dev<<std::endl;
+	++nOutliers;
+	psfcat.flags[n] |= PSF_INTERP_OUTLIER;
+      }
+    }
+    xdbg<<"ngoodpsf = "<<ngoodpsf<<std::endl;
+    xdbg<<"nOutliers = "<<nOutliers<<std::endl;
+
+  } while (nOutliers > 0);
+
 }
 
 FittedPSF::FittedPSF(const ConfigFile& _params) : params(_params)

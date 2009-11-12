@@ -93,10 +93,8 @@ static void DoMeasurePSF(ConfigFile& params, PSFLog& log)
 
   if (npsf == 0) throw ProcessingError("No successful PSF measurements");
 
-  // MJ -- Should we make a FittedPSFLog?  Are there parameters here that
-  //       we want to ingest into a DB meta-table?
-  //       If so, we would need to WritePSFCat after doing the
-  //       FittedPSF calculation, since the fittedpsf file is not ingested.
+  // TODO: Pass the log to the FittedPsf constructor to record the
+  //       number of outliers found.  Maybe other values?
 
   // Fit the PSF with a polynomial:
   FittedPSF fitpsf(psfcat,params);
@@ -110,6 +108,12 @@ static void DoMeasurePSF(ConfigFile& params, PSFLog& log)
 
   // Write fitted psf to file
   fitpsf.Write();
+
+  // Re-write the PSF catalog, since the interpolation may have changed
+  // the flags.
+  // TODO: It may be worth having a new routine that just updates the 
+  // flags.  More efficient, since don't need to re-write everything.
+  psfcat.Write();
 
   if (timing) {
     gettimeofday(&tp,0);

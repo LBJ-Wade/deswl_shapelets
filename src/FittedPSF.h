@@ -16,7 +16,7 @@ class FittedPSF {
   public :
 
     // Make from PSFCatalog
-    FittedPSF(const PSFCatalog& psfcat, const ConfigFile& params);
+    FittedPSF(PSFCatalog& psfcat, const ConfigFile& params);
 
     // Read from file
     FittedPSF(const ConfigFile& params);
