@@ -1,11 +1,11 @@
 #include "ExecuteCommand.h"
+#include <cstdio>
 
 void ExecuteCommand(std::string command, std::string& result, bool strip_trailing_newline)
 {
   result.erase();
   char buffer[256];
-  FILE* stream;
-  stream = popen(command.c_str(),"r");
+  FILE* stream = popen(command.c_str(),"r");
   while ( fgets(buffer, 256, stream) != NULL ) {
     result.append(buffer);
   }
