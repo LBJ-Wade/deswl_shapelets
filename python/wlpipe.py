@@ -20,7 +20,7 @@
         # create pbs scripts, either by pointing or by ccd number
         # these files execute the shear-run stand alone code
 
-        generate_se_pbsfiles(serun, dataset, band, byccd=False): 
+        generate_se_pbsfiles(serun, band, byccd=False): 
 
 
     For coadds, using multishear:
@@ -706,10 +706,12 @@ source /global/data/products/eups/bin/setups.sh
 
 
 
-def generate_se_pbsfiles(serun, dataset, band, typ='fullpipe', byccd=False): 
+def generate_se_pbsfiles(serun, band, typ='fullpipe', byccd=False): 
 
     stdout.write("Creating pbs files\n")
 
+    rc = deswl.files.Runconfig(serun)
+    dataset = rc['dataset']
 
     # get the file lists
     infodict,infodict_file = \

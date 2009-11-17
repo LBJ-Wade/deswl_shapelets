@@ -128,7 +128,7 @@ class Runconfig(object):
         fileclass = self.run_types[run_type]['fileclass']
         filetype = self.run_types[run_type]['filetype']
 
-        # software versions
+        # software versions.  Default to whatever is in our environment
         if pyvers is None:
             pyvers=deswl.get_python_version()
         if esutilvers is None:
