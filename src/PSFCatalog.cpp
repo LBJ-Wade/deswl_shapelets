@@ -70,7 +70,7 @@ void MeasureSinglePSF1(
     dbg<<"Bad flux value: \n";
     dbg<<"flux = "<<flux(0)<<std::endl;
     dbg<<"psf = "<<psf<<std::endl;
-    flag != PSF_BAD_FLUX;
+    flag |= PSF_BAD_FLUX;
   }
 
   xdbg<<"psf = "<<psf<<std::endl;

@@ -13,34 +13,34 @@
 #include "TMV.h"
 #include "WriteParKey.h"
 
-static tmv::Vector<double> DefinePXY(size_t order, double x,
+static tmv::Vector<double> DefinePXY(int order, double x,
     double xmin, double xmax)
 {
   tmv::Vector<double> temp(order+1);
   double newx = (2.*x-xmin-xmax)/(xmax-xmin);
   temp[0] = 1.;
   if(order>0) temp[1] = newx;
-  for(size_t i=2;i<=order;i++)
+  for(int i=2;i<=order;i++)
     temp[i] = ((2.*i-1.)*newx*temp[i-1] - (i-1.)*temp[i-2])/i;
   return temp;
 }
 
-static void SetPRow(size_t fitorder, Position pos, const Bounds& bounds, 
+static void SetPRow(int fitorder, Position pos, const Bounds& bounds, 
     const tmv::VectorView<double>& Prow)
 {
-  Assert(Prow.size() == (fitorder+1)*(fitorder+2)/2);
+  Assert(int(Prow.size()) == (fitorder+1)*(fitorder+2)/2);
   tmv::Vector<double> px = DefinePXY(fitorder,pos.GetX(),
       bounds.GetXMin(),bounds.GetXMax());
   tmv::Vector<double> py = DefinePXY(fitorder,pos.GetY(),
       bounds.GetYMin(),bounds.GetYMax());
-  size_t pq = 0;
-  for(size_t pplusq=0;pplusq<=fitorder;pplusq++)
-    for(size_t p=pplusq,q=pplusq-p;q<=pplusq;p--,q++) {
-      Assert(pq < Prow.size());
+  int pq = 0;
+  for(int pplusq=0;pplusq<=fitorder;pplusq++)
+    for(int p=pplusq,q=pplusq-p;q<=pplusq;p--,q++) {
+      Assert(pq < int(Prow.size()));
       Prow(pq) = px[p]*py[q];
       pq++;
     }
-  Assert(pq == Prow.size());
+  Assert(pq == int(Prow.size()));
 }
 
 FittedPSF::FittedPSF(PSFCatalog& psfcat, const ConfigFile& _params) :
@@ -58,12 +58,13 @@ FittedPSF::FittedPSF(PSFCatalog& psfcat, const ConfigFile& _params) :
   // So now I set it to -1, and then update it when we get to the first
   // object without an error flag (usually n = 0).
   sigma = -1.;
-  for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
+  const int nStars = psfcat.size();
+  for(int n=0;n<nStars;n++) if (!psfcat.flags[n]) {
     sigma = psfcat.psf[n].GetSigma();
     break;
   }
 
-  const size_t psfsize = (psforder+1)*(psforder+2)/2;
+  const int psfsize = (psforder+1)*(psforder+2)/2;
   const double nSigmaClip = params["fitpsf_nsigma_outlier"];
 
   // This is an empirical fit to the chisq level that corresponds to 
@@ -87,10 +88,10 @@ FittedPSF::FittedPSF(PSFCatalog& psfcat, const ConfigFile& _params) :
 
     // Calculate the average psf vector
     avepsf.reset(new BVec(psforder,sigma));
-    Assert(psfsize == avepsf->size());
+    Assert(psfsize == int(avepsf->size()));
     avepsf->Zero();
-    size_t ngoodpsf = 0;
-    for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
+    int ngoodpsf = 0;
+    for(int n=0;n<nStars;n++) if (!psfcat.flags[n]) {
       xxdbg<<"n = "<<n<<", psf[n] = "<<psfcat.psf[n]<<std::endl;
       xxdbg<<"sigma = "<<sigma<<std::endl;
       xxdbg<<"psfcat.psf["<<n<<"].sigma = "<<psfcat.psf[n].GetSigma()<<std::endl;
@@ -111,9 +112,9 @@ FittedPSF::FittedPSF(PSFCatalog& psfcat, const ConfigFile& _params) :
     // The matrix V is stored to let us get back to the original basis.
     tmv::Matrix<double> M(ngoodpsf,psfsize);
     tmv::DiagMatrix<double> invsig(ngoodpsf);
-    size_t i=0;
-    for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
-      Assert(psfcat.psf[n].size() == psfsize);
+    int i=0;
+    for(int n=0;n<nStars;n++) if (!psfcat.flags[n]) {
+      Assert(int(psfcat.psf[n].size()) == psfsize);
       Assert(i < ngoodpsf);
       M.row(i) = psfcat.psf[n] - *avepsf;
       invsig(i) = psfcat.nu[n];
@@ -124,7 +125,7 @@ FittedPSF::FittedPSF(PSFCatalog& psfcat, const ConfigFile& _params) :
     xdbg<<"bounds = "<<bounds<<std::endl;
     M = invsig * M;
 
-    size_t K = std::min(ngoodpsf,psfsize);
+    int K = std::min(ngoodpsf,psfsize);
     tmv::DiagMatrix<double> S(K);
     tmv::MatrixView<double> U = M.Cols(0,K);
     V.reset(new tmv::Matrix<double,tmv::RowMajor>(K,psfsize));
@@ -158,7 +159,7 @@ FittedPSF::FittedPSF(PSFCatalog& psfcat, const ConfigFile& _params) :
     }
     tmv::Matrix<double> P(ngoodpsf,fitsize,0.);
     i=0;
-    for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
+    for(int n=0;n<nStars;n++) if (!psfcat.flags[n]) {
       SetPRow(fitorder,psfcat.pos[n],bounds,P.row(i));
       i++;
     }
@@ -176,7 +177,7 @@ FittedPSF::FittedPSF(PSFCatalog& psfcat, const ConfigFile& _params) :
 
     // Calculate the covariance matrix
     tmv::Matrix<double> cov(psfsize,psfsize,0.);
-    for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
+    for(int n=0;n<nStars;n++) if (!psfcat.flags[n]) {
       const BVec& data = psfcat.psf[n];
       BVec fit(psforder,sigma);
       Interpolate(psfcat.pos[n],fit);
@@ -197,7 +198,7 @@ FittedPSF::FittedPSF(PSFCatalog& psfcat, const ConfigFile& _params) :
 
     // Clip out 3 sigma outliers:
     nOutliers = 0;
-    for(size_t n=0;n<psfcat.size();n++) if (!psfcat.flags[n]) {
+    for(int n=0;n<nStars;n++) if (!psfcat.flags[n]) {
       const BVec& data = psfcat.psf[n];
       BVec fit(psforder,sigma);
       Interpolate(psfcat.pos[n],fit);
@@ -276,7 +277,8 @@ void FittedPSF::Write() const
 {
   std::vector<std::string> files = MultiName(params, "fitpsf");  
 
-  for(size_t i=0; i<files.size(); ++i) {
+  const int nFiles = files.size();
+  for(int i=0; i<nFiles; ++i) {
     const std::string& file = files[i];
     dbg<<"Writing fitted psf to file: "<<file<<std::endl;
 

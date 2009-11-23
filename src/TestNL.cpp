@@ -261,10 +261,11 @@ int main() try
 
     //std::cout<<"xinit = "<<x<<std::endl;
     //if (!(lin.TestJ(x,f,&std::cout))) return 1;
-    if (lin.Solve(x,f,&cov1))
+    if (lin.Solve(x,f))
       std::cout<<"Success: \n";
     else 
       std::cout<<"Failure: \n";
+    lin.getCovariance(cov1);
     std::cout<<"xfinal = "<<x<<std::endl;
     //std::cout<<"f = "<<f<<std::endl;
     std::cout<<"Norm(f) = "<<Norm(f)<<std::endl;
@@ -308,10 +309,11 @@ int main() try
     tmv::SymMatrix<double> h(4);
 
     //if (!(nlin.TestJ(x,f,&std::cout))) return 1;
-    if (nlin.Solve(x,f,&cov1))
+    if (nlin.Solve(x,f))
       std::cout<<"Success: \n";
     else 
       std::cout<<"Failure: \n";
+    nlin.getCovariance(cov1);
     std::cout<<"xfinal = "<<x<<std::endl;
     //if (!(nlin.TestJ(x,f,&std::cout))) return 1;
     // This one is looking for a local minimum, not an exact answer.
@@ -354,10 +356,11 @@ int main() try
     //std::cout<<"xinit = "<<x<<std::endl;
     //nlin.verbose = true;
     //if (!(nlin.TestJ(x,f,&std::cout))) return 1;
-    if (nlin.Solve(x,f,&cov1))
+    if (nlin.Solve(x,f))
       std::cout<<"Success: \n";
     else 
       std::cout<<"Failure: \n";
+    nlin.getCovariance(cov1);
     //if (!(nlin.TestJ(x,f,&std::cout))) return 1;
     tmv::Vector<double> xtot(4);
     xtot.SubVector(0,2) = x;
@@ -405,7 +408,7 @@ int main() try
     tmv::SymMatrix<double> h(2);
 
     //std::cout<<"xinit = "<<x<<std::endl;
-    if (pow.Solve(x,f,&cov1))
+    if (pow.Solve(x,f))
       std::cout<<"Success: \n";
     else 
       std::cout<<"Failure: \n";
@@ -428,7 +431,7 @@ int main() try
     // We start with the correct answer, so the solution is actually
     // trivial.  We just need the better covariance.
     pow.usesvd=true;
-    pow.Solve(x,f,&cov1);
+    pow.getCovariance(cov1);
     std::cout<<"Covariance matrix = \n"<<cov1<<std::endl;
     tmv::Matrix<double> j(2,2);
     pow.J(x,f,j);
@@ -472,10 +475,11 @@ int main() try
       tmv::SymMatrix<double> h(2);
 
       //std::cout<<"xinit = "<<x<<std::endl;
-      if (ros.Solve(x,f,&cov1))
+      if (ros.Solve(x,f))
 	std::cout<<"Success: \n";
       else 
 	std::cout<<"Failure: \n";
+      ros.getCovariance(cov1);
       std::cout<<"xfinal = "<<x<<std::endl;
       //std::cout<<"Norm(xf-x0) = "<<Norm(x0-x)<<std::endl;
       //std::cout<<"f = "<<f<<std::endl;

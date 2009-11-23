@@ -70,7 +70,8 @@ int main(int argc, char **argv)
 	cout<<" 'fitpsf_file': '"<<fitpsf_file<<"'}\n";
 	cout<<"END\n";
 	cout<<"\n";
-	for (int i=0; i<psfcat.pos.size(); i++) {
+	const int nStars = psfcat.psf.size();
+	for (int i=0; i<nStars; i++) {
 
 		double e1 = sqrt(2)*psfcat.psf[i][3];
 		double e2 = sqrt(2)*psfcat.psf[i][4];
