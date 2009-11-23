@@ -26,7 +26,8 @@ static void CalcSigma1(
     double& sigma,
     const Image<double>& im, const Position& pos, double sky,
     double noise, double gain, const Image<double>* weight_im, 
-    const Transformation& trans, double psfap, long& flag)
+    const Transformation& trans, double psfap, long& flag,
+    bool useShapeletSigma)
 {
   std::vector<PixelList> pix(1);
   long flag1 = 0;
@@ -41,21 +42,22 @@ static void CalcSigma1(
     sigma = DEFVALNEG;
     return;
   }
-  xxdbg<<"npix = "<<pix[0].size()<<std::endl;
 
   Ellipse ell;
   ell.PeakCentroid(pix[0],psfap/3.);
   ell.CrudeMeasure(pix[0],sigma);
   xdbg<<"Crude Measure: centroid = "<<ell.GetCen();
   xdbg<<", mu = "<<ell.GetMu()<<std::endl;
-  if (ell.Measure(pix,2,sigma,true,flag1)) { // true means use integ first
-    xdbg<<"Successful 2nd order measure.\n";
-    xdbg<<"mu = "<<ell.GetMu()<<std::endl;
-  } else {
-    flag |= flag1;
-    xdbg<<"Ellipse measure returned flag "<<flag1<<std::endl;
-    sigma = DEFVALNEG;
-    return;
+  if (useShapeletSigma) {
+    if (ell.Measure(pix,2,sigma,true,flag1)) { // true means use integ first
+      xdbg<<"Successful 2nd order measure.\n";
+      xdbg<<"mu = "<<ell.GetMu()<<std::endl;
+    } else {
+      flag |= flag1;
+      xdbg<<"Ellipse measure returned flag "<<flag1<<std::endl;
+      sigma = DEFVALNEG;
+      return;
+    }
   }
 
   double mu = ell.GetMu();
@@ -68,13 +70,14 @@ void CalcSigma(
     double& sigma,
     const Image<double>& im, const Position& pos, double sky,
     double noise, double gain, const Image<double>* weight_im, 
-    const Transformation& trans, double psfap, long& flag)
+    const Transformation& trans, double psfap, long& flag,
+    bool useShapeletSigma)
 {
   try {
     CalcSigma1(
 	sigma,
 	im, pos, sky, noise, gain, weight_im,
-	trans, psfap, flag);
+	trans, psfap, flag, useShapeletSigma);
     dbg<<"objsize: "<<sigma<<std::endl;
     dbg<<"flags: "<<flag<<std::endl;
   } catch (tmv::Error& e) {

@@ -30,6 +30,8 @@ double PSFCatalog::EstimateSigma(const Image<double>& im,
   double psfap = params.read<double>("psf_aperture");
   dbg<<"psfap = "<<psfap<<std::endl;
 
+  const bool useShapeletSigma = true;
+
   int nstars = pos.size();
   double meanmu = 0.;
   int count = 0;
@@ -45,7 +47,7 @@ double PSFCatalog::EstimateSigma(const Image<double>& im,
     CalcSigma(
 	sigma,
 	im, pos[i], sky[i], noise[i], gain, weight_im, 
-	trans, psfap, flag1);
+	trans, psfap, flag1, useShapeletSigma);
     // Ignore errors -- just don't add to meanmu
     if (flag1) continue;
     meanmu += log(sigma);

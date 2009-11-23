@@ -22,6 +22,8 @@ void StarCatalog::CalcSizes(const Image<double>& im,
   double psfap = params.read<double>("psf_aperture"); 
   double gain = params.read("image_gain",0.);
 
+  const bool useShapeletSigma = params["stars_use_shapelet_sigma"];
+
 #ifdef _OPENMP
 #pragma omp parallel for schedule(guided)
 #endif
@@ -33,7 +35,7 @@ void StarCatalog::CalcSizes(const Image<double>& im,
     CalcSigma(
 	objsize[i],
 	im, pos[i], sky[i], noise[i], gain, weight_im, 
-	trans, psfap, flags[i]);
+	trans, psfap, flags[i], useShapeletSigma);
   }
   dbg<<"Done MeasureSigmas\n";
 }
