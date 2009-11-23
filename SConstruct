@@ -207,6 +207,9 @@ def AddOpenMPFlag(env):
         # However, it seems to be safe for both (???), so I always include it.
         # If it turns out to break something, I'll have to revisit this.
         xlib = ['pthread','gcc_eh']
+        # Also add a #define to let program know that linking will use openmp
+        # even for object files that don't.
+        env.Append(CPPDEFINES=['OPENMP_LINK'])
     elif compiler == 'icpc':
         if version < openmp_minicpc_vers:
             print 'No OpenMP support for icpc versions before ',openmp_minicpc_vers
@@ -1049,7 +1052,7 @@ def DoConfig(env):
         AddOpenMPFlag(env)
     if not env['DEBUG']:
         print 'Debugging turned off'
-        env.Append(CPPDEFINES='NDEBUG')
+        env.Append(CPPDEFINES=['NDEBUG'])
     if env['MEM_TEST']:
         env.Append(CPPDEFINES=['MEMTEST'])
     if env['STATIC'] :

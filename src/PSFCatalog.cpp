@@ -44,22 +44,38 @@ void MeasureSinglePSF1(
   long flag1=0;
   if (ell.Measure(pix,psforder,sigma_p,false,flag1,0,&psf,&cov)) 
   {
-    xdbg<<"psf = "<<psf<<std::endl;
-    nu = psf[0] / std::sqrt(cov(0,0));
-    //nu = 1.;
-    psf.Normalize();  // Divide by (0,0) element
-    xdbg<<"Normalized psf: "<<psf<<std::endl;
     log.ns_psf++;
   }
   else 
   {
     xdbg<<"Measurement failed\n";
     log.nf_psf++;
-    nu = psf[0] / std::sqrt(cov(0,0));
-    psf.Normalize();  // Divide by (0,0) element
     flag |= MEASURE_PSF_FAILED;
   }
 
+  // Calculate the 0th order shapelet to make sure the flux is consistent 
+  // with what we get at the full order.  It should be within a factor of 3
+  // of the same value.  (Within 10s of percent usually, but we only call it
+  // an error if it is more than a factor of 3 different.)
+  BVec flux(0,sigma_p);
+  tmv::Matrix<double> fluxCov(1,1);
+  ell.MeasureShapelet(pix,flux,&fluxCov);
+  nu = flux(0) / std::sqrt(fluxCov(0,0));
+  dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<nu<<std::endl;
+  dbg<<" or  "<<psf(0)<<" / sqrt("<<cov(0,0)<<") = "<<
+    psf(0)/std::sqrt(cov(0,0))<<std::endl;
+  if (!(flux(0) > 0.0 &&
+	psf(0) >= flux(0)/3. &&
+	psf(0) <= flux(0)*3.)) {
+    dbg<<"Bad flux value: \n";
+    dbg<<"flux = "<<flux(0)<<std::endl;
+    dbg<<"psf = "<<psf<<std::endl;
+    flag != PSF_BAD_FLUX;
+  }
+
+  xdbg<<"psf = "<<psf<<std::endl;
+  psf.Normalize();  // Divide by (0,0) element
+  xdbg<<"Normalized psf: "<<psf<<std::endl;
 }
 
 void MeasureSinglePSF(

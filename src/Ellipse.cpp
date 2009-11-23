@@ -94,6 +94,12 @@ void Ellipse::DoMeasureShapelet(const std::vector<PixelList>& pix,
     }
     xxdbg<<"after psf correction\n";
   }
+  A.DivideUsing(tmv::SV);
+  A.SaveDiv();
+  const double sqrtEps = sqrt(std::numeric_limits<double>::epsilon());
+  A.SVD().Thresh(sqrtEps);
+  dbg<<"For MeasureShapelet: svd = "<<A.SVD().GetS().diag()<<std::endl;
+  dbg<<"Omitting last "<<A.rowsize()-A.SVD().GetKMax()<<" singular values\n";
   b = I/A;
   if (bcov) {
     A.InverseATA(*bcov);
@@ -101,10 +107,10 @@ void Ellipse::DoMeasureShapelet(const std::vector<PixelList>& pix,
 }
 
 void Ellipse::MeasureShapelet(const std::vector<PixelList>& pix,
-    const std::vector<BVec>& psf, BVec& b) const
-{ DoMeasureShapelet(pix,&psf,b); }
+    const std::vector<BVec>& psf, BVec& b, tmv::Matrix<double>* bcov) const
+{ DoMeasureShapelet(pix,&psf,b,bcov); }
 
 void Ellipse::MeasureShapelet(const std::vector<PixelList>& pix,
-    BVec& b) const
-{ DoMeasureShapelet(pix,0,b); }
+    BVec& b, tmv::Matrix<double>* bcov) const
+{ DoMeasureShapelet(pix,0,b,bcov); }
 

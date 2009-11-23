@@ -1,11 +1,11 @@
 #ifndef ELLIPSE_H
 #define ELLIPSE_H
 
-#include "Pixel.h"
-#include "BVec.h"
 #include <complex>
 #include <vector>
 #include <ostream>
+#include "Pixel.h"
+#include "BVec.h"
 
 class Ellipse {
 
@@ -46,9 +46,10 @@ class Ellipse {
     void PeakCentroid(const PixelList& pix, double maxr);
 
     void MeasureShapelet(const std::vector<PixelList>& pix, 
-	const std::vector<BVec>& psf, BVec& bret) const;
+	const std::vector<BVec>& psf, BVec& bret,
+	tmv::Matrix<double>* bcov=0) const;
     void MeasureShapelet(const std::vector<PixelList>& pix, 
-	BVec& bret) const;
+	BVec& bret, tmv::Matrix<double>* bcov=0) const;
 
     void Write(std::ostream& os) const
     { os << cen<<" "<<gamma<<" "<<mu; }

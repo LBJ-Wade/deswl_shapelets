@@ -494,6 +494,7 @@ void MultiShearCatalog::WriteFits(std::string file) const
   std::vector<double> shear2(size());
   std::vector<double> cov00(size());
   std::vector<double> cov01(size());
+  std::vector<double> cov11(size());
 
   for(size_t i=0;i<size();i++) 
   {
@@ -506,7 +507,6 @@ void MultiShearCatalog::WriteFits(std::string file) const
     shear1[i] = real(shear[i]);
     shear2[i] = imag(shear[i]);
   }
-  std::vector<double> cov11(size());
   for(size_t i=0;i<size();i++) 
   {
     cov00[i] = cov[i](0,0);
@@ -831,7 +831,7 @@ void MeasureMultiShear(
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
-    long& flag)
+    double& nu, long& flag)
 {
   //TODO: This function is too long.  It should really be broken 
   //      up in to smaller units...
@@ -886,7 +886,6 @@ void MeasureMultiShear(
     ell.FixGam();
     ell.CrudeMeasure(pix,sigma_obs);
     xdbg<<"Crude Measure: centroid = "<<ell.GetCen()<<", mu = "<<ell.GetMu()<<std::endl;
-    //double mu_1 = ell.GetMu();
 
     int go = 2;
     int gal_size = (go+1)*(go+2)/2;
@@ -920,7 +919,6 @@ void MeasureMultiShear(
       flag |= NATIVE_FAILED;
       return;
     }
-    //double mu_2 = ell.GetMu();
 
     // Now we can do a deconvolving fit, but one that does not 
     // shear the coordinates.
@@ -991,10 +989,7 @@ void MeasureMultiShear(
       log.nf_mu++;
       dbg<<"Deconvolving measurement failed\n";
       flag |= DECONV_FAILED;
-      ell.MeasureShapelet(pix,psf,shapelet);
-      return;
     }
-    //double mu_3 = ell.GetMu();
 
 #if 0
     // This doesn't work.  So for now, keep mu, sigma the same
@@ -1027,6 +1022,26 @@ void MeasureMultiShear(
     std::complex<double> gale = 0.;
     ell.MeasureShapelet(pix,psf,shapelet);
     xdbg<<"Measured b_gal = "<<shapelet<<std::endl;
+
+    // Also measure the isotropic significance
+    BVec flux(0,sigma);
+    tmv::Matrix<double> fluxCov(1,1);
+    ell.MeasureShapelet(pix,psf,flux,&fluxCov);
+    nu = flux(0) / sqrt(fluxCov(0,0));
+    dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<nu<<std::endl;
+
+    // If the b00 value in the shapelet doesn't match the direct flux
+    // measurement, set a flag.
+    if (!(flux(0) > 0.0  &&
+	  shapelet(0) >= flux(0)/3. &&
+	  shapelet(0) <= flux(0)*3.)) {
+      dbg<<"Bad flux value: \n";
+      dbg<<"flux = "<<flux(0)<<std::endl;
+      dbg<<"shapelet = "<<shapelet<<std::endl;
+      flag |= SHAPE_BAD_FLUX;
+    }
+    // If the above deconvolving fit failed, then return.
+    if (flag & DECONV_FAILED) return;
 
     // Under normal circumstances, b20/b00 ~= conj(gamma)/sqrt(2)
     gale = std::complex<double>(shapelet[3],shapelet[4]);
@@ -1083,14 +1098,6 @@ void MeasureMultiShear(
       else shearcov = cov1;
       return;
     }
-    //dbg<<"Stats: Mu: "<<mu_1<<"  "<<mu_2<<"  "<<mu_3<<std::endl;
-    //dbg<<"       sigma = "<<sigma<<std::endl;
-    //dbg<<"       gamma = "<<shear<<std::endl;
-
-    // Finally measure the variance of the shear
-    // TODO: Write function to directly measure shear variance
-    // And also the BJ02 sigma_0 value.
-    // (I'm not convinced that the above covariance matrix is a good estiamte.)
   } 
   catch (tmv::Error& e) 
   {

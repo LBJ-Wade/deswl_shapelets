@@ -35,6 +35,8 @@
 #define NO_SINGLE_EPOCH_IMAGES	0x200000
 #define BKG_NOPIX		0x400000
 #define PSF_INTERP_OUTLIER	0x800000
+#define SHAPE_BAD_FLUX          0x1000000
+#define PSF_BAD_FLUX            0x2000000
 
 
 // Errors specific to the weak lensing code

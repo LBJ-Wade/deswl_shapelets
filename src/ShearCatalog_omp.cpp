@@ -99,7 +99,7 @@ int ShearCatalog::MeasureShears(const Image<double>& im,
 	    // Log information
 	    log1,
 	    // Ouput values:
-	    shear[i], cov[i], shape[i], flag1);
+	    shear[i], cov[i], shape[i], nu[i], flag1);
 
 	flags[i] = flag1;
 

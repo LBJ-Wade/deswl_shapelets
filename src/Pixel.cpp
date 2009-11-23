@@ -110,6 +110,10 @@ void GetPixList(const Image<double>& im, PixelList& pix,
 	}
 	if (wt > 0.0) 
 	{
+	  // So far we have calculated wt = inverse variance at each pixel.
+	  // We actually want to weight the pixels by 1/sigma, not 1/sigma^2,
+	  // So we need to take the sqrt of what we have so far.
+	  wt = sqrt(wt);
 	  Assert(k < int(pix.size()));
 	  pix[k++] = Pixel(u,v,I,wt);
 	  //if (xmin > 0 || ymin > 0)

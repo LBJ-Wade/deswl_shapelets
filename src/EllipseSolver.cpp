@@ -965,8 +965,41 @@ const BVec& EllipseSolver::GetB() const { return pimpl->b; }
 
 void EllipseSolver::GetBCov(tmv::Matrix<double>& bcov) const 
 {
+  // It's not completely obvious that the first one is correct.
+  // We find b as the solution of:
+  // A C b = I
+  // This means that 
+  // cov(Cb) = (At A)^-1
+  // But the propagation of covariance says that 
+  // cov(Cb) = C cov(b) Ct
+  // So we can solve for cov(b) as:
+  // cov(b) = C^-1 cov(Cb) Ct^-1 =
+  //        = C^-1 (At A)^-1 Ct^-1
+  //        = (Ct At A C)^-1
+  //        = ((AC)t (AC))^-1
+  // This is what AC.InverseATA returns.
   if (pimpl->psf) pimpl->AC.InverseATA(bcov);
   else pimpl->A.InverseATA(bcov);
+}
+
+void EllipseSolver::getCovariance(tmv::Matrix<double>& cov) const 
+{
+  tmv::Matrix<double> cov1(pimpl->x_short.size(),pimpl->x_short.size());
+  NLSolver::getCovariance(cov1);
+  cov = pimpl->U.Transpose()*cov1*pimpl->U;
+  dbg<<"getCovariance:\n";
+  dbg<<"cov1 = "<<cov1<<std::endl;
+  dbg<<"full cov = "<<cov<<std::endl;
+}
+
+void EllipseSolver::getInverseCovariance(tmv::Matrix<double>& invcov) const 
+{
+  tmv::Matrix<double> invcov1(pimpl->x_short.size(),pimpl->x_short.size());
+  NLSolver::getInverseCovariance(invcov1);
+  invcov = pimpl->U.Transpose()*invcov1*pimpl->U;
+  dbg<<"getCovariance:\n";
+  dbg<<"invcov1 = "<<invcov1<<std::endl;
+  dbg<<"full invcov = "<<invcov<<std::endl;
 }
 
 void EllipseSolver::CallF(const tmv::Vector<double>& x,
@@ -990,8 +1023,7 @@ void EllipseSolver::CallF(const tmv::Vector<double>& x,
   else f = pimpl->f_short*pimpl->U;
 }
 
-bool EllipseSolver::Solve(tmv::Vector<double>& x, tmv::Vector<double>& f,
-    tmv::Matrix<double>* cov) const
+bool EllipseSolver::Solve(tmv::Vector<double>& x, tmv::Vector<double>& f) const
 {
   Assert(x.size() == 5);
   Assert(f.size() == 5);
@@ -1013,18 +1045,6 @@ bool EllipseSolver::Solve(tmv::Vector<double>& x, tmv::Vector<double>& f,
     ret = false;
   }
 
-  if (ret && cov) {
-    // C_E = (dbdE^-1) C_b (dbdE^-1)^T
-    // C_b = (A^T A)^-1 = (R^T R)^-1
-    //     = R^-1 R^-1^T
-    // C_E = (dbdE^-1 R^-1) (dbdE^-1 R^-1)^T
-    tmv::UpperTriMatrix<double> Rinv = 
-      pimpl->psf ? pimpl->AC.QRD().GetR() : pimpl->A.QRD().GetR();
-    Rinv.InvertSelf();
-    tmv::Matrix<double> temp = pimpl->dbdE.Inverse() * Rinv;
-    *cov = temp * temp.Transpose();
-  }
-
   x = pimpl->x_short*pimpl->U;
   if (pimpl->fixcen) { x[0] = pimpl->fixuc; x[1] = pimpl->fixvc; }
   if (pimpl->fixgam) { x[2] = pimpl->fixg1; x[3] = pimpl->fixg2; }
@@ -1034,6 +1054,32 @@ bool EllipseSolver::Solve(tmv::Vector<double>& x, tmv::Vector<double>& f,
   else f = pimpl->f_short*pimpl->U;
 
   return ret;
+}
+
+void EllipseSolver::numericH(
+    const tmv::Vector<double>& x, const tmv::Vector<double>& f,
+    tmv::SymMatrix<double>& h) const
+{
+  Assert(x.size() == 5);
+  Assert(f.size() == 5);
+  Assert(h.size() == 5);
+  pimpl->xinit = x;
+  if (pimpl->fixcen) { pimpl->fixuc = x[0]; pimpl->fixvc = x[1]; }
+  if (pimpl->fixgam) { pimpl->fixg1 = x[2]; pimpl->fixg2 = x[3]; }
+  if (pimpl->fixmu) { pimpl->fixm = x[4]; }
+
+  pimpl->x_short = pimpl->U * x;
+
+  tmv::SymMatrix<double> h_short(pimpl->x_short.size(),0.);
+
+  pimpl->flux = 0;
+  NLSolver::numericH(pimpl->x_short,pimpl->f_short,h_short);
+
+  h = tmv::SymMatrix<double>(tmv::Matrix<double>(
+	pimpl->U.Transpose() * h_short * pimpl->U));
+  if (pimpl->fixcen) { h(0,0) = h(1,1) = 1.0; }
+  if (pimpl->fixgam) { h(2,2) = h(3,3) = 1.0; }
+  if (pimpl->fixmu) { h(4,4) = 1.0; }
 }
 
 bool EllipseSolver::TestJ(const tmv::Vector<double>& x, tmv::Vector<double>& f,

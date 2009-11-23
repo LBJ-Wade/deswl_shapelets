@@ -482,7 +482,7 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
 //#pragma omp critical (solve)
 #endif
     {
-      ret = solver->Solve(x,f,cov);
+      ret = solver->Solve(x,f);
     }
     if (ret) break;
     else if (iter == MAXITER) {
@@ -569,7 +569,11 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
   xdbg<<"Done: Final solver pass successful: x = "<<x<<std::endl;
   xdbg<<"f = "<<f<<std::endl;
   xdbg<<"b = "<<solver->GetB()<<std::endl;
-  if (cov) xdbg<<"cov = "<<*cov<<std::endl;
+  if (cov) {
+    solver->usesvd = true;
+    solver->getCovariance(*cov);
+    xdbg<<"cov = "<<*cov<<std::endl;
+  }
 
   // Check for flags
   solver->CallF(x,f);

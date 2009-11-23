@@ -40,9 +40,20 @@
 //
 // If you want the covariance matrix of the variables at the 
 // solution location, you can do:
-// tmv::Matrix<double> invcov;
-// nls.Solve(x,f,&invcov);
-// tmv::Matrix<double> cov = invcov.Inverse();
+//
+// tmv::Matrix<double> cov(n,n);
+// nls.getCovariance(cov);
+//
+// This needs to be done _after_ the solve function returns a success.
+// 
+// Sometimes it is more useful to have the inverse covariance matrix rather
+// than the covariance.  It turns out that it is more efficient to 
+// calculate the inverse covariance matrix directly here, rather than 
+// the covariance matrix and then invert it using a normal inversion algorithm.
+// So we provide the option of getting this instead:
+//
+// tmv::Matrix<double> invcov(n,n);
+// nls.getInverseCovariance(invcov);
 //
 // There are 5 methods implemented here, all of which are based on
 // "Methods for Non-Linear Least Squares Problems", 2nd edition,
@@ -131,11 +142,18 @@
 // in which case setting startwithch=false will use Bunch-Kauffman from
 // the beginning.
 //
-// trysvd indicates whether you want to try using singular value decomposition
-// for the division if a matrix becomes singular.  The default is false,
-// since this rarely works.  But in some cases, SVD can find a valid step
-// that moves you closer to the correct solution (and often away from
-// singularity).  So to give it a try, set trysvd=true.
+// usesvd indicates whether you want to use singular value decomposition
+// for the division.  The default is false, since it is slow, and it doesn't
+// usually produce much improvement in the results.
+// But in some cases, SVD can find a valid step for a singular (or nearly
+// singular) jacobian matrix, which moves you closer to the correct solution 
+// (and often away from singularity).
+// To give it a try, set usesvd=true.
+// Also, if the hessian is singular at the solution, then the routines may
+// produce a good result, but the covariance matrix will be garbage.  So
+// in that case, it may be worth leaving usesvd = false during the main solve,
+// but then set usesvd=true before getCovariance to get a better 
+// covariance matrix.
 
 class NLSolver 
 {
@@ -147,7 +165,7 @@ class NLSolver
       method(Newton),
       ftol(1.e-8), gtol(1.e-8), min_step(1.e-8), max_iter(200),
       tau(1.e-3), delta0(1.), nlout(0), 
-      verbose(false), hasdirecth(false), startwithch(true), trysvd(false) {}
+      verbose(false), hasdirecth(false), startwithch(true), usesvd(false) {}
 
     virtual ~NLSolver() {}
 
@@ -167,8 +185,15 @@ class NLSolver
     // On exit, x is the best solution found.
     // Also, f is returned as the value of F(x) for the best x,
     // regardless of whether the fit succeeded or not.
-    virtual bool Solve(tmv::Vector<double>& x, tmv::Vector<double>& f,
-	tmv::Matrix<double>* invcov = 0) const;
+    virtual bool Solve(tmv::Vector<double>& x, tmv::Vector<double>& f) const;
+
+    // Get the covariance matrix of the solution.
+    // This only works if Solve() returns true.
+    // So it should be called after a successful solution is returned.
+    virtual void getCovariance(tmv::Matrix<double>& cov) const;
+
+    // You can also get the inverse covariance matrix if you prefer.
+    virtual void getInverseCovariance(tmv::Matrix<double>& invcov) const;
 
     // H(i,j) = d^2 Q / dx_i dx_j
     // where Q = 1/2 Sum_k |f_k|^2
@@ -212,7 +237,6 @@ class NLSolver
     virtual void numericH(
 	const tmv::Vector<double>& x,
 	const tmv::Vector<double>& f, 
-	const tmv::Matrix<double>& j, 
 	tmv::SymMatrix<double>& h) const;
 
     // Note: I just left these public, so they can be modified directly.
@@ -228,22 +252,24 @@ class NLSolver
     bool verbose;
     bool hasdirecth;
     bool startwithch;
-    bool trysvd;
+    bool usesvd;
 
   private :
 
-    bool Solve_Newton(tmv::Vector<double>& x, tmv::Vector<double>& f,
-	tmv::Matrix<double>* invcov) const;
-    bool Solve_LM(tmv::Vector<double>& x, tmv::Vector<double>& f,
-	tmv::Matrix<double>* invcov) const;
-    bool Solve_Dogleg(tmv::Vector<double>& x, tmv::Vector<double>& f,
-	tmv::Matrix<double>* invcov) const;
-    bool Solve_Hybrid(tmv::Vector<double>& x, tmv::Vector<double>& f,
-	tmv::Matrix<double>* invcov) const;
-    bool Solve_SecantLM(tmv::Vector<double>& x, tmv::Vector<double>& f,
-	tmv::Matrix<double>* invcov) const;
-    bool Solve_SecantDogleg(tmv::Vector<double>& x, tmv::Vector<double>& f,
-	tmv::Matrix<double>* invcov) const;
+    bool Solve_Newton(
+	tmv::Vector<double>& x, tmv::Vector<double>& f) const;
+    bool Solve_LM(
+	tmv::Vector<double>& x, tmv::Vector<double>& f) const;
+    bool Solve_Dogleg(
+	tmv::Vector<double>& x, tmv::Vector<double>& f) const;
+    bool Solve_Hybrid(
+	tmv::Vector<double>& x, tmv::Vector<double>& f) const;
+    bool Solve_SecantLM(
+	tmv::Vector<double>& x, tmv::Vector<double>& f) const;
+    bool Solve_SecantDogleg(
+	tmv::Vector<double>& x, tmv::Vector<double>& f) const;
+
+    mutable std::auto_ptr<tmv::Matrix<double> > _pJ;
 
 };
 

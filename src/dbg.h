@@ -17,7 +17,7 @@ bool XDEBUG=false;
 #include <iostream>
 #include <stdexcept>
 
-#ifdef __GNUC__
+#if defined(__GNUC__) && defined(OPENMP_LINK)
 extern __thread std::ostream* dbgout;
 extern __thread bool XDEBUG;
 #else

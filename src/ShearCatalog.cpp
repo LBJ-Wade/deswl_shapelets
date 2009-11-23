@@ -34,7 +34,7 @@ void MeasureSingleShear1(
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
-    long& flag)
+    double& nu, long& flag)
 {
   // Find harmonic mean of psf sizes:
   // MJ: Is it correct to use the harmonic mean of sigma^2?
@@ -63,7 +63,6 @@ void MeasureSingleShear1(
   ell.FixGam();
   ell.CrudeMeasure(pix[0],sigma_obs);
   xdbg<<"Crude Measure: centroid = "<<ell.GetCen()<<", mu = "<<ell.GetMu()<<std::endl;
-  //double mu_1 = ell.GetMu();
 
   int go = 2;
   int gal_size = (go+1)*(go+2)/2;
@@ -100,7 +99,6 @@ void MeasureSingleShear1(
     flag |= NATIVE_FAILED;
     return;
   }
-  //double mu_2 = ell.GetMu();
 
   // Now we can do a deconvolving fit, but one that does not 
   // shear the coordinates.
@@ -171,11 +169,7 @@ void MeasureSingleShear1(
     log.nf_mu++;
     dbg<<"Deconvolving measurement failed\n";
     flag |= DECONV_FAILED;
-    // Moved this return lower, so we do the Shapelet measurement
-    // as well as we can with what we have now, and then return.
-    //return;
   }
-  //double mu_3 = ell.GetMu();
 
 #if 0
   // This doesn't work.  So for now, keep mu, sigma the same
@@ -197,8 +191,7 @@ void MeasureSingleShear1(
   // Measure the galaxy shape at the full order
   go = gal_order;
   gal_size = (go+1)*(go+2)/2;
-  if (npix <= gal_size) 
-  {
+  if (npix <= gal_size) {
     while (npix <= gal_size) { gal_size -= go+1; --go; }
     dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
     dbg<<"Reduced gal_order to "<<go<<" gal_size = "<<gal_size<<std::endl;
@@ -209,6 +202,23 @@ void MeasureSingleShear1(
   std::complex<double> gale = 0.;
   ell.MeasureShapelet(pix,psf,shapelet);
   xdbg<<"Measured b_gal = "<<shapelet<<std::endl;
+
+  // Also measure the isotropic significance
+  BVec flux(0,sigma);
+  tmv::Matrix<double> fluxCov(1,1);
+  ell.MeasureShapelet(pix,psf,flux,&fluxCov);
+  nu = flux(0) / sqrt(fluxCov(0,0));
+  dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<nu<<std::endl;
+  // If the b00 value in the shapelet doesn't match the direct flux
+  // measurement, set a flag.
+  if (!(flux(0) > 0.0 &&
+	shapelet(0) >= flux(0)/3. &&
+	shapelet(0) <= flux(0)*3.)) {
+    dbg<<"Bad flux value: \n";
+    dbg<<"flux = "<<flux(0)<<std::endl;
+    dbg<<"shapelet = "<<shapelet<<std::endl;
+    flag |= SHAPE_BAD_FLUX;
+  }
 
   // If the above deconvolving fit failed, then return.
   if (flag & DECONV_FAILED) return;
@@ -274,13 +284,6 @@ void MeasureSingleShear1(
     else shearcov = cov1;
     return;
   }
-  //dbg<<"Stats: Mu: "<<mu_1<<"  "<<mu_2<<"  "<<mu_3<<std::endl;
-  //dbg<<"       sigma = "<<sigma<<std::endl;
-  //dbg<<"       gamma = "<<shear<<std::endl;
-
-  // Finally measure the variance of the shear
-  // TODO: measure shear variance by mapping local chisq values
-  // (I'm not convinced that the above covariance matrix is a good estiamte.)
 }
 
 void MeasureSingleShear(
@@ -293,7 +296,7 @@ void MeasureSingleShear(
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
-    long& flag)
+    double& nu, long& flag)
 {
   // Get coordinates of the galaxy, and convert to sky coordinates
   try 
@@ -349,7 +352,7 @@ void MeasureSingleShear(
 	// Log information
 	log,
 	// Ouput values:
-	shear, shearcov, shapelet, flag);
+	shear, shearcov, shapelet, nu, flag);
   }
   catch (tmv::Error& e) 
   {

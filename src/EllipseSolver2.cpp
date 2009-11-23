@@ -497,12 +497,10 @@ void EllipseSolver2::CallF(const tmv::Vector<double>& x,
   else f = pimpl->f_short*pimpl->U;
 }
 
-bool EllipseSolver2::Solve(tmv::Vector<double>& x, tmv::Vector<double>& f,
-    tmv::Matrix<double>* invcov) const
+bool EllipseSolver2::Solve(tmv::Vector<double>& x, tmv::Vector<double>& f) const
 {
   Assert(x.size() == 5);
   Assert(f.size() == 5);
-  Assert(!invcov);
   pimpl->xinit = x;
   if (pimpl->fixcen) { pimpl->fixuc = x[0]; pimpl->fixvc = x[1]; }
   if (pimpl->fixgam) { pimpl->fixg1 = x[2]; pimpl->fixg2 = x[3]; }

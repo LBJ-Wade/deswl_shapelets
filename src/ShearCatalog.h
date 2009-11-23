@@ -69,7 +69,7 @@ void MeasureSingleShear(
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
-    long& flag);
+    double& nu, long& flag);
 
 void MeasureSingleShear1(
     Position cen, const Image<double>& im, double sky,
@@ -81,6 +81,6 @@ void MeasureSingleShear1(
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
-    long& flag);
+    double& nu, long& flag);
 
 #endif

@@ -9,16 +9,14 @@
 #define DOPOWELL
 #define DOROSENBROCK
 
-#define ROSENBROCKDIRECTH
-
 #define SETMETHOD(solver) \
   solver.method = NLSolver::Dogleg; \
   solver.nlout = &std::cout; solver.verbose = false;
 
 #define USEBEST
 
-const size_t N=2;
-const size_t M=5;
+const int N=2;
+const int M=5;
 
 class Linear : public NLSolver 
 {
@@ -27,7 +25,7 @@ class Linear : public NLSolver
     Linear() : b(M,0.), A(M,N,0.)
     {
       tmv::Vector<double> x(N,1.);
-      for(size_t i=0;i<std::min(M,N);i++) {
+      for(int i=0;i<std::min(M,N);i++) {
 	A(i,i) = 0.5*i - 6.;
 	if (i>0 && 2*i<M) A(2*i,i) = 9.+i;
 	if (i>0 && 2*i<M) A(2*i-1,i) = 1.-2*i;
@@ -53,64 +51,65 @@ class Linear : public NLSolver
     tmv::Matrix<double> A;
 };
 
-const size_t MM=50;
+const int MM=50;
 class NonLinear : public NLSolver 
 {
   public : 
 
-    NonLinear(double sigma) : b(MM), t(MM)
+    NonLinear(double sigma) : b(MM), t(MM), _sigma(sigma)
     {
-      //double xa[] = {-4.,-5.,4.,-4.};
-      //tmv::Vector<double> x(4,xa);
       tmv::Vector<double> x(4);
-      x = tmv::ListInit, -4., -5., 4., -4.;
+      x = tmv::ListInit, 0.5, 3.5, 1.3, 1.7;
 
-      for(size_t i=0;i<MM;i++) {
-	t(i) = (i+0.5)*(0.5/MM);
-	b(i) = func(t(i),x) + sigma*(double(rand())/RAND_MAX -0.5);
+      for(int i=0;i<MM;i++) {
+	t(i) = (2.0*(i+0.5)-1.0*MM)/MM;
+	b(i) = func(t(i),x) + _sigma*(double(rand())/RAND_MAX -0.5);
       }
-      //std::cout<<"t = "<<t<<std::endl;
-      //std::cout<<"b = "<<b<<std::endl;
     }
 
     double func(double t, const tmv::Vector<double>& x) const
     {
-      return x(2)*exp(x(0)*t) + x(3)*exp(x(1)*t);
+      return x(2)*exp(x(0)*t) + x(3)*sin(x(1)*t);
     }
 
     void F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
-    { for(size_t i=0;i<MM;i++) f(i) = func(t(i),x)-b(i); }
+    {
+      for(int i=0;i<MM;i++) f(i) = (func(t(i),x)-b(i));
+      f /= _sigma;
+    }
 
     void J(const tmv::Vector<double>& x, const tmv::Vector<double>& ,
 	tmv::Matrix<double>& j) const
     {
-      for(size_t i=0;i<MM;i++) {
+      for(int i=0;i<MM;i++) {
+	j(i,0) = x(2)*t(i)*exp(x(0)*t(i));
+	j(i,1) = x(3)*t(i)*cos(x(1)*t(i));
 	j(i,2) = exp(x(0)*t(i));
-	j(i,3) = exp(x(1)*t(i));
-	j(i,0) = x(2)*t(i)*j(i,2);
-	j(i,1) = x(3)*t(i)*j(i,3);
+	j(i,3) = sin(x(1)*t(i));
       }
+      j /= _sigma;
     }
   
   protected:
 
     tmv::Vector<double> b;
     tmv::Vector<double> t;
+    double _sigma;
 };
 
 class NonLinear2 : public NLSolver 
 {
   public : 
 
-    NonLinear2(double sigma) : b(MM), t(MM), A(MM,2), y(2)
+    NonLinear2(double sigma) : b(MM), t(MM), A(MM,2), y(2), _sigma(sigma)
     {
-      double xx[2] = {-4.,-5.};
-      double yy[2] = {4.,-4.};
+      double xx[2] = {0.5,3.5};
+      double yy[2] = {1.3,1.7};
 
-      for(size_t i=0;i<MM;i++) {
-	t(i) = (i+0.5)*(0.5/MM);
-	b(i) = yy[0]*exp(xx[0]*t(i)) + yy[1]*exp(xx[1]*t(i)) +
-	  sigma*(2.*double(rand())/RAND_MAX - 1.);
+      for(int i=0;i<MM;i++) {
+	t(i) = (2.0*(i+0.5)-1.0*MM)/MM;
+	b(i) = yy[0]*exp(xx[0]*t(i)) + yy[1]*sin(xx[1]*t(i)) +
+	  _sigma*(2.*double(rand())/RAND_MAX - 1.);
       }
       A.SaveDiv();
     }
@@ -118,21 +117,22 @@ class NonLinear2 : public NLSolver
     double func(double t, const tmv::Vector<double>& x, 
 	const tmv::Vector<double>& y) const
     {
-      return y(0)*exp(x(0)*t) + y(1)*exp(x(1)*t);
+      return y(0)*exp(x(0)*t) + y(1)*sin(x(1)*t);
     }
 
     void F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
     {
-      for(size_t i=0;i<MM;i++) {
+      for(int i=0;i<MM;i++) {
 	A(i,0) = exp(x(0)*t(i));
-	A(i,1) = exp(x(1)*t(i));
+	A(i,1) = sin(x(1)*t(i));
       }
       A.ReSetDiv();
       y = b/A;
       f = A*y-b;
+      f /= _sigma;
     }
 
-    void J(const tmv::Vector<double>& , const tmv::Vector<double>& f,
+    void J(const tmv::Vector<double>& x, const tmv::Vector<double>& f,
 	tmv::Matrix<double>& j) const
     {
       // At A y = At b
@@ -145,18 +145,24 @@ class NonLinear2 : public NLSolver
       // df = A dy + dA y
       //    = A R^-1 Rt^-1 (-dAt f - At dA y) + dA y
       tmv::ConstUpperTriMatrixView<double> R = A.QRD().GetR();
+
       tmv::Vector<double> dA = DiagMatrixViewOf(t)*A.col(0);
       tmv::Vector<double> dy = -A.Transpose()*dA*y(0);
-      dy(0) -= dA*f;
+      dy(0) -= dA*f*_sigma;
       dy /= R.Transpose();
       dy /= R;
       j.col(0) = A*dy + dA*y(0);
-      dA = DiagMatrixViewOf(t)*A.col(1);
+
+      for(int i=0;i<MM;i++) {
+	dA(i) = t(i)*cos(x(1)*t(i));
+      }
       dy = -A.Transpose()*dA*y(1);
-      dy(1) -= dA*f;
+      dy(1) -= dA*f*_sigma;
       dy /= R.Transpose();
       dy /= R;
       j.col(1) = A*dy + dA*y(1);
+
+      j /= _sigma;
     }
 
     const tmv::Vector<double>& GetY() const { return y; }
@@ -167,6 +173,7 @@ class NonLinear2 : public NLSolver
     tmv::Vector<double> t;
     mutable tmv::Matrix<double> A;
     mutable tmv::Vector<double> y;
+    double _sigma;
 };
 
 class Powell : public NLSolver 
@@ -178,16 +185,25 @@ class Powell : public NLSolver
     void F(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
     {
       f(0) = x(0);
-      f(1) = 10.*x(0)/(0.1+x(0)) + 2*x(1)*x(1);
+      f(1) = 10.*x(0)/(0.1+x(0)) + 2.0*std::pow(x(1),2);
     }
     void J(const tmv::Vector<double>& x, const tmv::Vector<double>& ,
 	tmv::Matrix<double>& j) const
     {
-      j(0,0) = 1.;
-      j(0,1) = 0.;
-      j(1,0) = 1./(0.1+x(0))/(0.1+x(0));
-      j(1,1) = 4*x(1);
+      j(0,0) = 1.0;
+      j(0,1) = 0.0;
+      j(1,0) = std::pow(0.1+x(0),-2);
+      j(1,1) = 4.0*x(1);
     }
+    void H(const tmv::Vector<double>& x, const tmv::Vector<double>& f,
+	const tmv::Matrix<double>& j, tmv::SymMatrix<double>& h) const
+    {
+      // H = JT J + Sum_k f(k) d^2f/(dxi dxj)
+      h = j.Transpose() * j;
+      h(0,0) += -2.0*std::pow(0.1+x(0),-3)*f(0);
+      h(1,1) += 4.0*f(1);
+    }
+    
 };
 
 class Rosen : public NLSolver 
@@ -213,7 +229,6 @@ class Rosen : public NLSolver
       j(2,1) = 0.;
     }
     
-#ifdef ROSENBROCKDIRECTH
     void H(const tmv::Vector<double>& , const tmv::Vector<double>& f,
 	const tmv::Matrix<double>& j, tmv::SymMatrix<double>& h) const
     {
@@ -221,7 +236,6 @@ class Rosen : public NLSolver
       h = j.Transpose() * j;
       h(0,0) += -20.*f(0);
     }
-#endif
     
 
 
@@ -242,16 +256,19 @@ int main() try
 #endif
     tmv::Vector<double> x(N,0.);
     tmv::Vector<double> f(M);
+    tmv::Matrix<double> cov1(N,N);
+    tmv::SymMatrix<double> h(N);
 
     //std::cout<<"xinit = "<<x<<std::endl;
     //if (!(lin.TestJ(x,f,&std::cout))) return 1;
-    if (lin.Solve(x,f))
+    if (lin.Solve(x,f,&cov1))
       std::cout<<"Success: \n";
     else 
       std::cout<<"Failure: \n";
     std::cout<<"xfinal = "<<x<<std::endl;
     //std::cout<<"f = "<<f<<std::endl;
     std::cout<<"Norm(f) = "<<Norm(f)<<std::endl;
+
     // This one usually finds an exact f == 0, since the problem is 
     // so easy.
     if (!(Norm(f) <= 1.e-10)) 
@@ -259,40 +276,65 @@ int main() try
       std::cout<<"Linear Test failed.\n";
       return 1;
     }
+
+    // Check the covariance matrix:
+    std::cout<<"Covariance matrix = \n"<<cov1<<std::endl;
+    lin.numericH(x,f,h);
+    tmv::SymMatrix<double> cov2 = h.Inverse();
+    if (!(Norm(cov1-cov2) <= 1.e-6*(1.+Norm(cov1)))) {
+      std::cout<<"cov1 = "<<cov1<<std::endl;
+      std::cout<<"cov2 = "<<cov2<<std::endl;
+      std::cout<<"Covariance matrices don't match\n";
+      return 1;
+    }
+
   }
 #endif
 
 #ifdef DONONLINEAR
   {
     std::cout<<"Test NonLinear:\n";
-    double sigma = 1.e-2;
+    double sigma = 1.e-3;
     NonLinear nlin(sigma);
     SETMETHOD(nlin);
 #ifdef USEBEST
     nlin.method = NLSolver::LM;
 #endif
-    nlin.min_step = 1.e-12;
-    //double x0a[] = {-1., -2., 1., -1.};
+    nlin.min_step = 1.e-15;
     tmv::Vector<double> x(4);
-    x = tmv::ListInit, -1., -2., 1., -1.;
+    x = tmv::ListInit, 1., 1., 1., 1.;
     tmv::Vector<double> f(MM);
+    tmv::Matrix<double> cov1(4,4);
+    tmv::SymMatrix<double> h(4);
 
-    //std::cout<<"xinit = "<<x<<std::endl;
     //if (!(nlin.TestJ(x,f,&std::cout))) return 1;
-    if (nlin.Solve(x,f))
+    if (nlin.Solve(x,f,&cov1))
       std::cout<<"Success: \n";
     else 
       std::cout<<"Failure: \n";
     std::cout<<"xfinal = "<<x<<std::endl;
-    //std::cout<<"f = "<<f<<std::endl;
-    std::cout<<"Norm(f) = "<<Norm(f)<<std::endl;
+    //if (!(nlin.TestJ(x,f,&std::cout))) return 1;
     // This one is looking for a local minimum, not an exact answer.
     // The minimum should have Norm(f) ~= 2*sigma
-    if (!(Norm(f) <= 3*sigma)) 
+    if (!(Norm(f) <= 3.0)) 
     {
+      std::cout<<"f = "<<f<<std::endl;
+      std::cout<<"Norm(f) = "<<Norm(f)<<std::endl;
       std::cout<<"NonLinear Test failed.\n";
       return 1;
     }
+
+    // Check the inverse covariance matrix:
+    std::cout<<"Covariance matrix = \n"<<cov1<<std::endl;
+    nlin.numericH(x,f,h);
+    tmv::SymMatrix<double> cov2 = h.Inverse();
+    if (!(Norm(cov1-cov2) <= 1.e-6*(1.+Norm(cov1)))) {
+      std::cout<<"cov1 = "<<cov1<<std::endl;
+      std::cout<<"cov2 = "<<cov2<<std::endl;
+      std::cout<<"Covariance matrices don't match\n";
+      return 1;
+    }
+
   }
   {
     std::cout<<"Test NonLinear2:\n";
@@ -302,30 +344,46 @@ int main() try
 #ifdef USEBEST
     nlin.method = NLSolver::LM;
 #endif
-    //double x0a[] = {-1., -2.};
+    nlin.min_step = 1.e-15;
     tmv::Vector<double> x(2);
-    x = tmv::ListInit, -1., -2.;
+    x = tmv::ListInit, 1., 1.;
     tmv::Vector<double> f(MM);
+    tmv::Matrix<double> cov1(2,2);
+    tmv::SymMatrix<double> h(2);
 
     //std::cout<<"xinit = "<<x<<std::endl;
+    //nlin.verbose = true;
     //if (!(nlin.TestJ(x,f,&std::cout))) return 1;
-    if (nlin.Solve(x,f))
+    if (nlin.Solve(x,f,&cov1))
       std::cout<<"Success: \n";
     else 
       std::cout<<"Failure: \n";
+    //if (!(nlin.TestJ(x,f,&std::cout))) return 1;
     tmv::Vector<double> xtot(4);
     xtot.SubVector(0,2) = x;
     xtot.SubVector(2,4) = nlin.GetY();
     std::cout<<"xfinal = "<<xtot<<std::endl;
-    //std::cout<<"f = "<<f<<std::endl;
-    std::cout<<"Norm(f) = "<<Norm(f)<<std::endl;
     // This one is looking for a local minimum, not an exact answer.
-    // The minimum should have Norm(f) ~= 4*sigma.
-    if (!(Norm(f) <= 5*sigma)) 
+    // The minimum should have Norm(f) ~= 4.
+    if (!(Norm(f) <= 5.0)) 
     {
+      std::cout<<"f = "<<f<<std::endl;
+      std::cout<<"Norm(f) = "<<Norm(f)<<std::endl;
       std::cout<<"NonLinear2 Test failed.\n";
       return 1;
     }
+
+    // Check the inverse covariance matrix:
+    std::cout<<"Covariance matrix = \n"<<cov1<<std::endl;
+    nlin.numericH(x,f,h);
+    tmv::SymMatrix<double> cov2 = h.Inverse();
+    if (!(Norm(cov1-cov2) <= 1.e-6*(1.+Norm(cov1)))) {
+      std::cout<<"cov1 = "<<cov1<<std::endl;
+      std::cout<<"cov2 = "<<cov2<<std::endl;
+      std::cout<<"Covariance matrices don't match\n";
+      return 1;
+    }
+
   }
 #endif
 
@@ -343,9 +401,11 @@ int main() try
 #endif
     tmv::Vector<double> x(2); x(0) = 3.; x(1) = 1.;
     tmv::Vector<double> f(2);
+    tmv::Matrix<double> cov1(2,2);
+    tmv::SymMatrix<double> h(2);
 
     //std::cout<<"xinit = "<<x<<std::endl;
-    if (pow.Solve(x,f))
+    if (pow.Solve(x,f,&cov1))
       std::cout<<"Success: \n";
     else 
       std::cout<<"Failure: \n";
@@ -360,6 +420,28 @@ int main() try
       std::cout<<"Powell Test failed.\n";
       return 1;
     }
+
+    // Check the inverse covariance matrix:
+    // The hessian becomes singular at the solution, so the regular
+    // solution covariance does not produce a reliable covariance matrix.
+    // We need to switch on svd to get a better answer.
+    // We start with the correct answer, so the solution is actually
+    // trivial.  We just need the better covariance.
+    pow.usesvd=true;
+    pow.Solve(x,f,&cov1);
+    std::cout<<"Covariance matrix = \n"<<cov1<<std::endl;
+    tmv::Matrix<double> j(2,2);
+    pow.J(x,f,j);
+    pow.H(x,f,j,h);
+    h.DivideUsing(tmv::SV);
+    tmv::SymMatrix<double> cov2 = h.Inverse();
+    if (!(Norm(cov1-cov2) <= 1.e-6*(1.+Norm(cov1)))) {
+      std::cout<<"cov1 = "<<cov1<<std::endl;
+      std::cout<<"cov2 = "<<cov2<<std::endl;
+      std::cout<<"Covariance matrices don't match\n";
+      return 1;
+    }
+
   }
 #endif
 
@@ -377,14 +459,20 @@ int main() try
       SETMETHOD(ros);
 #ifdef USEBEST
       /*if (i == 0) ros.method = NLSolver::Dogleg;
-      else*/ ros.method = NLSolver::Hybrid;
+	else*/ ros.method = NLSolver::Hybrid;
 #endif
+#ifdef ROSENBROCKDIRECTH
+      ros.hasdirecth = true;
+#endif
+
       tmv::Vector<double> x(2); x(0) = -1.2; x(1) = 1.;
       tmv::Vector<double> x0(2); x0(0) = 1.; x0(1) = 1.;
       tmv::Vector<double> f(3);
+      tmv::Matrix<double> cov1(2,2);
+      tmv::SymMatrix<double> h(2);
 
       //std::cout<<"xinit = "<<x<<std::endl;
-      if (ros.Solve(x,f))
+      if (ros.Solve(x,f,&cov1))
 	std::cout<<"Success: \n";
       else 
 	std::cout<<"Failure: \n";
@@ -399,7 +487,22 @@ int main() try
 	std::cout<<"Rosenbrock Test failed for lambda = "<<lambda<<".\n";
 	return 1;
       }
-      
+
+      // Check the inverse covariance matrix:
+      std::cout<<"Covariance matrix = \n"<<cov1<<std::endl;
+      //ros.numericH(x,f,h);
+      // The numeric H is too noisy to get an accurate inverse.
+      // So use the direct calculation.
+      tmv::Matrix<double> j(3,2);
+      ros.J(x,f,j);
+      ros.H(x,f,j,h);
+      tmv::SymMatrix<double> cov2 = h.Inverse();
+      if (!(Norm(cov1-cov2) <= 1.e-6*(1.+Norm(cov1)))) {
+	std::cout<<"cov1 = "<<cov1<<std::endl;
+	std::cout<<"cov2 = "<<cov2<<std::endl;
+	std::cout<<"Covariance matrices don't match\n";
+	return 1;
+      }
     }
   }
 #endif

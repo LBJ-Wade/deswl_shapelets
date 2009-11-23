@@ -113,6 +113,6 @@ void MeasureMultiShear(
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
-    long& flag);
+    double& nu, long& flag);
 
 #endif

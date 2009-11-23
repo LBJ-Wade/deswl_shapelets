@@ -28,13 +28,12 @@ static void CalcSigma1(
     double noise, double gain, const Image<double>* weight_im, 
     const Transformation& trans, double psfap, long& flag)
 {
-  PixelList pix;
+  std::vector<PixelList> pix(1);
   long flag1 = 0;
   try {
-    GetPixList(im, pix, pos, sky, noise, gain, weight_im, trans, psfap, flag1);
+    GetPixList(im, pix[0], pos, sky, noise, gain, weight_im, trans, psfap, 
+	flag1);
   } catch (Range_error& e) {
-    xxdbg<<"transformation range error: \n";
-    xxdbg<<"p = "<<pos<<", b = "<<e.b<<std::endl;
     flag1 |= TRANSFORM_EXCEPTION;
   }
   if (flag1) {
@@ -42,15 +41,24 @@ static void CalcSigma1(
     sigma = DEFVALNEG;
     return;
   }
-  xxdbg<<"npix = "<<pix.size()<<std::endl;
+  xxdbg<<"npix = "<<pix[0].size()<<std::endl;
 
   Ellipse ell;
-  ell.PeakCentroid(pix,psfap/3.);
-  ell.CrudeMeasure(pix,sigma);
+  ell.PeakCentroid(pix[0],psfap/3.);
+  ell.CrudeMeasure(pix[0],sigma);
   xdbg<<"Crude Measure: centroid = "<<ell.GetCen();
   xdbg<<", mu = "<<ell.GetMu()<<std::endl;
-  double mu = ell.GetMu();
+  if (ell.Measure(pix,2,sigma,true,flag1)) { // true means use integ first
+    xdbg<<"Successful 2nd order measure.\n";
+    xdbg<<"mu = "<<ell.GetMu()<<std::endl;
+  } else {
+    flag |= flag1;
+    xdbg<<"Ellipse measure returned flag "<<flag1<<std::endl;
+    sigma = DEFVALNEG;
+    return;
+  }
 
+  double mu = ell.GetMu();
   sigma *= exp(mu);
   dbg<<"sigma = "<<sigma<<std::endl;
   Assert(sigma > 0);

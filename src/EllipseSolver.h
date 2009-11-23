@@ -43,14 +43,18 @@ class EllipseSolver : public BaseEllipseSolver
     void UseNumericJ();
     const BVec& GetB() const;
     void GetBCov(tmv::Matrix<double>& bcov) const;
+    void getCovariance(tmv::Matrix<double>& cov) const;
+    void getInverseCovariance(tmv::Matrix<double>& invcov) const;
 
     // CallF takes x and f of length 5, rather than whatever shorter
     // length that F takex (depending on if things are fixed).
     void CallF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const;
-    bool Solve(tmv::Vector<double>& x, tmv::Vector<double>& f,
-	tmv::Matrix<double>* cov=0) const;
+    bool Solve(tmv::Vector<double>& x, tmv::Vector<double>& f) const;
     bool TestJ(const tmv::Vector<double>& x, tmv::Vector<double>& f,
 	std::ostream* os=0, double relerr=0.) const;
+    void numericH(
+	const tmv::Vector<double>& x, const tmv::Vector<double>& f,
+	tmv::SymMatrix<double>& h) const;
 
   private :
 
@@ -80,8 +84,7 @@ class EllipseSolver2 : public BaseEllipseSolver
 	tmv::Matrix<double>& df) const;
 
     void CallF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const;
-    bool Solve(tmv::Vector<double>& x, tmv::Vector<double>& f,
-	tmv::Matrix<double>* invcov=0) const;
+    bool Solve(tmv::Vector<double>& x, tmv::Vector<double>& f) const;
     bool TestJ(const tmv::Vector<double>& x, tmv::Vector<double>& f,
 	std::ostream* os=0, double relerr=0.) const;
 
