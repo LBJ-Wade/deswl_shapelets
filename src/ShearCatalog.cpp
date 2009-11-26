@@ -307,10 +307,10 @@ void MeasureSingleShear(
     trans.Transform(cen,skypos);
     dbg<<"skypos = "<<skypos<<std::endl;
   } 
-  catch (Range_error& e) 
+  catch (RangeException& e) 
   {
     dbg<<"distortion range error: \n";
-    xdbg<<"p = "<<cen<<", b = "<<e.b<<std::endl;
+    xdbg<<"p = "<<cen<<", b = "<<e.getBounds()<<std::endl;
     if (times) times->nf_range1++;
     log.nf_range1++;
     flag |= TRANSFORM_EXCEPTION;
@@ -325,10 +325,10 @@ void MeasureSingleShear(
     dbg<<"for fittedpsf cen = "<<cen<<std::endl;
     psf[0] = fitpsf(cen);
   } 
-  catch (Range_error& e) 
+  catch (RangeException& e) 
   {
     dbg<<"fittedpsf range error: \n";
-    xdbg<<"p = "<<cen<<", b = "<<e.b<<std::endl;
+    xdbg<<"p = "<<cen<<", b = "<<e.getBounds()<<std::endl;
     if (times) times->nf_range2++;
     log.nf_range2++;
     flag |= FITTEDPSF_EXCEPTION;
@@ -395,10 +395,10 @@ ShearCatalog::ShearCatalog(const InputCatalog& incat,
       {
 	trans.Transform(pos[i],skypos[i]);
       } 
-      catch (Range_error& e) 
+      catch (RangeException& e) 
       {
 	xdbg<<"distortion range error\n";
-	xdbg<<"p = "<<pos[i]<<", b = "<<e.b<<std::endl;
+	xdbg<<"p = "<<pos[i]<<", b = "<<e.getBounds()<<std::endl;
       }                       
       skybounds += skypos[i];
     }
@@ -429,10 +429,10 @@ ShearCatalog::ShearCatalog(const InputCatalog& incat,
 	rmserror += std::norm(temp-skypos[i]);
 	count++;
       } 
-      catch (Range_error& e) 
+      catch (RangeException& e) 
       {
 	xdbg<<"distortion range error\n";
-	xdbg<<"p = "<<pos[i]<<", b = "<<e.b<<std::endl;
+	xdbg<<"p = "<<pos[i]<<", b = "<<e.getBounds()<<std::endl;
       }
     }
     rmserror /= count;
@@ -616,14 +616,14 @@ void ShearCatalog::WriteFits(std::string file) const
 
   for(size_t i=0;i<pos.size();i++) 
   {
-    x[i] = pos[i].GetX();
-    y[i] = pos[i].GetY();
+    x[i] = pos[i].getX();
+    y[i] = pos[i].getY();
   }
   for(size_t i=0;i<size();i++) 
   {
 	// internally we use arcseconds
-    ra[i] = skypos[i].GetX()/3600;
-    dec[i] = skypos[i].GetY()/3600;
+    ra[i] = skypos[i].getX()/3600;
+    dec[i] = skypos[i].getY()/3600;
   }
   for(size_t i=0;i<size();i++) 
   {
@@ -694,13 +694,13 @@ void ShearCatalog::WriteAscii(std::string file, std::string delim) const
   {
     fout
       << id[i] << delim
-      << pos[i].GetX() << delim
-      << pos[i].GetY() << delim
+      << pos[i].getX() << delim
+      << pos[i].getY() << delim
       << sky[i] << delim
       << noise[i] << delim
       << hexform(flags[i]) << delim
-      << skypos[i].GetX()/3600 << delim // internally we use arcsec
-      << skypos[i].GetY()/3600 << delim
+      << skypos[i].getX()/3600 << delim // internally we use arcsec
+      << skypos[i].getY()/3600 << delim
       << real(shear[i]) << delim
       << imag(shear[i]) << delim
       << nu[i] << delim

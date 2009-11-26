@@ -176,10 +176,10 @@ template <class T>
 Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im,
     const Bounds& b)
 {
-  int x1 = int(floor(b.GetXMin()));
-  int x2 = int(ceil(b.GetXMax()));
-  int y1 = int(floor(b.GetYMin()));
-  int y2 = int(ceil(b.GetYMax()));
+  int x1 = int(floor(b.getXMin()));
+  int x2 = int(ceil(b.getXMax()));
+  int y1 = int(floor(b.getYMin()));
+  int y2 = int(ceil(b.getYMax()));
   filename = Name(params,"image",true);
   hdu = params.read("image_hdu",1);
   ReadFits(filename,hdu,x1,x2,y1,y2);
@@ -224,10 +224,10 @@ Image<T>::Image(const ConfigFile& params, int x1, int x2, int y1, int y2)
 template <class T>
 Image<T>::Image(const ConfigFile& params, const Bounds& b)
 {
-  int x1 = int(floor(b.GetXMin()));
-  int x2 = int(ceil(b.GetXMax()));
-  int y1 = int(floor(b.GetYMin()));
-  int y2 = int(ceil(b.GetYMax()));
+  int x1 = int(floor(b.getXMin()));
+  int x2 = int(ceil(b.getXMax()));
+  int y1 = int(floor(b.getYMin()));
+  int y2 = int(ceil(b.getYMax()));
   filename = Name(params,"image",true);
   hdu = params.read("image_hdu",1);
   ReadFits(Name(params,"image",true),hdu,x1,x2,y1,y2);
@@ -246,10 +246,10 @@ template <class T>
 Image<T>::Image(std::string _filename, int _hdu, const Bounds& b) :
   filename(_filename), hdu(_hdu)
 {
-  int x1 = int(floor(b.GetXMin()));
-  int x2 = int(ceil(b.GetXMax()));
-  int y1 = int(floor(b.GetYMin()));
-  int y2 = int(ceil(b.GetYMax()));
+  int x1 = int(floor(b.getXMin()));
+  int x2 = int(ceil(b.getXMax()));
+  int y1 = int(floor(b.getYMin()));
+  int y2 = int(ceil(b.getYMax()));
   ReadFits(filename,hdu,x1,x2,y1,y2);
 }
 

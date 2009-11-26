@@ -30,10 +30,10 @@ class FittedPSF {
     int GetNpca() const { return npca; }
     double GetSigma() const { return sigma; }
 
-    double GetXMin() const { return bounds.GetXMin(); }
-    double GetXMax() const { return bounds.GetXMax(); }
-    double GetYMin() const { return bounds.GetYMin(); }
-    double GetYMax() const { return bounds.GetYMax(); }
+    double GetXMin() const { return bounds.getXMin(); }
+    double GetXMax() const { return bounds.getXMax(); }
+    double GetYMin() const { return bounds.getYMin(); }
+    double GetYMax() const { return bounds.getYMax(); }
     const Bounds& GetBounds() const { return bounds; }
 
     void Write() const;

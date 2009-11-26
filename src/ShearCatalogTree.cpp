@@ -11,13 +11,13 @@ struct PosWithIndex
 struct CompareX
 {
   bool operator()(const PosWithIndex& p1, const PosWithIndex& p2)
-  { return p1.pos.GetX() < p2.pos.GetX(); }
+  { return p1.pos.getX() < p2.pos.getX(); }
 };
 
 struct CompareY
 {
   bool operator()(const PosWithIndex& p1, const PosWithIndex& p2)
-  { return p1.pos.GetY() < p2.pos.GetY(); }
+  { return p1.pos.getY() < p2.pos.getY(); }
 };
 
 struct ShearCatalogTree::Node
@@ -38,13 +38,13 @@ struct ShearCatalogTree::Node
     {
       for(it i=start;i!=end;++i) b += i->pos;
       it middle = start + n/2;
-      if (b.IsWide())
+      if (b.isWide())
 	std::nth_element(start,middle,end,CompareX());
       else
 	std::nth_element(start,middle,end,CompareY());
       left = new Node(start,middle);
       right = new Node(middle,end);
-      pos = b.Center();
+      pos = b.getCenter();
       index = -1;
     }
   }
@@ -91,20 +91,20 @@ struct ShearCatalogTree::Node
       // First see if we can trivially stop here.
       if (best >= 0.)
       {
-	if (p.GetX() < b.GetXMin() - best) return;
-	if (p.GetX() > b.GetXMax() + best) return;
-	if (p.GetY() < b.GetYMin() - best) return;
-	if (p.GetY() > b.GetYMax() + best) return;
+	if (p.getX() < b.getXMin() - best) return;
+	if (p.getX() > b.getXMax() + best) return;
+	if (p.getY() < b.getYMin() - best) return;
+	if (p.getY() > b.getYMax() + best) return;
       }
       xxdbg<<"no early exit\n";
 
       // Recurse into sub-nodes smartly -- try the node that is more
       // likely to have the nearest location first.
       // Use NY distances, since they are faster, and don't need to be exact.
-      double d1 = std::abs(p.GetX()-left->pos.GetX());
-      d1 += std::abs(p.GetY()-left->pos.GetY());
-      double d2 = std::abs(p.GetX()-right->pos.GetX());
-      d2 += std::abs(p.GetY()-right->pos.GetY());
+      double d1 = std::abs(p.getX()-left->pos.getX());
+      d1 += std::abs(p.getY()-left->pos.getY());
+      double d2 = std::abs(p.getX()-right->pos.getX());
+      d2 += std::abs(p.getY()-right->pos.getY());
       xxdbg<<"d1,d2 = "<<d1<<"  "<<d2<<std::endl;
       if (d1 < d2)
       {

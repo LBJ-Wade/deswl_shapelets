@@ -29,10 +29,10 @@ static void SetPRow(int fitorder, Position pos, const Bounds& bounds,
     const tmv::VectorView<double>& Prow)
 {
   Assert(int(Prow.size()) == (fitorder+1)*(fitorder+2)/2);
-  tmv::Vector<double> px = DefinePXY(fitorder,pos.GetX(),
-      bounds.GetXMin(),bounds.GetXMax());
-  tmv::Vector<double> py = DefinePXY(fitorder,pos.GetY(),
-      bounds.GetYMin(),bounds.GetYMax());
+  tmv::Vector<double> px = DefinePXY(fitorder,pos.getX(),
+      bounds.getXMin(),bounds.getXMax());
+  tmv::Vector<double> py = DefinePXY(fitorder,pos.getY(),
+      bounds.getYMin(),bounds.getYMax());
   int pq = 0;
   for(int pplusq=0;pplusq<=fitorder;pplusq++)
     for(int p=pplusq,q=pplusq-p;q<=pplusq;p--,q++) {
@@ -493,10 +493,10 @@ void FittedPSF::WriteFits(std::string file) const
   std::vector<double> l_sigma(1,sigma);
   std::vector<int> l_fitorder(1,fitorder);
   std::vector<int> l_npca(1,npca); 
-  std::vector<double> xmin(1,bounds.GetXMin());
-  std::vector<double> xmax(1,bounds.GetXMax());
-  std::vector<double> ymin(1,bounds.GetYMin());
-  std::vector<double> ymax(1,bounds.GetYMax());
+  std::vector<double> xmin(1,bounds.getXMin());
+  std::vector<double> xmax(1,bounds.getXMax());
+  std::vector<double> ymin(1,bounds.getYMin());
+  std::vector<double> ymax(1,bounds.getYMax());
 
   table->column(colnames[0]).write(l_psforder, startrow);
   table->column(colnames[1]).write(l_sigma, startrow);
@@ -588,10 +588,10 @@ void FittedPSF::ReadFits(std::string file)
   table.column(ymax_col).read(ymax, start, end);
   xdbg<<"ymax = "<<ymax[0]<<std::endl;
 
-  bounds.SetXMin(xmin[0]);
-  bounds.SetXMax(xmax[0]);
-  bounds.SetYMin(ymin[0]);
-  bounds.SetYMax(ymax[0]);
+  bounds.setXMin(xmin[0]);
+  bounds.setXMax(xmax[0]);
+  bounds.setYMin(ymin[0]);
+  bounds.setYMax(ymax[0]);
   xdbg<<"bounds = "<<bounds<<std::endl;
 
 

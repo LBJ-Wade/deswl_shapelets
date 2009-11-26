@@ -34,7 +34,7 @@ static void CalcSigma1(
   try {
     GetPixList(im, pix[0], pos, sky, noise, gain, weight_im, trans, psfap, 
 	flag1);
-  } catch (Range_error& e) {
+  } catch (RangeException& e) {
     flag1 |= TRANSFORM_EXCEPTION;
   }
   if (flag1) {
@@ -317,8 +317,8 @@ void StarCatalog::WriteFits(std::string file) const
   std::vector<double> x(pos.size());
   std::vector<double> y(pos.size());
   for(size_t i=0;i<pos.size();i++) {
-    x[i] = pos[i].GetX();
-    y[i] = pos[i].GetY();
+    x[i] = pos[i].getX();
+    y[i] = pos[i].getY();
   }
 
   int startrow=1;
@@ -355,8 +355,8 @@ void StarCatalog::WriteAscii(std::string file, std::string delim) const
   for (size_t i=0; i<size(); i++) {
     fout 
       << id[i] << delim
-      << pos[i].GetX() << delim
-      << pos[i].GetY() << delim
+      << pos[i].getX() << delim
+      << pos[i].getY() << delim
       << sky[i] << delim
       << noise[i] << delim
       //<< hexform(flags[i]) << delim

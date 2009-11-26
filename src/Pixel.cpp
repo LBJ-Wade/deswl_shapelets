@@ -33,8 +33,8 @@ void GetPixList(const Image<double>& im, PixelList& pix,
   int xmin = im.GetXMin();
   int ymin = im.GetYMin();
 
-  double xcen = cen.GetX();
-  double ycen = cen.GetY();
+  double xcen = cen.getX();
+  double ycen = cen.getY();
   xdbg<<"cen = "<<xcen<<"  "<<ycen<<std::endl;
   xdbg<<"xmin, ymin = "<<xmin<<"  "<<ymin<<std::endl;
   // xcen,ycen are given on a 1-based grid.
@@ -160,8 +160,8 @@ double GetLocalSky(const Image<float>& bkg,
   int xmin = bkg.GetXMin();
   int ymin = bkg.GetYMin();
 
-  double xcen = cen.GetX();
-  double ycen = cen.GetY();
+  double xcen = cen.getX();
+  double ycen = cen.getY();
   // xcen,ycen are given on a 1-based grid.
   // ie. where the lower left corner pixel is (1,1), rather than (0,0).
   // The easiest way to do this is to just decrease xcen,ycen by 1 each:

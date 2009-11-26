@@ -93,10 +93,10 @@ void MeasureSinglePSF(
     trans.Transform(cen,skypos);
     dbg<<"skypos = "<<skypos<<std::endl;
   } 
-  catch (Range_error& e) 
+  catch (RangeException& e) 
   {
     xdbg<<"skip: transformation range error: \n";
-    xdbg<<"p = "<<cen<<", b = "<<e.b<<std::endl;
+    xdbg<<"p = "<<cen<<", b = "<<e.getBounds()<<std::endl;
     log.nf_range++;
     flag |= TRANSFORM_EXCEPTION;
     return;
@@ -302,8 +302,8 @@ void PSFCatalog::WriteFits(std::string file) const
   std::vector<double> y(pos.size());
   for(size_t i=0;i<pos.size();i++) 
   {
-    x[i] = pos[i].GetX();
-    y[i] = pos[i].GetY();
+    x[i] = pos[i].getX();
+    y[i] = pos[i].getY();
   }
 
   int startrow=1;
@@ -352,8 +352,8 @@ void PSFCatalog::WriteAscii(std::string file, std::string delim) const
   {
     fout
       << id[i] << delim
-      << pos[i].GetX() << delim
-      << pos[i].GetY() << delim
+      << pos[i].getX() << delim
+      << pos[i].getY() << delim
       << sky[i] << delim
       << noise[i] << delim
       << hexform(flags[i]) << delim

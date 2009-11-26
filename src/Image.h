@@ -40,8 +40,8 @@ template <class T> class Image {
       itsm(new tmv::MatrixView<T>(sourcem->View())) {}
     Image(const Image& rhs, const Bounds& b) :
       filename(""), hdu(0),
-      xmin(int(floor(b.GetXMin()))), xmax(int(ceil(b.GetXMax()))), 
-      ymin(int(floor(b.GetYMin()))), ymax(int(ceil(b.GetYMax()))),
+      xmin(int(floor(b.getXMin()))), xmax(int(ceil(b.getXMax()))), 
+      ymin(int(floor(b.getYMin()))), ymax(int(ceil(b.getYMax()))),
       sourcem(new tmv::Matrix<T,tmv::ColMajor>(
 	    rhs.itsm->SubMatrix(xmin,xmax,ymin,ymax))),
       itsm(new tmv::MatrixView<T>(sourcem->View())) {}

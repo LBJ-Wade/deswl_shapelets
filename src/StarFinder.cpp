@@ -99,7 +99,7 @@ std::vector<PotentialStar*> StarFinder::FindStars(
 
   // boundsar is the 3x3 (ndivx x ndivy) array of quadrant bounds
   // call it qbounds even though it won't be quadrants unless 2x2
-  std::vector<Bounds> qbounds = totalbounds.Divide(ndivx,ndivy);
+  std::vector<Bounds> qbounds = totalbounds.divide(ndivx,ndivy);
   xdbg<<"made qbounds\n";
 
   // probstars will be our first pass list of probable stars
@@ -115,7 +115,7 @@ std::vector<PotentialStar*> StarFinder::FindStars(
     // allobj was sorted.
     std::vector<PotentialStar*> someobj;
     for(size_t k=0;k<allobj.size();k++) 
-      if (qbounds[i].Includes(allobj[k]->GetPos())) 
+      if (qbounds[i].includes(allobj[k]->GetPos())) 
 	someobj.push_back(allobj[k]);
     dbg<<"added "<<someobj.size()<<" obj\n";
 
@@ -224,7 +224,7 @@ std::vector<PotentialStar*> StarFinder::FindStars(
     // Add each star to the appropriate sublist
     for(size_t k=0;k<probstars.size();k++) 
       for(size_t i=0;i<qbounds.size();i++)
-	if(qbounds[i].Includes(probstars[k]->GetPos()))
+	if(qbounds[i].includes(probstars[k]->GetPos()))
 	  starsarray[i].push_back(probstars[k]);
 
     // Make fitlist, the new list of the 10 brightest stars per section
@@ -643,7 +643,7 @@ void StarFinder::FitStellarSizes(Function2D<double> *f, size_t order,
   double chisq;
   int dof;
   xdbg<<"before outlier fit\n";
-  f->OutlierFit(order,sigclip,poslist,sizelist,&uselist,0,&chisq,&dof,0);
+  f->outlierFit(order,sigclip,poslist,sizelist,&uselist,0,&chisq,&dof,0);
   xdbg<<"after outlier fit\n";
   //size_t n = count(uselist.begin(),uselist.end(),true);
 

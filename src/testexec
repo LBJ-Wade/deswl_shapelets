@@ -1,8 +1,8 @@
 #!/bin/bash
 
-root=decam--24--27-i-2_61
+#root=decam--24--27-i-2_61
 #stardat=stars1.dat
-#root=decam--24--37-i-14_06
+root=decam--24--37-i-14_06
 #stardat=stars2.dat
 #root=decam--25--30-i-3_51
 #stardat=stars3.dat
@@ -15,30 +15,34 @@ root=decam--24--27-i-2_61
 #root=decam--27--9-i-3_20
 #stardat=stars7.dat
 config=../example_config/wl.config
-input=../../testdata/data
-output=../../testdata/output
+input=/home/mjarvis/des/wl/testdata/data
+output=/home/mjarvis/des/wl/testdata/output2
 #dc4=
 #dc4='shear_dc4_input_format=true'
 dc4='+dc4.config'
 #BINDIR=.
-BINDIR=/home/mjarvis/bin
+BINDIR=.
+vl=2
 
-echo $BINDIR/findstars $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fs.debug verbose=1 output_dots=1 $dc4
-time $BINDIR/findstars $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fs.debug verbose=1 output_dots=1 $dc4
+echo $BINDIR/findstars $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fs.debug verbose=$vl output_dots=1 $dc4
+time $BINDIR/findstars $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fs.debug verbose=$vl output_dots=1 $dc4
 #/bin/cp $output${root}_stars.dat $output$stardat
+cp fs.debug $output
 
 echo MeasurePSF:
-echo $BINDIR/measurepsf $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=mp.debug verbose=1 output_dots=1 $dc4
-time $BINDIR/measurepsf $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=mp.debug verbose=1 output_dots=1 $dc4
+echo $BINDIR/measurepsf $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=mp.debug verbose=$vl output_dots=1 $dc4
+time $BINDIR/measurepsf $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=mp.debug verbose=$vl output_dots=1 $dc4
+cp mp.debug $output
 
 echo MeasureShear:
-echo $BINDIR/measureshear $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=ms.debug verbose=1 output_dots=1 $dc4
-time $BINDIR/measureshear $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=ms.debug verbose=1 output_dots=1 $dc4
+echo $BINDIR/measureshear $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=ms.debug verbose=$vl output_dots=1 $dc4
+time $BINDIR/measureshear $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=ms.debug verbose=$vl output_dots=1 $dc4
+cp ms.debug $output
 exit
 
 echo FullPipeline
-echo $BINDIR/fullpipe $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fp.debug verbose=1 output_dots=1 $dc4
-time $BINDIR/fullpipe $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fp.debug verbose=1 output_dots=1 $dc4
+echo $BINDIR/fullpipe $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fp.debug verbose=$vl output_dots=1 $dc4
+time $BINDIR/fullpipe $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fp.debug verbose=$vl output_dots=1 $dc4
 
 #echo Try execution with bad configfile:
 #$BINDIR/findstars foo root=$root input_prefix=$input/ output_prefix=$output/

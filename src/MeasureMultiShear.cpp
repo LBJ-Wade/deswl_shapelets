@@ -46,8 +46,8 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
   MultiShearCatalog shearcat(coaddcat,params);
   dbg<<"Made multishearcat\n";
   dbg<<"Total bounds are "<<shearcat.skybounds<<std::endl;
-  dbg<<"Area = "<<shearcat.skybounds.Area()/3600.<<" square arcmin\n";
-  dbg<<" = "<<shearcat.skybounds.Area()/3600./3600.<<" square degrees\n";
+  dbg<<"Area = "<<shearcat.skybounds.getArea()/3600.<<" square arcmin\n";
+  dbg<<" = "<<shearcat.skybounds.getArea()/3600./3600.<<" square degrees\n";
 
   log.ngals = shearcat.size();
   log.ngoodin = std::count(shearcat.flags.begin(),shearcat.flags.end(),0);

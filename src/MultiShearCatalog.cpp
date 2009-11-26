@@ -37,12 +37,12 @@ MultiShearCatalog::MultiShearCatalog(
 
 std::vector<Bounds> MultiShearCatalog::SplitBounds(double side)
 {
-  double xrange = skybounds.GetXMax() - skybounds.GetXMin();
-  double yrange = skybounds.GetYMax() - skybounds.GetYMin();
+  double xrange = skybounds.getXMax() - skybounds.getXMin();
+  double yrange = skybounds.getYMax() - skybounds.getYMin();
 
   int nx = int(floor(xrange/side))+1;
   int ny = int(floor(yrange/side))+1;
-  return skybounds.Divide(nx,ny);
+  return skybounds.divide(nx,ny);
 }
 
 int MultiShearCatalog::GetPixels(const Bounds& b)
@@ -499,8 +499,8 @@ void MultiShearCatalog::WriteFits(std::string file) const
   for(size_t i=0;i<size();i++) 
   {
 	// internally we use arcseconds
-    ra[i] = skypos[i].GetX()/3600.;
-    dec[i] = skypos[i].GetY()/3600.;
+    ra[i] = skypos[i].getX()/3600.;
+    dec[i] = skypos[i].getY()/3600.;
   }
   for(size_t i=0;i<size();i++) 
   {
@@ -567,8 +567,8 @@ void MultiShearCatalog::WriteAscii(std::string file, std::string delim) const
   for(size_t i=0;i<size();i++) {
     fout
       << id[i] << delim
-      << skypos[i].GetX()/3600. << delim
-      << skypos[i].GetY()/3600. << delim
+      << skypos[i].getX()/3600. << delim
+      << skypos[i].getY()/3600. << delim
       << hexform(flags[i]) << delim
       << real(shear[i]) << delim
       << imag(shear[i]) << delim

@@ -47,7 +47,7 @@ int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
 #endif
       for(int i=0;i<ngals;++i) 
       {
-	if (!b.Includes(skypos[i])) 
+	if (!b.includes(skypos[i])) 
 	{
 	  xxdbg<<"Skipping galaxy "<<i<<" because "<<skypos[i]<<"not in bounds\n";
 	  continue;
@@ -189,7 +189,7 @@ static void GetImagePixList(
     //throw TransformationError(err.str());
   }
   xdbg<<"after exact InverseTransform: pos -> "<<pos<<std::endl;
-  if (!(fitpsf.GetBounds().Includes(pos))) 
+  if (!(fitpsf.GetBounds().includes(pos))) 
   {
     xdbg<<"Reject pos "<<pos<<" not in fitpsf bounds ";
     xdbg<<fitpsf.GetBounds()<<std::endl;
@@ -200,9 +200,9 @@ static void GetImagePixList(
 
   try {
     psf = fitpsf(pos);
-  } catch (Range_error& e) {
+  } catch (RangeException& e) {
     xdbg<<"fittedpsf range error: \n";
-    xdbg<<"p = "<<pos<<", b = "<<e.b<<std::endl;
+    xdbg<<"p = "<<pos<<", b = "<<e.getBounds()<<std::endl;
     input_flags |= FITTEDPSF_EXCEPTION;
     return;
   }
@@ -213,9 +213,9 @@ static void GetImagePixList(
     // error here, so we don't need to worry about it for dudx, etc.
     Position skypos1;
     trans.Transform(pos,skypos1);
-  } catch (Range_error& e) {
+  } catch (RangeException& e) {
     dbg<<"distortion range error: \n";
-    xdbg<<"p = "<<pos<<", b = "<<e.b<<std::endl;
+    xdbg<<"p = "<<pos<<", b = "<<e.getBounds()<<std::endl;
     input_flags |= TRANSFORM_EXCEPTION;
     return;
   }
@@ -316,7 +316,7 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
   {
     Bounds se_skybounds = saved_se_skybounds[se_index];
     dbg<<"saved bounds for image "<<se_index<<" = "<<se_skybounds;
-    if (!se_skybounds.Intersects(b)) 
+    if (!se_skybounds.intersects(b)) 
     {
       dbg<<"Skipping index "<<se_index<<" because bounds don't intersect\n";
       return;
@@ -335,7 +335,7 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
     Assert(int(saved_se_skybounds.size()) == se_index);
     saved_se_skybounds.push_back(se_skybounds);
   }
-  if (!se_skybounds.Intersects(b)) 
+  if (!se_skybounds.intersects(b)) 
   {
     dbg<<"Skipping index "<<se_index<<" because bounds don't intersect\n";
     return;
@@ -389,7 +389,7 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
   // The bounds needed are 
   std::auto_ptr<Image<double> > im;
   std::auto_ptr<Image<double> > weight_im;
-  if (skybounds.Includes(se_skybounds))
+  if (skybounds.includes(se_skybounds))
     im.reset(new Image<double>(params,weight_im));
   else
   {
@@ -397,17 +397,17 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
     dbg<<"intersect = invb & skybounds = "<<intersect<<std::endl;
 
     Bounds subb;
-    subb += invtrans(intersect.Get00());
-    subb += invtrans(intersect.Get01());
-    subb += invtrans(intersect.Get10());
-    subb += invtrans(intersect.Get11());
+    subb += invtrans(intersect.get00());
+    subb += invtrans(intersect.get01());
+    subb += invtrans(intersect.get10());
+    subb += invtrans(intersect.get11());
 
     // Grow bounds by max_aperture
     tmv::SmallMatrix<double,2,2> D;
-    trans.GetDistortion(subb.Center(),D);
+    trans.GetDistortion(subb.getCenter(),D);
     double det = std::abs(D.Det());
     double pixscale = sqrt(det); // arcsec/pixel
-    subb.AddBorder(max_aperture / pixscale);
+    subb.addBorder(max_aperture / pixscale);
 
     dbg<<"subb = "<<subb<<std::endl;
     im.reset(new Image<double>(params,weight_im,subb));
@@ -442,8 +442,8 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
     Assert(i < int(nimages_found.size()));
     Assert(i < int(nimages_gotpix.size()));
     if (!flags[i] && 
-	b.Includes(skypos[i]) &&
-	invb.Includes(skypos[i]))
+	b.includes(skypos[i]) &&
+	invb.includes(skypos[i]))
     {
       GetImagePixList(
 	  pixlist[i], psflist[i], se_shearlist[i], se_sizelist[i],

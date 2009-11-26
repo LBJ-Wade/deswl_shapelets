@@ -82,8 +82,8 @@ int main(int argc, char **argv)
 		double ie2 = sqrt(2)*ipsf[4];
 		cout<<psfcat.id[i]
 			<<" "<<psfcat.flags[i]
-			<<" "<<psfcat.pos[i].GetX()
-			<<" "<<psfcat.pos[i].GetY()
+			<<" "<<psfcat.pos[i].getX()
+			<<" "<<psfcat.pos[i].getY()
 			<<" "<<e1
 			<<" "<<e2
 			<<" "<<ie1

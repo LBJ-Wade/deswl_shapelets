@@ -100,10 +100,10 @@ void Transformation::ReadFunc2D(std::istream& is)
 	std::string("Error reading Func2D format transformation.\n") +
 	"Caught error: "+ e.what());
   }
-  dudxp = up->DFDX();
-  dudyp = up->DFDY();
-  dvdxp = vp->DFDX();
-  dvdyp = vp->DFDY();
+  dudxp = up->dFdX();
+  dudyp = up->dFdY();
+  dvdxp = vp->dFdX();
+  dvdyp = vp->dFdY();
   _isRaDec = false;
 }
 
@@ -164,26 +164,6 @@ void Transformation::GetDistortion(Position pos,
     dvdy = (*dvdyp)(pos);
 
     if (_isRaDec) {
-#if 0
-      std::cerr<<"pos = "<<pos<<std::endl;
-      std::cerr<<"D = "<<dudx<<','<<dudy<<','<<dvdx<<','<<dvdy<<std::endl;
-      std::cerr<<"u values in x steps = "<<
-	(*up)(pos.GetX()+1,pos.GetY())-(*up)(pos)<<"  "<<
-	(*up)(pos.GetX()+2,pos.GetY())-(*up)(pos)<<"  "<<
-	(*up)(pos.GetX()+3,pos.GetY())-(*up)(pos)<<std::endl;
-      std::cerr<<"v values in x steps = "<<
-	(*vp)(pos.GetX()+1,pos.GetY())-(*vp)(pos)<<"  "<<
-	(*vp)(pos.GetX()+2,pos.GetY())-(*vp)(pos)<<"  "<<
-	(*vp)(pos.GetX()+3,pos.GetY())-(*vp)(pos)<<std::endl;
-      std::cerr<<"u values in y steps = "<<
-	(*up)(pos.GetX(),pos.GetY()+1)-(*up)(pos)<<"  "<<
-	(*up)(pos.GetX(),pos.GetY()+2)-(*up)(pos)<<"  "<<
-	(*up)(pos.GetX(),pos.GetY()+3)-(*up)(pos)<<std::endl;
-      std::cerr<<"v values in y steps = "<<
-	(*vp)(pos.GetX(),pos.GetY()+1)-(*vp)(pos)<<"  "<<
-	(*vp)(pos.GetX(),pos.GetY()+2)-(*vp)(pos)<<"  "<<
-	(*vp)(pos.GetX(),pos.GetY()+3)-(*vp)(pos)<<std::endl;
-#endif
       // Then u is RA, v is Dec.
       // Need to scale du (RA) by cos(Dec).
       double dec = (*vp)(pos); // this is in arcsec.
@@ -191,9 +171,6 @@ void Transformation::GetDistortion(Position pos,
       double cosdec = cos(dec);
       dudx *= cosdec;
       dudy *= cosdec;
-#if 0
-      std::cerr<<"D => "<<dudx<<','<<dudy<<','<<dvdx<<','<<dvdy<<std::endl;
-#endif
     }
   } else {
     dudx = 1.;
@@ -255,8 +232,8 @@ bool Transformation::InverseTransform(Position puv, Position& pxy) const
 {
   InverseSolver solver(*this, puv);
   tmv::Vector<double> x(2);
-  x[0] = pxy.GetX();
-  x[1] = pxy.GetY();
+  x[0] = pxy.getX();
+  x[1] = pxy.getY();
   tmv::Vector<double> f(2);
 
   solver.method = NLSolver::Dogleg;
@@ -282,8 +259,8 @@ Bounds Transformation::MakeInverseOf(const Transformation& t2,
 {
   //int ngrid = 5*order;
   int ngrid = order;
-  double dx = (bounds.GetXMax() - bounds.GetXMin()) / ngrid;
-  double dy = (bounds.GetYMax() - bounds.GetXMin()) / ngrid;
+  double dx = (bounds.getXMax() - bounds.getXMin()) / ngrid;
+  double dy = (bounds.getYMax() - bounds.getXMin()) / ngrid;
   int ntot = (ngrid+1)*(ngrid+1);
   Position puv;
   std::vector<Position> v_pos;
@@ -297,9 +274,9 @@ Bounds Transformation::MakeInverseOf(const Transformation& t2,
   xdbg<<"MakeInverse\n";
   xdbg<<"bounds = "<<bounds<<std::endl;
   xdbg<<"order = "<<order<<std::endl;
-  double x = bounds.GetXMin();
+  double x = bounds.getXMin();
   for(int i=0; i<=ngrid; i++, x+=dx) {
-    double y = bounds.GetYMin();
+    double y = bounds.getYMin();
     for(int j=0; j<=ngrid; j++, y+=dy) {
       xxdbg<<"i,j = "<<i<<','<<j<<std::endl;
       xxdbg<<"x,y = "<<x<<','<<y<<std::endl;
@@ -313,17 +290,17 @@ Bounds Transformation::MakeInverseOf(const Transformation& t2,
     }
   }
   xdbg<<"newbounds = "<<newbounds<<std::endl;
-  newbounds.AddBorder(10.);
+  newbounds.addBorder(10.);
   xdbg<<"newbounds (add border of 10 pixels) => "<<newbounds<<std::endl;
   up.reset(new Legendre2D<double>(newbounds));
-  up->SimpleFit(order,v_pos,v_x,use);
+  up->simpleFit(order,v_pos,v_x,use);
   vp.reset(new Legendre2D<double>(newbounds));
-  vp->SimpleFit(order,v_pos,v_y,use);
+  vp->simpleFit(order,v_pos,v_y,use);
 
-  dudxp = up->DFDX();
-  dudyp = up->DFDY();
-  dvdxp = vp->DFDX();
-  dvdyp = vp->DFDY();
+  dudxp = up->dFdX();
+  dudyp = up->dFdY();
+  dvdxp = vp->dFdX();
+  dvdyp = vp->dFdY();
   _isRaDec = false;
 
   return newbounds;
@@ -819,17 +796,17 @@ void Transformation::ReadWCS(std::string fitsfile, int hdu)
   const Polynomial2D<double>& ux = static_cast<const Polynomial2D<double>&>(*up);
   const Polynomial2D<double>& vx = static_cast<const Polynomial2D<double>&>(*vp);
 
-  u2.MakeProductOf(ux,ux);
-  uv.MakeProductOf(ux,vx);
-  v2.MakeProductOf(vx,vx);
-  u3.MakeProductOf(ux,u2);
-  u2v.MakeProductOf(ux,uv);
-  uv2.MakeProductOf(ux,v2);
-  v3.MakeProductOf(vx,v2);
-  u4.MakeProductOf(ux,u3);
-  u3v.MakeProductOf(ux,u2v);
-  u2v2.MakeProductOf(ux,uv2);
-  uv3.MakeProductOf(ux,v3);
+  u2.makeProductOf(ux,ux);
+  uv.makeProductOf(ux,vx);
+  v2.makeProductOf(vx,vx);
+  u3.makeProductOf(ux,u2);
+  u2v.makeProductOf(ux,uv);
+  uv2.makeProductOf(ux,v2);
+  v3.makeProductOf(vx,v2);
+  u4.makeProductOf(ux,u3);
+  u3v.makeProductOf(ux,u2v);
+  u2v2.makeProductOf(ux,uv2);
+  uv3.makeProductOf(ux,v3);
 
   // Above formula assume u,v in radians, but currently u,v are in degrees.
   u2 *= PI/180.;
@@ -875,18 +852,18 @@ void Transformation::ReadWCS(std::string fitsfile, int hdu)
   (*vp) += u2v2;
   (*vp) += u4;
 
-  up->AddLinear(crval(0),0.,0.);
-  vp->AddLinear(crval(1),0.,0.);
+  up->addLinear(crval(0),0.,0.);
+  vp->addLinear(crval(1),0.,0.);
 
   // The u and v functions give the result in degrees. 
   // We need it to be arcsec.  So convert it here:
   (*up) *= 3600.;
   (*vp) *= 3600.;
 
-  dudxp = up->DFDX();
-  dudyp = up->DFDY();
-  dvdxp = vp->DFDX();
-  dvdyp = vp->DFDY();
+  dudxp = up->dFdX();
+  dudyp = up->dFdY();
+  dvdxp = vp->dFdX();
+  dvdyp = vp->dFdY();
 
   // The transformed variables u,v are RA and Dec.
   // This has implications for how we want to use dudx, etc. so keep
