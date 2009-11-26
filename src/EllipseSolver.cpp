@@ -49,7 +49,7 @@ class ESImpl
     tmv::Vector<double> I;
     tmv::Vector<std::complex<double> > Z;
     mutable tmv::Vector<std::complex<double> > Z1;
-    tmv::Vector<double> W;
+    tmv::DiagMatrix<double> W;
     mutable tmv::Matrix<double> psi;
     mutable tmv::Matrix<double> A_aux;
     mutable tmv::Matrix<double> AC;
@@ -142,9 +142,9 @@ ESImpl::ESImpl(const std::vector<PixelList>& _pix,
 {
   for(size_t k=0,n=0;k<pix.size();k++) {
     for(size_t i=0;i<pix[k].size();i++,n++) {
-      I(n) = pix[k][i].I*pix[k][i].wt;
-      W(n) = pix[k][i].wt;
-      Z(n) = pix[k][i].z;
+      I(n) = pix[k][i].getFlux()*pix[k][i].getInverseSigma();
+      W(n) = pix[k][i].getInverseSigma();
+      Z(n) = pix[k][i].getPos();
     }
   }
 
@@ -208,9 +208,9 @@ ESImpl::ESImpl(const std::vector<PixelList>& _pix,
 {
   for(size_t k=0,n=0;k<pix.size();k++) {
     for(size_t i=0;i<pix[k].size();i++,n++) {
-      I(n) = pix[k][i].I*pix[k][i].wt;
-      W(n) = pix[k][i].wt;
-      Z(n) = pix[k][i].z;
+      I(n) = pix[k][i].getFlux()*pix[k][i].getInverseSigma();
+      W(n) = pix[k][i].getInverseSigma();
+      Z(n) = pix[k][i].getPos();
     }
   }
 

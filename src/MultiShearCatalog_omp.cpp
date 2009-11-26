@@ -207,7 +207,7 @@ static void GetImagePixList(
     return;
   }
 
-  // Make sure the use of trans in GetPixList won't throw:
+  // Make sure the use of trans in getPixList won't throw:
   try {
     // We don't need to save skypos.  We just want to catch the range
     // error here, so we don't need to worry about it for dudx, etc.
@@ -255,7 +255,7 @@ static void GetImagePixList(
   else 
   {
     Assert(sky_method == "MAP");
-    sky = GetLocalSky(*sky_map,pos,trans,galap,flag);
+    sky = getLocalSky(*sky_map,pos,trans,galap,flag);
     // If no pixels in aperture, then
     // a) something is very wrong, but
     // b) use the NEAREST method instead.
@@ -265,12 +265,12 @@ static void GetImagePixList(
 
   pixlist.push_back(PixelList());
 #ifdef PIXELLIST_BLOCK
-  pixlist.back().UseBlockMem();
+  pixlist.back().usePool();
 #endif
   xdbg<<"pixlist.size = "<<pixlist.size()<<std::endl;
 
   flag = 0;
-  GetPixList(
+  getPixList(
       im,pixlist.back(),pos,
       sky,noise,gain,weight_im,trans,galap,flag);
   xdbg<<"Got pixellist, flag = "<<flag<<std::endl;

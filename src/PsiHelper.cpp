@@ -109,7 +109,7 @@ void MakePsi1(const tmv::VectorView<double>& psi,
 
 void MakePsi(const tmv::MatrixView<double>& psi, 
     const tmv::Vector<std::complex<double> >& z, int order,
-    const tmv::Vector<double>* coeff)
+    const tmv::DiagMatrix<double>* coeff)
 {
   //dbg<<"Start MakePsi"<<std::endl;
   // For p>=q:
@@ -151,7 +151,7 @@ void MakePsi(const tmv::MatrixView<double>& psi,
     psi00it[i] = invsqrtpi * exp(-(rsqit[i])/2.);
     //dbg<<"psi_i0 = "<<psi00it[i]<<std::endl;
   }
-  if (coeff) psi.col(0) *= DiagMatrixViewOf(*coeff);
+  if (coeff) psi.col(0) *= *coeff;
   //dbg<<"psi.col(0) => "<<psi.col(0)<<std::endl;
 
   tmv::Vector<double> zr = z.Real();

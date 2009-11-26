@@ -55,7 +55,7 @@ void Ellipse::DoMeasureShapelet(const std::vector<PixelList>& pix,
   dbg<<"ntot = "<<ntot<<" in "<<pix.size()<<" images\n";
 
   tmv::Vector<double> I(ntot);
-  tmv::Vector<double> W(ntot);
+  tmv::DiagMatrix<double> W(ntot);
   tmv::Vector<std::complex<double> > Z(ntot);
 
   for(size_t k=0,n=0;k<pix.size();k++) {
@@ -63,9 +63,9 @@ void Ellipse::DoMeasureShapelet(const std::vector<PixelList>& pix,
       sqrt(pow(sigma,2)+f_psf*pow((*psf)[k].GetSigma(),2)) :
       sigma;
     for(size_t i=0;i<pix[k].size();i++,n++) {
-      I(n) = pix[k][i].I*pix[k][i].wt;
-      W(n) = pix[k][i].wt;
-      std::complex<double> z1 = pix[k][i].z;
+      I(n) = pix[k][i].getFlux()*pix[k][i].getInverseSigma();
+      W(n) = pix[k][i].getInverseSigma();
+      std::complex<double> z1 = pix[k][i].getPos();
       std::complex<double> z2 = m*(z1-cen) - m*gamma*conj(z1-cen);
       Z(n) = z2 / sigma_obs;
     }

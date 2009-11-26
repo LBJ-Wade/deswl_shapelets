@@ -16,7 +16,7 @@ void MakePsi1(const tmv::VectorView<double>& psi,
 
 void MakePsi(const tmv::MatrixView<double>& psi, 
     const tmv::Vector<std::complex<double> >& z, int order,
-    const tmv::Vector<double>* coeff=0);
+    const tmv::DiagMatrix<double>* coeff=0);
 
 void AugmentPsi(tmv::Matrix<double>& psi,
     const tmv::Vector<std::complex<double> >& z, int order);

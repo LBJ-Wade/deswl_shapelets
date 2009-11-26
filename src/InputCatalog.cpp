@@ -123,10 +123,10 @@ InputCatalog::InputCatalog(ConfigFile& _params, const Image<double>* im) :
     }
     else {
       if (im) {
-	glob_sky = im->Median();
+	glob_sky = im->median();
       } else {
 	Image<double> im1(params);
-	glob_sky = im1.Median();
+	glob_sky = im1.median();
       }
       dbg<<"Found global sky from image median value.\n";
     }

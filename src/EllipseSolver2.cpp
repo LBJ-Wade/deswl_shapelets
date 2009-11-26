@@ -136,8 +136,8 @@ ESImpl2::ESImpl2(const std::vector<PixelList>& _pix,
   A.reserve(pix.size());
   for(size_t k=0,n=0;k<pix.size();k++) {
     for(size_t i=0;i<pix[k].size();i++,n++) {
-      I(n) = pix[k][i].I;
-      Z(n) = pix[k][i].z;
+      I(n) = pix[k][i].getFlux();
+      Z(n) = pix[k][i].getPos();
     }
     A_aux.push_back(tmv::Matrix<double>(pix[k].size(),np2size));
     A.push_back(A_aux[k].Cols(0,nsize));
@@ -207,8 +207,8 @@ ESImpl2::ESImpl2(const std::vector<PixelList>& _pix,
     nx = n+pix[k].size();
 
     for(size_t i=0,n1=n;i<pix[k].size();i++,n1++) {
-      I(n1) = pix[k][i].I;
-      Z(n1) = pix[k][i].z;
+      I(n1) = pix[k][i].getFlux();
+      Z(n1) = pix[k][i].getPos();
     }
 
     int psfsize = (*psf)[k].size();

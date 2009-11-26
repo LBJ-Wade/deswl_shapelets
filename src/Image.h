@@ -1,136 +1,140 @@
-//---------------------------------------------------------------------------
 #ifndef ImageH
 #define ImageH
-//---------------------------------------------------------------------------
 
 #include "TMV.h"
 #include "Bounds.h"
 #include "ConfigFile.h"
 
-template <class T> class Image {
+template <typename T> 
+class Image 
+{
 
-  public:
+public:
 
     // Read new image from file
-    Image(std::string fitsfile, int hdu=1); 
-    Image(std::string fitsfile, int hdu,
-	int x1, int x2, int y1, int y2);
-    Image(std::string fitsfile, int hdu, const Bounds& b);
+    Image(std::string fitsFile, int hdu=1); 
+
+    Image(std::string fitsFile, int hdu,
+          int x1, int x2, int y1, int y2);
+
+    Image(std::string fitsFile, int hdu, const Bounds& b);
 
     // Create blank image
-    Image(int xsize, int ysize) : 
-      filename(""), hdu(0),
-      xmin(0),xmax(xsize),ymin(0),ymax(ysize),
-      sourcem(new tmv::Matrix<T,tmv::ColMajor>(xsize,ysize,0.)),
-      itsm(new tmv::MatrixView<T>(sourcem->View())) {}
+    Image(int xSize, int ySize) : 
+        _fileName(""), _hdu(0),
+        _xMin(0),_xMax(xSize),_yMin(0),_yMax(ySize),
+        _source(new tmv::Matrix<T,tmv::ColMajor>(xSize,ySize,0.)),
+        _m(new tmv::MatrixView<T>(_source->View())) {}
 
     // New copy of image
     Image(const Image& rhs) : 
-      filename(""), hdu(0),
-      xmin(rhs.xmin), xmax(rhs.xmax), ymin(rhs.ymin), ymax(rhs.ymax),
-      sourcem(new tmv::Matrix<T,tmv::ColMajor>(*rhs.itsm)),
-      itsm(new tmv::MatrixView<T>(sourcem->View())) {}
+        _fileName(""), _hdu(0),
+        _xMin(rhs._xMin), _xMax(rhs._xMax), _yMin(rhs._yMin), _yMax(rhs._yMax),
+        _source(new tmv::Matrix<T,tmv::ColMajor>(*rhs._m)),
+        _m(new tmv::MatrixView<T>(_source->View())) {}
 
     // Subimage (with new storage)
     Image(const Image& rhs, int x1, int x2, int y1, int y2) :
-      filename(""), hdu(0),
-      xmin(x1), xmax(x2), ymin(y1), ymax(y2),
-      sourcem(new tmv::Matrix<T,tmv::ColMajor>(
-	    rhs.itsm->SubMatrix(x1,x2,y1,y2))),
-      itsm(new tmv::MatrixView<T>(sourcem->View())) {}
+        _fileName(""), _hdu(0),
+        _xMin(x1), _xMax(x2), _yMin(y1), _yMax(y2),
+        _source(new tmv::Matrix<T,tmv::ColMajor>(
+                rhs._m->SubMatrix(x1,x2,y1,y2))),
+        _m(new tmv::MatrixView<T>(_source->View())) {}
     Image(const Image& rhs, const Bounds& b) :
-      filename(""), hdu(0),
-      xmin(int(floor(b.getXMin()))), xmax(int(ceil(b.getXMax()))), 
-      ymin(int(floor(b.getYMin()))), ymax(int(ceil(b.getYMax()))),
-      sourcem(new tmv::Matrix<T,tmv::ColMajor>(
-	    rhs.itsm->SubMatrix(xmin,xmax,ymin,ymax))),
-      itsm(new tmv::MatrixView<T>(sourcem->View())) {}
+        _fileName(""), _hdu(0),
+        _xMin(int(floor(b.getXMin()))), _xMax(int(ceil(b.getXMax()))), 
+        _yMin(int(floor(b.getYMin()))), _yMax(int(ceil(b.getYMax()))),
+        _source(new tmv::Matrix<T,tmv::ColMajor>(
+                rhs._m->SubMatrix(_xMin,_xMax,_yMin,_yMax))),
+        _m(new tmv::MatrixView<T>(_source->View())) {}
 
     // Read image given configuration parameters
     Image(const ConfigFile& params);
-    Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im);
+    Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm);
 
     // Read partial image 
     Image(const ConfigFile& params, int x1, int x2, int y1, int y2);
     Image(const ConfigFile& params, const Bounds& b);
-    Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im,
-	int x1, int x2, int y1, int y2);
-    Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im,
-	const Bounds& b);
+    Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm,
+          int x1, int x2, int y1, int y2);
+    Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm,
+          const Bounds& b);
 
     ~Image() {}
 
     // Copy image
-    void operator=(const Image& rhs) { *itsm = *rhs.itsm; }
+    void operator=(const Image& rhs) { *_m = *rhs._m; }
 
     // Copy rhs to a subimage of this
-    void Copy(const Image& rhs, int x1, int x2, int y1, int y2)
-    { itsm->SubMatrix(x1,x2,y1,y2) = *rhs.itsm; }
+    void copy(const Image& rhs, int x1, int x2, int y1, int y2)
+    { _m->SubMatrix(x1,x2,y1,y2) = *rhs._m; }
 
     // Write back to existing file
-    void Flush() const;
-    void Flush(std::string fitsfile, int hdu=1) const; 
+    void flush() const;
+    void flush(std::string fitsFile, int hdu=1) const; 
 
     // Write to new file
-    void Write(std::string fitsfile) const; 
+    void write(std::string fitsFile) const; 
 
-    tmv::ConstMatrixView<T> GetM() const { return *itsm; }
-    const tmv::MatrixView<T>& GetM() { return *itsm; }
-    int GetXMin() const { return xmin; }
-    int GetXMax() const { return xmax; }
-    int GetYMin() const { return ymin; }
-    int GetYMax() const { return ymax; }
-    int GetMaxI() const { return itsm->colsize()-1; }
-    int GetMaxJ() const { return itsm->rowsize()-1; }
+    tmv::ConstMatrixView<T> getM() const { return *_m; }
+    const tmv::MatrixView<T>& getM() { return *_m; }
+    int getXMin() const { return _xMin; }
+    int getXMax() const { return _xMax; }
+    int getYMin() const { return _yMin; }
+    int getYMax() const { return _yMax; }
+    int getMaxI() const { return _m->colsize()-1; }
+    int getMaxJ() const { return _m->rowsize()-1; }
 
     // Access elements
-    T& operator()(int i,int j) { return (*itsm)(i,j); }
-    T operator()(int i,int j) const { return (*itsm)(i,j); }
+    T& operator()(int i,int j) { return (*_m)(i,j); }
+    T operator()(int i,int j) const { return (*_m)(i,j); }
 
     // Add two images
-    void operator+=(const Image& rhs) { *itsm += *rhs.itsm; }
+    void operator+=(const Image& rhs) { *_m += *rhs._m; }
 
     // Erase all values
-    void Clear() { itsm->Zero(); }
+    void clear() { _m->Zero(); }
 
-    bool IsSquare() { return itsm->IsSquare(); }
+    bool isSquare() { return _m->IsSquare(); }
 
-    Bounds GetBounds() const 
-    { return Bounds(xmin,xmax,ymin,ymax); }
+    Bounds getBounds() const 
+    { return Bounds(_xMin,_xMax,_yMin,_yMax); }
 
     // SubImage refers to the same storage as this.
-    Image SubImage(int x1, int x2, int y1, int y2)
-    { return Image(itsm->SubMatrix(x1,x2,y1,y2),x1,x2,y1,y2); }
-      
+    Image subImage(int x1, int x2, int y1, int y2)
+    { return Image(_m->SubMatrix(x1,x2,y1,y2),x1,x2,y1,y2); }
+
     // Split into nx x ny subimages
-    std::vector<Image*> Divide(int nx, int ny) const; 
+    std::vector<Image*> divide(int nx, int ny) const; 
 
     // Iterpolate between integral pixel values
-    T Interpolate(double x, double y) const;
-    T QuadInterpolate(double x, double y) const;
+    T interpolate(double x, double y) const;
+    T quadInterpolate(double x, double y) const;
 
     // Median value of all pixels
-    T Median() const;
+    T median() const;
 
-  private:
+private:
 
-    mutable std::string filename;
-    mutable int hdu;
+    mutable std::string _fileName;
+    mutable int _hdu;
 
-    int xmin,xmax,ymin,ymax;
-    std::auto_ptr<tmv::Matrix<T,tmv::ColMajor> > sourcem;
-    std::auto_ptr<tmv::MatrixView<T> > itsm;
+    int _xMin,_xMax,_yMin,_yMax;
+    std::auto_ptr<tmv::Matrix<T,tmv::ColMajor> > _source;
+    std::auto_ptr<tmv::MatrixView<T> > _m;
 
     Image(const tmv::MatrixView<T>& m, 
-	int x1, int x2, int y1, int y2) :
-      xmin(x1), xmax(x2), ymin(y1), ymax(y2),
-      sourcem(0), itsm(new tmv::MatrixView<T>(m)) {}
+          int x1, int x2, int y1, int y2) :
+        _xMin(x1), _xMax(x2), _yMin(y1), _yMax(y2),
+        _source(0), _m(new tmv::MatrixView<T>(m)) {}
 
-    void ReadFits(std::string fitsfile, int hdu=1); 
-    void ReadFits(std::string fitsfile, int hdu,
-	int x1, int x2, int y1, int y2);
+    void readFits();
+    void readFits(int x1, int x2, int y1, int y2);
 
 };
+
+extern template class Image<double>;
+extern template class Image<float>;
 
 #endif
 

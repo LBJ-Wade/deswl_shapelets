@@ -55,7 +55,7 @@ void MeasureSingleShear1(
   xdbg<<"sigma_obs = "<<sigma_obs<<", sigma_p = "<<sigma_p<<std::endl;
 
   std::vector<PixelList> pix(1);
-  GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,galap,flag);
+  getPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,galap,flag);
   int npix = pix[0].size();
   xdbg<<"npix = "<<npix<<std::endl;
 
@@ -122,7 +122,7 @@ void MeasureSingleShear1(
   //xdbg<<"Mu = "<<ell.GetMu()<<std::endl;
 
   pix[0].clear();
-  GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,galap,flag);
+  getPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,galap,flag);
   npix = pix[0].size();
   xdbg<<"npix = "<<npix<<std::endl;
   double sigpsq = pow(sigma_p,2);

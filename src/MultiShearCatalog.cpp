@@ -875,7 +875,7 @@ void MeasureMultiShear(
     std::vector<PixelList> pix(allpix.size());
     int npix = 0;
     for(size_t i=0;i<pix.size();++i) {
-      GetSubPixList(pix[i],allpix[i],galap,flag);
+      getSubPixList(pix[i],allpix[i],galap,flag);
       npix += pix[i].size();
     }
     xdbg<<"npix = "<<npix<<std::endl;
@@ -943,7 +943,7 @@ void MeasureMultiShear(
 
     npix = 0;
     for(size_t i=0;i<pix.size();++i) {
-      GetSubPixList(pix[i],allpix[i],galap,flag);
+      getSubPixList(pix[i],allpix[i],galap,flag);
       npix += pix[i].size();
     }
 

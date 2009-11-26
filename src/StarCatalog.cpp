@@ -32,7 +32,7 @@ static void CalcSigma1(
   std::vector<PixelList> pix(1);
   long flag1 = 0;
   try {
-    GetPixList(im, pix[0], pos, sky, noise, gain, weight_im, trans, psfap, 
+    getPixList(im, pix[0], pos, sky, noise, gain, weight_im, trans, psfap, 
 	flag1);
   } catch (RangeException& e) {
     flag1 |= TRANSFORM_EXCEPTION;

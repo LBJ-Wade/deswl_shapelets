@@ -19,7 +19,7 @@ class CrudeSolver : public NLSolver
     double sigma;
     tmv::Vector<double> I;
     tmv::Vector<std::complex<double> > Z;
-    tmv::Vector<double> W;
+    tmv::DiagMatrix<double> W;
     mutable tmv::Vector<std::complex<double> > Z1;
     mutable tmv::Vector<double> E;
     mutable tmv::Vector<double> Rsq;
@@ -35,10 +35,10 @@ CrudeSolver::CrudeSolver(const PixelList& pix,
   xinit(_xinit)
 {
   for(size_t i=0;i<pix.size();i++) {
-    Z(i) = pix[i].z;
-    I(i) = pix[i].I;
-    double mask = exp(-std::norm(pix[i].z/sigma)/2.);
-    W(i) = pix[i].wt*mask;
+    Z(i) = pix[i].getPos();
+    I(i) = pix[i].getFlux();
+    double mask = exp(-std::norm(pix[i].getPos()/sigma)/2.);
+    W(i) = pix[i].getInverseSigma()*mask;
   }
 }
 
@@ -84,7 +84,7 @@ void CrudeSolver::F(const tmv::Vector<double>& params,
   xdbg<<"After Set elements\n";
   f1 = I - I0*E;
   xdbg<<"After f1 = I-I0*E\n";
-  ElementProd(1.,W,f1.View());
+  f1 = W * f1;
   xdbg<<"After ElementProd\n";
   f = f1;
 
@@ -123,7 +123,7 @@ void CrudeSolver::J(const tmv::Vector<double>& params, const tmv::Vector<double>
   df.col(2) = -Rsq;
   df.Cols(0,3) = I0 * DiagMatrixViewOf(E) * df.Cols(0,3);
   df.col(3) = -I1 * E;
-  df = DiagMatrixViewOf(W) * df;
+  df = W * df;
 
   xdbg<<"Done J\n";
   xxdbg<<"J = "<<df<<std::endl;
@@ -155,11 +155,11 @@ void Ellipse::CrudeMeasure(const PixelList& pix, double sigma)
   double I = 0.;
   double sig2 = sigma * exp(mu);
   for(size_t i=0;i<pix.size();i++) {
-    double wt = exp(-std::norm((pix[i].z-cen)/sig2)/2.);
-    Iz += wt * pix[i].I * (pix[i].z-cen);
-    I += wt * pix[i].I;
-    if (std::abs(pix[i].z-cen) < 2.) 
-      xdbg<<pix[i].z<<"  "<<pix[i].I<<std::endl;
+    double wt = exp(-std::norm((pix[i].getPos()-cen)/sig2)/2.);
+    Iz += wt * pix[i].getFlux() * (pix[i].getPos()-cen);
+    I += wt * pix[i].getFlux();
+    if (std::abs(pix[i].getPos()-cen) < 2.) 
+      xdbg<<pix[i].getPos()<<"  "<<pix[i].getFlux()<<std::endl;
   }
   xdbg<<"Iz = "<<Iz<<", I = "<<I<<std::endl;
 
@@ -180,16 +180,16 @@ void Ellipse::CrudeMeasure(const PixelList& pix, double sigma)
   I = 0.;
   Iz = 0.;
   for(size_t i=0;i<pix.size();i++) {
-    double wt = exp(-std::norm((pix[i].z-zc)/sig2)/2.);
-    Iz += wt * pix[i].I * (pix[i].z-zc);
-    Irr += wt * pix[i].I * std::norm(pix[i].z-zc);
-    I += wt * pix[i].I;
+    double wt = exp(-std::norm((pix[i].getPos()-zc)/sig2)/2.);
+    Iz += wt * pix[i].getFlux() * (pix[i].getPos()-zc);
+    Irr += wt * pix[i].getFlux() * std::norm(pix[i].getPos()-zc);
+    I += wt * pix[i].getFlux();
     W += wt;
 #if 0
-    if (std::abs(wt * pix[i].I * std::norm(pix[i].z-zc)) > 1.) {
-      dbg<<"pix.I = "<<pix[i].I<<std::endl;
-      dbg<<"pix.z = "<<pix[i].z<<std::endl;
-      dbg<<"pix.wt = "<<pix[i].wt<<std::endl;
+    if (std::abs(wt * pix[i].getFlux() * std::norm(pix[i].getPos()-zc)) > 1.) {
+      dbg<<"pix.getFlux() = "<<pix[i].getFlux()<<std::endl;
+      dbg<<"pix.getPos() = "<<pix[i].getPos()<<std::endl;
+      dbg<<"pix.getInverseSigma() = "<<pix[i].getInverseSigma()<<std::endl;
       dbg<<"wt = "<<wt<<std::endl;
     }
 #endif
@@ -235,13 +235,13 @@ void Ellipse::CrudeMeasure(const PixelList& pix, double sigma)
   double obs = 0.;
   double minx = 1.e100, maxx = -1.e100, miny = 1.e100, maxy = -1.e100;
   for(size_t i=0;i<pix.size();i++) {
-    if (real(pix[i].z) < minx) minx = real(pix[i].z);
-    if (real(pix[i].z) > maxx) maxx = real(pix[i].z);
-    if (imag(pix[i].z) < miny) miny = imag(pix[i].z);
-    if (imag(pix[i].z) > maxy) maxy = imag(pix[i].z);
-    double wt = exp(-std::norm(pix[i].z/sigma)/2.);
+    if (real(pix[i].getPos()) < minx) minx = real(pix[i].getPos());
+    if (real(pix[i].getPos()) > maxx) maxx = real(pix[i].getPos());
+    if (imag(pix[i].getPos()) < miny) miny = imag(pix[i].getPos());
+    if (imag(pix[i].getPos()) > maxy) maxy = imag(pix[i].getPos());
+    double wt = exp(-std::norm(pix[i].getPos()/sigma)/2.);
     model += mask;
-    obs += pix[i].I * mask;
+    obs += pix[i].getFlux() * mask;
   }
   double pixarea = (maxx-minx)*(maxy-miny)/pix.size();
   xdbg<<"pixarea = "<<pixarea<<std::endl; 
@@ -327,10 +327,10 @@ void Ellipse::PeakCentroid(const PixelList& pix, double maxr)
 {
   double peakI = 0.;
   std::complex<double> peakz = 0.;
-  for(size_t i=0;i<pix.size();i++) if (std::abs(pix[i].z) < maxr) {
-    if (pix[i].I > peakI) { 
-      peakz = pix[i].z;
-      peakI = pix[i].I;
+  for(size_t i=0;i<pix.size();i++) if (std::abs(pix[i].getPos()) < maxr) {
+    if (pix[i].getFlux() > peakI) { 
+      peakz = pix[i].getPos();
+      peakI = pix[i].getFlux();
     }
   }
   cen = peakz;

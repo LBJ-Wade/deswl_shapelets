@@ -3,241 +3,231 @@
 #include "Params.h"
 #include "dbg.h"
 
-void GetPixList(const Image<double>& im, PixelList& pix,
+void getPixList(
+    const Image<double>& im, PixelList& pix,
     const Position cen, double sky, double noise, double gain,
-    const Image<double>* wt_im, const Transformation& trans,
+    const Image<double>* weightImage, const Transformation& trans,
     double aperture, long& flag)
 {
-  xdbg<<"Start GetPixList\n";
-  if (wt_im) {
-    xdbg<<"Using weight image for pixel noise.\n";
-  } else {
-    xdbg<<"noise = "<<noise<<std::endl;
-    xdbg<<"gain = "<<gain<<std::endl;
-  }
-
-  tmv::SmallMatrix<double,2,2> D;
-  trans.GetDistortion(cen,D);
-
-  double det = std::abs(D.Det());
-  double pixscale = sqrt(det); // arcsec/pixel
-  xdbg<<"pixscale = "<<pixscale<<std::endl;
-
-  // xap,yap are the maximum deviation from the center in x,y
-  // such that u^2+v^2 = aperture^2
-  double xap = aperture / det * sqrt(D(0,0)*D(0,0) + D(0,1)*D(0,1));
-  double yap = aperture / det * sqrt(D(1,0)*D(1,0) + D(1,1)*D(1,1));
-  xdbg<<"aperture = "<<aperture<<std::endl;
-  xdbg<<"xap = "<<xap<<", yap = "<<yap<<std::endl;
-
-  int xmin = im.GetXMin();
-  int ymin = im.GetYMin();
-
-  double xcen = cen.getX();
-  double ycen = cen.getY();
-  xdbg<<"cen = "<<xcen<<"  "<<ycen<<std::endl;
-  xdbg<<"xmin, ymin = "<<xmin<<"  "<<ymin<<std::endl;
-  // xcen,ycen are given on a 1-based grid.
-  // ie. where the lower left corner pixel is (1,1), rather than (0,0).
-  // The easiest way to do this is to just decrease xcen,ycen by 1 each:
-  //--xcen; --ycen;
-  // === This is now handled by x_offset, y_offset in ReadCatalog
-
-  int i1 = int(floor(xcen-xap-xmin));
-  int i2 = int(ceil(xcen+xap-xmin));
-  int j1 = int(floor(ycen-yap-ymin));
-  int j2 = int(ceil(ycen+yap-ymin));
-  xdbg<<"i1,i2,j1,j2 = "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
-
-  if (i1 < 0) { i1 = 0; flag |= EDGE; }
-  if (i2 > int(im.GetMaxI())) { i2 = im.GetMaxI(); flag |= EDGE; }
-  if (j1 < 0) { j1 = 0; flag |= EDGE; }
-  if (j2 > int(im.GetMaxJ())) { j2 = im.GetMaxJ(); flag |= EDGE; }
-  xdbg<<"i1,i2,j1,j2 => "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
-
-  double apsq = aperture*aperture;
-
-  // Do this next loop in two passes.  First figure out which 
-  // pixels we want to use.  Then we can resize pix to the full size
-  // we will need, and go back through and enter the pixels.
-  // This saves us a lot of resizing calls in vector, which are
-  // both slow and can fragment the memory.
-  xdbg<<"nx = "<<i2-i1+1<<std::endl;
-  xdbg<<"ny = "<<j2-j1+1<<std::endl;
-  Assert(i2-i1+1 >= 0);
-  Assert(j2-j1+1 >= 0);
-  std::vector<std::vector<bool> > usepix(i2-i1+1,
-      std::vector<bool>(j2-j1+1,false));
-  int npix = 0;
-
-  double chipx = xmin+i1-xcen;
-  for(int i=i1;i<=i2;i++,chipx+=1.) {
-    double chipy = ymin+j1-ycen;
-    double u = D(0,0)*chipx+D(0,1)*chipy;
-    double v = D(1,0)*chipx+D(1,1)*chipy;
-    for(int j=j1;j<=j2;j++,u+=D(0,1),v+=D(1,1)) {
-      // u,v are in arcsec
-      double rsq = u*u + v*v;
-      if (rsq <= apsq) 
-      {
-	usepix[i-i1][j-j1] = true;
-	npix++;
-      }
+    xdbg<<"Start GetPixList\n";
+    if (weightImage) {
+        xdbg<<"Using weight image for pixel noise.\n";
+    } else {
+        xdbg<<"noise = "<<noise<<std::endl;
+        xdbg<<"gain = "<<gain<<std::endl;
     }
-  }
 
-  xdbg<<"npix = "<<npix<<std::endl;
-  pix.resize(npix);
+    tmv::SmallMatrix<double,2,2> localD;
+    trans.GetDistortion(cen,localD);
 
-  xdbg<<"pixlist size = "<<npix<<" = "<<npix*sizeof(Pixel)<<" bytes = "<<npix*sizeof(Pixel)/1024.<<" KB\n";
-  int k=0;
+    double det = std::abs(localD.Det());
+    double pixScale = sqrt(det); // arcsec/pixel
+    xdbg<<"pixscale = "<<pixScale<<std::endl;
 
-  chipx = xmin+i1-xcen;
-  for(int i=i1;i<=i2;i++,chipx+=1.) {
-    double chipy = ymin+j1-ycen;
-    double u = D(0,0)*chipx+D(0,1)*chipy;
-    double v = D(1,0)*chipx+D(1,1)*chipy;
-    for(int j=j1;j<=j2;j++,u+=D(0,1),v+=D(1,1)) {
-      if (usepix[i-i1][j-j1]) {
-	double I = im(i,j)-sky;
-	double wt;
-	if (wt_im) {
-	  wt = (*wt_im)(i,j);
-	} else {
-	  double var = noise;
-	  if (gain != 0.) var += im(i,j)/gain;
-	  wt = 1./var;
-	}
-	if (wt > 0.0) 
-	{
-	  // So far we have calculated wt = inverse variance at each pixel.
-	  // We actually want to weight the pixels by 1/sigma, not 1/sigma^2,
-	  // So we need to take the sqrt of what we have so far.
-	  wt = sqrt(wt);
-	  Assert(k < int(pix.size()));
-	  pix[k++] = Pixel(u,v,I,wt);
-	  //if (xmin > 0 || ymin > 0)
-	    //xdbg<<k-1<<"  "<<i<<"  "<<j<<"  "<<u<<"  "<<v<<"  "<<I<<"  "<<wt<<std::endl;
-	}
-      }
+    // xAp,yAp are the maximum deviation from the center in x,y
+    // such that u^2+v^2 = aperture^2
+    double xAp = aperture / det * 
+        sqrt(localD(0,0)*localD(0,0) + localD(0,1)*localD(0,1));
+    double yAp = aperture / det * 
+        sqrt(localD(1,0)*localD(1,0) + localD(1,1)*localD(1,1));
+    xdbg<<"aperture = "<<aperture<<std::endl;
+    xdbg<<"xap = "<<xAp<<", yap = "<<yAp<<std::endl;
+
+    int xMin = im.getXMin();
+    int yMin = im.getYMin();
+
+    double xCen = cen.getX();
+    double yCen = cen.getY();
+    xdbg<<"cen = "<<xCen<<"  "<<yCen<<std::endl;
+    xdbg<<"xmin, ymin = "<<xMin<<"  "<<yMin<<std::endl;
+    // xCen,yCen are given on a 1-based grid.
+    // ie. where the lower left corner pixel is (1,1), rather than (0,0).
+    // The easiest way to do this is to just decrease xCen,yCen by 1 each:
+    //--xCen; --yCen;
+    // === This is now handled by x_offset, y_offset in ReadCatalog
+
+    int i1 = int(floor(xCen-xAp-xMin));
+    int i2 = int(ceil(xCen+xAp-xMin));
+    int j1 = int(floor(yCen-yAp-yMin));
+    int j2 = int(ceil(yCen+yAp-yMin));
+    xdbg<<"i1,i2,j1,j2 = "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
+
+    if (i1 < 0) { i1 = 0; flag |= EDGE; }
+    if (i2 > int(im.getMaxI())) { i2 = im.getMaxI(); flag |= EDGE; }
+    if (j1 < 0) { j1 = 0; flag |= EDGE; }
+    if (j2 > int(im.getMaxJ())) { j2 = im.getMaxJ(); flag |= EDGE; }
+    xdbg<<"i1,i2,j1,j2 => "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
+
+    double apsq = aperture*aperture;
+
+    // Do this next loop in two passes.  First figure out which 
+    // pixels we want to use.  Then we can resize pix to the full size
+    // we will need, and go back through and enter the pixels.
+    // This saves us a lot of resizing calls in vector, which are
+    // both slow and can fragment the memory.
+    xdbg<<"nx = "<<i2-i1+1<<std::endl;
+    xdbg<<"ny = "<<j2-j1+1<<std::endl;
+    Assert(i2-i1+1 >= 0);
+    Assert(j2-j1+1 >= 0);
+    std::vector<std::vector<bool> > shouldUsePix(
+        i2-i1+1,std::vector<bool>(j2-j1+1,false));
+    int nPix = 0;
+
+    double chipX = xMin+i1-xCen;
+    for(int i=i1;i<=i2;i++,chipX+=1.) {
+        double chipY = yMin+j1-yCen;
+        double u = localD(0,0)*chipX+localD(0,1)*chipY;
+        double v = localD(1,0)*chipX+localD(1,1)*chipY;
+        for(int j=j1;j<=j2;j++,u+=localD(0,1),v+=localD(1,1)) {
+            // u,v are in arcsec
+            double rsq = u*u + v*v;
+            if (rsq <= apsq) 
+            {
+                shouldUsePix[i-i1][j-j1] = true;
+                nPix++;
+            }
+        }
     }
-  }
-  Assert(k <= int(pix.size()));
-  // Not necessarily == because we skip pixels with 0.0 variance
-  pix.resize(k);
-  //pix.erase(pix.begin()+k,pix.end());
-  Assert(k == int(pix.size()));
-  npix = pix.size(); // may have changed.
-  xdbg<<"npix => "<<npix<<std::endl;
-  if (npix < 10) flag |= LT10PIX;
+
+    xdbg<<"npix = "<<nPix<<std::endl;
+    pix.resize(nPix);
+
+    xdbg<<"pixlist size = "<<nPix<<" = "<<nPix*sizeof(Pixel)<<" bytes = "<<nPix*sizeof(Pixel)/1024.<<" KB\n";
+
+    int k=0;
+    chipX = xMin+i1-xCen;
+    for(int i=i1;i<=i2;i++,chipX+=1.) {
+        double chipY = yMin+j1-yCen;
+        double u = localD(0,0)*chipX+localD(0,1)*chipY;
+        double v = localD(1,0)*chipX+localD(1,1)*chipY;
+        for(int j=j1;j<=j2;j++,u+=localD(0,1),v+=localD(1,1)) {
+            if (shouldUsePix[i-i1][j-j1]) {
+                double flux = im(i,j)-sky;
+                double inverseVariance;
+                if (weightImage) {
+                    inverseVariance = (*weightImage)(i,j);
+                } else {
+                    double var = noise;
+                    if (gain != 0.) var += im(i,j)/gain;
+                    inverseVariance = 1./var;
+                }
+                if (inverseVariance > 0.0) {
+                    double inverseSigma = sqrt(inverseVariance);
+                    Assert(k < int(pix.size()));
+                    pix[k++] = Pixel(u,v,flux,inverseSigma);
+                }
+            }
+        }
+    }
+    Assert(k <= int(pix.size()));
+    // Not necessarily == because we skip pixels with 0.0 variance
+    pix.resize(k);
+    Assert(k == int(pix.size()));
+    nPix = pix.size(); // may have changed.
+    xdbg<<"npix => "<<nPix<<std::endl;
+    if (nPix < 10) flag |= LT10PIX;
 }
 
-double GetLocalSky(const Image<float>& bkg, 
+double getLocalSky(
+    const Image<float>& bkg, 
     const Position cen, const Transformation& trans,
     double aperture, long& flag)
 {
-  // This function is very similar in structure to the above GetPixList
-  // function.  It does the same thing with the distortion and the 
-  // aperture and such.  
-  // The return value is the mean sky value within the aperture.
+    // This function is very similar in structure to the above getPixList
+    // function.  It does the same thing with the distortion and the 
+    // aperture and such.  
+    // The return value is the mean sky value within the aperture.
 
-  xdbg<<"Start GetLocalSky\n";
+    xdbg<<"Start GetLocalSky\n";
 
-  tmv::SmallMatrix<double,2,2> D;
-  trans.GetDistortion(cen,D);
+    tmv::SmallMatrix<double,2,2> localD;
+    trans.GetDistortion(cen,localD);
 
-  double det = std::abs(D.Det());
-  double pixscale = sqrt(det); // arcsec/pixel
-  xdbg<<"pixscale = "<<pixscale<<std::endl;
+    double det = std::abs(localD.Det());
+    double pixScale = sqrt(det); // arcsec/pixel
+    xdbg<<"pixscale = "<<pixScale<<std::endl;
 
-  // xap,yap are the maximum deviation from the center in x,y
-  // such that u^2+v^2 = aperture^2
-  double xap = aperture / det * sqrt(D(0,0)*D(0,0) + D(0,1)*D(0,1));
-  double yap = aperture / det * sqrt(D(1,0)*D(1,0) + D(1,1)*D(1,1));
-  xdbg<<"aperture = "<<aperture<<std::endl;
-  xdbg<<"xap = "<<xap<<", yap = "<<yap<<std::endl;
+    // xAp,yAp are the maximum deviation from the center in x,y
+    // such that u^2+v^2 = aperture^2
+    double xAp = aperture / det * 
+        sqrt(localD(0,0)*localD(0,0) + localD(0,1)*localD(0,1));
+    double yAp = aperture / det * 
+        sqrt(localD(1,0)*localD(1,0) + localD(1,1)*localD(1,1));
+    xdbg<<"aperture = "<<aperture<<std::endl;
+    xdbg<<"xap = "<<xAp<<", yap = "<<yAp<<std::endl;
 
-  int xmin = bkg.GetXMin();
-  int ymin = bkg.GetYMin();
+    int xMin = bkg.getXMin();
+    int yMin = bkg.getYMin();
 
-  double xcen = cen.getX();
-  double ycen = cen.getY();
-  // xcen,ycen are given on a 1-based grid.
-  // ie. where the lower left corner pixel is (1,1), rather than (0,0).
-  // The easiest way to do this is to just decrease xcen,ycen by 1 each:
-  //--xcen; --ycen;
-  // === This is now handled by x_offset, y_offset in ReadCatalog
+    double xCen = cen.getX();
+    double yCen = cen.getY();
 
-  int i1 = int(floor(xcen-xap-xmin));
-  int i2 = int(ceil(xcen+xap-xmin));
-  int j1 = int(floor(ycen-yap-ymin));
-  int j2 = int(ceil(ycen+yap-ymin));
-  xdbg<<"i1,i2,j1,j2 = "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
-  if (i1 < 0) { i1 = 0; }
-  if (i2 > int(bkg.GetMaxI())) { i2 = bkg.GetMaxI(); }
-  if (j1 < 0) { j1 = 0; }
-  if (j2 > int(bkg.GetMaxJ())) { j2 = bkg.GetMaxJ(); }
-  xdbg<<"i1,i2,j1,j2 => "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
+    int i1 = int(floor(xCen-xAp-xMin));
+    int i2 = int(ceil(xCen+xAp-xMin));
+    int j1 = int(floor(yCen-yAp-yMin));
+    int j2 = int(ceil(yCen+yAp-yMin));
+    xdbg<<"i1,i2,j1,j2 = "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
+    if (i1 < 0) { i1 = 0; }
+    if (i2 > int(bkg.getMaxI())) { i2 = bkg.getMaxI(); }
+    if (j1 < 0) { j1 = 0; }
+    if (j2 > int(bkg.getMaxJ())) { j2 = bkg.getMaxJ(); }
+    xdbg<<"i1,i2,j1,j2 => "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
 
-  double apsq = aperture*aperture;
+    double apsq = aperture*aperture;
 
-  xdbg<<"nx = "<<i2-i1+1<<std::endl;
-  xdbg<<"ny = "<<j2-j1+1<<std::endl;
-  Assert(i2-i1+1 >= 0);
-  Assert(j2-j1+1 >= 0);
+    xdbg<<"nx = "<<i2-i1+1<<std::endl;
+    xdbg<<"ny = "<<j2-j1+1<<std::endl;
+    Assert(i2-i1+1 >= 0);
+    Assert(j2-j1+1 >= 0);
 
-  double meansky = 0.;
-  int npix = 0;
+    double meanSky = 0.;
+    int nPix = 0;
 
-  double chipx = xmin+i1-xcen;
-  for(int i=i1;i<=i2;i++,chipx+=1.) {
-    double chipy = ymin+j1-ycen;
-    double u = D(0,0)*chipx+D(0,1)*chipy;
-    double v = D(1,0)*chipx+D(1,1)*chipy;
-    for(int j=j1;j<=j2;j++,u+=D(0,1),v+=D(1,1)) {
-      // u,v are in arcsec
-      double rsq = u*u + v*v;
-      if (rsq <= apsq) 
-      {
-	meansky += bkg(i,j);
-	npix++;
-      }
+    double chipX = xMin+i1-xCen;
+    for(int i=i1;i<=i2;i++,chipX+=1.) {
+        double chipY = yMin+j1-yCen;
+        double u = localD(0,0)*chipX+localD(0,1)*chipY;
+        double v = localD(1,0)*chipX+localD(1,1)*chipY;
+        for(int j=j1;j<=j2;j++,u+=localD(0,1),v+=localD(1,1)) {
+            // u,v are in arcsec
+            double rsq = u*u + v*v;
+            if (rsq <= apsq) 
+            {
+                meanSky += bkg(i,j);
+                nPix++;
+            }
+        }
     }
-  }
 
-  xdbg<<"npix = "<<npix<<std::endl;
-  if (npix == 0) { flag |= BKG_NOPIX; return 0.; }
-  
-  meansky /= npix;
-  xdbg<<"meansky = "<<meansky<<std::endl;
-  return meansky;
+    xdbg<<"nPix = "<<nPix<<std::endl;
+    if (nPix == 0) { flag |= BKG_NOPIX; return 0.; }
+
+    meanSky /= nPix;
+    xdbg<<"meansky = "<<meanSky<<std::endl;
+    return meanSky;
 }
 
-void GetSubPixList(PixelList& pix, const PixelList& allpix,
-    double aperture, long& flag)
+void getSubPixList(PixelList& pix, const PixelList& allpix,
+                   double aperture, long& flag)
 {
-  // Select a subset of allpix that are within the given aperture
-  xdbg<<"Start GetSubPixList\n";
-  xdbg<<"allpix has "<<allpix.size()<<" objects\n";
-  xdbg<<"new apertur size is "<<aperture<<std::endl;
+    // Select a subset of allpix that are within the given aperture
+    xdbg<<"Start GetSubPixList\n";
+    xdbg<<"allpix has "<<allpix.size()<<" objects\n";
+    xdbg<<"new apertur size is "<<aperture<<std::endl;
 
-  double apsq = aperture*aperture;
+    double apsq = aperture*aperture;
 
-  pix.clear();
-  for(size_t i=0;i<allpix.size();++i) 
-  {
-    xxdbg<<"allpix["<<i<<"] = "<<allpix[i].z<<std::endl;
-    if (std::norm(allpix[i].z) < apsq)
-    {
-      pix.push_back(allpix[i]);
-      xxdbg<<"added to pix\n";
-    } 
-    else 
-    {
-      xxdbg<<"not in aperture\n";
+    pix.clear();
+    for(size_t i=0;i<allpix.size();++i) {
+        xxdbg<<"allpix["<<i<<"] = "<<allpix[i].getPos()<<std::endl;
+        if (std::norm(allpix[i].getPos()) < apsq) {
+            pix.push_back(allpix[i]);
+            xxdbg<<"added to pix\n";
+        } else {
+            xxdbg<<"not in aperture\n";
+        }
+
     }
-
-  }
-  xdbg<<"done: npix = "<<pix.size()<<std::endl;
-  if (pix.size() < 10) flag |= LT10PIX;
+    xdbg<<"done: npix = "<<pix.size()<<std::endl;
+    if (pix.size() < 10) flag |= LT10PIX;
 }

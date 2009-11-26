@@ -29,7 +29,7 @@ void MeasureSinglePSF1(
     PSFLog& log, BVec& psf, double& nu, long& flag)
 {
   std::vector<PixelList> pix(1);
-  GetPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,psfap,flag);
+  getPixList(im,pix[0],cen,sky,noise,gain,weight_im,trans,psfap,flag);
 
   int npix = pix[0].size();
   xdbg<<"npix = "<<npix<<std::endl;
