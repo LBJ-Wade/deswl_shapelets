@@ -54,41 +54,11 @@
 #include <stdexcept>
 #include <limits>
 
+#include "Params.h"
+
 //
 // Errors that can be thrown by classes in this file:
 //
-
-struct ConvertibleStringError :
-  public std::runtime_error
-{
-  ConvertibleStringError(std::string err) throw() : 
-    std::runtime_error(err) {}
-  ~ConvertibleStringError() throw() {}
-};
-
-struct ConfigFile_FileNotFound : 
-  public std::runtime_error 
-{
-  ConfigFile_FileNotFound( const std::string& filename ) throw() :
-    std::runtime_error("ConfigFile error: file "+filename+" not found") {} 
-};
-
-struct ConfigFile_KeyNotFound : 
-  public std::runtime_error 
-{
-  // thrown only by T read(key) variant of read(), and T get(key)
-  ConfigFile_KeyNotFound( const std::string& keyname ) throw() :
-    std::runtime_error("ConfigFile error: key "+keyname+" not found") {} 
-};
-
-struct ConfigFile_ParameterError :
-  public std::runtime_error 
-{
-  ConfigFile_ParameterError( 
-      const std::string& keyname, const std::string& e2 ) throw() :
-    std::runtime_error("ConfigFile error: Could not convert entry for key "+
-	keyname+" to given type.\nCaught error: \n"+e2) {} 
-};
 
 #ifdef __INTEL_COMPILER
 #pragma warning (disable : 444)
@@ -111,161 +81,179 @@ struct ConfigFile_ParameterError :
 class ConvertibleString : public std::string
 {
 
-  public:
+public:
     ConvertibleString() : std::string("") {};
-    ConvertibleString(const std::string sin) : std::string(sin) {}
+    ConvertibleString(const std::string s) : std::string(s) {}
 
-    template <typename T> explicit ConvertibleString(const T& x)
+    template <typename T> 
+    explicit ConvertibleString(const T& x)
     {
-      std::stringstream ss(*this);
-      ss << x;
+        std::stringstream ss(*this);
+        ss << x;
     }
-    
-    template <typename T> explicit ConvertibleString(const std::vector<T>& x)
+
+    template <typename T> 
+    explicit ConvertibleString(const std::vector<T>& x)
     {
-      std::stringstream ss(*this);
-      ss << "{";
-      if (x.size() > 0) ss << x[0];
-      for(size_t i=1;i<x.size();++i) ss << ',' << x[i];
-      ss << "}";
+        std::stringstream ss(*this);
+        ss << "{";
+        if (x.size() > 0) ss << x[0];
+        for(size_t i=1;i<x.size();++i) ss << ',' << x[i];
+        ss << "}";
     }
 
     ~ConvertibleString() {};
 
     ConvertibleString& operator=(const std::string& rhs)
     {
-      std::string::operator=(rhs); 
-      return *this;
+        std::string::operator=(rhs); 
+        return *this;
     }
 
-    template <typename T> ConvertibleString& operator=(const T& x)
+    template <typename T> 
+    ConvertibleString& operator=(const T& x)
     {
-      std::stringstream ss;
-      ss << x;
-      *this = ss.str();
-      return *this;
+        std::stringstream ss;
+        ss << x;
+        *this = ss.str();
+        return *this;
     }
 
-    template <typename T> ConvertibleString& operator=(
-	const std::vector<T>& x)
+    template <typename T> 
+    ConvertibleString& operator=(const std::vector<T>& x)
     {
-      std::stringstream ss;
-      if (x.size() > 0) ss << x[0];
-      for(size_t i=1;i<x.size();++i) ss << ' ' << x[i];
-      *this = ss.str();
-      return *this;
+        std::stringstream ss;
+        if (x.size() > 0) ss << x[0];
+        for(size_t i=1;i<x.size();++i) ss << ' ' << x[i];
+        *this = ss.str();
+        return *this;
     }
 
-    template <typename T> operator T() const 
+    template <typename T> 
+    operator T() const 
     {
 #ifdef Use_Zero_Default
-      if (*this == "") return T();
+        if (*this == "") return T();
 #endif
 
-      std::string err="Could not convert ConvertibleString to input type ";
-      err += typeid(T).name();
-      err += std::string(": this = ") + *this;
-      T temp;
-      std::stringstream ss(*this);
+        std::string err="Could not convert ConvertibleString to input type ";
+        err += typeid(T).name();
+        err += std::string(": this = ") + *this;
+        T temp;
+        std::stringstream ss(*this);
 
-      // This bit is needed to get the oct and hex to work:
-      // I haven't incorporated it into the below vector conversion,
-      // so those always need to be decimal.
-      if (std::numeric_limits<T>::is_integer) {
-	if ((*this)[0] == '0') {
-	  if ((*this)[1] == 'x' || (*this)[1] == 'X') {
-	    ss >> std::hex;
-	  } else {
-	    ss >> std::oct;
-	  }
-	}
-      }
-      ss >> temp;
-      if (!ss) 
+        // This bit is needed to get the oct and hex to work:
+        // I haven't incorporated it into the below vector conversion,
+        // so those always need to be decimal.
+        if (std::numeric_limits<T>::is_integer) {
+            if ((*this)[0] == '0') {
+                if ((*this)[1] == 'x' || (*this)[1] == 'X') {
+                    ss >> std::hex;
+                } else {
+                    ss >> std::oct;
+                }
+            }
+        }
+        ss >> temp;
+        if (!ss) {
 #ifndef NOTHROW
-      { std::cerr<<err<<std::endl; exit(1); }
+            std::cerr<<err<<std::endl; 
+            exit(1); 
 #else
-	throw ConvertibleStringError(err);
+            throw ParameterException(err);
 #endif
-      return temp;
+        }
+        return temp;
     }
 
-    template <typename T> operator std::vector<T>() const 
+    template <typename T> 
+    operator std::vector<T>() const 
     {
 #ifdef Use_Zero_Default
-      if (*this == "") return std::vector<T>();
+        if (*this == "") return std::vector<T>();
 #endif
 
-      std::string err="Could not convert ConvertibleString to input type ";
-      err += std::string("std::vector<")+typeid(T).name()+">";
-      err += std::string(": this = ") + *this;
+        std::string err="Could not convert ConvertibleString to input type ";
+        err += std::string("std::vector<")+typeid(T).name()+">";
+        err += std::string(": this = ") + *this;
 
-      // Two syntaxes: "{1.,2.,3.}" or "1. 2. 3."
-      if ((*this)[0] == '{') {
-	// Using "{1.,2.,3.}" syntax
-	size_t i1 = this->find_first_not_of(" \t\n\r\f",1);
-	if (i1 == npos) 
+        // Two syntaxes: "{1.,2.,3.}" or "1. 2. 3."
+        if ((*this)[0] == '{') {
+            // Using "{1.,2.,3.}" syntax
+            size_t i1 = this->find_first_not_of(" \t\n\r\f",1);
+            if (i1 == npos) {
 #ifdef NOTHROW
-	{ std::cerr<<err<<std::endl; exit(1); return std::vector<T>(); }
+                std::cerr<<err<<std::endl; 
+                exit(1); 
+                return std::vector<T>(); 
 #else
-	throw ConvertibleStringError(err);
+                throw ParameterException(err);
 #endif
-	else if ((*this)[i1] == '}') {
-	  // Then "{  }"
-	  return std::vector<T>();
-	} 
-	else {
-	  char ch;
-	  int ncomma = std::count(this->begin(),this->end(),',');
-	  std::vector<T> temp(ncomma+1);
-	  std::stringstream ss(*this);
-	  ss >> ch;
-	  if (!ss || ch != '{') 
+            } else if ((*this)[i1] == '}') {
+                // Then "{  }"
+                return std::vector<T>();
+            } else {
+                char ch;
+                int nComma = std::count(this->begin(),this->end(),',');
+                std::vector<T> temp(nComma+1);
+                std::stringstream ss(*this);
+                ss >> ch;
+                if (!ss || ch != '{') {
 #ifdef NOTHROW
-	  { std::cerr<<err<<std::endl; exit(1); }
+                    std::cerr<<err<<std::endl;
+                    exit(1); 
 #else
-	  throw ConvertibleStringError(err);
+                    throw ParameterException(err);
 #endif
-	  ss >> temp[0];
-	  if (!ss) 
+                }
+                ss >> temp[0];
+                if (!ss) {
 #ifdef NOTHROW
-	  { std::cerr<<err<<std::endl; exit(1); }
+                    std::cerr<<err<<std::endl; 
+                    exit(1); 
 #else
-	  throw ConvertibleStringError(err);
+                    throw ParameterException(err);
 #endif
-	  for(size_t i=1;i<temp.size();++i) {
-	    ss >> ch;
-	    if (!ss || ch != ',') 
+                }
+                for(size_t i=1;i<temp.size();++i) {
+                    ss >> ch;
+                    if (!ss || ch != ',') {
 #ifdef NOTHROW
-	    { std::cerr<<err<<std::endl; exit(1); }
+                        std::cerr<<err<<std::endl; 
+                        exit(1); 
 #else
-	    throw ConvertibleStringError(err);
+                        throw ParameterException(err);
 #endif
-	    ss >> temp[i];
-	    if (!ss) 
+                    }
+                    ss >> temp[i];
+                    if (!ss) {
 #ifdef NOTHROW
-	    { std::cerr<<err<<std::endl; exit(1); }
+                        std::cerr<<err<<std::endl; 
+                        exit(1); 
 #else
-	    throw ConvertibleStringError(err);
+                        throw ParameterException(err);
 #endif
-	  }
-	  ss >> ch;
-	  if (!ss || ch != '}') 
+                    }
+                }
+                ss >> ch;
+                if (!ss || ch != '}') {
 #ifdef NOTHROW
-	    { std::cerr<<err<<std::endl; exit(1); }
+                    std::cerr<<err<<std::endl; 
+                    exit(1); 
 #else
-	    throw ConvertibleStringError(err);
+                    throw ParameterException(err);
 #endif
-	  return temp;
-	}
-      } else {
-	// Using "1. 2. 3." syntax
-	std::stringstream ss(*this);
-	std::vector<T> temp;
-	T x;
-	while (ss >> x) temp.push_back(x);
-	return temp;
-      }
+                }
+                return temp;
+            }
+        } else {
+            // Using "1. 2. 3." syntax
+            std::stringstream ss(*this);
+            std::vector<T> temp;
+            T x;
+            while (ss >> x) temp.push_back(x);
+            return temp;
+        }
     }
 
 };
@@ -276,96 +264,86 @@ class ConvertibleString : public std::string
 template <> inline ConvertibleString::operator bool() const
 {
 #ifdef Use_Zero_Default
-  if (*this == "") return false;
+    if (*this == "") return false;
 #endif
 
-  // make string all caps
-  std::string sup = *this;
-  for ( std::string::iterator p = sup.begin(); p != sup.end(); ++p )
-    *p = toupper(*p); 
+    // make string all caps
+    std::string sup = *this;
+    for ( std::string::iterator p = sup.begin(); p != sup.end(); ++p )
+        *p = toupper(*p); 
 
-  if ( sup=="FALSE" || sup=="F" || sup=="NO" || sup=="N" ||
-      sup=="0" || sup=="NONE" )
-    return false;
-  else if ( sup=="TRUE" || sup=="T" || sup=="YES" || sup=="Y" ||
-      sup=="1" )
-    return true;
-  else {
-    std::string err="Could not convert ConvertibleString to input type bool";
-    err += std::string(": this = ") + *this;
+    if ( sup=="FALSE" || sup=="F" || sup=="NO" || sup=="N" ||
+         sup=="0" || sup=="NONE" ) {
+        return false;
+    } else if ( sup=="TRUE" || sup=="T" || sup=="YES" || sup=="Y" ||
+              sup=="1" ) {
+        return true;
+    } else {
+        std::string err=
+            "Could not convert ConvertibleString to input type bool"
+            ": this = " + *this;
 #ifdef NOTHROW
-    std::cerr<<err<<std::endl; exit(1);
-    return false;
+        std::cerr<<err<<std::endl; 
+        exit(1);
+        return false;
 #else
-    throw ConvertibleStringError(err);
+        throw ParameterException(err);
 #endif
-  }
+    }
 }
 
 class ConfigFile 
 {
-  // Data
-  protected:
-    std::string myDelimiter;  // separator between key and value
-    std::string myComment;    // separator between value and comments
-    std::string myInclude;    // directive for including another file
-    std::string mySentry;     // optional string to signal end of file
-    std::map<std::string,ConvertibleString> myContents;   
-    // extracted keys and values
-
-    typedef std::map<std::string,ConvertibleString>::iterator mapi;
-    typedef std::map<std::string,ConvertibleString>::const_iterator mapci;
-
     // Methods
-  public:
+public:
     // Create a blank config file with default values of delimter, etc.
     ConfigFile();
 
     // Create and read from the specified file
-    ConfigFile( std::string filename,
-	std::string delimiter = "=",
-	std::string comment = "#",
-	std::string include = "+",
-	std::string sentry = "EndConfigFile" );
+    ConfigFile( std::string fileName,
+                std::string delimiter = "=",
+                std::string comment = "#",
+                std::string include = "+",
+                std::string sentry = "EndConfigFile" );
 
     // Load more value from a file.
-    void Load( std::string filename )
-    { std::ifstream fs(filename.c_str()); Read(fs); }
+    void load( std::string fileName )
+    { std::ifstream fs(fileName.c_str()); read(fs); }
 
     // Load a file that uses different delimiter or comment or ...
     // Note: these delimiter, comment, etc. are temporary for this load only.
     // "" means use existing values
-    void Load( std::string filename,
-	std::string delimiter,
-	std::string comment = "",
-	std::string include = "",
-	std::string sentry = "" );
+    void load( std::string fileName,
+               std::string delimiter,
+               std::string comment = "",
+               std::string include = "",
+               std::string sentry = "" );
 
     // Read more values from stream or a string:
-    void Read(std::istream& is);
-    void Append(const std::string& s)
-    { std::istringstream ss(s); Read(ss); }
+    void read(std::istream& is);
+    void append(const std::string& s)
+    { std::istringstream ss(s); read(ss); }
 
     // Write configuration
-    void Write(std::ostream& os) const;
-    void WriteAsComment(std::ostream& os) const;
+    void write(std::ostream& os) const;
+    void writeAsComment(std::ostream& os) const;
 
     // Search for key and read value or optional default value
-    ConvertibleString& getnocheck( const std::string& key );
+    ConvertibleString& getNoCheck( const std::string& key );
     ConvertibleString get( const std::string& key ) const;
 
     inline ConvertibleString& operator[]( const std::string& key )
-    { return getnocheck(key); }
+    { return getNoCheck(key); }
     inline ConvertibleString operator[]( const std::string& key ) const
     { return get(key); }
 
     template<class T> inline T read( const std::string& key ) const;
     template<class T> inline T read(
-	const std::string& key, const T& value ) const;
+        const std::string& key, const T& value ) const;
     template<class T> inline bool readInto( 
-	T& var, const std::string& key ) const;
+        T& var, const std::string& key ) const;
     template<class T> inline bool readInto( 
-	T& var, const std::string& key, const T& value ) const;
+        T& var, const std::string& key, const T& value ) const;
 
     // Modify keys and values
     template<class T> inline void add( std::string key, const T& value );
@@ -375,134 +353,154 @@ class ConfigFile
     bool keyExists( const std::string& key ) const;
 
     // Check or change configuration syntax
-    std::string getDelimiter() const { return myDelimiter; }
-    std::string getComment() const { return myComment; }
-    std::string getInclude() const { return myInclude; }
-    std::string getSentry() const { return mySentry; }
+    std::string getDelimiter() const { return _delimiter; }
+    std::string getComment() const { return _comment; }
+    std::string getInclude() const { return _include; }
+    std::string getSentry() const { return _sentry; }
 
     std::string setDelimiter( const std::string& s )
-    { std::string old = myDelimiter;  myDelimiter = s;  return old; }  
+    { std::string old = _delimiter;  _delimiter = s;  return old; }  
     std::string setComment( const std::string& s )
-    { std::string old = myComment;  myComment = s;  return old; }
+    { std::string old = _comment;  _comment = s;  return old; }
     std::string setInclude( const std::string& s )
-    { std::string old = myInclude;  myInclude = s;  return old; }  
+    { std::string old = _include;  _include = s;  return old; }  
     std::string setSentry( const std::string& s )
-    { std::string old = mySentry;  mySentry = s;  return old; }  
+    { std::string old = _sentry;  _sentry = s;  return old; }  
 
-  protected:
+protected:
+
     static void trim( std::string& s );
 
+    std::string _delimiter;  // separator between key and value
+    std::string _comment;    // separator between value and comments
+    std::string _include;    // directive for including another file
+    std::string _sentry;     // optional string to signal end of file
+    std::map<std::string,ConvertibleString> _contents;   
+    // extracted keys and values
+
+    typedef std::map<std::string,ConvertibleString>::iterator MapIt;
+    typedef std::map<std::string,ConvertibleString>::const_iterator MapCIt;
 };
 
 inline std::ostream& operator<<( std::ostream& os, const ConfigFile& cf )
-{ cf.Write(os); return os; }
+{ cf.write(os); return os; }
 inline std::istream& operator>>( std::istream& is, ConfigFile& cf )
-{ cf.Read(is); return is; }
+{ cf.read(is); return is; }
 
 template<class T>
-T ConfigFile::read( const std::string& key ) const
+T ConfigFile::read(const std::string& key) const
 {
-  // Read the value corresponding to key
-  std::string key2 = key;
-  trim(key2);
-  mapci p = myContents.find(key2);
-  if( p == myContents.end() ) 
-  {
+    // Read the value corresponding to key
+    std::string key2 = key;
+    trim(key2);
+    MapCIt p = _contents.find(key2);
+    if(p == _contents.end()) {
 #ifdef NOTHROW
-    std::cerr<<"Key not found: "<<key2<<std::endl; exit(1); 
+        std::cerr<<"Key not found: "<<key2<<std::endl; 
+        exit(1); 
 #else
-    throw ConfigFile_KeyNotFound(key2);
+        throw ParameterException(
+            "ConfigFile error: key "+key2+" not found");
 #endif
-  }
-  T ret;
-  try {
-    ret = p->second;
-  }
-  catch (ConvertibleStringError& e)
-  {
-    throw ConfigFile_ParameterError(key2,e.what());
-  }
-  return ret;
+    }
+    T ret;
+    try {
+        ret = p->second;
+    } catch (ParameterException& e) {
+        throw ParameterException(
+            "ConfigFile error: Could not convert entry for key " +
+            key2 +
+            " to given type.\nCaught error from ConvertibleString: \n" +
+            e.what());
+    }
+    return ret;
 }
 
 
 template<class T>
 T ConfigFile::read( const std::string& key, const T& value ) const
 {
-  // Return the value corresponding to key or given default value
-  // if key is not found
-  std::string key2 = key;
-  trim(key2);
-  mapci p = myContents.find(key2);
-  if( p == myContents.end() ) return value;
-  else {
-    T ret;
-    try {
-      ret = p->second;
+    // Return the value corresponding to key or given default value
+    // if key is not found
+    std::string key2 = key;
+    trim(key2);
+    MapCIt p = _contents.find(key2);
+    if(p == _contents.end()) {
+        return value;
+    } else {
+        T ret;
+        try {
+            ret = p->second;
+        } catch (ParameterException& e) {
+            throw ParameterException(
+                "ConfigFile error: Could not convert entry for key " +
+                key2 +
+                " to given type.\nCaught error from ConvertibleString: \n" +
+                e.what());
+        }
+        return ret;
     }
-    catch (ConvertibleStringError& e)
-    {
-      throw ConfigFile_ParameterError(key2,e.what());
-    }
-    return ret;
-  }
 }
 
 
 template<class T>
 bool ConfigFile::readInto( T& var, const std::string& key ) const
 {
-  // Get the value corresponding to key and store in var
-  // Return true if key is found
-  // Otherwise leave var untouched
-  std::string key2 = key;
-  trim(key2);
-  mapci p = myContents.find(key2);
-  bool found = ( p != myContents.end() );
-  if( found )
-  {
-    try {
-      var = p->second;
+    // Get the value corresponding to key and store in var
+    // Return true if key is found
+    // Otherwise leave var untouched
+    std::string key2 = key;
+    trim(key2);
+    MapCIt p = _contents.find(key2);
+    bool isFound = ( p != _contents.end() );
+    if(isFound) {
+        try {
+            var = p->second;
+        } catch (ParameterException& e) {
+            throw ParameterException(
+                "ConfigFile error: Could not convert entry for key " +
+                key2 +
+                " to given type.\nCaught error from ConvertibleString: \n" +
+                e.what());
+        }
     }
-    catch (ConvertibleStringError& e)
-    {
-      throw ConfigFile_ParameterError(key2,e.what());
-    }
-  }
-  return found;
+    return isFound;
 }
 
 
 template<class T>
-bool ConfigFile::readInto( T& var, const std::string& key, const T& value ) const
+bool ConfigFile::readInto( 
+    T& var, const std::string& key, const T& value ) const
 {
-  // Get the value corresponding to key and store in var
-  // Return true if key is found
-  // Otherwise set var to given default
-  std::string key2 = key;
-  trim(key2);
-  mapci p = myContents.find(key2);
-  bool found = ( p != myContents.end() );
-  if( found ) 
-  {
-    try {
-      var = p->second;
+    // Get the value corresponding to key and store in var
+    // Return true if key is found
+    // Otherwise set var to given default
+    std::string key2 = key;
+    trim(key2);
+    MapCIt p = _contents.find(key2);
+    bool isFound = ( p != _contents.end() );
+    if(isFound) {
+        try {
+            var = p->second;
+        } catch (ParameterException& e) {
+            throw ParameterException(
+                "ConfigFile error: Could not convert entry for key " +
+                key2 +
+                " to given type.\nCaught error from ConvertibleString: \n" +
+                e.what());
+        }
+    } else {
+        var = value;
     }
-    catch (ConvertibleStringError& e)
-    {
-      throw ConfigFile_ParameterError(key2,e.what());
-    }
-  }
-  else var = value;
-  return found;
+    return isFound;
 }
 
 template<class T>
 void ConfigFile::add( std::string key, const T& value )
 {
-  // Add a key with given value
-  trim(key);
-  myContents[key] = value;
+    // Add a key with given value
+    trim(key);
+    _contents[key] = value;
 }
 
 #endif  // CONFIGFILE_H

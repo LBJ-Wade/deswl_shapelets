@@ -14,7 +14,7 @@
 #include "Log.h"
 #include "InputCatalog.h"
 #include "StarCatalog.h"
-#include "PSFCatalog.h"
+#include "PsfCatalog.h"
 #include "FittedPSF.h"
 #include "ShearCatalog.h"
 
@@ -1745,8 +1745,8 @@ int main(int argc, char **argv) try
 
 #ifdef TEST6
   ConfigFile params("testwl.config");
-  params.Load("findstars.params.btc","\t");
-  params.Load("fitsparams.config");
+  params.load("findstars.params.btc","\t");
+  params.load("fitsparams.config");
 
   // Read input files
   std::auto_ptr<Image<double> > weight_im;
@@ -1794,10 +1794,10 @@ int main(int argc, char **argv) try
   params["stars_ext"] = all_ext;
 
   // Measure PSF
-  PSFCatalog psfcat(starCat,params);
-  double sigma_p = psfcat.EstimateSigma(im,weight_im.get(),trans);
-  PSFLog psflog(params,"testpsf.log");
-  int npsf = psfcat.MeasurePSF(im,weight_im.get(),trans,sigma_p,psflog);
+  PsfCatalog psfcat(starCat,params);
+  double sigma_p = psfcat.estimateSigma(im,weight_im.get(),trans);
+  PsfLog psflog(params,"testpsf.log");
+  int npsf = psfcat.measurePsf(im,weight_im.get(),trans,sigma_p,psflog);
   dbg<<psflog<<std::endl;
   // There are 244 stars in the file, but depending on the exact parameters,
   // one or two cross the edge, which gives an error flag.
@@ -1805,65 +1805,69 @@ int main(int argc, char **argv) try
   Test(npsf >= 240,"Measure PSF");
 
   // Test I/O
-  psfcat.Write();
-  PSFCatalog psfcat2(params);
+  psfcat.write();
+  PsfCatalog psfcat2(params);
   all_ext = params["psf_ext"];
   for(size_t k=0;k<all_ext.size();++k) {
     dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
     params["psf_ext"] = all_ext[k];
-    if (k > 0) psfcat2.Read();
+    if (k > 0) psfcat2.read();
     Test(psfcat.size() == psfcat2.size(),"psfcat size I/O");
     for(size_t i=0;i<psfcat.size();++i) {
-      Test(psfcat.id[i] == psfcat2.id[i],"psfcat id I/O");
-      Test(std::abs(psfcat.pos[i] - psfcat2.pos[i]) <= 0.01,"psfcat pos I/O");
-      Test(std::abs(psfcat.sky[i] - psfcat2.sky[i]) <= 0.01,"psfcat sky I/O");
-      Test(std::abs(psfcat.noise[i] - psfcat2.noise[i]) <= 0.01,
-	  "psfcat noise I/O");
-      Test(psfcat.flags[i] == psfcat2.flags[i],"psfcat flags I/O");
-      Test(std::abs(psfcat.nu[i] - psfcat2.nu[i]) <= 0.01,"psfcat nu I/O");
-      Test(psfcat.psf[i].size() == psfcat2.psf[i].size(),"psfcat psf.size I/O");
-      Test(std::abs(psfcat.psf[i].GetSigma() - psfcat2.psf[i].GetSigma()) 
-	  <= 0.01, "psfcat psf.GetSigma I/O");
-      Test(Norm(psfcat.psf[i] - psfcat2.psf[i]) <= 1.e-4*Norm(psfcat.psf[i]),
-	  "psfcat psf vector I/O");
+        Test(psfcat.getId(i) == psfcat2.getId(i),"psfcat id I/O");
+        Test(std::abs(psfcat.getPos(i) - psfcat2.getPos(i)) <= 0.01,
+             "psfcat pos I/O");
+        Test(std::abs(psfcat.getSky(i) - psfcat2.getSky(i)) <= 0.01,
+             "psfcat sky I/O");
+        Test(std::abs(psfcat.getNoise(i) - psfcat2.getNoise(i)) <= 0.01,
+             "psfcat noise I/O");
+        Test(psfcat.getFlags(i) == psfcat2.getFlags(i),"psfcat flags I/O");
+        Test(std::abs(psfcat.getNu(i) - psfcat2.getNu(i)) <= 0.01,
+             "psfcat nu I/O");
+        Test(psfcat.getPsf(i).size() == psfcat2.getPsf(i).size(),
+             "psfcat psf.size I/O");
+        Test(std::abs(psfcat.getPsf(i).GetSigma()-psfcat2.getPsf(i).GetSigma()) 
+             <= 0.01, "psfcat psf.GetSigma I/O");
+        Test(Norm(psfcat.getPsf(i) - psfcat2.getPsf(i)) <= 
+             1.e-4*Norm(psfcat.getPsf(i)), "psfcat psf vector I/O");
     }
   }
   params["psf_ext"] = all_ext;
 
   // Fit PSF
-  FittedPSF fitpsf(psfcat,params);
+  FittedPsf fitpsf(psfcat,params);
   double rms = 0.; 
   int count = 0;
-  for(int i=0;i<nstars;i++) if (!psfcat.flags[i]) {
-    BVec checkpsf(fitpsf.GetPSFOrder(),fitpsf.GetSigma());
+  for(int i=0;i<nstars;i++) if (!psfcat.getFlags(i)) {
+    BVec checkpsf(fitpsf.getPsfOrder(),fitpsf.getSigma());
     checkpsf = fitpsf(starCat.getPos(i));
-    double normsqdiff = NormSq(psfcat.psf[i]-checkpsf);
+    double normsqdiff = NormSq(psfcat.getPsf(i)-checkpsf);
     rms += normsqdiff;
     count++;
   }
   rms /= count;
   rms = sqrt(rms);
   dbg<<"fitpsf rms = "<<rms<<std::endl;
-  Test(rms < double(fitpsf.GetPSFSize())/double(fitpsf.GetFitSize()),
+  Test(rms < double(fitpsf.getPsfSize())/double(fitpsf.getFitSize()),
       "Fit PSF rms");
 
   // Test I/O
-  fitpsf.Write();
-  FittedPSF fitpsf2(params);
+  fitpsf.write();
+  FittedPsf fitpsf2(params);
   all_ext = params["fitpsf_ext"];
   for(size_t k=0;k<all_ext.size();++k) {
     dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
     params["fitpsf_ext"] = all_ext[k];
-    if (k > 0) fitpsf2.Read();
+    if (k > 0) fitpsf2.read();
     rms = 0.; 
     count = 0;
-    Test(fitpsf2.GetPSFOrder() == fitpsf.GetPSFOrder(), "FittedPSF I/O: order");
-    Test(std::abs(fitpsf2.GetSigma() - fitpsf.GetSigma()) < 0.01, 
+    Test(fitpsf2.getPsfOrder() == fitpsf.getPsfOrder(), "FittedPSF I/O: order");
+    Test(std::abs(fitpsf2.getSigma() - fitpsf.getSigma()) < 0.01, 
 	"FittedPSF I/O: sigma");
-    for(int i=0;i<nstars;i++) if (!psfcat.flags[i]) {
-      BVec checkpsf(fitpsf.GetPSFOrder(),fitpsf.GetSigma());
+    for(int i=0;i<nstars;i++) if (!psfcat.getFlags(i)) {
+      BVec checkpsf(fitpsf.getPsfOrder(),fitpsf.getSigma());
       checkpsf = fitpsf(starCat.getPos(i));
-      BVec checkpsf2(fitpsf2.GetPSFOrder(),fitpsf2.GetSigma());
+      BVec checkpsf2(fitpsf2.getPsfOrder(),fitpsf2.getSigma());
       checkpsf2 = fitpsf2(starCat.getPos(i));
       double normsqdiff = NormSq(checkpsf2-checkpsf);
       rms += normsqdiff;

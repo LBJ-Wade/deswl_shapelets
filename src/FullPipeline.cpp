@@ -5,7 +5,7 @@
 #include "InputCatalog.h"
 #include "StarCatalog.h"
 #include "FittedPSF.h"
-#include "PSFCatalog.h"
+#include "PsfCatalog.h"
 #include "StarFinder.h"
 #include "ShearCatalog.h"
 #include "TimeVars.h"
@@ -57,21 +57,21 @@ static void DoFullPipeline(ConfigFile& params,
 
   xdbg<<"FindStarsLog: \n"<<*log<<std::endl;
 
-  log.reset(new PSFLog(params,logfile,makeName(params,"psf",false,false)));
+  log.reset(new PsfLog(params,logfile,makeName(params,"psf",false,false)));
 
   std::cerr<<"Determining PSF\n";
-  // Create PSFCatalog from StarCatalog
-  PSFCatalog psfcat(starcat,params);
+  // Create PsfCatalog from StarCatalog
+  PsfCatalog psfcat(starcat,params);
 
   // Estimate the scale size to use for shapelet decompositions
-  double sigma_p = psfcat.EstimateSigma(im,weight_im.get(),trans);
+  double sigma_p = psfcat.estimateSigma(im,weight_im.get(),trans);
 
   // Do the actual PSF measurements
-  psfcat.MeasurePSF(im,weight_im.get(),trans,sigma_p,
-      static_cast<PSFLog&>(*log));
+  psfcat.measurePsf(im,weight_im.get(),trans,sigma_p,
+      static_cast<PsfLog&>(*log));
 
   // Write PSF catalog to file
-  psfcat.Write();
+  psfcat.write();
 
   // MJ -- Should we make a FittedPSFLog?  Are there parameters here that
   //       we want to ingest into a DB meta-table?
@@ -79,10 +79,10 @@ static void DoFullPipeline(ConfigFile& params,
   //       FittedPSF calculation, since the fittedpsf file is not ingested.
 
   // Fit the PSF with a polynomial:
-  FittedPSF fitpsf(psfcat,params);
+  FittedPsf fitpsf(psfcat,params);
 
   // Write fitted psf to file
-  fitpsf.Write();
+  fitpsf.write();
 
   xdbg<<"PSFLog: \n"<<*log<<std::endl;
 

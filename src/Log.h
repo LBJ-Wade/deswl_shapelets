@@ -79,20 +79,20 @@ class ShearLog : public Log
 
 };
 
-class PSFLog : public Log 
+class PsfLog : public Log 
 {
   public :
 
-    PSFLog(const ConfigFile& params,
+    PsfLog(const ConfigFile& params,
 	std::string logfile="", std::string fits_file="");
-    virtual ~PSFLog();
+    virtual ~PsfLog();
 
 	virtual void WriteMessage(std::string mess) const;
     virtual void WriteLog() const;
     virtual void WriteLogToFitsHeader() const;
     virtual void Write(std::ostream& os) const;
 
-    PSFLog& operator+=(const PSFLog& rhs)
+    PsfLog& operator+=(const PsfLog& rhs)
     {
       nf_range += rhs.nf_range;
       nf_tmverror += rhs.nf_tmverror;

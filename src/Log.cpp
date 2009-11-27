@@ -20,9 +20,9 @@ Log::Log(const ConfigFile& _params,
       logout = new std::ofstream(_logfile.c_str(),std::ios_base::app);
       if (!logout) 
       {
-	throw WriteError(
-	    std::string("Error: Unable to open logfile ") + _logfile
-	    + " for append output");
+          throw WriteException(
+              "Error: Unable to open logfile " + _logfile +
+              " for append output");
       }
     }
   }
@@ -57,7 +57,7 @@ void FindStarsLog::WriteMessage(std::string mess) const
 	*logout << mess;
   }
 }
-void PSFLog::WriteMessage(std::string mess) const
+void PsfLog::WriteMessage(std::string mess) const
 {
   if (logout) {
 	*logout << mess;
@@ -148,7 +148,8 @@ void ShearLog::WriteLogToFitsHeader() const
     // writing the Log file.  There is already something else wrong, so 
     // just leave it at that.
     if (exitcode == 0)
-      throw WriteError("Error writing ShearLog to the Fits file header info.");
+      throw WriteException(
+          "Error writing ShearLog to the Fits file header info.");
   }
 
 }
@@ -233,19 +234,19 @@ void ShearLog::Write(std::ostream& os) const
   os<<"N_Error: Other caught = "<<nf_othererror<<std::endl;
 }
 
-PSFLog::PSFLog(const ConfigFile& params,
+PsfLog::PsfLog(const ConfigFile& params,
     std::string _logfile, std::string _fits_file) :
   Log(params,_logfile,_fits_file),
   nstars(0), ngoodin(0), ngood(0), nf_range(0),
   nf_tmverror(0), nf_othererror(0), ns_psf(0), nf_psf(0) {}
 
-PSFLog::~PSFLog() 
+PsfLog::~PsfLog() 
 {
   this->WriteLog();
   this->WriteLogToFitsHeader();
 }
 
-void PSFLog::WriteLogToFitsHeader() const
+void PsfLog::WriteLogToFitsHeader() const
 {
   if ("" == fits_file) return;
 
@@ -283,11 +284,12 @@ void PSFLog::WriteLogToFitsHeader() const
     // writing the Log file.  There is already something else wrong, so 
     // just leave it at that.
     if (exitcode == 0)
-      throw WriteError("Error writing PSFLog to the Fits file header info.");
+      throw WriteException(
+          "Error writing PSFLog to the Fits file header info.");
   }
 }
 
-void PSFLog::WriteLog() const
+void PsfLog::WriteLog() const
 {
   if (logout) 
   {
@@ -322,7 +324,7 @@ void PSFLog::WriteLog() const
   }
 }
 
-void PSFLog::Write(std::ostream& os) const
+void PsfLog::Write(std::ostream& os) const
 {
   os<<"N Total stars = "<<nstars<<std::endl;
   os<<"N stars with no input error flags = "<<ngoodin<<std::endl;
@@ -388,8 +390,8 @@ void FindStarsLog::WriteLogToFitsHeader() const
     // writing the Log file.  There is already something else wrong, so 
     // just leave it at that.
     if (exitcode == 0)
-      throw WriteError(
-	  "Error writing FindStarsLog to the Fits file header info.");
+        throw WriteException(
+            "Error writing FindStarsLog to the Fits file header info.");
   }
 }
 

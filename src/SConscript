@@ -54,12 +54,12 @@ if not (xxdexit == None):
 libwl_files="""Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp BVec.cpp
 EllipseSolver.cpp Pixel.cpp Transformation.cpp ConfigFile.cpp FittedPSF.cpp
 EllipseSolver2.cpp CrudeMeasure.cpp Name.cpp Log.cpp Ellipse.cpp PsiHelper.cpp
-Histogram.cpp StarFinder.cpp StarCatalog.cpp PSFCatalog.cpp
+Histogram.cpp StarFinder.cpp StarCatalog.cpp PsfCatalog.cpp Params.cpp
 ShearCatalog.cpp InputCatalog.cpp ExecuteCommand.cpp CoaddCatalog.cpp 
 ShearCatalogTree.cpp MultiShearCatalog.cpp WlVersion.cpp Pool.cpp""".split()
 
 libwl_omp_files="""
-Ellipse_omp.cpp StarCatalog_omp.cpp PSFCatalog_omp.cpp Pixel_omp.cpp
+Ellipse_omp.cpp StarCatalog_omp.cpp PsfCatalog_omp.cpp Pixel_omp.cpp
 ShearCatalog_omp.cpp MultiShearCatalog_omp.cpp """.split()
 
 env1 = env.Clone()

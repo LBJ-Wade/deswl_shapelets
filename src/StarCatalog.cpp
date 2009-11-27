@@ -20,7 +20,7 @@
 #include "Log.h"
 #include "Form.h"
 #include "WlVersion.h"
-#include "WriteParKey.h"
+#include "WriteParam.h"
 
 static void calculateSigma1(
     double& sigma,
@@ -99,8 +99,10 @@ void calculateSigma(
 StarCatalog::StarCatalog(
     const InputCatalog& inCat,
     ConfigFile& params, std::string fsPrefix) :
-    _id(inCat.id), _pos(inCat.pos), _sky(inCat.sky), _noise(inCat.noise),
-    _flags(inCat.flags), _mag(inCat.mag), _objSize(inCat.objsize),
+    _id(inCat.getIdList()), _pos(inCat.getPosList()), 
+    _sky(inCat.getSkyList()), _noise(inCat.getNoiseList()),
+    _flags(inCat.getFlagsList()), _mag(inCat.getMagList()), 
+    _objSize(inCat.getObjSizeList()),
     _isAStar(_id.size(),0), _params(params), _prefix(fsPrefix)
 {
     Assert(_id.size() == size());
@@ -277,43 +279,43 @@ void StarCatalog::writeFits(std::string file) const
     // if serun= is sent we'll put it in the header.  This allows us to 
     // associate some more, possibly complicated, metadata with this file
     if ( _params.keyExists("serun") ) {
-        CCfitsWriteParKey(_params, table, "serun", str);
+        writeParamToTable(_params, table, "serun", str);
     }
 
 
-    CCfitsWriteParKey(_params, table, "noise_method", str);
-    CCfitsWriteParKey(_params, table, "dist_method", str);
+    writeParamToTable(_params, table, "noise_method", str);
+    writeParamToTable(_params, table, "dist_method", str);
 
     if (_params.keyExists("stars_minsize")) 
     {
-        CCfitsWriteParKey(_params, table, "stars_minsize", dbl);
-        CCfitsWriteParKey(_params, table, "stars_maxsize", dbl);
-        CCfitsWriteParKey(_params, table, "stars_minmag", dbl);
-        CCfitsWriteParKey(_params, table, "stars_maxmag", dbl);
-        CCfitsWriteParKey(_params, table, "stars_ndivx", intgr);
-        CCfitsWriteParKey(_params, table, "stars_ndivy", intgr);
+        writeParamToTable(_params, table, "stars_minsize", dbl);
+        writeParamToTable(_params, table, "stars_maxsize", dbl);
+        writeParamToTable(_params, table, "stars_minmag", dbl);
+        writeParamToTable(_params, table, "stars_maxmag", dbl);
+        writeParamToTable(_params, table, "stars_ndivx", intgr);
+        writeParamToTable(_params, table, "stars_ndivy", intgr);
 
-        CCfitsWriteParKey(_params, table, "stars_startn1", dbl);
-        CCfitsWriteParKey(_params, table, "stars_starfrac", dbl);
-        CCfitsWriteParKey(_params, table, "stars_magstep1", dbl);
-        CCfitsWriteParKey(_params, table, "stars_miniter1", intgr);
-        CCfitsWriteParKey(_params, table, "stars_reject1", dbl);
-        CCfitsWriteParKey(_params, table, "stars_binsize1", dbl);
-        CCfitsWriteParKey(_params, table, "stars_maxratio1", dbl);
-        CCfitsWriteParKey(_params, table, "stars_okvalcount", intgr);
-        CCfitsWriteParKey(_params, table, "stars_maxrms", dbl);
-        CCfitsWriteParKey(_params, table, "stars_starsperbin", intgr);
+        writeParamToTable(_params, table, "stars_startn1", dbl);
+        writeParamToTable(_params, table, "stars_starfrac", dbl);
+        writeParamToTable(_params, table, "stars_magstep1", dbl);
+        writeParamToTable(_params, table, "stars_miniter1", intgr);
+        writeParamToTable(_params, table, "stars_reject1", dbl);
+        writeParamToTable(_params, table, "stars_binsize1", dbl);
+        writeParamToTable(_params, table, "stars_maxratio1", dbl);
+        writeParamToTable(_params, table, "stars_okvalcount", intgr);
+        writeParamToTable(_params, table, "stars_maxrms", dbl);
+        writeParamToTable(_params, table, "stars_starsperbin", intgr);
 
-        CCfitsWriteParKey(_params, table, "stars_fitorder", intgr);
-        CCfitsWriteParKey(_params, table, "stars_fitsigclip", dbl);
-        CCfitsWriteParKey(_params, table, "stars_startn2", dbl);
-        CCfitsWriteParKey(_params, table, "stars_magstep2", dbl);
-        CCfitsWriteParKey(_params, table, "stars_miniter2", intgr);
-        CCfitsWriteParKey(_params, table, "stars_minbinsize", dbl);
-        CCfitsWriteParKey(_params, table, "stars_reject2", dbl);
+        writeParamToTable(_params, table, "stars_fitorder", intgr);
+        writeParamToTable(_params, table, "stars_fitsigclip", dbl);
+        writeParamToTable(_params, table, "stars_startn2", dbl);
+        writeParamToTable(_params, table, "stars_magstep2", dbl);
+        writeParamToTable(_params, table, "stars_miniter2", intgr);
+        writeParamToTable(_params, table, "stars_minbinsize", dbl);
+        writeParamToTable(_params, table, "stars_reject2", dbl);
 
-        CCfitsWriteParKey(_params, table, "stars_purityratio", dbl);
-        CCfitsWriteParKey(_params, table, "stars_maxrefititer", intgr);
+        writeParamToTable(_params, table, "stars_purityratio", dbl);
+        writeParamToTable(_params, table, "stars_maxrefititer", intgr);
     }
 
 
@@ -353,7 +355,7 @@ void StarCatalog::writeAscii(std::string file, std::string delim) const
 
     std::ofstream fout(file.c_str());
     if (!fout) {
-        throw WriteError("Error opening stars file"+file);
+        throw WriteException("Error opening stars file"+file);
     }
 
     const int nTot = size();
@@ -404,13 +406,13 @@ void StarCatalog::write() const
                 writeAscii(file,delim);
             }
         } catch (CCfits::FitsException& e) {
-            throw WriteError(
+            throw WriteException(
                 "Error writing to "+file+" -- caught error\n" + e.message());
         } catch (std::exception& e) { 
-            throw WriteError(
+            throw WriteException(
                 "Error writing to "+file+" -- caught error\n" + e.what());
         } catch (...) { 
-            throw WriteError(
+            throw WriteException(
                 "Error writing to "+file+" -- caught unknown error");
         }
     }
@@ -431,7 +433,7 @@ void StarCatalog::readFits(std::string file)
 
     dbg<<"  nrows = "<<nRows<<std::endl;
     if (nRows <= 0) {
-        throw ReadError(
+        throw ReadException(
             "StarCatalog found to have 0 rows.  Must have > 0 rows.");
     }
 
@@ -483,7 +485,7 @@ void StarCatalog::readAscii(std::string file, std::string delim)
 {
     std::ifstream fin(file.c_str());
     if (!fin) {
-        throw ReadError("Error opening stars file"+file);
+        throw ReadException("Error opening stars file"+file);
     }
 
     _id.clear(); _pos.clear(); _sky.clear(); _noise.clear(); _flags.clear();
@@ -510,7 +512,7 @@ void StarCatalog::readAscii(std::string file, std::string delim)
             // Since I don't really expect a multicharacter delimiter to
             // be used ever, I'm just going to throw an exception here 
             // if we do need it, and I can write the workaround then.
-            throw ParameterError(
+            throw ParameterException(
                 "ReadAscii delimiter must be a single character");
         }
         char d = delim[0];
@@ -550,7 +552,7 @@ void StarCatalog::read()
     }
 
     if (!doesFileExist(file)) {
-        throw FileNotFound(file);
+        throw FileNotFoundException(file);
     }
     try {
         if (isFitsIo) {
@@ -565,13 +567,13 @@ void StarCatalog::read()
             readAscii(file,delim);
         }
     } catch (CCfits::FitsException& e) {
-        throw ReadError(
+        throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.message());
     } catch (std::exception& e) { 
-        throw ReadError(
+        throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.what());
     } catch (...) { 
-        throw ReadError(
+        throw ReadException(
             "Error reading from "+file+" -- caught unknown error");
     }
     dbg<<"Done Read StarCatalog\n";

@@ -5,7 +5,7 @@
 
 #include "dbg.h"
 
-#include "PSFCatalog.h"
+#include "PsfCatalog.h"
 #include "FittedPSF.h"
 
 #include "ConfigFile.h"
@@ -46,19 +46,19 @@ int main(int argc, char **argv)
 	ConfigFile params(config_file);
 	string fp((const char*)fitsparams_config,fitsparams_config_len);
 	istringstream is(fp);
-	params.Read(is);
+	params.read(is);
 
 
 	cerr<<"Loading a PSFCatalog\n";
-	PSFCatalog psfcat(params, psf_file);
+	PsfCatalog psfcat(params, psf_file);
 
 	cerr<<"Loading a FittedPSF\n";
-	FittedPSF fitpsf(params, fitpsf_file);
+	FittedPsf fitpsf(params, fitpsf_file);
 
-	BVec ipsf(fitpsf.GetPSFOrder(), fitpsf.GetSigma());
+	BVec ipsf(fitpsf.getPsfOrder(), fitpsf.getSigma());
 
 	// Test the reconstructions
-	cout<<"NROWS = "<<psfcat.pos.size()<<"\n";
+	cout<<"NROWS = "<<psfcat.size()<<"\n";
 	cout<<"{'_DELIM': ' ',\n";
 	cout<<" '_DTYPE': [('id','i4'),\n";
 	cout<<"            ('psf_flags','i4'),\n";
@@ -70,20 +70,20 @@ int main(int argc, char **argv)
 	cout<<" 'fitpsf_file': '"<<fitpsf_file<<"'}\n";
 	cout<<"END\n";
 	cout<<"\n";
-	const int nStars = psfcat.psf.size();
+	const int nStars = psfcat.size();
 	for (int i=0; i<nStars; i++) {
 
-		double e1 = sqrt(2)*psfcat.psf[i][3];
-		double e2 = sqrt(2)*psfcat.psf[i][4];
+		double e1 = sqrt(2)*psfcat.getPsf(i)[3];
+		double e2 = sqrt(2)*psfcat.getPsf(i)[4];
 
-		fitpsf.Interpolate(psfcat.pos[i], ipsf);
+		fitpsf.interpolate(psfcat.getPos(i), ipsf);
 
 		double ie1 = sqrt(2)*ipsf[3];
 		double ie2 = sqrt(2)*ipsf[4];
-		cout<<psfcat.id[i]
-			<<" "<<psfcat.flags[i]
-			<<" "<<psfcat.pos[i].getX()
-			<<" "<<psfcat.pos[i].getY()
+		cout<<psfcat.getId(i)
+			<<" "<<psfcat.getFlags(i)
+			<<" "<<psfcat.getPos(i).getX()
+			<<" "<<psfcat.getPos(i).getY()
 			<<" "<<e1
 			<<" "<<e2
 			<<" "<<ie1

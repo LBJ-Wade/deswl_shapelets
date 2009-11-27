@@ -4,12 +4,12 @@
 #include "FittedPSF.h"
 #include "Transformation.h"
 #include "Log.h"
-#include "PSFCatalog.h"
+#include "PsfCatalog.h"
 #include "BVec.h"
 #include "BasicSetup.h"
 #include <sys/time.h>
 
-static void DoMeasurePSF(ConfigFile& params, PSFLog& log) 
+static void DoMeasurePsf(ConfigFile& params, PsfLog& log) 
 {
   bool timing = params.read("timing",false);
   timeval tp;
@@ -52,7 +52,7 @@ static void DoMeasurePSF(ConfigFile& params, PSFLog& log)
   }
 
   // Create PSFCatalog from StarCatalog
-  PSFCatalog psfcat(starcat,params);
+  PsfCatalog psfcat(starcat,params);
 
   if (timing) {
     gettimeofday(&tp,0);
@@ -62,7 +62,7 @@ static void DoMeasurePSF(ConfigFile& params, PSFLog& log)
   }
 
   // Estimate the scale size to use for shapelet decompositions
-  double sigma_p = psfcat.EstimateSigma(im,weight_im.get(),trans);
+  double sigma_p = psfcat.estimateSigma(im,weight_im.get(),trans);
 
   if (timing) {
     gettimeofday(&tp,0);
@@ -72,7 +72,7 @@ static void DoMeasurePSF(ConfigFile& params, PSFLog& log)
   }
 
   // Do the actual PSF measurements
-  int npsf = psfcat.MeasurePSF(im,weight_im.get(),trans,sigma_p,log);
+  int npsf = psfcat.measurePsf(im,weight_im.get(),trans,sigma_p,log);
 
   if (timing) {
     gettimeofday(&tp,0);
@@ -82,7 +82,7 @@ static void DoMeasurePSF(ConfigFile& params, PSFLog& log)
   }
 
   // Write PSF catalog to file
-  psfcat.Write();
+  psfcat.write();
 
   if (timing) {
     gettimeofday(&tp,0);
@@ -91,13 +91,16 @@ static void DoMeasurePSF(ConfigFile& params, PSFLog& log)
     t1 = t2;
   }
 
-  if (npsf == 0) throw ProcessingError("No successful PSF measurements");
+  if (npsf == 0) {
+      throw ProcessingException(
+          "No successful PSF measurements");
+  }
 
   // TODO: Pass the log to the FittedPsf constructor to record the
   //       number of outliers found.  Maybe other values?
 
   // Fit the PSF with a polynomial:
-  FittedPSF fitpsf(psfcat,params);
+  FittedPsf fitpsf(psfcat,params);
 
   if (timing) {
     gettimeofday(&tp,0);
@@ -107,13 +110,13 @@ static void DoMeasurePSF(ConfigFile& params, PSFLog& log)
   }
 
   // Write fitted psf to file
-  fitpsf.Write();
+  fitpsf.write();
 
   // Re-write the PSF catalog, since the interpolation may have changed
   // the flags.
   // TODO: It may be worth having a new routine that just updates the 
   // flags.  More efficient, since don't need to re-write everything.
-  psfcat.Write();
+  psfcat.write();
 
   if (timing) {
     gettimeofday(&tp,0);
@@ -135,11 +138,11 @@ int main(int argc, char **argv) try
   if (params.keyExists("log_file") || params.keyExists("log_ext"))
     logfile = makeName(params,"log",false,false);
   std::string psf_file=makeName(params,"psf",false,false);
-  std::auto_ptr<PSFLog> log (
-      new PSFLog(params,logfile,psf_file)); 
+  std::auto_ptr<PsfLog> log (
+      new PsfLog(params,logfile,psf_file)); 
 
   try {
-    DoMeasurePSF(params,*log);
+    DoMeasurePsf(params,*log);
   }
 #if 0
   // Change to 1 to let gdb see where the program bombed out.

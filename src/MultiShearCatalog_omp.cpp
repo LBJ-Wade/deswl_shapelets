@@ -157,7 +157,7 @@ static void GetImagePixList(
     const Image<double>& im,
     const Transformation& trans,
     const Transformation& invtrans,
-    BVec& psf, const FittedPSF& fitpsf,
+    BVec& psf, const FittedPsf& fitpsf,
     const ShearCatalog& shearcat,
     const ShearCatalogTree& shearcat_tree,
     const Image<double>*const weight_im,
@@ -184,15 +184,12 @@ static void GetImagePixList(
     dbg << "InverseTransform failed for position "<<skypos<<".\n";
     dbg << "Initial guess was "<<pos<<".\n";
     input_flags |= TRANSFORM_EXCEPTION;
-    //std::stringstream err;
-    //err << "InverseTransform failed for position "<<skypos<<".";
-    //throw TransformationError(err.str());
   }
   xdbg<<"after exact InverseTransform: pos -> "<<pos<<std::endl;
-  if (!(fitpsf.GetBounds().includes(pos))) 
+  if (!(fitpsf.getBounds().includes(pos))) 
   {
     xdbg<<"Reject pos "<<pos<<" not in fitpsf bounds ";
-    xdbg<<fitpsf.GetBounds()<<std::endl;
+    xdbg<<fitpsf.getBounds()<<std::endl;
     return;
   }
 
@@ -345,7 +342,7 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
   Transformation trans(params);
 
   // Read the psf
-  FittedPSF fitpsf(params);
+  FittedPsf fitpsf(params);
 
   // Make a tree of the shear catalog to more easily find the nearest
   // single-epoch object to each coadd detection.
@@ -370,7 +367,7 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
         new Image<float>(makeName(params,"skymap",true,false),skymap_hdu));
   }
 
-  BVec psf(fitpsf.GetPSFOrder(), fitpsf.GetSigma());
+  BVec psf(fitpsf.getPsfOrder(), fitpsf.getSigma());
 
   // Make an inverse transformation that we will use as a starting 
   // point for the more accurate InverseTransform function.

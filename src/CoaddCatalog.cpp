@@ -135,13 +135,11 @@ CoaddCatalog::~CoaddCatalog()
 void CoaddCatalog::ReadCatalog()
 {
   std::string file=params.get("coaddcat_file");
-  // I use read rather than get here to make sure we turn any
-  // ConvertibleStringError into a ConfigFile_ParameterError
   int hdu = params.read<int>("coaddcat_hdu");
 
   if (!doesFileExist(file))
   {
-    throw FileNotFound(file);
+    throw FileNotFoundException(file);
   }
   try
   {
@@ -155,7 +153,8 @@ void CoaddCatalog::ReadCatalog()
 
     dbg<<"  nrows = "<<nrows<<std::endl;
     if (nrows <= 0) {
-      throw ReadError("CoaddCatalog found to have 0 rows.  Must have > 0 rows.");
+      throw ReadException(
+          "CoaddCatalog found to have 0 rows.  Must have > 0 rows.");
     }
 
     std::string id_col=params.get("coaddcat_id_col");
@@ -220,17 +219,18 @@ void CoaddCatalog::ReadCatalog()
   }
   catch (CCfits::FitsException& e)
   {
-    throw ReadError("Error reading from "+file+" -- caught error\n" +
-	e.message());
+    throw ReadException(
+        "Error reading from "+file+" -- caught error\n" + e.message());
   }
   catch (std::exception& e)
   {
-    throw ReadError("Error reading from "+file+" -- caught error\n" +
-	e.what());
+    throw ReadException(
+        "Error reading from "+file+" -- caught error\n" + e.what());
   }
   catch (...)
   {
-    throw ReadError("Error reading from "+file+" -- caught unknown error");
+    throw ReadException(
+        "Error reading from "+file+" -- caught unknown error");
   }
 }
 

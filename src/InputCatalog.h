@@ -10,38 +10,60 @@
 class InputCatalog 
 {
 
-  public :
+public :
 
     // If you already have the image loaded, you can pass it here.
     // It is only needed for global sky calculation from the image median, 
     // so if you haven't loaded it, and you don't have any bad local
     // sky values, it won't need the global_sky value, so it won't
     // load the image here either.
-    InputCatalog(ConfigFile& _params, const Image<double>* im=0);
+    InputCatalog(ConfigFile& params, const Image<double>* im=0);
 
-    size_t size() const { return pos.size(); }
+    size_t size() const { return _pos.size(); }
 
-    void Read();
-    void ReadFits(std::string file);
-    void ReadAscii(std::string file, std::string delim = "  ");
+    void read();
+    void readFits(std::string file);
+    void readAscii(std::string file, std::string delim = "  ");
 
-    // Leave these public, rather than use Get and Set methods.
-    std::vector<long> id;
-    std::vector<Position> pos;
-    std::vector<double> sky;
-    std::vector<float> mag;
-    std::vector<float> mag_err;
-    std::vector<double> objsize;
-    std::vector<long> flags;
-    std::vector<float> ra;
-    std::vector<float> dec;
-    std::vector<double> noise;
+    const std::vector<long>& getIdList() const { return _id; }
+    const std::vector<Position>& getPosList() const { return _pos; }
+    const std::vector<double>& getSkyList() const { return _sky; }
+    const std::vector<float>& getMagList() const { return _mag; }
+    const std::vector<float>& getMagErrList() const { return _magErr; }
+    const std::vector<double>& getObjSizeList() const { return _objSize; }
+    const std::vector<long>& getFlagsList() const { return _flags; }
+    const std::vector<float>& getRaList() const { return _ra; }
+    const std::vector<float>& getDeclList() const { return _decl; }
+    const std::vector<double>& getNoiseList() const { return _noise; }
 
-    Bounds bounds;
+    long getId(int i) const { return _id[i]; }
+    Position getPos(int i) const { return _pos[i]; }
+    double getSky(int i) const { return _sky[i]; }
+    double getMag(int i) const { return _mag[i]; }
+    double getMagErr(int i) const { return _magErr[i]; }
+    double getObjSizeList(int i) const { return _objSize[i]; }
+    long getFlags(int i) const { return _flags[i]; }
+    Position getSkyPos(int i) const { return Position(_ra[i],_decl[i]); }
+    double getNoise(int i) const { return _noise[i]; }
 
-  private :
+    const Bounds& getBounds() const { return _bounds; }
 
-    const ConfigFile& params;
+private :
+
+    const ConfigFile& _params;
+
+    std::vector<long> _id;
+    std::vector<Position> _pos;
+    std::vector<double> _sky;
+    std::vector<float> _mag;
+    std::vector<float> _magErr;
+    std::vector<double> _objSize;
+    std::vector<long> _flags;
+    std::vector<float> _ra;
+    std::vector<float> _decl;
+    std::vector<double> _noise;
+
+    Bounds _bounds;
 
 };
 

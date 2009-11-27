@@ -52,7 +52,7 @@ static void DoMeasureShear(ConfigFile& params, ShearLog& log)
   }
 
   // Read the fitted psf file
-  FittedPSF fitpsf(params);
+  FittedPsf fitpsf(params);
 
   if (timing) {
     gettimeofday(&tp,0);
@@ -91,7 +91,10 @@ static void DoMeasureShear(ConfigFile& params, ShearLog& log)
     t1 = t2;
   }
 
-  if (nshear == 0) throw ProcessingError("No successful shear measurements");
+  if (nshear == 0) {
+      throw ProcessingException(
+          "No successful shear measurements");
+  }
 
   xdbg<<"Log: \n"<<log<<std::endl;
 }

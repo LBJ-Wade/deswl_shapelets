@@ -2,7 +2,6 @@
 #define PARAMS_H
 
 #include <stdexcept>
-#include "ConfigFile.h"
 
 // Default value for 
 #define DEFVALPOS 9999
@@ -41,47 +40,48 @@
 
 // Errors specific to the weak lensing code
 
-struct FileNotFound : 
-  public std::runtime_error 
+struct FileNotFoundException : public std::runtime_error 
 {
-  FileNotFound(const std::string& filename) throw() :
-    std::runtime_error("Error: file "+filename+" not found") {} 
+    FileNotFoundException(const std::string& filename) throw() :
+        std::runtime_error("Error: file "+filename+" not found") 
+    {} 
 };
 
-struct ParameterError:
-  public std::runtime_error 
+struct ParameterException : public std::runtime_error 
 {
-  ParameterError(const std::string& msg) throw() : std::runtime_error(msg) {}
+    ParameterException(const std::string& msg) throw() :
+        std::runtime_error(msg) 
+    {}
 };
 
-struct ReadError:
-  public std::runtime_error 
+struct ReadException : public std::runtime_error 
 {
-  ReadError(const std::string& msg) throw() : std::runtime_error(msg) {}
+    ReadException(const std::string& msg) throw() :
+        std::runtime_error(msg) 
+    {}
 };
 
-struct WriteError:
-  public std::runtime_error 
+struct WriteException : public std::runtime_error 
 {
-  WriteError(const std::string& msg) throw() : std::runtime_error(msg) {}
+    WriteException(const std::string& msg) throw() :
+        std::runtime_error(msg) 
+    {}
 };
 
-struct ProcessingError:
-  public std::runtime_error 
+struct ProcessingException : public std::runtime_error 
 {
-  ProcessingError(const std::string& msg) throw() : std::runtime_error(msg) {}
+    ProcessingException(const std::string& msg) throw() :
+        std::runtime_error(msg) 
+    {}
 };
 
 // Errors that may be thrown by the weak lensing code, but 
 // defined in other files
 
-// ConfigFile_FileNotFound    -- Treat as FileNotFound
-// ConfigFile_KeyNotFound     -- Treat as ParameterError
-// ConfigFile_ParameterError  -- Treat as ParameterError
-// StarFinderError            -- Treat as ProcessingError
-// AssertFailure              -- Treat as ProcessingError
-// tmv::Error                 -- Treat as ProcessingError
-// std::exception             -- Treat as ProcessingError
+// StarFinderException        -- Treat as ProcessingException
+// AssertFailure              -- Treat as ProcessingException
+// tmv::Error                 -- Treat as ProcessingException
+// std::exception             -- Treat as ProcessingException
 
 
 
@@ -90,42 +90,19 @@ struct ProcessingError:
 //
 
 enum ExitCode { 
-  SUCCESS = 0,
-  FAILURE,
-  FAILURE_FILE_NOT_FOUND,
-  FAILURE_PARAMETER_ERROR,
-  FAILURE_READ_ERROR,
-  FAILURE_WRITE_ERROR,
-  FAILURE_PROCESSING_ERROR
+    SUCCESS = 0,
+    FAILURE,
+    FAILURE_FILE_NOT_FOUND,
+    FAILURE_PARAMETER_ERROR,
+    FAILURE_READ_ERROR,
+    FAILURE_WRITE_ERROR,
+    FAILURE_PROCESSING_ERROR
 };
 
-inline const char* Text(const ExitCode& code)
-{
-  switch (code) {
-    case SUCCESS : return "SUCCESS";
-    case FAILURE : return "FAILURE";
-    case FAILURE_FILE_NOT_FOUND : return "FAILURE_FILE_NOT_FOUND";
-    case FAILURE_PARAMETER_ERROR : return "FAILURE_PARAMETER_ERROR";
-    case FAILURE_READ_ERROR : return "FAILURE_READ_ERROR";
-    case FAILURE_WRITE_ERROR : return "FAILURE_WRITE_ERROR";
-    case FAILURE_PROCESSING_ERROR : return "FAILURE_PROCESSING_ERROR";
-    default : return "UNKNOWN";
-  }
-}
+const char* Text(const ExitCode& code);
 
-inline int Status(ExitCode code, const ConfigFile& params)
-{
-  switch (code) {
-    case SUCCESS : return params.read("success_status",2);
-    case FAILURE : return params.read("failure_status",4);
-    case FAILURE_FILE_NOT_FOUND : return params.read("file_not_found_status",5);
-    case FAILURE_PARAMETER_ERROR : return params.read("parameter_error_status",5);
-    case FAILURE_READ_ERROR : return params.read("read_error_status",5);
-    case FAILURE_WRITE_ERROR : return params.read("write_error_status",4);
-    case FAILURE_PROCESSING_ERROR : return params.read("processing_error_status",4);
-    default : return 0;
-  }
-}
+class ConfigFile;
+int Status(ExitCode code, const ConfigFile& params);
 
 
 // tolerance for testing output files

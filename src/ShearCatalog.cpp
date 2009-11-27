@@ -18,7 +18,7 @@
 #include "Params.h"
 #include "Form.h"
 #include "WlVersion.h"
-#include "WriteParKey.h"
+#include "WriteParam.h"
 
 //#define SINGLEGAL 8146
 //#define STARTAT 8000
@@ -288,7 +288,7 @@ void MeasureSingleShear1(
 
 void MeasureSingleShear(
     Position cen, const Image<double>& im, double sky,
-    const Transformation& trans, const FittedPSF& fitpsf,
+    const Transformation& trans, const FittedPsf& fitpsf,
     double noise, double gain, const Image<double>* weight_im, 
     double gal_aperture, double max_aperture,
     int gal_order, int gal_order2,
@@ -319,7 +319,7 @@ void MeasureSingleShear(
 
   // Calculate the psf from the fitted-psf formula:
   std::vector<BVec> psf(1,
-      BVec(fitpsf.GetPSFOrder(), fitpsf.GetSigma()));
+      BVec(fitpsf.getPsfOrder(), fitpsf.getSigma()));
   try 
   {
     dbg<<"for fittedpsf cen = "<<cen<<std::endl;
@@ -372,8 +372,10 @@ void MeasureSingleShear(
 
 ShearCatalog::ShearCatalog(const InputCatalog& incat,
     const Transformation& trans, const ConfigFile& _params) :
-  id(incat.id), pos(incat.pos), sky(incat.sky), noise(incat.noise),
-  flags(incat.flags), bounds(incat.bounds), params(_params)
+    id(incat.getIdList()), pos(incat.getPosList()), 
+    sky(incat.getSkyList()), noise(incat.getNoiseList()),
+    flags(incat.getFlagsList()), 
+    bounds(incat.getBounds()), params(_params)
 {
   dbg<<"Create ShearCatalog\n";
 
@@ -386,31 +388,31 @@ ShearCatalog::ShearCatalog(const InputCatalog& incat,
 
   // Calculate sky positions
   Position skypos_default(DEFVALNEG,DEFVALNEG);
-  if (incat.ra.size() == 0 || incat.dec.size() == 0) 
+  if (incat.getRaList().size() == 0 || incat.getDeclList().size() == 0) 
   {
     skypos.resize(size(),skypos_default);
     for(size_t i=0;i<size();i++) 
     {
       try 
       {
-	trans.Transform(pos[i],skypos[i]);
+          trans.Transform(pos[i],skypos[i]);
       } 
       catch (RangeException& e) 
       {
-	xdbg<<"distortion range error\n";
-	xdbg<<"p = "<<pos[i]<<", b = "<<e.getBounds()<<std::endl;
+          xdbg<<"distortion range error\n";
+          xdbg<<"p = "<<pos[i]<<", b = "<<e.getBounds()<<std::endl;
       }                       
       skybounds += skypos[i];
     }
   }
   else 
   {
-    Assert(incat.ra.size() == size());
-    Assert(incat.dec.size() == size());
+    Assert(incat.getRaList().size() == size());
+    Assert(incat.getDeclList().size() == size());
     skypos.resize(size());
     for(size_t i=0;i<size();++i) 
     {
-      skypos[i] = Position(incat.ra[i],incat.dec[i]);
+      skypos[i] = incat.getSkyPos(i);
       skypos[i] *= 3600.; // degrees -> arcsec
       skybounds += skypos[i];
     }
@@ -586,20 +588,18 @@ void ShearCatalog::WriteFits(std::string file) const
   // if serun= is sent we'll put it in the header.  This allows us to 
   // associate some more, possibly complicated, metadata with this file
   if ( params.keyExists("serun") ) {
-	  CCfitsWriteParKey(params, table, "serun", str);
+	  writeParamToTable(params, table, "serun", str);
   }
 
+  writeParamToTable(params, table, "noise_method", str);
+  writeParamToTable(params, table, "dist_method", str);
 
-  //CCfitsWriteParKey(params, table, "version", str);
-  CCfitsWriteParKey(params, table, "noise_method", str);
-  CCfitsWriteParKey(params, table, "dist_method", str);
-
-  CCfitsWriteParKey(params, table, "shear_aperture", dbl);
-  CCfitsWriteParKey(params, table, "shear_max_aperture", dbl);
-  CCfitsWriteParKey(params, table, "shear_gal_order", intgr);
-  CCfitsWriteParKey(params, table, "shear_gal_order2", intgr);
-  CCfitsWriteParKey(params, table, "shear_min_gal_size", dbl);
-  CCfitsWriteParKey(params, table, "shear_f_psf", dbl);
+  writeParamToTable(params, table, "shear_aperture", dbl);
+  writeParamToTable(params, table, "shear_max_aperture", dbl);
+  writeParamToTable(params, table, "shear_gal_order", intgr);
+  writeParamToTable(params, table, "shear_gal_order2", intgr);
+  writeParamToTable(params, table, "shear_min_gal_size", dbl);
+  writeParamToTable(params, table, "shear_f_psf", dbl);
 
 
 
@@ -685,7 +685,7 @@ void ShearCatalog::WriteAscii(std::string file, std::string delim) const
   std::ofstream fout(file.c_str());
   if (!fout) 
   {
-    throw WriteError("Error opening shear file"+file);
+    throw WriteException("Error opening shear file"+file);
   }
 
   Form hexform; hexform.hex().trail(0);
@@ -755,17 +755,18 @@ void ShearCatalog::Write() const
     }
     catch (CCfits::FitsException& e)
     {
-      throw WriteError("Error writing to "+file+" -- caught error\n" +
-	  e.message());
+      throw WriteException(
+          "Error writing to "+file+" -- caught error\n" + e.message());
     }
     catch (std::exception& e)
     {
-      throw WriteError("Error writing to "+file+" -- caught error\n" +
-	  e.what());
+      throw WriteException(
+          "Error writing to "+file+" -- caught error\n" + e.what());
     }
     catch (...)
     {
-      throw WriteError("Error writing to "+file+" -- caught unknown error");
+      throw WriteException(
+          "Error writing to "+file+" -- caught unknown error");
     }
   }
   dbg<<"Done Write ShearCatalog\n";
@@ -786,7 +787,8 @@ void ShearCatalog::ReadFits(std::string file)
   dbg<<"  nrows = "<<nrows<<std::endl;
   if (nrows <= 0) 
   {
-    throw ReadError("ShearCatalog found to have 0 rows.  Must have > 0 rows.");
+    throw ReadException(
+        "ShearCatalog found to have 0 rows.  Must have > 0 rows.");
   }
 
   std::string id_col=params.get("shear_id_col");
@@ -899,7 +901,7 @@ void ShearCatalog::ReadAscii(std::string file, std::string delim)
   std::ifstream fin(file.c_str());
   if (!fin) 
   {
-    throw ReadError("Error opening stars file"+file);
+    throw ReadException("Error opening stars file"+file);
   }
 
   id.clear(); pos.clear(); sky.clear(); noise.clear(); flags.clear();
@@ -937,7 +939,8 @@ void ShearCatalog::ReadAscii(std::string file, std::string delim)
       // Since I don't really expect a multicharacter delimiter to
       // be used ever, I'm just going to throw an exception here 
       // if we do need it, and I can write the workaround then.
-      throw ParameterError("ReadAscii delimiter must be a single character");
+      throw ParameterException(
+          "ReadAscii delimiter must be a single character");
     }
     char d = delim[0];
     long b_order;
@@ -991,7 +994,7 @@ void ShearCatalog::Read()
 
   if (!doesFileExist(file))
   {
-    throw FileNotFound(file);
+    throw FileNotFoundException(file);
   }
   try
   {
@@ -1009,17 +1012,18 @@ void ShearCatalog::Read()
   }
   catch (CCfits::FitsException& e)
   {
-    throw ReadError("Error reading from "+file+" -- caught error\n" +
-	e.message());
+    throw ReadException(
+        "Error reading from "+file+" -- caught error\n" + e.message());
   }
   catch (std::exception& e)
   {
-    throw ReadError("Error reading from "+file+" -- caught error\n" +
-	e.what());
+    throw ReadException(
+        "Error reading from "+file+" -- caught error\n" + e.what());
   }
   catch (...)
   {
-    throw ReadError("Error reading from "+file+" -- caught unknown error");
+    throw ReadException(
+        "Error reading from "+file+" -- caught unknown error");
   }
 
   // Update the bounds:

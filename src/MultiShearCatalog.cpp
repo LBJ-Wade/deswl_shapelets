@@ -18,7 +18,7 @@
 #include "MultiShearCatalog.h"
 #include "ShearCatalog.h"
 #include "Form.h"
-#include "WriteParKey.h"
+#include "WriteParam.h"
 #include "ShearCatalogTree.h"
 
 //#define OnlyNImages 30
@@ -115,7 +115,7 @@ void MultiShearCatalog::ReadFileLists()
   std::string file = params.get("coadd_srclist");
   if (!doesFileExist(file))
   {
-    throw FileNotFound(file);
+    throw FileNotFoundException(file);
   }
 
   try 
@@ -124,7 +124,7 @@ void MultiShearCatalog::ReadFileLists()
     std::ifstream flist(file.c_str(), std::ios::in);
     if (!flist)
     {
-      throw ReadError("Unable to open source list file " + file);
+      throw ReadException("Unable to open source list file " + file);
     }
 
     image_file_list.clear();
@@ -146,12 +146,13 @@ void MultiShearCatalog::ReadFileLists()
   }
   catch (std::exception& e)
   {
-    throw ReadError("Error reading from "+file+" -- caught error\n" +
-	e.what());
+    throw ReadException(
+        "Error reading from "+file+" -- caught error\n" + e.what());
   }
   catch (...)
   {
-    throw ReadError("Error reading from "+file+" -- caught unknown error");
+    throw ReadException(
+        "Error reading from "+file+" -- caught unknown error");
   }
 
   dbg<<"Done reading file lists\n";
@@ -352,17 +353,18 @@ void MultiShearCatalog::Write() const
     }
     catch (CCfits::FitsException& e)
     {
-      throw WriteError("Error writing to "+file+" -- caught error\n" +
-	  e.message());
+      throw WriteException(
+          "Error writing to "+file+" -- caught error\n" + e.message());
     }
     catch (std::exception& e)
     {
-      throw WriteError("Error writing to "+file+" -- caught error\n" +
-	  e.what());
+      throw WriteException(
+          "Error writing to "+file+" -- caught error\n" + e.what());
     }
     catch (...)
     {
-      throw WriteError("Error writing to "+file+" -- caught unknown error");
+      throw WriteException(
+          "Error writing to "+file+" -- caught unknown error");
     }
   }
   dbg<<"Done Write ShearCatalog\n";
@@ -467,23 +469,22 @@ void MultiShearCatalog::WriteFits(std::string file) const
   std::string str;
   double dbl;
   int intgr;
-  //CCfitsWriteParKey(params, table, "version", str);
-  CCfitsWriteParKey(params, table, "noise_method", str);
-  CCfitsWriteParKey(params, table, "dist_method", str);
+  writeParamToTable(params, table, "noise_method", str);
+  writeParamToTable(params, table, "dist_method", str);
 
-  CCfitsWriteParKey(params, table, "shear_aperture", dbl);
-  CCfitsWriteParKey(params, table, "shear_max_aperture", dbl);
-  CCfitsWriteParKey(params, table, "shear_gal_order", intgr);
-  CCfitsWriteParKey(params, table, "shear_gal_order2", intgr);
-  CCfitsWriteParKey(params, table, "shear_min_gal_size", dbl);
-  CCfitsWriteParKey(params, table, "shear_f_psf", dbl);
+  writeParamToTable(params, table, "shear_aperture", dbl);
+  writeParamToTable(params, table, "shear_max_aperture", dbl);
+  writeParamToTable(params, table, "shear_gal_order", intgr);
+  writeParamToTable(params, table, "shear_gal_order2", intgr);
+  writeParamToTable(params, table, "shear_min_gal_size", dbl);
+  writeParamToTable(params, table, "shear_f_psf", dbl);
 
-  CCfitsWriteParKey(params, table, "maxmem", dbl);
+  writeParamToTable(params, table, "maxmem", dbl);
 
   // if merun= is sent we'll put it in the header.  This allows us to 
   // associate some more, possibly complicated, metadata with this file
   if ( params.keyExists("merun") ) {
-	  CCfitsWriteParKey(params, table, "merun", str);
+	  writeParamToTable(params, table, "merun", str);
   }
 
   // data
@@ -559,7 +560,7 @@ void MultiShearCatalog::WriteAscii(std::string file, std::string delim) const
 
   std::ofstream fout(file.c_str());
   if (!fout) {
-    throw WriteError("Error opening shear file"+file);
+    throw WriteException("Error opening shear file"+file);
   }
 
   Form hexform; hexform.hex().trail(0);
@@ -602,7 +603,7 @@ void MultiShearCatalog::Read()
 
   if (!doesFileExist(file))
   {
-    throw FileNotFound(file);
+    throw FileNotFoundException(file);
   }
   try
   {
@@ -618,17 +619,18 @@ void MultiShearCatalog::Read()
   }
   catch (CCfits::FitsException& e)
   {
-    throw ReadError("Error reading from "+file+" -- caught error\n" +
-	e.message());
+    throw ReadException(
+        "Error reading from "+file+" -- caught error\n" + e.message());
   }
   catch (std::exception& e)
   {
-    throw ReadError("Error reading from "+file+" -- caught error\n" +
-	e.what());
+    throw ReadException(
+        "Error reading from "+file+" -- caught error\n" + e.what());
   }
   catch (...)
   {
-    throw ReadError("Error reading from "+file+" -- caught unknown error");
+    throw ReadException(
+        "Error reading from "+file+" -- caught unknown error");
   }
   dbg<<"Done Read ShearCatalog\n";
 }
@@ -647,7 +649,7 @@ void MultiShearCatalog::ReadFits(std::string file)
 
   dbg<<"  nrows = "<<nrows<<std::endl;
   if (nrows <= 0) {
-    throw ReadError("ShearCatalog found to have 0 rows.  Must have > 0 rows.");
+    throw ReadException("ShearCatalog found to have 0 rows.  Must have > 0 rows.");
   }
 
   std::string id_col=params.get("multishear_id_col");
@@ -749,7 +751,7 @@ void MultiShearCatalog::ReadAscii(std::string file, std::string delim)
 {
   std::ifstream fin(file.c_str());
   if (!fin) {
-    throw ReadError("Error opening stars file"+file);
+    throw ReadException("Error opening stars file"+file);
   }
 
   id.clear(); skypos.clear(); flags.clear();
@@ -785,7 +787,8 @@ void MultiShearCatalog::ReadAscii(std::string file, std::string delim)
       // Since I don't really expect a multicharacter delimiter to
       // be used ever, I'm just going to throw an exception here 
       // if we do need it, and I can write the workaround then.
-      throw ParameterError("ReadAscii delimiter must be a single character");
+      throw ParameterException(
+          "ReadAscii delimiter must be a single character");
     }
     char d = delim[0];
     long b_order;

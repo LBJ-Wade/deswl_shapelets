@@ -56,9 +56,9 @@ void setRoot(ConfigFile& params, const std::string& imageFileName)
         }
     }
     if (!isFound) {
-        throw(ParameterError(
+        throw ParameterException(
                 "image file "+imageFileName+
-                " does not end with "+params["image_ext"]));
+                " does not end with "+params["image_ext"]);
     }
 
     // Calculate the root
@@ -112,7 +112,7 @@ std::string makeName(
         name = params[what+"_file"];
         if (mustExist) 
         {
-            if (!doesFileExist(name)) throw FileNotFound(name);
+            if (!doesFileExist(name)) throw FileNotFoundException(name);
         }
     } else {
         Assert(params.keyExists("root"));
@@ -148,7 +148,7 @@ std::string makeName(
                         name = pre + root + ext[j];
                         allNames += name;
                     }
-                    throw FileNotFound(allNames);
+                    throw FileNotFoundException(allNames);
                 }
             } else {
                 break;

@@ -15,7 +15,7 @@
 
 int ShearCatalog::MeasureShears(const Image<double>& im,
     const Image<double>* weight_im, const Transformation& trans,
-    const FittedPSF& fitpsf, ShearLog& log)
+    const FittedPsf& fitpsf, ShearLog& log)
 {
   int ngals = pos.size();
   dbg<<"ngals = "<<ngals<<std::endl;

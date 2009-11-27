@@ -36,8 +36,8 @@ inline int BasicSetup(int argc, char **argv,
   params.setDelimiter("=");
   params.setInclude("+");
   params.setComment("#");
-  params.Load(argv[1]);
-  for(int k=2;k<argc;k++) params.Append(argv[k]);
+  params.load(argv[1]);
+  for(int k=2;k<argc;k++) params.append(argv[k]);
 
   // Set number of openmp threads if necessary
 #ifdef _OPENMP
@@ -100,13 +100,13 @@ inline int BasicSetup(int argc, char **argv,
   dbg<<"Config params = \n"<<params<<std::endl;
   std::string fp((const char*)fitsparams_config,fitsparams_config_len);
   std::istringstream is(fp);
-  params.Read(is);
+  params.read(is);
 
   return 0;
 }
 
 #define CATCHALL \
-catch (FileNotFound& e) \
+catch (FileNotFoundException& e) \
 { \
   dbg<<"Caught \n"<<e.what()<<std::endl; \
   std::cerr<<"Caught \n"<<e.what()<<std::endl; \
@@ -116,7 +116,7 @@ catch (FileNotFound& e) \
   } \
   return EXIT_FAILURE; \
 } \
-catch (ParameterError& e) \
+catch (ParameterException& e) \
 { \
   dbg<<"Caught \n"<<e.what()<<std::endl; \
   std::cerr<<"Caught \n"<<e.what()<<std::endl; \
@@ -126,7 +126,7 @@ catch (ParameterError& e) \
   } \
   return EXIT_FAILURE; \
 }  \
-catch (ReadError& e) \
+catch (ReadException& e) \
 { \
   dbg<<"Caught \n"<<e.what()<<std::endl; \
   std::cerr<<"Caught \n"<<e.what()<<std::endl; \
@@ -136,7 +136,7 @@ catch (ReadError& e) \
   } \
   return EXIT_FAILURE; \
 } \
-catch (WriteError& e) \
+catch (WriteException& e) \
 { \
   dbg<<"Caught \n"<<e.what()<<std::endl; \
   std::cerr<<"Caught \n"<<e.what()<<std::endl; \
@@ -146,32 +146,12 @@ catch (WriteError& e) \
   } \
   return EXIT_FAILURE; \
 } \
-catch (ProcessingError& e) \
+catch (ProcessingException& e) \
 { \
   dbg<<"Caught \n"<<e.what()<<std::endl; \
   std::cerr<<"Caught \n"<<e.what()<<std::endl; \
   if (log.get()) { \
     log->exitcode = FAILURE_PROCESSING_ERROR; \
-    log->extraexitinfo = e.what(); \
-  } \
-  return EXIT_FAILURE; \
-} \
-catch (ConfigFile_FileNotFound& e) \
-{ \
-  dbg<<"Caught \n"<<e.what()<<std::endl; \
-  std::cerr<<"Caught \n"<<e.what()<<std::endl; \
-  if (log.get()) { \
-    log->exitcode = FAILURE_FILE_NOT_FOUND; \
-    log->extraexitinfo = e.what(); \
-  } \
-  return EXIT_FAILURE; \
-} \
-catch (ConfigFile_KeyNotFound& e) \
-{ \
-  dbg<<"Caught \n"<<e.what()<<std::endl; \
-  std::cerr<<"Caught \n"<<e.what()<<std::endl; \
-  if (log.get()) { \
-    log->exitcode = FAILURE_PARAMETER_ERROR; \
     log->extraexitinfo = e.what(); \
   } \
   return EXIT_FAILURE; \

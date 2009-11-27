@@ -37,7 +37,7 @@ class ShearCatalog
 
     int MeasureShears(const Image<double>& im,
 	const Image<double>* weight_im, const Transformation& trans,
-	const FittedPSF& fitpsf, ShearLog& log);
+	const FittedPsf& fitpsf, ShearLog& log);
 
     std::vector<long> id;
     std::vector<Position> pos;
@@ -61,7 +61,7 @@ class ShearCatalog
 
 void MeasureSingleShear(
     Position cen, const Image<double>& im, double sky,
-    const Transformation& trans, const FittedPSF& fitpsf,
+    const Transformation& trans, const FittedPsf& fitpsf,
     double noise, double gain, const Image<double>* weight_im, 
     double gal_aperture, double max_aperture,
     int gal_order, int gal_order2,

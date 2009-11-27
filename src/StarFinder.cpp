@@ -72,7 +72,7 @@ StarFinder::StarFinder(const ConfigFile& params, std::string keyPrefix)
     ConfigFile defaultParams;
     defaultParams.setDelimiter("\t");
     defaultParams.setComment("#");
-    defaultParams.Read(is);
+    defaultParams.read(is);
     setParams(defaultParams,"",true);
 
     setParams(params,keyPrefix);
