@@ -82,7 +82,7 @@ int MultiShearCatalog::GetPixels(const Bounds& b)
     dbg<<"Reading image file: "<<image_file<<"\n";
     // Set the appropriate parameters
     params["image_file"] = image_file;
-    SetRoot(params,image_file);
+    setRoot(params,image_file);
     params["shear_file"] = shear_file;
     params["fitpsf_file"] = psf_file;
 
@@ -113,7 +113,7 @@ MultiShearCatalog::~MultiShearCatalog()
 void MultiShearCatalog::ReadFileLists()
 {
   std::string file = params.get("coadd_srclist");
-  if (!FileExists(file))
+  if (!doesFileExist(file))
   {
     throw FileNotFound(file);
   }
@@ -320,7 +320,7 @@ double MultiShearCatalog::CalcMemoryFootprint(bool getmax) const
 
 void MultiShearCatalog::Write() const
 {
-  std::vector<std::string> files = MultiName(params, "multishear");
+  std::vector<std::string> files = makeMultiName(params, "multishear");
 
   for(size_t i=0; i<files.size(); ++i) {
     const std::string& file = files[i];
@@ -589,7 +589,7 @@ void MultiShearCatalog::WriteAscii(std::string file, std::string delim) const
 
 void MultiShearCatalog::Read()
 {
-  std::string file = Name(params,"multishear",false,true);
+  std::string file = makeName(params,"multishear",false,true);
   // false,true = input_prefix=false, mustexist=true.
   // It is an input here, but it is in the output_prefix directory.
   dbg<< "Reading Shear cat from file: " << file << std::endl;
@@ -600,7 +600,7 @@ void MultiShearCatalog::Read()
   else if (file.find("fits") != std::string::npos)
     fitsio = true;
 
-  if (!FileExists(file))
+  if (!doesFileExist(file))
   {
     throw FileNotFound(file);
   }

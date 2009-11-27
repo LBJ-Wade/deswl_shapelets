@@ -139,7 +139,7 @@ void CoaddCatalog::ReadCatalog()
   // ConvertibleStringError into a ConfigFile_ParameterError
   int hdu = params.read<int>("coaddcat_hdu");
 
-  if (!FileExists(file))
+  if (!doesFileExist(file))
   {
     throw FileNotFound(file);
   }

@@ -366,7 +366,8 @@ void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
   if (sky_method == "MAP")
   {
     int skymap_hdu = params.read("skymap_hdu",1);
-    sky_map.reset(new Image<float>(Name(params,"skymap",true),skymap_hdu));
+    sky_map.reset(
+        new Image<float>(makeName(params,"skymap",true,false),skymap_hdu));
   }
 
   BVec psf(fitpsf.GetPSFOrder(), fitpsf.GetSigma());

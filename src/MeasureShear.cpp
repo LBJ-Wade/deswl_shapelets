@@ -104,8 +104,8 @@ int main(int argc, char **argv) try
   // Setup Log
   std::string logfile = ""; // Default is to stdout
   if (params.keyExists("log_file") || params.keyExists("log_ext")) 
-    logfile = Name(params,"log");
-  std::string shear_file = Name(params,"shear");
+    logfile = makeName(params,"log",false,false);
+  std::string shear_file = makeName(params,"shear",false,false);
   std::auto_ptr<ShearLog> log (
       new ShearLog(params,logfile,shear_file)); 
 

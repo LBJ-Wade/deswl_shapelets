@@ -11,24 +11,24 @@ template <typename T>
 Image<T>::Image(
     const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm)
 {
-    _fileName = Name(params,"image",true);
+    _fileName = makeName(params,"image",true,false);
     _hdu = params.read("image_hdu",1);
     readFits();
-    xdbg<<"Opened image "<<Name(params,"image",true)<<std::endl;
+    xdbg<<"Opened image "<<makeName(params,"image",true,false)<<std::endl;
 
     // Load weight image (if necessary)
     if (params["noise_method"] == "WEIGHT_IMAGE") 
     {
         int weightHdu = params.read("weight_hdu",1);
         weightIm.reset(
-            new Image<T>(Name(params,"weight",true),weightHdu));
+            new Image<T>(makeName(params,"weight",true,false),weightHdu));
         dbg<<"Opened weight image.\n";
 
         // Make sure any bad pixels are marked with 0 variance.
         if (params.keyExists("badpix_file") || params.keyExists("badpix_ext"))
         {
             int badpixHdu = params.read("badpix_hdu",1);
-            std::string badpixName = Name(params,"badpix",true);
+            std::string badpixName = makeName(params,"badpix",true,false);
             dbg<<"badpix name = "<<badpixName<<std::endl;
             dbg<<"hdu = "<<badpixHdu<<std::endl;
             Image<float> badpixIm(badpixName,badpixHdu);
@@ -46,10 +46,10 @@ Image<T>::Image(
 template <typename T>
 Image<T>::Image(const ConfigFile& params)
 {
-    _fileName = Name(params,"image",true);
+    _fileName = makeName(params,"image",true,false);
     _hdu = params.read("image_hdu",1);
     readFits();
-    xdbg<<"Opened image "<<Name(params,"image",true)<<std::endl;
+    xdbg<<"Opened image "<<makeName(params,"image",true,false)<<std::endl;
 }
 
 template <typename T> 
@@ -148,24 +148,24 @@ Image<T>::Image(
     const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm,
     int x1, int x2, int y1, int y2)
 {
-    _fileName = Name(params,"image",true);
+    _fileName = makeName(params,"image",true,false);
     _hdu = params.read("image_hdu",1);
     readFits(x1,x2,y1,y2);
-    xdbg<<"Opened image "<<Name(params,"image",true)<<std::endl;
+    xdbg<<"Opened image "<<makeName(params,"image",true,false)<<std::endl;
 
     // Load weight image (if necessary)
     if (params["noise_method"] == "WEIGHT_IMAGE") 
     {
         int weightHdu = params.read("weight_hdu",1);
         weightIm.reset(
-            new Image<T>(Name(params,"weight",true),weightHdu,x1,x2,y1,y2));
+            new Image<T>(makeName(params,"weight",true,false),weightHdu,x1,x2,y1,y2));
         dbg<<"Opened weight image.\n";
 
         // Make sure any bad pixels are marked with 0 variance.
         if (params.keyExists("badpix_file") || params.keyExists("badpix_ext"))
         {
             int badpixHdu = params.read("badpix_hdu",1);
-            std::string badpixName = Name(params,"badpix",true);
+            std::string badpixName = makeName(params,"badpix",true,false);
             dbg<<"badpix name = "<<badpixName<<std::endl;
             dbg<<"hdu = "<<badpixHdu<<std::endl;
             Image<float> badpixIm(badpixName,badpixHdu,x1,x2,y1,y2);
@@ -188,24 +188,24 @@ Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm,
     int x2 = int(ceil(bounds.getXMax()));
     int y1 = int(floor(bounds.getYMin()));
     int y2 = int(ceil(bounds.getYMax()));
-    _fileName = Name(params,"image",true);
+    _fileName = makeName(params,"image",true,false);
     _hdu = params.read("image_hdu",1);
     readFits(x1,x2,y1,y2);
-    xdbg<<"Opened image "<<Name(params,"image",true)<<std::endl;
+    xdbg<<"Opened image "<<makeName(params,"image",true,false)<<std::endl;
 
     // Load weight image (if necessary)
     if (params["noise_method"] == "WEIGHT_IMAGE") 
     {
         int weightHdu = params.read("weight_hdu",1);
         weightIm.reset(
-            new Image<T>(Name(params,"weight",true),weightHdu,bounds));
+            new Image<T>(makeName(params,"weight",true,false),weightHdu,bounds));
         dbg<<"Opened weight image.\n";
 
         // Make sure any bad pixels are marked with 0 variance.
         if (params.keyExists("badpix_file") || params.keyExists("badpix_ext"))
         {
             int badpixHdu = params.read("badpix_hdu",1);
-            std::string badpixName = Name(params,"badpix",true);
+            std::string badpixName = makeName(params,"badpix",true,false);
             dbg<<"badpix name = "<<badpixName<<std::endl;
             dbg<<"hdu = "<<badpixHdu<<std::endl;
             Image<float> badpixIm(badpixName,badpixHdu,bounds);
@@ -223,7 +223,7 @@ Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm,
 template <typename T>
 Image<T>::Image(const ConfigFile& params, int x1, int x2, int y1, int y2)
 {
-    _fileName = Name(params,"image",true);
+    _fileName = makeName(params,"image",true,false);
     _hdu = params.read("image_hdu",1);
     readFits(x1,x2,y1,y2);
     xdbg<<"Opened image "<<_fileName<<std::endl;
@@ -236,10 +236,10 @@ Image<T>::Image(const ConfigFile& params, const Bounds& bounds)
     int x2 = int(ceil(bounds.getXMax()));
     int y1 = int(floor(bounds.getYMin()));
     int y2 = int(ceil(bounds.getYMax()));
-    _fileName = Name(params,"image",true);
+    _fileName = makeName(params,"image",true,false);
     _hdu = params.read("image_hdu",1);
     readFits(x1,x2,y1,y2);
-    xdbg<<"Opened image "<<Name(params,"image",true)<<std::endl;
+    xdbg<<"Opened image "<<makeName(params,"image",true,false)<<std::endl;
 }
 
 template <typename T> 

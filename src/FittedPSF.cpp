@@ -275,7 +275,7 @@ void FittedPSF::ReadAscii(std::string file)
 
 void FittedPSF::Write() const
 {
-  std::vector<std::string> files = MultiName(params, "fitpsf");  
+  std::vector<std::string> files = makeMultiName(params, "fitpsf");  
 
   const int nFiles = files.size();
   for(int i=0; i<nFiles; ++i) {
@@ -319,7 +319,7 @@ void FittedPSF::Write() const
 
 void FittedPSF::Read()
 {
-	std::string file = Name(params,"fitpsf",false,true);
+	std::string file = makeName(params,"fitpsf",false,true);
 	Read(file);
 }
 void FittedPSF::Read(std::string file)
@@ -334,7 +334,7 @@ void FittedPSF::Read(std::string file)
   else if (file.find("fits") != std::string::npos) 
     fitsio = true;
 
-  if (!FileExists(file))
+  if (!doesFileExist(file))
   {
     throw FileNotFound(file);
   }

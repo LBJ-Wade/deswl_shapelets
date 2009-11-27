@@ -14,7 +14,7 @@ enum NOISE_METHOD {VALUE, CATALOG, CATALOG_SIGMA, GAIN_VALUE, GAIN_FITS,
 
 static void ReadGain(const std::string& file, ConfigFile& params)
 {
-  if (!FileExists(file))
+  if (!doesFileExist(file))
   {
     throw FileNotFound(file);
   }
@@ -91,7 +91,7 @@ InputCatalog::InputCatalog(ConfigFile& _params, const Image<double>* im) :
   else if (noise_method == "GAIN_FITS") {
     // _params, not params, since we need a non-const version,
     // and the params object we store as a const reference.
-    ReadGain(Name(params,"image",true),_params);
+    ReadGain(makeName(params,"image",true,false),_params);
     xdbg<<"Read gain = "<<params["image_gain"]<<
       ", rdn = "<<params["image_readnoise"]<<std::endl;
     gain = params.read<double>("image_gain");
@@ -142,7 +142,7 @@ InputCatalog::InputCatalog(ConfigFile& _params, const Image<double>* im) :
     int minrows = params.read("cat_nrows",0);
     if (nrows <= minrows) {
       std::cout<<"STATUS3BEG Warning: Input catalog only has "
-	<<nrows<<" rows for Name="<<Name(params,"cat",true)
+	<<nrows<<" rows for Name="<<makeName(params,"cat",true,false)
 	<<". STATUS3END"<<std::endl;
     }
   }
@@ -223,7 +223,7 @@ InputCatalog::InputCatalog(ConfigFile& _params, const Image<double>* im) :
 
 void InputCatalog::Read()
 {
-  std::string file = Name(params,"cat",true);
+  std::string file = makeName(params,"cat",true,false);
   // true = mustexist=true.
   dbg<< "Reading input cat from file: " << file << std::endl;
 
@@ -233,7 +233,7 @@ void InputCatalog::Read()
   else if (file.find("fits") != std::string::npos) 
     fitsio = true;
 
-  if (!FileExists(file))
+  if (!doesFileExist(file))
   {
     throw FileNotFound(file);
   }

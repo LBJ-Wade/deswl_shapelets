@@ -9,31 +9,38 @@
 class PotentialStar {
 
 public:
-  PotentialStar(Position _pos, double _mag, double _size, long _index,
-      std::string _line) :
-    itspos(_pos),itsmag(_mag),itssize(_size),itsindex(_index),
-    itsline(_line) {}
-  ~PotentialStar() {}
+    PotentialStar(Position pos, double mag, double size, long index,
+                  const std::string& line) :
+        _pos(pos), _mag(mag), _size(size), _index(index), _line(line) 
+    {}
 
-  const Position& GetPos() const {return itspos;}
-  double GetMag() const { return itsmag; }
-  double GetSize() const { return itssize; }
-  long GetIndex() const { return itsindex; }
-  const std::string& GetLine() const {return itsline;}
+    ~PotentialStar() {}
 
-  void SetSize(double newsize) {itssize = newsize;}
+    const Position& getPos() const {return _pos;}
 
-  bool MagCompare(const PotentialStar* rhs) const
-    {return itsmag < rhs->itsmag;}
-  bool SizeCompare(const PotentialStar* rhs) const
-    {return itssize < rhs->itssize;}
+    double getMag() const { return _mag; }
+
+    double getSize() const { return _size; }
+
+    long getIndex() const { return _index; }
+
+    const std::string& getLine() const {return _line;}
+
+    void setSize(double newsize) {_size = newsize;}
+
+    bool isBrighterThan(const PotentialStar* rhs) const
+    {return _mag < rhs->_mag;}
+
+    bool isSmallerThan(const PotentialStar* rhs) const
+    {return _size < rhs->_size;}
 
 private:
 
-  Position itspos;
-  double itsmag,itssize;
-  long itsindex;
-  std::string itsline;
+    Position _pos;
+    double _mag;
+    double _size;
+    long _index;
+    std::string _line;
 
 };
 

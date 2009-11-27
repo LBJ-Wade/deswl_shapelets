@@ -6,15 +6,16 @@
 #include "ConfigFile.h"
 #include "Params.h"
 
-void SetRoot(ConfigFile& params);
-void SetRoot(ConfigFile& params, const std::string& image_file);
+void setRoot(ConfigFile& params);
+void setRoot(ConfigFile& params, const std::string& imageFileName);
 
-bool FileExists(const std::string& strFilename);
+bool doesFileExist(const std::string& fileName);
 
-std::string Name(const ConfigFile& params, const std::string& what,
-    bool input_prefix=false, bool mustexist=false);
+std::string makeName(
+    const ConfigFile& params, const std::string& what,
+    bool isInputPrefix, bool mustExist);
 
-std::vector<std::string> MultiName(const ConfigFile& params,
-    const std::string& what);
+std::vector<std::string> makeMultiName(
+    const ConfigFile& params, const std::string& what);
 
 #endif

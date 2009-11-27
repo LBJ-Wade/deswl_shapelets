@@ -717,7 +717,7 @@ void ShearCatalog::WriteAscii(std::string file, std::string delim) const
 
 void ShearCatalog::Write() const
 {
-  std::vector<std::string> files = MultiName(params, "shear");  
+  std::vector<std::string> files = makeMultiName(params, "shear");  
 
   for(size_t i=0; i<files.size(); ++i) 
   {
@@ -978,7 +978,7 @@ void ShearCatalog::ReadAscii(std::string file, std::string delim)
 
 void ShearCatalog::Read()
 {
-  std::string file = Name(params,"shear",false,true);
+  std::string file = makeName(params,"shear",false,true);
   // false,true = input_prefix=false, mustexist=true.
   // It is an input here, but it is in the output_prefix directory.
   dbg<< "Reading Shear cat from file: " << file << std::endl;
@@ -989,7 +989,7 @@ void ShearCatalog::Read()
   else if (file.find("fits") != std::string::npos) 
     fitsio = true;
 
-  if (!FileExists(file))
+  if (!doesFileExist(file))
   {
     throw FileNotFound(file);
   }

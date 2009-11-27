@@ -133,8 +133,8 @@ int main(int argc, char **argv) try
   // Setup Log
   std::string logfile = ""; // Default is to stdout
   if (params.keyExists("log_file") || params.keyExists("log_ext"))
-    logfile = Name(params,"log");
-  std::string psf_file=Name(params,"psf");
+    logfile = makeName(params,"log",false,false);
+  std::string psf_file=makeName(params,"psf",false,false);
   std::auto_ptr<PSFLog> log (
       new PSFLog(params,logfile,psf_file)); 
 

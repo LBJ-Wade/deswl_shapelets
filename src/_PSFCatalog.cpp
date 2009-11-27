@@ -126,25 +126,26 @@ PSFCatalog::PSFCatalog(const StarCatalog& starcat,
     const ConfigFile& _params) : params(_params)
 {
   dbg<<"Create PSFCatalog\n";
-  dbg<<"ntot = "<<starcat.id.size()<<std::endl;
-  Assert(starcat.isastar.size() == starcat.id.size());
-  size_t nstars = std::count(starcat.isastar.begin(),starcat.isastar.end(),1);
-  dbg<<"count stars = "<<nstars<<std::endl;
-  id.reserve(nstars);
-  pos.reserve(nstars);
-  flags.reserve(nstars);
-  for (size_t i=0; i<starcat.size(); i++) 
+  const int nTot = starcat.size();
+  dbg<<"ntot = "<<nTot<<std::endl;
+  const std::vector<bool>& isAStar = starcat.getIsAStarList();
+  const int nStars = std::count(isAStar.begin(),isAStar.end(),1);
+  dbg<<"count stars = "<<nStars<<std::endl;
+  id.reserve(nStars);
+  pos.reserve(nStars);
+  flags.reserve(nStars);
+  for (int i=0; i<nTot; i++) 
   {
-    if (starcat.isastar[i]) 
+    if (starcat.isAStar(i)) 
     {
-      id.push_back( starcat.id[i] );
-      pos.push_back( starcat.pos[i] );
-      sky.push_back( starcat.sky[i] );
-      noise.push_back( starcat.noise[i] );
-      flags.push_back( starcat.flags[i] );
+      id.push_back( starcat.getId(i) );
+      pos.push_back( starcat.getPos(i) );
+      sky.push_back( starcat.getSky(i) );
+      noise.push_back( starcat.getNoise(i) );
+      flags.push_back( starcat.getFlags(i) );
     }
   }
-  Assert(id.size() == nstars);
+  Assert(id.size() == nStars);
   dbg<<"nstars = "<<id.size()<<std::endl;
 
   // Fix flags to only have INPUT_FLAG set.
@@ -368,7 +369,7 @@ void PSFCatalog::WriteAscii(std::string file, std::string delim) const
 
 void PSFCatalog::Write() const
 {
-  std::vector<std::string> files = MultiName(params, "psf");  
+  std::vector<std::string> files = makeMultiName(params, "psf");  
 
   for(size_t i=0; i<files.size(); ++i) 
   {
@@ -586,7 +587,7 @@ void PSFCatalog::ReadAscii(std::string file, std::string delim)
 
 void PSFCatalog::Read()
 {
-  std::string file = Name(params,"psf",false,true);
+  std::string file = makeName(params,"psf",false,true);
   Read(file);
 }
 
@@ -602,7 +603,7 @@ void PSFCatalog::Read(std::string file)
   else if (file.find("fits") != std::string::npos) 
     fitsio = true;
 
-  if (!FileExists(file))
+  if (!doesFileExist(file))
   {
     throw FileNotFound(file);
   }

@@ -59,7 +59,7 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
   }
 
   // Update the sizes to more robust values
-  starcat.CalcSizes(im,weight_im.get(),trans);
+  starcat.calculateSizes(im,weight_im.get(),trans);
 
   if (timing) {
     gettimeofday(&tp,0);
@@ -69,17 +69,17 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
   }
 
   try {
-    starcat.FindStars(log);
-  } catch(StarFinderError& e) {
+    starcat.findStars(log);
+  } catch(StarFinderException& e) {
     // Need to catch this here, so we can write the output file
     // with the sizes, even though we haven't figured out which 
     // objects are stars.
-    dbg<<"Caught StarFinderError: "<<e.what()<<std::endl;  
-    starcat.Write();
+    dbg<<"Caught StarFinderException: "<<e.what()<<std::endl;  
+    starcat.write();
     throw;
   } catch (...) {
     dbg<<"Caught unknown exception\n";
-    starcat.Write();
+    starcat.write();
     throw;
   }
   dbg<<"After RunFindStars\n";
@@ -92,7 +92,7 @@ static void DoFindStars(ConfigFile& params, FindStarsLog& log)
   }
 
   // Write star catalog to file
-  starcat.Write();
+  starcat.write();
 
   if (timing) {
     gettimeofday(&tp,0);
@@ -112,8 +112,8 @@ int main(int argc, char **argv) try
   // Setup Log
   std::string logfile = ""; // Default is to stdout
   if (params.keyExists("log_file") || params.keyExists("log_ext")) 
-    logfile = Name(params,"log");
-  std::string stars_file=Name(params,"stars");
+    logfile = makeName(params,"log",false,false);
+  std::string stars_file=makeName(params,"stars",false,false);
   std::auto_ptr<FindStarsLog> log (
       new FindStarsLog(params,logfile,stars_file)); 
 

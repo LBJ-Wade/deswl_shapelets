@@ -1755,43 +1755,46 @@ int main(int argc, char **argv) try
   InputCatalog incat(params);
 
   // Find stars
-  StarCatalog starcat(incat,params,"");
-  //starcat.CalcSizes(im,weight_im.get(),trans);
+  StarCatalog starCat(incat,params,"");
+  //starCat.calcSizes(im,weight_im.get(),trans);
   FindStarsLog fslog(params,"testfs.log");
-  int nstars = starcat.FindStars(fslog);
+  int nstars = starCat.findStars(fslog);
   dbg<<fslog<<std::endl;
   Test(nstars >= 240,"Find Stars");
 
   // Test I/O
-  starcat.Write();
-  StarCatalog starcat2(params,"");
+  starCat.write();
+  StarCatalog starCat2(params,"");
   std::vector<std::string> all_ext = params["stars_ext"];
   for(size_t k=0;k<all_ext.size();++k) {
     dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
     params["stars_ext"] = all_ext[k];
-    if (k > 0) starcat2.Read();
-    Test(starcat.size() == starcat2.size(),"starcat size I/O");
-    for(size_t i=0;i<starcat.size();++i) {
-      Test(starcat.id[i] == starcat2.id[i],"starcat id I/O");
-      Test(std::abs(starcat.pos[i] - starcat2.pos[i]) <= 0.01,"starcat pos I/O");
-      Test(std::abs(starcat.sky[i] - starcat2.sky[i]) <= 0.01,"starcat sky I/O");
-      Test(std::abs(starcat.noise[i] - starcat2.noise[i]) <= 0.01,
-	  "starcat noise I/O");
-      Test(starcat.flags[i] == starcat2.flags[i],"starcat flags I/O");
-      dbg<<"starcat.mag[i] = "<<starcat.mag[i]<<
-	", starcat2.mag[i] = "<<starcat2.mag[i]<<std::endl;
-      dbg<<"abs(diff) = "<<std::abs(starcat.mag[i] - starcat2.mag[i])<<std::endl;
-      Test(std::abs(starcat.mag[i] - starcat2.mag[i]) <= 0.01,
-	  "starcat mag I/O");
-      Test(std::abs(starcat.objsize[i] - starcat2.objsize[i]) <= 0.01,
-	  "starcat objsize I/O");
-      Test(starcat.isastar[i] == starcat2.isastar[i],"starcat isastar I/O");
+    if (k > 0) starCat2.read();
+    Test(starCat.size() == starCat2.size(),"starcat size I/O");
+    for(size_t i=0;i<starCat.size();++i) {
+      Test(starCat.getId(i) == starCat2.getId(i), "starcat id I/O");
+      Test(std::abs(starCat.getPos(i) - starCat2.getPos(i)) <= 0.01,
+           "starcat pos I/O");
+      Test(std::abs(starCat.getSky(i) - starCat2.getSky(i)) <= 0.01,
+           "starcat sky I/O");
+      Test(std::abs(starCat.getNoise(i) - starCat2.getNoise(i)) <= 0.01,
+           "starcat noise I/O");
+      Test(starCat.getFlags(i) == starCat2.getFlags(i),"starcat flags I/O");
+      dbg<<"starcat.mag[i] = "<<starCat.getMag(i)<<
+          ", starcat2.mag[i] = "<<starCat2.getMag(i)<<std::endl;
+      dbg<<"abs(diff) = "<<
+          std::abs(starCat.getMag(i) - starCat2.getMag(i))<<std::endl;
+      Test(std::abs(starCat.getMag(i) - starCat2.getMag(i)) <= 0.01,
+           "starcat mag I/O");
+      Test(std::abs(starCat.getObjSize(i) - starCat2.getObjSize(i)) <= 0.01,
+           "starcat objsize I/O");
+      Test(starCat.isAStar(i) == starCat2.isAStar(i),"starcat isastar I/O");
     }
   }
   params["stars_ext"] = all_ext;
 
   // Measure PSF
-  PSFCatalog psfcat(starcat,params);
+  PSFCatalog psfcat(starCat,params);
   double sigma_p = psfcat.EstimateSigma(im,weight_im.get(),trans);
   PSFLog psflog(params,"testpsf.log");
   int npsf = psfcat.MeasurePSF(im,weight_im.get(),trans,sigma_p,psflog);
@@ -1833,7 +1836,7 @@ int main(int argc, char **argv) try
   int count = 0;
   for(int i=0;i<nstars;i++) if (!psfcat.flags[i]) {
     BVec checkpsf(fitpsf.GetPSFOrder(),fitpsf.GetSigma());
-    checkpsf = fitpsf(starcat.pos[i]);
+    checkpsf = fitpsf(starCat.getPos(i));
     double normsqdiff = NormSq(psfcat.psf[i]-checkpsf);
     rms += normsqdiff;
     count++;
@@ -1859,9 +1862,9 @@ int main(int argc, char **argv) try
 	"FittedPSF I/O: sigma");
     for(int i=0;i<nstars;i++) if (!psfcat.flags[i]) {
       BVec checkpsf(fitpsf.GetPSFOrder(),fitpsf.GetSigma());
-      checkpsf = fitpsf(starcat.pos[i]);
+      checkpsf = fitpsf(starCat.getPos(i));
       BVec checkpsf2(fitpsf2.GetPSFOrder(),fitpsf2.GetSigma());
-      checkpsf2 = fitpsf2(starcat.pos[i]);
+      checkpsf2 = fitpsf2(starCat.getPos(i));
       double normsqdiff = NormSq(checkpsf2-checkpsf);
       rms += normsqdiff;
       ++count;

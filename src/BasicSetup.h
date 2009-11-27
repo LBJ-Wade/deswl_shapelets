@@ -55,14 +55,14 @@ inline int BasicSetup(int argc, char **argv,
     // Then use coaddcat_file rather than image_file to make root.
     params["image_file"] = params["coaddcat_file"];
   }
-  SetRoot(params);
+  setRoot(params);
 
   // Setup debugging
   if (params.read("verbose",0) > 0) {
     if (params.read<int>("verbose") > 1) XDEBUG = true;
     if (params.keyExists("debug_file") || params.keyExists("debug_ext"))
     {
-      std::string dbgfile = Name(params,"debug");
+      std::string dbgfile = makeName(params,"debug",false,false);
       dbgout = new std::ofstream(dbgfile.c_str());
 
 #ifdef _OPENMP

@@ -8,35 +8,36 @@
 #include "Params.h"
 #include "Log.h"
 
-void StarCatalog::CalcSizes(const Image<double>& im, 
-    const Image<double>*const weight_im, const Transformation& trans)
+void StarCatalog::calculateSizes(
+    const Image<double>& im, 
+    const Image<double>*const weightIm, const Transformation& trans)
 {
-  Assert(pos.size() == size());
-  Assert(sky.size() == size());
-  Assert(noise.size() == size());
-  Assert(objsize.size() == size());
-  Assert(flags.size() == size());
+    Assert(_pos.size() == size());
+    Assert(_sky.size() == size());
+    Assert(_noise.size() == size());
+    Assert(_objSize.size() == size());
+    Assert(_flags.size() == size());
 
-  const int n = pos.size();
-  dbg<<"n = "<<n<<std::endl;
-  double psfap = params.read<double>("psf_aperture"); 
-  double gain = params.read("image_gain",0.);
+    const int n = _pos.size();
+    dbg<<"n = "<<n<<std::endl;
+    double psfAp = _params.read<double>("psf_aperture"); 
+    double gain = _params.read("image_gain",0.);
 
-  const bool useShapeletSigma = params["stars_use_shapelet_sigma"];
+    const bool shouldUseShapeletSigma = _params["stars_use_shapelet_sigma"];
 
 #ifdef _OPENMP
 #pragma omp parallel for schedule(guided)
 #endif
-  for (int i=0; i<n; i++) if (!flags[i]) {
-    dbg<<"use i = "<<i<<std::endl;
+    for (int i=0; i<n; i++) if (!_flags[i]) {
+        dbg<<"use i = "<<i<<std::endl;
 
-    // Negative value indicates not set yet.  Start with 1 then.
-    if (objsize[i] <= 0.) objsize[i] = 1.;
-    CalcSigma(
-	objsize[i],
-	im, pos[i], sky[i], noise[i], gain, weight_im, 
-	trans, psfap, flags[i], useShapeletSigma);
-  }
-  dbg<<"Done MeasureSigmas\n";
+        // Negative value indicates not set yet.  Start with 1 then.
+        if (_objSize[i] <= 0.) _objSize[i] = 1.;
+        calculateSigma(
+            _objSize[i],
+            im, _pos[i], _sky[i], _noise[i], gain, weightIm, 
+            trans, psfAp, _flags[i], shouldUseShapeletSigma);
+    }
+    dbg<<"Done MeasureSigmas\n";
 }
 

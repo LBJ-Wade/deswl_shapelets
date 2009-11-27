@@ -11,7 +11,7 @@
 #include <iostream>  //for dump()
 
 #include "dbg.h"
-#include "pool.h"
+#include "Pool.h"
 
 #ifdef VG
 #include <valgrind/memcheck.h>

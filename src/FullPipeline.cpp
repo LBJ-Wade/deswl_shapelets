@@ -15,7 +15,8 @@
 static void DoFullPipeline(ConfigFile& params,
     std::string logfile, std::auto_ptr<Log>& log)
 {
-  log.reset(new FindStarsLog(params,logfile,Name(params,"stars")));
+  log.reset(
+      new FindStarsLog(params,logfile,makeName(params,"stars",false,false)));
 
   // Load image:
 
@@ -33,30 +34,30 @@ static void DoFullPipeline(ConfigFile& params,
   StarCatalog starcat(incat,params);
 
   // Update the sizes to more robust values
-  starcat.CalcSizes(im,weight_im.get(),trans);
+  starcat.calculateSizes(im,weight_im.get(),trans);
 
   try {
-    starcat.FindStars(static_cast<FindStarsLog&>(*log));
-  } catch(StarFinderError& e) {
+    starcat.findStars(static_cast<FindStarsLog&>(*log));
+  } catch(StarFinderException& e) {
     // Need to catch this here, so we can write the output file
     // with the sizes, even though we haven't figured out which 
     // objects are stars.
-    dbg<<"Caught StarFinderError: "<<e.what()<<std::endl;  
-    starcat.Write();
+    dbg<<"Caught StarFinderException: "<<e.what()<<std::endl;  
+    starcat.write();
     throw;
   } catch (...) {
     dbg<<"Caught unknown exception\n";
-    starcat.Write();
+    starcat.write();
     throw;
   }
   dbg<<"After RunFindStars\n";
 
   // Write star catalog to file
-  starcat.Write();
+  starcat.write();
 
   xdbg<<"FindStarsLog: \n"<<*log<<std::endl;
 
-  log.reset(new PSFLog(params,logfile,Name(params,"psf")));
+  log.reset(new PSFLog(params,logfile,makeName(params,"psf",false,false)));
 
   std::cerr<<"Determining PSF\n";
   // Create PSFCatalog from StarCatalog
@@ -85,7 +86,7 @@ static void DoFullPipeline(ConfigFile& params,
 
   xdbg<<"PSFLog: \n"<<*log<<std::endl;
 
-  log.reset(new ShearLog(params,logfile,Name(params,"shear")));
+  log.reset(new ShearLog(params,logfile,makeName(params,"shear",false,false)));
 
   std::cerr<<"Measuring Shears\n";
   // Create shear catalog
@@ -110,7 +111,7 @@ int main(int argc, char **argv) try
   // Setup Log
   std::string logfile = ""; // Default is to stdout
   if (params.keyExists("log_file") || params.keyExists("log_ext")) 
-    logfile = Name(params,"log");
+    logfile = makeName(params,"log",false,false);
   std::auto_ptr<Log> log;
 
   try {

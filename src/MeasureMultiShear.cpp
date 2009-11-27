@@ -181,8 +181,8 @@ int main(int argc, char **argv) try
   // Setup Log
   std::string logfile = ""; // Default is to stdout
   if (params.keyExists("log_file") || params.keyExists("log_ext")) 
-    logfile = Name(params,"log");
-  std::string multishear_file = Name(params,"multishear");
+    logfile = makeName(params,"log",false,false);
+  std::string multishear_file = makeName(params,"multishear",false,false);
   std::auto_ptr<ShearLog> log (
       new ShearLog(params,logfile,multishear_file)); 
 

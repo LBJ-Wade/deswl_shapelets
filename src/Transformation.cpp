@@ -38,13 +38,13 @@ Transformation::Transformation(const ConfigFile& params) :
     double dvdy = params.read<double>("dvdy");
     SetToJacobian(dudx,dudy,dvdx,dvdy);
   } else if (dist_method == "FUNC2D") {
-    std::string dist_file = Name(params,"dist",true);
+    std::string dist_file = makeName(params,"dist",true,false);
     std::ifstream distin(dist_file.c_str());
     Assert(distin);
     ReadFunc2D(distin);
     xdbg<<"Done read distortion "<<dist_file<<std::endl;
   } else if (dist_method == "WCS") {
-    std::string dist_file = Name(params,"dist",true);
+    std::string dist_file = makeName(params,"dist",true,false);
     int hdu = params.read("dist_hdu",1);
     ReadWCS(dist_file,hdu);
     xdbg<<"Done read WCS distortion "<<dist_file<<std::endl;
