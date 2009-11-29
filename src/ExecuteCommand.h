@@ -4,7 +4,9 @@
 
 #include <string>
 
-void ExecuteCommand(std::string command, std::string& result, bool strip_trailing_newline=false);
+void executeCommand(
+    std::string command, std::string& result,
+    bool shouldStripTrailingNewline = false);
 
 
 #endif

@@ -6,6 +6,7 @@
 #include <ostream>
 #include "Pixel.h"
 #include "BVec.h"
+#include "TimeVars.h"
 
 class Ellipse {
 
@@ -14,20 +15,17 @@ class Ellipse {
     Ellipse() :
       cen(0.), gamma(0.), mu(0.),
       fixcen(false), fixgam(false), fixmu(false), f_psf(1.0),
-      dotimings(false), t_integ(0.), t_centroid(0.),
-      t_gamma(0.), t_mu(0.), t_fixflux(0.), t_final(0.) {}
+      _shouldDoTimings(false) {}
 
     Ellipse(double _x, double _y, double _g1, double _g2, double _mu) :
       cen(_x,_y), gamma(_g1,_g2), mu(_mu), 
       fixcen(false), fixgam(false), fixmu(false), f_psf(1.0),
-      dotimings(false), t_integ(0.), t_centroid(0.),
-      t_gamma(0.), t_mu(0.), t_fixflux(0.), t_final(0.) {}
+      _shouldDoTimings(false) {}
 
     Ellipse(double vals[]) :
       cen(vals[0],vals[1]), gamma(vals[2],vals[3]), mu(vals[4]),
       fixcen(false), fixgam(false), fixmu(false), f_psf(1.0),
-      dotimings(false), t_integ(0.), t_centroid(0.),
-      t_gamma(0.), t_mu(0.), t_fixflux(0.), t_final(0.) {}
+      _shouldDoTimings(false) {}
 
     bool Measure(const std::vector<PixelList>& pix, 
 	const std::vector<BVec>& psf,
@@ -81,9 +79,9 @@ class Ellipse {
     void SetFP(double fp) { f_psf = fp; }
     double GetFP() const { return f_psf; }
 
-    void DoTimings() { dotimings = true; }
-    void ResetTimes() 
-    { t_integ = t_centroid = t_gamma = t_mu = t_fixflux = t_final = 0.; }
+    void doTimings() { _shouldDoTimings = true; }
+    void resetTimes() { _times.reset(); }
+    const EllipseTimes& getTimes() { return _times; }
 
   private :
 
@@ -101,12 +99,9 @@ class Ellipse {
     bool fixcen,fixgam,fixmu;
     double f_psf;
 
-    bool dotimings;
+    bool _shouldDoTimings;
 
-  public :
-
-    // Leave these accessible:
-    double t_integ, t_centroid, t_gamma, t_mu, t_fixflux, t_final;
+    EllipseTimes _times;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Ellipse& s)

@@ -6,160 +6,154 @@
 #include "dbg.h"
 #include "Params.h"
 #include "Image.h"
-#include "FittedPSF.h"
+#include "FittedPsf.h"
 #include "Log.h"
+#include "MeasureShearAlgo.h"
 
 //#define SINGLEGAL 8146
 //#define STARTAT 8000
 //#define ENDAT 200
 
-int ShearCatalog::MeasureShears(const Image<double>& im,
-    const Image<double>* weight_im, const Transformation& trans,
-    const FittedPsf& fitpsf, ShearLog& log)
+int ShearCatalog::measureShears(
+    const Image<double>& im,
+    const Image<double>* weightIm, const Transformation& trans,
+    const FittedPsf& fitPsf, ShearLog& log)
 {
-  int ngals = pos.size();
-  dbg<<"ngals = "<<ngals<<std::endl;
+    int nGals = size();
+    dbg<<"ngals = "<<nGals<<std::endl;
 
-  // Read some needed parameters
-  double gal_aperture = params.read<double>("shear_aperture");
-  double max_aperture = params.read("shear_max_aperture",0.);
-  int gal_order = params.read<int>("shear_gal_order");
-  int gal_order2 = params.read("shear_gal_order2",gal_order);
-  double f_psf = params.read<double>("shear_f_psf");
-  double gain = params.read("image_gain",0.);
-  double min_gal_size = params.read<double>("shear_min_gal_size");
-  bool output_dots = params.read("output_dots",false);
-  bool timing = params.read("timing",false);
+    // Read some needed parameters
+    double galAperture = _params.read<double>("shear_aperture");
+    double maxAperture = _params.read("shear_max_aperture",0.);
+    int galOrder = _params.read<int>("shear_gal_order");
+    int galOrder2 = _params.read("shear_gal_order2",galOrder);
+    double fPsf = _params.read<double>("shear_f_psf");
+    double gain = _params.read("image_gain",0.);
+    double minGalSize = _params.read<double>("shear_min_gal_size");
+    bool shouldOutputDots = _params.read("output_dots",false);
+    bool isTiming = _params.read("timing",false);
 
-  OverallFitTimes alltimes;
+    OverallFitTimes allTimes;
 
 #ifdef ENDAT
-  ngals = ENDAT;
+    nGals = ENDAT;
 #endif
-  
-  log.ngals = ngals;
+
+    log._nGals = nGals;
 #ifdef STARTAT
-  log.ngals -= STARTAT;
+    log._nGals -= STARTAT;
 #endif
 #ifdef SINGLEGAL
-  log.ngals = 1;
+    log.nGals = 1;
 #endif
-  log.ngoodin = std::count(flags.begin(),flags.end(),0);
-  dbg<<log.ngoodin<<"/"<<log.ngals<<" galaxies with no input flags\n";
+    log._nGoodIn = std::count(_flags.begin(),_flags.end(),0);
+    dbg<<log._nGoodIn<<"/"<<log._nGals<<" galaxies with no input flags\n";
 
-  // Main loop to measure shears
+    // Main loop to measure shears
 #ifdef _OPENMP
 #pragma omp parallel 
-  {
-    try 
     {
+        try {
 #endif
-      OverallFitTimes times; // just for this thread
-      ShearLog log1(params); // just for this thread
-      log1.NoWriteLog();
+            OverallFitTimes times; // just for this thread
+            ShearLog log1(_params); // just for this thread
+            log1.noWriteLog();
 #ifdef _OPENMP
 #pragma omp for schedule(dynamic)
 #endif
-      for(int i=0;i<ngals;i++) 
-      {
-	if (flags[i]) continue;
+            for(int i=0;i<nGals;i++) {
+                if (_flags[i]) continue;
 #ifdef STARTAT
-	if (i < STARTAT) continue;
+                if (i < STARTAT) continue;
 #endif
 #ifdef SINGLEGAL
-	if (i < SINGLEGAL) continue;
-	if (i > SINGLEGAL) break;
+                if (i < SINGLEGAL) continue;
+                if (i > SINGLEGAL) break;
 #endif
-	if (output_dots)
+                if (shouldOutputDots) {
 #ifdef _OPENMP
 #pragma omp critical (output)
 #endif
-	{
-	  std::cerr<<"."; std::cerr.flush(); 
-	}
-	dbg<<"galaxy "<<i<<":\n";
-	dbg<<"pos[i] = "<<pos[i]<<std::endl;
+                    {
+                        std::cerr<<"."; std::cerr.flush(); 
+                    }
+                }
+                dbg<<"galaxy "<<i<<":\n";
+                dbg<<"pos[i] = "<<_pos[i]<<std::endl;
 
-	// Start with an error code of unknown failure, in case
-	// something happens that I don't detect as an error.
-	flags[i] = UNKNOWN_FAILURE;
-	long flag1 = 0;
-	MeasureSingleShear(
-	    // Input data:
-	    pos[i], im, sky[i], trans, 
-	    // Fitted PSF
-	    fitpsf,
-	    // Noise variables:
-	    noise[i], gain, weight_im, 
-	    // Parameters:
-	    gal_aperture, max_aperture, gal_order, gal_order2, 
-	    f_psf, min_gal_size, 
-	    // Time stats if desired:
-	    timing ? &times : 0, 
-	    // Log information
-	    log1,
-	    // Ouput values:
-	    shear[i], cov[i], shape[i], nu[i], flag1);
+                // Start with an error code of unknown failure, in case
+                // something happens that I don't detect as an error.
+                _flags[i] = UNKNOWN_FAILURE;
+                long flag1 = 0;
+                measureSingleShear(
+                    // Input data:
+                    _pos[i], im, _sky[i], trans, 
+                    // Fitted PSF
+                    fitPsf,
+                    // Noise variables:
+                    _noise[i], gain, weightIm, 
+                    // Parameters:
+                    galAperture, maxAperture, galOrder, galOrder2, 
+                    fPsf, minGalSize, 
+                    // Time stats if desired:
+                    isTiming ? &times : 0, 
+                    // Log information
+                    log1,
+                    // Ouput values:
+                    _shear[i], _cov[i], _shape[i], _nu[i], flag1);
 
-	flags[i] = flag1;
+                _flags[i] = flag1;
 
-	if (!flag1) 
-	{
-	  dbg<<"Successful shear measurement: "<<shear[i]<<std::endl;
-	}
-	else 
-	{
-	  dbg<<"Unsuccessful shear measurement\n"; 
-	}
+                if (!flag1) {
+                    dbg<<"Successful shear measurement: "<<_shear[i]<<std::endl;
+                } else {
+                    dbg<<"Unsuccessful shear measurement\n"; 
+                }
 
-	if (timing) 
-	{
-	  dbg<<"So far: ns = "<<times.ns_gamma<<",  nf = "<<times.nf_native;
-	  dbg<<", "<<times.nf_mu<<", "<<times.nf_gamma<<std::endl;
-	}
+                if (isTiming) {
+                    dbg<<"So far: ns = "<<times._nsGamma<<
+                        ",  nf = "<<times._nfNative;
+                    dbg<<", "<<times._nfMu<<", "<<times._nfGamma<<std::endl;
+                }
 
-      }
+            }
 #ifdef _OPENMP
 #pragma omp critical (add_log)
 #endif
-      {
-	if (timing) alltimes += times;
-	log += log1;
-      }
+            {
+                if (isTiming) allTimes += times;
+                log += log1;
+            }
 #ifdef _OPENMP
-    } 
-    catch (...)
-    {
-      // This isn't supposed to happen.
-      std::cerr<<"STATUS5BEG Caught some error in parallel region STATUS5END\n";
-      exit(1);
+        } catch (...) {
+            // This isn't supposed to happen.
+            std::cerr<<"STATUS5BEG Caught some error in parallel region STATUS5END\n";
+            exit(1);
+        }
     }
-  }
 #endif
 
-  dbg<<log.ns_gamma<<" successful shear measurements, ";
-  dbg<<ngals-log.ns_gamma<<" unsuccessful\n";
-  log.ngood = std::count(flags.begin(),flags.end(),0);
-  dbg<<log.ngood<<" with no flags\n";
+    dbg<<log._nsGamma<<" successful shear measurements, ";
+    dbg<<nGals-log._nsGamma<<" unsuccessful\n";
+    log._nGood = std::count(_flags.begin(),_flags.end(),0);
+    dbg<<log._nGood<<" with no flags\n";
 
-  if (output_dots) 
-  {
-    std::cerr
-      <<std::endl
-      <<"Success rate: "<<log.ns_gamma<<"/"<<log.ngoodin
-      <<"  # with no flags: "<<log.ngood
-      <<std::endl;
-  }
+    if (shouldOutputDots) {
+        std::cerr
+            <<std::endl
+            <<"Success rate: "<<log._nsGamma<<"/"<<log._nGoodIn
+            <<"  # with no flags: "<<log._nGood
+            <<std::endl;
+    }
 
-  if (timing) 
-  {
-    dbg<<"From timing structure:\n";
-    dbg<<alltimes.ns_gamma<<" successful shear measurements, ";
-    dbg<<alltimes.nf_native<<" + "<<alltimes.nf_mu;
-    dbg<<" + "<<alltimes.nf_gamma<<" unsuccessful\n";
-    std::cerr<<alltimes<<std::endl;
-  }
-  xdbg<<log<<std::endl;
+    if (isTiming) {
+        dbg<<"From timing structure:\n";
+        dbg<<allTimes._nsGamma<<" successful shear measurements, ";
+        dbg<<allTimes._nfNative<<" + "<<allTimes._nfMu;
+        dbg<<" + "<<allTimes._nfGamma<<" unsuccessful\n";
+        std::cerr<<allTimes<<std::endl;
+    }
+    xdbg<<log<<std::endl;
 
-  return log.ns_gamma;
+    return log._nsGamma;
 }

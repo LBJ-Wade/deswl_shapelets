@@ -403,8 +403,8 @@ void Image<T>::write(std::string fileName) const
 template <typename T> 
 std::vector<Image<T>*> Image<T>::divide(int nX, int nY) const
 {
-    std::vector<size_t> x(nX+1);
-    std::vector<size_t> y(nY+1);
+    std::vector<int> x(nX+1);
+    std::vector<int> y(nY+1);
     x[0] = _xMin;  x[nX] = _xMax;
     y[0] = _yMin;  y[nY] = _yMax;
     int xstep = (_xMax-_xMin)/nX;
@@ -413,9 +413,11 @@ std::vector<Image<T>*> Image<T>::divide(int nX, int nY) const
     for(int j=1;j<nY;++j) y[j] = y[j-1]+ystep;
     std::vector<Image*> blockImages;
     blockImages.reserve(nX*nY);
-    for(int i=0;i<nX;++i) for(int j=0;j<nY;++j) 
-        blockImages.push_back(new Image(_m->SubMatrix(x[i],x[i+1],y[j],y[j+1]),
-                                        x[i],x[i+1],y[j],y[j+1]));
+    for(int i=0;i<nX;++i) for(int j=0;j<nY;++j) {
+        blockImages.push_back(
+            new Image(_m->SubMatrix(x[i],x[i+1],y[j],y[j+1]),
+                      x[i],x[i+1],y[j],y[j+1]));
+    }
     return blockImages;
 }
 
@@ -528,10 +530,12 @@ template <typename T>
 T Image<T>::median() const
 {
     std::vector<T> pixels;
-    pixels.reserve(_m->colsize()*_m->rowsize());
-    for(size_t i=0;i<_m->colsize();++i)
-        for(size_t j=0;j<_m->rowsize();++j)
-            pixels.push_back((*_m)(i,j));
+    const int n1 = _m->colsize();
+    const int n2 = _m->rowsize();
+    pixels.reserve(n1*n2);
+    for(int i=0;i<n1;++i) for(int j=0;j<n2;++j) {
+        pixels.push_back((*_m)(i,j));
+    }
     sort(pixels.begin(),pixels.end());
     return pixels[pixels.size()/2];
 }

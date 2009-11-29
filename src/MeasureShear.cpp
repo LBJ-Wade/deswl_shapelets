@@ -1,7 +1,7 @@
 
 #include <valarray>
 #include "Image.h"
-#include "FittedPSF.h"
+#include "FittedPsf.h"
 #include "TimeVars.h"
 #include "Log.h"
 #include "ShearCatalog.h"
@@ -9,7 +9,7 @@
 #include "BasicSetup.h"
 #include <sys/time.h>
 
-static void DoMeasureShear(ConfigFile& params, ShearLog& log) 
+static void doMeasureShear(ConfigFile& params, ShearLog& log) 
 {
   bool timing = params.read("timing",false);
   timeval tp;
@@ -72,7 +72,7 @@ static void DoMeasureShear(ConfigFile& params, ShearLog& log)
   }
 
   // Measure shears and shapelet vectors
-  int nshear = shearcat.MeasureShears(im,weight_im.get(),trans,fitpsf,log);
+  int nshear = shearcat.measureShears(im,weight_im.get(),trans,fitpsf,log);
 
   if (timing) {
     gettimeofday(&tp,0);
@@ -82,7 +82,7 @@ static void DoMeasureShear(ConfigFile& params, ShearLog& log)
   }
 
   // Write results to file
-  shearcat.Write();
+  shearcat.write();
 
   if (timing) {
     gettimeofday(&tp,0);
@@ -113,7 +113,7 @@ int main(int argc, char **argv) try
       new ShearLog(params,logfile,shear_file)); 
 
   try {
-    DoMeasureShear(params,*log);
+    doMeasureShear(params,*log);
   }
 #if 0
   // Change to 1 to let gdb see where the program bombed out.

@@ -37,10 +37,10 @@ void measureSinglePsf1(
 
     long flag1=0;
     if (ell.Measure(pix,psfOrder,sigmaP,false,flag1,0,&psf,&cov)) {
-        ++log.ns_psf;
+        ++log._nsPsf;
     } else {
         xdbg<<"Measurement failed\n";
-        ++log.nf_psf;
+        ++log._nfPsf;
         flag |= MEASURE_PSF_FAILED;
     }
 
@@ -85,7 +85,7 @@ void measureSinglePsf(
     } catch (RangeException& e) {
         xdbg<<"skip: transformation range error: \n";
         xdbg<<"p = "<<cen<<", b = "<<e.getBounds()<<std::endl;
-        ++log.nf_range;
+        ++log._nfRange;
         flag |= TRANSFORM_EXCEPTION;
         return;
     }
@@ -96,11 +96,11 @@ void measureSinglePsf(
     } catch (tmv::Error& e) {
         dbg<<"TMV Error thrown in MeasureSinglePSF\n";
         dbg<<e<<std::endl;
-        ++log.nf_tmverror;
+        ++log._nfTmvError;
         flag |= TMV_EXCEPTION;
     } catch (...) {
         dbg<<"unkown exception in MeasureSinglePSF\n";
-        ++log.nf_othererror;
+        ++log._nfOtherError;
         flag |= UNKNOWN_EXCEPTION;
     }
 }
@@ -127,12 +127,12 @@ PsfCatalog::PsfCatalog(
             _flags.push_back( starCat.getFlags(i) );
         }
     }
-    Assert(_id.size() == nStars);
-    dbg<<"nstars = "<<_id.size()<<std::endl;
+    Assert(int(_id.size()) == nStars);
+    dbg<<"nstars = "<<nStars<<std::endl;
 
     // Fix flags to only have INPUT_FLAG set.
     // i.e. Ignore any flags set by StarCatalog.
-    for (size_t i=0; i<size(); ++i) {
+    for (int i=0; i<nStars; ++i) {
         _flags[i] &= INPUT_FLAG;
     }
 
@@ -140,7 +140,8 @@ PsfCatalog::PsfCatalog(
     // fails
     long psfOrder = _params.read<long>("psf_order");
     BVec psfDefault(psfOrder,1.);
-    for (size_t i=0; i<psfDefault.size(); ++i) {
+    const int psfSize = psfDefault.size();
+    for (int i=0; i<psfSize; ++i) {
         psfDefault[i] = DEFVALNEG;
     }
     double nuDefault = DEFVALNEG;
@@ -192,15 +193,16 @@ void PsfCatalog::writeFits(std::string file) const
     Assert(_nu.size() == size());
     Assert(_flags.size() == size());
     Assert(_psf.size() == size());
+    const int nPsf = size();
 
     // ! means overwrite existing file
     CCfits::FITS fits("!"+file, CCfits::Write);
 
-    const int nfields = 10;
+    const int nFields = 10;
 
-    std::vector<string> colNames(nfields);
-    std::vector<string> colFmts(nfields);
-    std::vector<string> colUnits(nfields);
+    std::vector<string> colNames(nFields);
+    std::vector<string> colFmts(nFields);
+    std::vector<string> colUnits(nFields);
 
     colNames[0] = _params["psf_id_col"];
     colNames[1] = _params["psf_x_col"];
@@ -243,7 +245,7 @@ void PsfCatalog::writeFits(std::string file) const
 
     dbg<<"Before Create table"<<std::endl;
     CCfits::Table* table;
-    table = fits.addTable("psfcat",size(),colNames,colFmts,colUnits);
+    table = fits.addTable("psfcat",nPsf,colNames,colFmts,colUnits);
 
 
     // Header keywords
@@ -252,7 +254,7 @@ void PsfCatalog::writeFits(std::string file) const
     int intgr;
 
     std::string tmvVers = tmv::TMV_Version();
-    std::string wlVers = WlVersion();
+    std::string wlVers = getWlVersion();
 
     table->addKey("tmvvers", tmvVers, "version of TMV code");
     table->addKey("wlvers", wlVers, "version of weak lensing code");
@@ -276,9 +278,9 @@ void PsfCatalog::writeFits(std::string file) const
     // Data columns
 
     // make vector copies for writing
-    std::vector<double> x(_pos.size());
-    std::vector<double> y(_pos.size());
-    for(size_t i=0;i<_pos.size();++i) 
+    std::vector<double> x(nPsf);
+    std::vector<double> y(nPsf);
+    for(int i=0;i<nPsf;++i) 
     {
         x[i] = _pos[i].getX();
         y[i] = _pos[i].getY();
@@ -295,9 +297,9 @@ void PsfCatalog::writeFits(std::string file) const
 
     table->column(colNames[6]).write(_nu,startrow);
 
-    for (size_t i=0; i<size(); ++i) 
+    for (int i=0; i<nPsf; ++i) 
     {
-        size_t row = i+1;
+        int row = i+1;
         long bOrder = _psf[i].GetOrder();
         double bSigma = _psf[i].GetSigma();
 
@@ -317,6 +319,7 @@ void PsfCatalog::writeAscii(std::string file, std::string delim) const
     Assert(_flags.size() == size());
     Assert(_nu.size() == size());
     Assert(_psf.size() == size());
+    const int nPsf = size();
 
     std::ofstream fout(file.c_str());
     if (!fout) 
@@ -326,7 +329,7 @@ void PsfCatalog::writeAscii(std::string file, std::string delim) const
 
     Form hexform; hexform.hex().trail(0);
 
-    for(size_t i=0;i<size();++i) 
+    for(int i=0;i<nPsf;++i) 
     {
         fout
             << _id[i] << delim
@@ -338,25 +341,28 @@ void PsfCatalog::writeAscii(std::string file, std::string delim) const
             << _nu[i] << delim
             << _psf[i].GetOrder() << delim
             << _psf[i].GetSigma();
-        for(size_t j=0;j<_psf[i].size();++j)
+        const int nCoeff = _psf[i].size();
+        for(int j=0;j<nCoeff;++j) {
             fout << delim << _psf[i][j];
+        }
         fout << std::endl;
     }
 }
 
 void PsfCatalog::write() const
 {
-    std::vector<std::string> files = makeMultiName(_params, "psf");  
+    std::vector<std::string> fileList = makeMultiName(_params, "psf");  
 
-    for(size_t i=0; i<files.size(); ++i) {
-        const std::string& file = files[i];
+    const int nFiles = fileList.size();
+    for(int i=0; i<nFiles; ++i) {
+        const std::string& file = fileList[i];
         dbg<<"Writing psf catalog to file: "<<file<<std::endl;
 
         bool isFitsIo = false;
         if (_params.keyExists("psf_io")) {
-            std::vector<std::string> ios = _params["psf_io"];
-            Assert(ios.size() == files.size());
-            isFitsIo = (ios[i] == "FITS");
+            std::vector<std::string> ioList = _params["psf_io"];
+            Assert(ioList.size() == fileList.size());
+            isFitsIo = (ioList[i] == "FITS");
         } else if (file.find("fits") != std::string::npos) {
             isFitsIo = true;
         }
@@ -367,9 +373,9 @@ void PsfCatalog::write() const
             } else {
                 std::string delim = "  ";
                 if (_params.keyExists("psf_delim")) {
-                    std::vector<std::string> delims = _params["psf_delim"];
-                    Assert(delims.size() == files.size());
-                    delim = delims[i];
+                    std::vector<std::string> delimList = _params["psf_delim"];
+                    Assert(delimList.size() == fileList.size());
+                    delim = delimList[i];
                 } else if (file.find("csv") != std::string::npos) {
                     delim = ",";
                 }
@@ -462,9 +468,9 @@ void PsfCatalog::readFits(std::string file)
 
     // gotta loop for this one
     _psf.reserve(nRows);
-    for (size_t i=0; i<size(); ++i) 
+    for (int i=0; i<nRows; ++i) 
     {
-        size_t row=i+1;
+        int row=i+1;
 
         _psf.push_back(BVec(order[i],sigma[i]));
         int nCoeff=(order[i]+1)*(order[i]+2)/2;
@@ -506,8 +512,8 @@ void PsfCatalog::readAscii(std::string file, std::string delim)
             _flags.push_back(flag);
             _nu.push_back(nu1);
             _psf.push_back(BVec(bOrder,bSigma));
-            for(size_t j=0;j<_psf.back().size();++j)
-                fin >> _psf.back()[j];
+            const int nCoeffs = _psf.back().size();
+            for(int j=0;j<nCoeffs;++j) fin >> _psf.back()[j];
         }
     } else {
         if (delim.size() > 1) {
@@ -534,10 +540,12 @@ void PsfCatalog::readAscii(std::string file, std::string delim)
             getline(fin,temp,d); bOrder = temp;
             getline(fin,temp,d); bSigma = temp;
             _psf.push_back(BVec(bOrder,bSigma));
-            for(size_t j=0;j<_psf.back().size()-1;++j) {
+            const int nCoeffs = _psf.back().size();
+            for(int j=0;j<nCoeffs-1;++j) {
                 getline(fin,temp,d); _psf.back()[j] = temp;
             }
-            getline(fin,temp); _psf.back()[_psf.back().size()-1] = temp;
+            // Last one doesn't have a following delimiter
+            getline(fin,temp); _psf.back()[nCoeffs-1] = temp;
         }
     }
 }

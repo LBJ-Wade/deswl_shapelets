@@ -37,7 +37,7 @@ Pool<blockSize>::~Pool()
 }
 
 template <int blockSize>
-size_t Pool<blockSize>::totalMemoryUsed() const 
+int Pool<blockSize>::totalMemoryUsed() const 
 { return _allBlocks.size() * blockSize; }
 
 template <int blockSize>

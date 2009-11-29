@@ -135,7 +135,7 @@ public:
 
     std::vector<Bounds> quarter() const;
 
-    std::vector<Bounds> divide(size_t nx, size_t ny) const;
+    std::vector<Bounds> divide(int nx, int ny) const;
 
     void write(std::ostream& fout) const;
 

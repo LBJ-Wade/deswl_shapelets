@@ -3,6 +3,6 @@
 
 #include <string>
 
-std::string WlVersion();
+std::string getWlVersion();
 
 #endif

@@ -15,16 +15,16 @@
 #include "InputCatalog.h"
 #include "StarCatalog.h"
 #include "PsfCatalog.h"
-#include "FittedPSF.h"
+#include "FittedPsf.h"
 #include "ShearCatalog.h"
 
 #ifdef _OPENMP
 #include "omp.h"
 #endif
 
-bool showtests = false;
-bool dontthrow = false;
-std::string lastsuccess = "";
+bool shouldShowTests = false;
+bool shouldThrow = true;
+std::string lastSuccess = "";
 
 const double PI = 3.14159265359;
 const double sqrtpi = sqrt(PI);
@@ -899,13 +899,13 @@ int main(int argc, char **argv) try
 	BVec b0 = s->GetB();
 	dbg<<"measured b = "<<b0<<std::endl;
 	BVec b0save = b0;
-	Test(Norm(b0.SubVector(0,15)-bin) < EPS*Norm(bin),
+	test(Norm(b0.SubVector(0,15)-bin) < EPS*Norm(bin),
 	    "Basic B Measurement");
-	Test(Norm(b0.SubVector(15,b0.size())) < EPS*Norm(bin),
+	test(Norm(b0.SubVector(15,b0.size())) < EPS*Norm(bin),
 	    "Basic B Measurement 2");
 	//s->verbose = true;
 #ifdef TESTJ
-	Test(s->TestJ(x0,f,xdbgout,1.e-6),"TestJ - Basic");
+	test(s->TestJ(x0,f,xdbgout,1.e-6),"TestJ - Basic");
 #endif
 
 	std::complex<double> z1(0.2,0.3);
@@ -923,7 +923,7 @@ int main(int argc, char **argv) try
 	ApplyZ(z1,b0);
 	xdbg<<"b(predicted) = "<<b0<<std::endl;
 	dbg<<"diff for z = "<<z1<<" = "<<Norm(b0-b1)<<std::endl;
-	Test(Norm(b1-b0) < EPS*Norm(b0),"ApplyZ");
+	test(Norm(b1-b0) < EPS*Norm(b0),"ApplyZ");
 	x1 = x0;
 	x1[0] -= std::real(z1 + g0*std::conj(z1))*exp(m0)/sqrt(1.-normg0);
 	x1[1] -= std::imag(z1 + g0*std::conj(z1))*exp(m0)/sqrt(1.-normg0);
@@ -931,7 +931,7 @@ int main(int argc, char **argv) try
 	b1 = s->GetB();
 	ApplyZ(-z1,b0=b0save);
 	dbg<<"diff for z = "<<-z1<<" = "<<Norm(b0-b1)<<std::endl;
-	Test(Norm(b1-b0) < EPS*Norm(b0),"ApplyZ");
+	test(Norm(b1-b0) < EPS*Norm(b0),"ApplyZ");
 
 	double m1(0.2);
 	x1 = x0;
@@ -942,14 +942,14 @@ int main(int argc, char **argv) try
 	ApplyMu(m1,b0=b0save);
 	//xdbg<<"b(predicted) = "<<b0<<std::endl;
 	dbg<<"diff for mu = "<<m1<<" = "<<Norm(b0-b1)<<std::endl;
-	Test(Norm(b1-b0) < EPS*Norm(b0),"ApplyMu");
+	test(Norm(b1-b0) < EPS*Norm(b0),"ApplyMu");
 	x1 = x0;
 	x1[4] += -m1;
 	s->F(x1,f);
 	b1 = s->GetB();
 	ApplyMu(-m1,b0=b0save);
 	dbg<<"diff for mu = "<<-m1<<" = "<<Norm(b0-b1)<<std::endl;
-	Test(Norm(b1-b0) < EPS*Norm(b0),"ApplyMu");
+	test(Norm(b1-b0) < EPS*Norm(b0),"ApplyMu");
 
 	double e1(0.3);
 	double neweta = e1 + eta0;
@@ -965,7 +965,7 @@ int main(int argc, char **argv) try
 	ApplyG(g1*argg0,b0=b0save);
 	xdbg<<"b(predicted) = "<<b0<<std::endl;
 	dbg<<"diff for gamma = "<<g1<<" = "<<Norm(b0-b1)<<std::endl;
-	Test(Norm(b1-b0) < EPS*Norm(b0),"ApplyG");
+	test(Norm(b1-b0) < EPS*Norm(b0),"ApplyG");
 	x1 = x0;
 	neweta = -e1 + eta0;
 	x1[2] = tanh(neweta/2.)*std::real(argg0);
@@ -974,7 +974,7 @@ int main(int argc, char **argv) try
 	b1 = s->GetB();
 	ApplyG(-g1*argg0,b0=b0save);
 	dbg<<"diff for gamma = "<<-g1<<" = "<<Norm(b0-b1)<<std::endl;
-	Test(Norm(b1-b0) < EPS*Norm(b0),"ApplyG");
+	test(Norm(b1-b0) < EPS*Norm(b0),"ApplyG");
 
 	if (ib < NLONG) {
 	  BVec blong(8,sigma_i,blong_vec[ib]);
@@ -995,12 +995,12 @@ int main(int argc, char **argv) try
 	  BVec b = s->GetB();
 	  dbg<<"blong = "<<blong<<std::endl;
 	  dbg<<"b = "<<b<<std::endl;
-	  Test(Norm(b.SubVector(0,45)-blong) < EPS*Norm(blong),
+	  test(Norm(b.SubVector(0,45)-blong) < EPS*Norm(blong),
 	      "Basic Long B Measurement");
-	  Test(Norm(b.SubVector(45,b.size())) < EPS*Norm(blong),
+	  test(Norm(b.SubVector(45,b.size())) < EPS*Norm(blong),
 	      "Basic Long B Measurement (2)");
 #ifdef TESTJ
-	  Test(s->TestJ(x2,f,xdbgout,1.e-6),"TestJ - Long 1");
+	  test(s->TestJ(x2,f,xdbgout,1.e-6),"TestJ - Long 1");
 #endif
 
 	  double dmu = 0.01;
@@ -1014,12 +1014,12 @@ int main(int argc, char **argv) try
 	  BVec bx = s->GetB();
 	  dbg<<"blong = "<<blong<<std::endl;
 	  dbg<<"bx = "<<bx<<std::endl;
-	  Test(Norm(bx.SubVector(0,45)-blong) < EPS*Norm(blong),
+	  test(Norm(bx.SubVector(0,45)-blong) < EPS*Norm(blong),
 	      "Basic Long B Measurement");
-	  Test(Norm(bx.SubVector(45,bx.size())) < EPS*Norm(blong),
+	  test(Norm(bx.SubVector(45,bx.size())) < EPS*Norm(blong),
 	      "Basic Long B Measurement (2)");
 #ifdef TESTJ
-	  Test(s->TestJ(x2,f,xdbgout,1.e-6),"TestJ - Long 2");
+	  test(s->TestJ(x2,f,xdbgout,1.e-6),"TestJ - Long 2");
 #endif
 	}
       }
@@ -1077,7 +1077,7 @@ int main(int argc, char **argv) try
 	  DirectConvolveB(b0,bpsf,c0x);
 	  //xdbg<<"c0x = "<<c0x<<std::endl;
 	  //xdbg<<"Norm(diff) = "<<Norm(c0-c0x)<<std::endl;
-	  Test(Norm(c0-c0x) < EPS*Norm(c0),"PSFConvolve");
+	  test(Norm(c0-c0x) < EPS*Norm(c0),"PSFConvolve");
 
 	  // be is the galaxy in ell fram:
 	  allpix.resize(1);
@@ -1092,7 +1092,7 @@ int main(int argc, char **argv) try
 	  BVec be = s->GetB();
 	  //xdbg<<"be = "<<be<<std::endl;
 #ifdef TESTJ
-	  Test(s->TestJ(xe,f,xdbgout,1.e-6),"TestJ - be in ell frame");
+	  test(s->TestJ(xe,f,xdbgout,1.e-6),"TestJ - be in ell frame");
 #endif
 
 	  // bex is another estimate of the galaxy in the ell frame:
@@ -1110,11 +1110,11 @@ int main(int argc, char **argv) try
 	  // The higher order terms don't mesh perfectly, because of the 
 	  // finite order of the intermediate transformations.
 	  // But through 4th order, the match should be quite good.
-	  Test(Norm(bex.SubVector(0,15)-be.SubVector(0,15)) <
+	  test(Norm(bex.SubVector(0,15)-be.SubVector(0,15)) <
 	      3.e-5*(Norm(be)+Norm(b0)),"View B in ell frame");
-	  Test(Norm(bex.SubVector(0,45)-be.SubVector(0,45)) <
+	  test(Norm(bex.SubVector(0,45)-be.SubVector(0,45)) <
 	      1.e-3*(Norm(be)+Norm(b0)),"View B in ell frame");
-	  Test(Norm(bex-be) < 3.e-2*(Norm(be)+Norm(b0)),
+	  test(Norm(bex-be) < 3.e-2*(Norm(be)+Norm(b0)),
 	      "View B in ell frame");
 
 	  // ce is the convolved galaxy in the ell frame:
@@ -1128,7 +1128,7 @@ int main(int argc, char **argv) try
 	  s->F(xe,f);
 	  BVec ce = s->GetB();
 #ifdef TESTJ
-	  Test(s->TestJ(xe,f,xdbgout,1.e-5),"TestJ - ce in ell frame");
+	  test(s->TestJ(xe,f,xdbgout,1.e-5),"TestJ - ce in ell frame");
 #endif
 	  //xdbg<<"After TestJ(2)\n";
 
@@ -1146,11 +1146,11 @@ int main(int argc, char **argv) try
 	  //Norm(cex.SubVector(0,45)-ce.SubVector(0,45))<<std::endl;
 	  //xdbg<<"Norm(cex-ce) = "<<Norm(cex-ce)<<std::endl;
 	  //xdbg<<"Norm(ce)+Norm(c0) = "<<Norm(ce)+Norm(c0)<<std::endl;
-	  Test(Norm(cex.SubVector(0,15)-ce.SubVector(0,15)) <
+	  test(Norm(cex.SubVector(0,15)-ce.SubVector(0,15)) <
 	      3.e-5*(Norm(ce)+Norm(b0)),"Convolved B in ell frame");
-	  Test(Norm(cex.SubVector(0,45)-ce.SubVector(0,45)) <
+	  test(Norm(cex.SubVector(0,45)-ce.SubVector(0,45)) <
 	      1.e-3*(Norm(ce)+Norm(b0)),"Convolved B in ell frame");
-	  Test(Norm(cex-ce) < 3.e-2*(Norm(ce)+Norm(c0)),
+	  test(Norm(cex-ce) < 3.e-2*(Norm(ce)+Norm(c0)),
 	      "Convolved B in ell frame");
 
 	  // cey is yet another estimate of the same: convolve be
@@ -1167,7 +1167,7 @@ int main(int argc, char **argv) try
 	  //xdbg<<"ce = "<<ce<<std::endl;
 	  //xdbg<<"cey = "<<cey<<std::endl;
 	  //xdbg<<"Norm(cey-ce) = "<<Norm(cey-ce)<<std::endl;
-	  Test(Norm(cey-ce) < 3.e-2*(Norm(ce)+Norm(c0)),
+	  test(Norm(cey-ce) < 3.e-2*(Norm(ce)+Norm(c0)),
 	      "Convolved B in ell frame");
 
 	  // Next we test the deconovolving shape estimator.
@@ -1209,13 +1209,13 @@ int main(int argc, char **argv) try
 	  xdbg<<"b0 = "<<b0<<std::endl;
 	  xdbg<<"Norm(bes-b0) = "<<Norm(bes.SubVector(0,15)-b0)<<std::endl;
 	  xdbg<<"Norm(bes(15:)) = "<<Norm(bes.SubVector(15,bes.size()))<<std::endl;
-	  Test(Norm(bes.SubVector(0,15)-b0) < EPS*(Norm(b0)+Norm(c0)),
+	  test(Norm(bes.SubVector(0,15)-b0) < EPS*(Norm(b0)+Norm(c0)),
 	      "Doconvolving solver BE Measurement");
-	  Test(Norm(bes.SubVector(15,bes.size()))<EPS*(Norm(b0)+Norm(c0)),
+	  test(Norm(bes.SubVector(15,bes.size()))<EPS*(Norm(b0)+Norm(c0)),
 	      "Doconvolving solver BE Measurement");
 	  //s->verbose = true;
 #ifdef TESTJ
-	  Test(s->TestJ(xe,f,xdbgout,1.e-6),
+	  test(s->TestJ(xe,f,xdbgout,1.e-6),
 	      "TestJ - Deconvolved b0 in ell frame");
 #endif
 
@@ -1244,13 +1244,13 @@ int main(int argc, char **argv) try
 	  xdbg<<"besx => "<<besx<<std::endl;
 	  xdbg<<"Norm(besx-b0) = "<<Norm(besx.SubVector(0,15)-b0)<<std::endl;
 	  xdbg<<"Norm(bes(15:)) = "<<Norm(besx.SubVector(15,besx.size()))<<std::endl;
-	  Test(Norm(besx.SubVector(0,15)-b0) < EPS*(Norm(b0)+Norm(c0)),
+	  test(Norm(besx.SubVector(0,15)-b0) < EPS*(Norm(b0)+Norm(c0)),
 	      "Doconvolving solver BE Measurement #2");
-	  Test(Norm(besx.SubVector(15,besx.size()))<EPS*(Norm(b0)+Norm(c0)),
+	  test(Norm(besx.SubVector(15,besx.size()))<EPS*(Norm(b0)+Norm(c0)),
 	      "Doconvolving solver BE Measurement #2");
 	  //s->verbose = true;
 #ifdef TESTJ
-	  Test(s->TestJ(xe,f,xdbgout,1.e-6),
+	  test(s->TestJ(xe,f,xdbgout,1.e-6),
 	      "TestJ - Deconvolved b0 in ell frame #2");
 #endif
 	  xe[4] += dmu2;
@@ -1300,7 +1300,7 @@ int main(int argc, char **argv) try
       s->ftol = 1.e-6;
       //s->verbose = true;
 #ifdef TESTJ
-      Test(s->TestJ(x,f,xdbgout,1.e-6),
+      test(s->TestJ(x,f,xdbgout,1.e-6),
 	  "TestJ - Single Image no PSF");
 #endif
       bool success = s->Solve(x,f);
@@ -1308,8 +1308,8 @@ int main(int argc, char **argv) try
       //xdbg<<"xe = "<<xe<<std::endl;
       //xdbg<<"f = "<<f<<std::endl;
       //xdbg<<"success = "<<success<<std::endl;
-      Test(success,"No PSF Solve - success");
-      Test(Norm(x-xe) < 1.e-5,"No PSF Solve - x == xe");
+      test(success,"No PSF Solve - success");
+      test(Norm(x-xe) < 1.e-5,"No PSF Solve - x == xe");
 
       for(int ip = 0; ip < NPSF; ip++) {
 	dbg<<"Start ip = "<<ip<<std::endl;
@@ -1349,9 +1349,9 @@ int main(int argc, char **argv) try
 	s->F(xe,f);
 	BVec be = s->GetB();
 	xdbg<<"be = "<<be<<std::endl;
-	Test(Norm(be.SubVector(0,15)-bin) < EPS*Norm(bin),
+	test(Norm(be.SubVector(0,15)-bin) < EPS*Norm(bin),
 	    "B Measurement for Single Image w/ PSF");
-	Test(Norm(be.SubVector(15,be.size())) < EPS*Norm(bin),
+	test(Norm(be.SubVector(15,be.size())) < EPS*Norm(bin),
 	    "B Measurement 2 for Single Image w/ PSF");
 	x.Zero();
 	s->nlout = xdbgout;
@@ -1360,7 +1360,7 @@ int main(int argc, char **argv) try
 	s->ftol = 1.e-6;
 	//s->verbose = true;
 #ifdef TESTJ
-	Test(s->TestJ(x,f,xdbgout,1.e-6),
+	test(s->TestJ(x,f,xdbgout,1.e-6),
 	    "TestJ - Single Image w/ PSF");
 #endif
 	success = s->Solve(x,f);
@@ -1369,11 +1369,11 @@ int main(int argc, char **argv) try
 	//xdbg<<"f = "<<f<<std::endl;
 	//xdbg<<"success = "<<success<<std::endl;
 #ifdef TESTJ
-	Test(s->TestJ(x,f,xdbgout,1.e-6),
+	test(s->TestJ(x,f,xdbgout,1.e-6),
 	    "TestJ - Single Image w/ PSF");
 #endif
-	Test(success,"PSF Solve - success");
-	Test(Norm(x-xe) < 1.e-5,"PSF Solve - x == xe");
+	test(success,"PSF Solve - success");
+	test(Norm(x-xe) < 1.e-5,"PSF Solve - x == xe");
 
 #if 0
 	double dmu = 0.1;
@@ -1386,9 +1386,9 @@ int main(int argc, char **argv) try
 	s->F(xe,f);
 	BVec bex = s->GetB();
 	xdbg<<"bex = "<<bex<<std::endl;
-	Test(Norm(bex.SubVector(0,15)-bin) < EPS*Norm(bin),
+	test(Norm(bex.SubVector(0,15)-bin) < EPS*Norm(bin),
 	    "B Measurement for Single Image w/ PSF");
-	Test(Norm(bex.SubVector(15,bex.size())) < EPS*Norm(bin),
+	test(Norm(bex.SubVector(15,bex.size())) < EPS*Norm(bin),
 	    "B Measurement 2 for Single Image w/ PSF");
 	x.Zero();
 	s->nlout = xdbgout;
@@ -1401,8 +1401,8 @@ int main(int argc, char **argv) try
 	//xdbg<<"xe = "<<xe<<std::endl;
 	//xdbg<<"f = "<<f<<std::endl;
 	//xdbg<<"success = "<<success<<std::endl;
-	Test(success,"PSF Solve - success");
-	Test(Norm(x-xe) < 1.e-5,"PSF Solve - x == xe");
+	test(success,"PSF Solve - success");
+	test(Norm(x-xe) < 1.e-5,"PSF Solve - x == xe");
 	xe[4] += dmu;
 #endif
       }
@@ -1451,9 +1451,9 @@ int main(int argc, char **argv) try
 	xdbg<<"be = "<<be<<std::endl;
 	xdbg<<"Norm(be(0:15)-bin) = "<<Norm(be.SubVector(0,15)-bin)<<std::endl;
 	xdbg<<"Norm(be(15:)) = "<<Norm(be.SubVector(15,be.size()))<<std::endl;
-	Test(Norm(be.SubVector(0,15)-bin) < EPS*Norm(bin),
+	test(Norm(be.SubVector(0,15)-bin) < EPS*Norm(bin),
 	    "B Measurement for Multi Image");
-	Test(Norm(be.SubVector(15,be.size())) < EPS*Norm(bin),
+	test(Norm(be.SubVector(15,be.size())) < EPS*Norm(bin),
 	    "B Measurement 2 for Multi Image");
 
 	s->nlout = xdbgout;
@@ -1462,17 +1462,17 @@ int main(int argc, char **argv) try
 	s->ftol = 1.e-6;
 	//s->verbose = true;
 #ifdef TESTJ
-	Test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image no PSF 1");
+	test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image no PSF 1");
 #endif
 	bool success = s->Solve(x,f);
 	xdbg<<"x = "<<x<<std::endl;
 	xdbg<<"xe = "<<xe<<std::endl;
 	xdbg<<"f = "<<f<<std::endl;
 	xdbg<<"success = "<<success<<std::endl;
-	Test(success,"No PSF Solve - success");
-	Test(Norm(x-xe) < 1.e-5,"No PSF Solve - x == xe");
+	test(success,"No PSF Solve - success");
+	test(Norm(x-xe) < 1.e-5,"No PSF Solve - x == xe");
 #ifdef TESTJ
-	Test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image no PSF 2");
+	test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image no PSF 2");
 #endif
       }
 #endif
@@ -1523,9 +1523,9 @@ int main(int argc, char **argv) try
 	xdbg<<"be = "<<be<<std::endl;
 	xdbg<<"Norm(be(0:15)-bin) = "<<Norm(be.SubVector(0,15)-bin)<<std::endl;
 	xdbg<<"Norm(be(15:)) = "<<Norm(be.SubVector(15,be.size()))<<std::endl;
-	Test(Norm(be.SubVector(0,15)-bin) < EPS*Norm(bin),
+	test(Norm(be.SubVector(0,15)-bin) < EPS*Norm(bin),
 	    "B Measurement for Multi Image w/ PSF");
-	Test(Norm(be.SubVector(15,be.size())) < EPS*Norm(bin),
+	test(Norm(be.SubVector(15,be.size())) < EPS*Norm(bin),
 	    "B Measurement 2 for Multi Image w/ PSF");
 
 	x.Zero();
@@ -1534,7 +1534,7 @@ int main(int argc, char **argv) try
 	s->delta0 = 0.1;
 	s->ftol = 1.e-6;
 #ifdef TESTJ
-	Test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image w/ PSF 1");
+	test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image w/ PSF 1");
 #endif
 	//s->verbose = true;
 	bool success = s->Solve(x,f);
@@ -1550,10 +1550,10 @@ int main(int argc, char **argv) try
 	//xdbg<<"S = "<<J.SVD().GetS();
 	//s->verbose = true;
 #ifdef TESTJ
-	Test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image w/ PSF 2");
+	test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image w/ PSF 2");
 #endif
-	Test(success,"PSF Solve - success");
-	Test(Norm(x-xe) < 1.e-5,"PSF Solve - x == xe");
+	test(success,"PSF Solve - success");
+	test(Norm(x-xe) < 1.e-5,"PSF Solve - x == xe");
 
 #if 0
 	double dmu = 0.1;
@@ -1569,9 +1569,9 @@ int main(int argc, char **argv) try
 	xdbg<<"bex = "<<bex<<std::endl;
 	xdbg<<"Norm(bex(0:15)-bin) = "<<Norm(bex.SubVector(0,15)-bin)<<std::endl;
 	xdbg<<"Norm(bex(15:)) = "<<Norm(bex.SubVector(15,bex.size()))<<std::endl;
-	Test(Norm(bex.SubVector(0,15)-bin) < EPS*Norm(bin),
+	test(Norm(bex.SubVector(0,15)-bin) < EPS*Norm(bin),
 	    "B Measurement for Multi Image w/ PSF");
-	Test(Norm(bex.SubVector(15,bex.size())) < EPS*Norm(bin),
+	test(Norm(bex.SubVector(15,bex.size())) < EPS*Norm(bin),
 	    "B Measurement 2 for Multi Image w/ PSF");
 
 	x.Zero();
@@ -1581,17 +1581,17 @@ int main(int argc, char **argv) try
 	s->ftol = 1.e-6;
 	//s->verbose = true;
 #ifdef TESTJ
-	Test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image w/ PSF 1");
+	test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image w/ PSF 1");
 #endif
 	success = s->Solve(x,f);
 	xdbg<<"x = "<<x<<std::endl;
 	xdbg<<"xe = "<<xe<<std::endl;
 	xdbg<<"f = "<<f<<std::endl;
 	xdbg<<"success = "<<success<<std::endl;
-	Test(success,"PSF Solve - success");
-	Test(Norm(x-xe) < 1.e-5,"PSF Solve - x == xe");
+	test(success,"PSF Solve - success");
+	test(Norm(x-xe) < 1.e-5,"PSF Solve - x == xe");
 #ifdef TESTJ
-	Test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image w/ PSF 2");
+	test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image w/ PSF 2");
 #endif
 	xe[4] += dmu;
 #endif
@@ -1634,9 +1634,9 @@ int main(int argc, char **argv) try
     e_0.CrudeMeasure(allpix[0],sigma_i);
     xdbg<<"Done e_0 Measure\n";
     xdbg<<"e_0 = "<<e_0<<std::endl;
-    Test(std::abs(e_0.GetCen()-ell.GetCen()) < 1.e-3, "CrudeMeasure - cen");
-    Test(std::abs(e_0.GetGamma()) < 1.e-3, "CrudeMeasure - gam");
-    Test(std::abs(e_0.GetMu()-ell.GetMu()) < 1.e-3, "CrudeMeasure - mu");
+    test(std::abs(e_0.GetCen()-ell.GetCen()) < 1.e-3, "CrudeMeasure - cen");
+    test(std::abs(e_0.GetGamma()) < 1.e-3, "CrudeMeasure - gam");
+    test(std::abs(e_0.GetMu()-ell.GetMu()) < 1.e-3, "CrudeMeasure - mu");
 
     if (ell.GetGamma() != 0.) {
       for(int k=0;k<NPSFx;k++) {
@@ -1652,16 +1652,16 @@ int main(int argc, char **argv) try
     xdbg<<"e_1 Measure: success = "<<success<<std::endl;
     xdbg<<"e_1 = "<<e_1<<std::endl;
     xdbg<<"b_1 = "<<b_1<<std::endl;
-    Test(success,"Measure for Multi Image w/ PSF - success");
-    Test(std::abs(e_1.GetCen()-ell.GetCen()) < 1.e-5,
+    test(success,"Measure for Multi Image w/ PSF - success");
+    test(std::abs(e_1.GetCen()-ell.GetCen()) < 1.e-5,
 	"Measure for Multi Image w/ PSF - cen");
-    Test(std::abs(e_1.GetGamma()-ell.GetGamma()) < 1.e-5,
+    test(std::abs(e_1.GetGamma()-ell.GetGamma()) < 1.e-5,
 	"Measure for Multi Image w/ PSF - gam");
-    Test(std::abs(e_1.GetMu()-ell.GetMu()) < 1.e-5,
+    test(std::abs(e_1.GetMu()-ell.GetMu()) < 1.e-5,
 	"Measure for Multi Image w/ PSF - mu");
-    Test(Norm(b_1.SubVector(0,15)-bin) < 1.e-5*Norm(bin),
+    test(Norm(b_1.SubVector(0,15)-bin) < 1.e-5*Norm(bin),
 	"Measure for Multi Image w/ PSF - b");
-    Test(Norm(b_1.SubVector(15,b_1.size())) < 1.e-5*Norm(bin),
+    test(Norm(b_1.SubVector(15,b_1.size())) < 1.e-5*Norm(bin),
 	"Measure 2 for Multi Image w/ PSF - b");
 
 
@@ -1706,16 +1706,16 @@ int main(int argc, char **argv) try
     xdbg<<"sigma_i = "<<sigma_i<<std::endl;
     xdbg<<"e_2 = "<<e_2<<std::endl;
     xdbg<<"b_2 = "<<b_2<<std::endl;
-    Test(success,"Measure for Multi Image w/ PSF - success");
-    Test(std::abs(e_2.GetCen()-ell.GetCen()) < 1.e-5,
+    test(success,"Measure for Multi Image w/ PSF - success");
+    test(std::abs(e_2.GetCen()-ell.GetCen()) < 1.e-5,
 	"Measure for Multi Image w/ PSF - cen");
-    Test(std::abs(e_2.GetGamma()-ell.GetGamma()) < 1.e-5,
+    test(std::abs(e_2.GetGamma()-ell.GetGamma()) < 1.e-5,
 	"Measure for Multi Image w/ PSF - gam");
-    Test(std::abs(e_2.GetMu()-ell.GetMu()) < 1.e-5,
+    test(std::abs(e_2.GetMu()-ell.GetMu()) < 1.e-5,
 	"Measure for Multi Image w/ PSF - mu");
-    Test(Norm(b_2.SubVector(0,15)-bin) < 1.e-5*Norm(bin),
+    test(Norm(b_2.SubVector(0,15)-bin) < 1.e-5*Norm(bin),
 	"Measure for Multi Image w/ PSF - b");
-    Test(Norm(b_2.SubVector(15,b_2.size())) < 1.e-5*Norm(bin),
+    test(Norm(b_2.SubVector(15,b_2.size())) < 1.e-5*Norm(bin),
 	"Measure 2 for Multi Image w/ PSF - b");
 
 #if 0
@@ -1727,16 +1727,16 @@ int main(int argc, char **argv) try
     xdbg<<"sigma_ix = "<<sigma_ix<<std::endl;
     xdbg<<"e_3 = "<<e_3<<std::endl;
     xdbg<<"b_3 = "<<b_3<<std::endl;
-    Test(success,"Measure for Multi Image w/ PSF #2 - success");
-    Test(std::abs(e_3.GetCen()-ell.GetCen()) < 1.e-5,
+    test(success,"Measure for Multi Image w/ PSF #2 - success");
+    test(std::abs(e_3.GetCen()-ell.GetCen()) < 1.e-5,
 	"Measure for Multi Image #2 w/ PSF - cen");
-    Test(std::abs(e_3.GetGamma()-ell.GetGamma()) < 1.e-5,
+    test(std::abs(e_3.GetGamma()-ell.GetGamma()) < 1.e-5,
 	"Measure for Multi Image #2 w/ PSF - gam");
-    Test(std::abs(e_3.GetMu()-ell.GetMu()) < 1.e-5,
+    test(std::abs(e_3.GetMu()-ell.GetMu()) < 1.e-5,
 	"Measure for Multi Image #2 w/ PSF - mu");
-    Test(Norm(b_3.SubVector(0,15)-bin) < 1.e-5*Norm(bin),
+    test(Norm(b_3.SubVector(0,15)-bin) < 1.e-5*Norm(bin),
 	"Measure for Multi Image #2 w/ PSF - b");
-    Test(Norm(b_3.SubVector(15,b_3.size())) < 1.e-5*Norm(bin),
+    test(Norm(b_3.SubVector(15,b_3.size())) < 1.e-5*Norm(bin),
 	"Measure 2 for Multi Image #2 w/ PSF - b");
 #endif
   }
@@ -1760,7 +1760,7 @@ int main(int argc, char **argv) try
   FindStarsLog fslog(params,"testfs.log");
   int nstars = starCat.findStars(fslog);
   dbg<<fslog<<std::endl;
-  Test(nstars >= 240,"Find Stars");
+  test(nstars >= 240,"Find Stars");
 
   // Test I/O
   starCat.write();
@@ -1770,25 +1770,25 @@ int main(int argc, char **argv) try
     dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
     params["stars_ext"] = all_ext[k];
     if (k > 0) starCat2.read();
-    Test(starCat.size() == starCat2.size(),"starcat size I/O");
+    test(starCat.size() == starCat2.size(),"starcat size I/O");
     for(size_t i=0;i<starCat.size();++i) {
-      Test(starCat.getId(i) == starCat2.getId(i), "starcat id I/O");
-      Test(std::abs(starCat.getPos(i) - starCat2.getPos(i)) <= 0.01,
+      test(starCat.getId(i) == starCat2.getId(i), "starcat id I/O");
+      test(std::abs(starCat.getPos(i) - starCat2.getPos(i)) <= 0.01,
            "starcat pos I/O");
-      Test(std::abs(starCat.getSky(i) - starCat2.getSky(i)) <= 0.01,
+      test(std::abs(starCat.getSky(i) - starCat2.getSky(i)) <= 0.01,
            "starcat sky I/O");
-      Test(std::abs(starCat.getNoise(i) - starCat2.getNoise(i)) <= 0.01,
+      test(std::abs(starCat.getNoise(i) - starCat2.getNoise(i)) <= 0.01,
            "starcat noise I/O");
-      Test(starCat.getFlags(i) == starCat2.getFlags(i),"starcat flags I/O");
+      test(starCat.getFlags(i) == starCat2.getFlags(i),"starcat flags I/O");
       dbg<<"starcat.mag[i] = "<<starCat.getMag(i)<<
           ", starcat2.mag[i] = "<<starCat2.getMag(i)<<std::endl;
       dbg<<"abs(diff) = "<<
           std::abs(starCat.getMag(i) - starCat2.getMag(i))<<std::endl;
-      Test(std::abs(starCat.getMag(i) - starCat2.getMag(i)) <= 0.01,
+      test(std::abs(starCat.getMag(i) - starCat2.getMag(i)) <= 0.01,
            "starcat mag I/O");
-      Test(std::abs(starCat.getObjSize(i) - starCat2.getObjSize(i)) <= 0.01,
+      test(std::abs(starCat.getObjSize(i) - starCat2.getObjSize(i)) <= 0.01,
            "starcat objsize I/O");
-      Test(starCat.isAStar(i) == starCat2.isAStar(i),"starcat isastar I/O");
+      test(starCat.isAStar(i) == starCat2.isAStar(i),"starcat isastar I/O");
     }
   }
   params["stars_ext"] = all_ext;
@@ -1802,7 +1802,7 @@ int main(int argc, char **argv) try
   // There are 244 stars in the file, but depending on the exact parameters,
   // one or two cross the edge, which gives an error flag.
   // The rest should all be measured successfully.
-  Test(npsf >= 240,"Measure PSF");
+  test(npsf >= 240,"Measure PSF");
 
   // Test I/O
   psfcat.write();
@@ -1812,23 +1812,23 @@ int main(int argc, char **argv) try
     dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
     params["psf_ext"] = all_ext[k];
     if (k > 0) psfcat2.read();
-    Test(psfcat.size() == psfcat2.size(),"psfcat size I/O");
+    test(psfcat.size() == psfcat2.size(),"psfcat size I/O");
     for(size_t i=0;i<psfcat.size();++i) {
-        Test(psfcat.getId(i) == psfcat2.getId(i),"psfcat id I/O");
-        Test(std::abs(psfcat.getPos(i) - psfcat2.getPos(i)) <= 0.01,
+        test(psfcat.getId(i) == psfcat2.getId(i),"psfcat id I/O");
+        test(std::abs(psfcat.getPos(i) - psfcat2.getPos(i)) <= 0.01,
              "psfcat pos I/O");
-        Test(std::abs(psfcat.getSky(i) - psfcat2.getSky(i)) <= 0.01,
+        test(std::abs(psfcat.getSky(i) - psfcat2.getSky(i)) <= 0.01,
              "psfcat sky I/O");
-        Test(std::abs(psfcat.getNoise(i) - psfcat2.getNoise(i)) <= 0.01,
+        test(std::abs(psfcat.getNoise(i) - psfcat2.getNoise(i)) <= 0.01,
              "psfcat noise I/O");
-        Test(psfcat.getFlags(i) == psfcat2.getFlags(i),"psfcat flags I/O");
-        Test(std::abs(psfcat.getNu(i) - psfcat2.getNu(i)) <= 0.01,
+        test(psfcat.getFlags(i) == psfcat2.getFlags(i),"psfcat flags I/O");
+        test(std::abs(psfcat.getNu(i) - psfcat2.getNu(i)) <= 0.01,
              "psfcat nu I/O");
-        Test(psfcat.getPsf(i).size() == psfcat2.getPsf(i).size(),
+        test(psfcat.getPsf(i).size() == psfcat2.getPsf(i).size(),
              "psfcat psf.size I/O");
-        Test(std::abs(psfcat.getPsf(i).GetSigma()-psfcat2.getPsf(i).GetSigma()) 
+        test(std::abs(psfcat.getPsf(i).GetSigma()-psfcat2.getPsf(i).GetSigma()) 
              <= 0.01, "psfcat psf.GetSigma I/O");
-        Test(Norm(psfcat.getPsf(i) - psfcat2.getPsf(i)) <= 
+        test(Norm(psfcat.getPsf(i) - psfcat2.getPsf(i)) <= 
              1.e-4*Norm(psfcat.getPsf(i)), "psfcat psf vector I/O");
     }
   }
@@ -1848,7 +1848,7 @@ int main(int argc, char **argv) try
   rms /= count;
   rms = sqrt(rms);
   dbg<<"fitpsf rms = "<<rms<<std::endl;
-  Test(rms < double(fitpsf.getPsfSize())/double(fitpsf.getFitSize()),
+  test(rms < double(fitpsf.getPsfSize())/double(fitpsf.getFitSize()),
       "Fit PSF rms");
 
   // Test I/O
@@ -1861,8 +1861,8 @@ int main(int argc, char **argv) try
     if (k > 0) fitpsf2.read();
     rms = 0.; 
     count = 0;
-    Test(fitpsf2.getPsfOrder() == fitpsf.getPsfOrder(), "FittedPSF I/O: order");
-    Test(std::abs(fitpsf2.getSigma() - fitpsf.getSigma()) < 0.01, 
+    test(fitpsf2.getPsfOrder() == fitpsf.getPsfOrder(), "FittedPSF I/O: order");
+    test(std::abs(fitpsf2.getSigma() - fitpsf.getSigma()) < 0.01, 
 	"FittedPSF I/O: sigma");
     for(int i=0;i<nstars;i++) if (!psfcat.getFlags(i)) {
       BVec checkpsf(fitpsf.getPsfOrder(),fitpsf.getSigma());
@@ -1876,55 +1876,55 @@ int main(int argc, char **argv) try
     rms /= count;
     rms = sqrt(rms);
     dbg<<"fitpsf I/O rms = "<<rms<<std::endl;
-    Test(rms < 1.e-4,"Fit PSF I/O");
+    test(rms < 1.e-4,"Fit PSF I/O");
   }
   params["fitpsf_ext"] = all_ext;
 
   // Measure shears
   ShearCatalog shearcat(incat,trans,params);
   ShearLog shearlog(params,"testshear.log");
-  int nshear = shearcat.MeasureShears(im,weight_im.get(),trans,fitpsf,shearlog);
+  int nshear = shearcat.measureShears(im,weight_im.get(),trans,fitpsf,shearlog);
   dbg<<shearlog<<std::endl;
   // There are 4557 galaxies in the file without error codes.
   // The code currently converges on more than 3000 of them,
   // although only about 2300 or so have no error flag.
-  Test(nshear >= 3000,"Measure Shear");
+  test(nshear >= 3000,"Measure Shear");
 
   // Test I/O
-  shearcat.Write();
+  shearcat.write();
   ShearCatalog shearcat2(params);
   all_ext = params["shear_ext"];
   for(size_t k=0;k<all_ext.size();++k) {
     dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
     params["shear_ext"] = all_ext[k];
-    if (k > 0) shearcat2.Read();
-    Test(shearcat.size() == shearcat2.size(),"shearcat size I/O");
+    if (k > 0) shearcat2.read();
+    test(shearcat.size() == shearcat2.size(),"shearcat size I/O");
     for(size_t i=0;i<shearcat.size();++i) {
-      Test(shearcat.id[i] == shearcat2.id[i],"shearcat id I/O");
-      Test(std::abs(shearcat.pos[i] - shearcat2.pos[i]) <= 0.01,
+      test(shearcat.getId(i) == shearcat2.getId(i),"shearcat id I/O");
+      test(std::abs(shearcat.getPos(i) - shearcat2.getPos(i)) <= 0.01,
 	  "shearcat pos I/O");
-      Test(std::abs(shearcat.sky[i] - shearcat2.sky[i]) <= 0.01,
+      test(std::abs(shearcat.getSky(i) - shearcat2.getSky(i)) <= 0.01,
 	  "shearcat sky I/O");
-      Test(std::abs(shearcat.noise[i] - shearcat2.noise[i]) <= 0.01,
+      test(std::abs(shearcat.getNoise(i) - shearcat2.getNoise(i)) <= 0.01,
 	  "shearcat noise I/O");
-      Test(shearcat.flags[i] == shearcat2.flags[i],"shearcat flags I/O");
-      Test(std::abs(shearcat.skypos[i] - shearcat2.skypos[i]) <= 0.01,
+      test(shearcat.getFlags(i) == shearcat2.getFlags(i),"shearcat flags I/O");
+      test(std::abs(shearcat.getSkyPos(i) - shearcat2.getSkyPos(i)) <= 0.01,
 	  "shearcat skypos I/O");
-      Test(std::abs(shearcat.shear[i] - shearcat2.shear[i]) <= 0.01,
+      test(std::abs(shearcat.getShear(i) - shearcat2.getShear(i)) <= 0.01,
 	  "shearcat shear I/O");
-      Test(std::abs(shearcat.nu[i] - shearcat2.nu[i]) <= 0.01,
+      test(std::abs(shearcat.getNu(i) - shearcat2.getNu(i)) <= 0.01,
 	  "shearcat nu I/O");
-      Test(Norm(tmv::Matrix<double>(shearcat.cov[i] - shearcat2.cov[i]))
-	  <= 1.e-4*Norm(shearcat.cov[i]), "shearcat cov I/O");
-      Test(shearcat.shape[i].size() == shearcat2.shape[i].size(),
+      test(Norm(tmv::Matrix<double>(shearcat.getCov(i) - shearcat2.getCov(i)))
+	  <= 1.e-4*Norm(shearcat.getCov(i)), "shearcat cov I/O");
+      test(shearcat.getShape(i).size() == shearcat2.getShape(i).size(),
 	  "shearcat shape.size I/O");
-      dbg<<"sigma1 = "<<shearcat.shape[i].GetSigma()<<
-	"  sigma2 = "<<shearcat2.shape[i].GetSigma()<<std::endl;
-      dbg<<"abs(diff) = "<<(std::abs(shearcat.shape[i].GetSigma()-shearcat2.shape[i].GetSigma()))<<std::endl;
-      Test(std::abs(shearcat.shape[i].GetSigma()-shearcat2.shape[i].GetSigma())
+      dbg<<"sigma1 = "<<shearcat.getShape(i).GetSigma()<<
+	"  sigma2 = "<<shearcat2.getShape(i).GetSigma()<<std::endl;
+      dbg<<"abs(diff) = "<<(std::abs(shearcat.getShape(i).GetSigma()-shearcat2.getShape(i).GetSigma()))<<std::endl;
+      test(std::abs(shearcat.getShape(i).GetSigma()-shearcat2.getShape(i).GetSigma())
 	  <= 0.01, "shearcat shape.GetSigma I/O");
-      Test(Norm(shearcat.shape[i] - shearcat2.shape[i]) 
-	  <= 1.e-4*Norm(shearcat.shape[i]),"shearcat shape vector I/O");
+      test(Norm(shearcat.getShape(i) - shearcat2.getShape(i)) 
+	  <= 1.e-4*Norm(shearcat.getShape(i)),"shearcat shape vector I/O");
     }
   }
   params["shear_ext"] = all_ext;

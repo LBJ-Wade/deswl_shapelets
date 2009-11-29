@@ -139,7 +139,7 @@ protected:
 private:
 
     void doSimpleFit(
-        size_t xOrder, size_t yOrder, 
+        int xOrder, int yOrder, 
         const std::vector<Position>& pos, const std::vector<T>& v,
         const std::vector<bool>& shouldUse, tmv::Vector<T> *f, 
         const std::vector<double>* sigList=0, int *dof=0,

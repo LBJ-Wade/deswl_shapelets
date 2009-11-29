@@ -30,7 +30,7 @@ static void readGain(const std::string& file, ConfigFile& params)
 
     const int nGainKeys = gainKey.size();
     const int nReadNoiseKeys = readNoiseKey.size();
-    for(int k=0;k<nGainKeys;k++) {
+    for(int k=0;k<nGainKeys;++k) {
         xdbg<<"try "<<gainKey[k]<<std::endl;
         try {
             fits.pHDU().readKey(gainKey[k],gain);
@@ -44,7 +44,7 @@ static void readGain(const std::string& file, ConfigFile& params)
         }
     }
 
-    for(int k=0;k<nReadNoiseKeys;k++) {
+    for(int k=0;k<nReadNoiseKeys;++k) {
         xdbg<<"try "<<readNoiseKey[k]<<std::endl;
         try {
             fits.pHDU().readKey(readNoiseKey[k], readNoise);
@@ -109,6 +109,7 @@ InputCatalog::InputCatalog(ConfigFile& params, const Image<double>* im) :
 
     // These are the only two fields guaranteed to be set.
     Assert(_id.size() == _pos.size());
+    int nRows = _id.size();
 
     // Fix sky if necessary
     double badSkyVal = _params.read("cat_bad_sky",-999.);
@@ -127,13 +128,13 @@ InputCatalog::InputCatalog(ConfigFile& params, const Image<double>* im) :
             dbg<<"Found global sky from image median value.\n";
         }
         dbg<<"Set global value of sky to "<<globSky<<std::endl;
-        for(size_t i=0;i<_sky.size();++i) 
+        for(int i=0;i<nRows;++i) {
             if (_sky[i] == badSkyVal) _sky[i] = globSky;
+        }
     }
     Assert(_sky.size() == _pos.size());
 
     // MJ: <100 have basically no chance to find the stars
-    int nRows = _id.size();
     if (_params.read("des_qa",false)) {
         int minRows = _params.read("cat_nrows",0);
         if (nRows <= minRows) {
@@ -148,7 +149,7 @@ InputCatalog::InputCatalog(ConfigFile& params, const Image<double>* im) :
            nm == GAIN_VALUE || nm == WEIGHT_IMAGE);
     if (nm == VALUE) {
         _noise.resize(nRows,0);
-        for(size_t i=0;i<_noise.size();++i) {
+        for(int i=0;i<nRows;++i) {
             _noise[i] = noiseValue;
         }
         xdbg<<"Set all noise to "<<noiseValue<<std::endl;
@@ -156,7 +157,7 @@ InputCatalog::InputCatalog(ConfigFile& params, const Image<double>* im) :
         Assert(_noise.size() == _id.size());
     } else if (nm == CATALOG_SIGMA) {
         Assert(_noise.size() == _id.size());
-        for(size_t i=0;i<_noise.size();++i) {
+        for(int i=0;i<nRows;++i) {
             _noise[i] = _noise[i]*_noise[i];
         }
         xdbg<<"Squared noise values from catalog\n";
@@ -164,7 +165,7 @@ InputCatalog::InputCatalog(ConfigFile& params, const Image<double>* im) :
         _noise.resize(nRows,0);
         double extraSky=_params.read("image_extra_sky",0.);
         xdbg<<"Calculate noise from sky, gain, readnoise\n";
-        for(size_t i=0;i<_noise.size();++i) {
+        for(int i=0;i<nRows;++i) {
             _noise[i] = (_sky[i]+extraSky)/gain + readNoise;
         }
     } else if (nm == WEIGHT_IMAGE) {
@@ -195,7 +196,7 @@ InputCatalog::InputCatalog(ConfigFile& params, const Image<double>* im) :
                 ignoreFlags<<std::endl;
         }
         Assert(_flags.size() == _id.size());
-        for(size_t i=0;i<_flags.size();++i) {
+        for(int i=0;i<nRows;++i) {
             _flags[i] = (_flags[i] & ignoreFlags) ? INPUT_FLAG : 0;
         }
         dbg<<std::dec<<std::noshowbase;
@@ -244,7 +245,8 @@ void InputCatalog::read()
             "Error reading from "+file+" -- caught unknown error");
     }
     // Update the bounds:
-    for(size_t i=0;i<_pos.size();++i) _bounds += _pos[i];
+    const int nPos = _pos.size();
+    for(int i=0;i<nPos;++i) _bounds += _pos[i];
 
     dbg<<"Done Read InputCatalog\n";
 }
@@ -283,9 +285,9 @@ void InputCatalog::readFits(std::string file)
         table.column(idCol).read(_id, start, end);
     } else {
         _id.resize(nRows);
-        for (size_t i=0;i<_id.size();i++) _id[i] = i+1;
+        for (int i=0;i<nRows;++i) _id[i] = i+1;
     }
-
+    Assert(int(_id.size()) == nRows);
 
     // Position (on chip)
     std::vector<float> posX;
@@ -300,7 +302,7 @@ void InputCatalog::readFits(std::string file)
 
     double xOffset = _params.read("cat_x_offset",0.);
     double yOffset = _params.read("cat_y_offset",0.);
-    for (long i=0; i< nRows; i++) {
+    for (long i=0; i< nRows; ++i) {
         _pos[i] = Position(posX[i]-xOffset, posY[i]-yOffset);
     }
 
@@ -335,7 +337,9 @@ void InputCatalog::readFits(std::string file)
             dbg<<"  "<<size2Col<<std::endl;
             std::vector<double> objSize2(_objSize.size());
             table.column(size2Col).read(objSize2, start, end);
-            for(size_t i=0;i<_objSize.size();++i) _objSize[i] += objSize2[i];
+            Assert(_objSize.size() == _id.size());
+            Assert(objSize2.size() == _id.size());
+            for(int i=0;i<nRows;++i) _objSize[i] += objSize2[i];
         }
     }
 
@@ -348,16 +352,29 @@ void InputCatalog::readFits(std::string file)
 
     // RA
     if (_params.keyExists("cat_ra_col")) {
-        std::string raCol=_params["cat_ra_col"];
-        dbg<<"  "<<raCol<<std::endl;
-        table.column(raCol).read(_ra, start, end);
-    }
+        if (!_params.keyExists("cat_dec_col"))
+            throw ParameterException("cat_ra_col, but no cat_dec_col");
 
-    // Declination
-    if (_params.keyExists("cat_dec_col")) {
+        std::string raCol=_params["cat_ra_col"];
         std::string declCol=_params["cat_dec_col"];
+
+        std::vector<float> ra;
+        std::vector<float> decl;
+        dbg<<"  "<<raCol<<std::endl;
+        table.column(raCol).read(ra, start, end);
         dbg<<"  "<<declCol<<std::endl;
-        table.column(declCol).read(_decl, start, end);
+        table.column(declCol).read(decl, start, end);
+
+        _skyPos.resize(nRows);
+        for(long i=0;i<nRows;++i) {
+            _skyPos[i] = Position(ra[i],decl[i]);
+            // The convention for Position is to use arcsec for everything.
+            // ra and dec come in as degrees.  So wee need to convert to arcsec.
+            _skyPos[i] *= 3600.;  // deg -> arcsec
+            _skyBounds += _skyPos[i];
+        }
+    } else if (_params.keyExists("cat_dec_col")) {
+        throw ParameterException("cat_dec_col, but no cat_ra_col");
     }
 
     // Noise
@@ -404,26 +421,26 @@ void InputCatalog::readAscii(std::string file, std::string delim)
 
     // x,y is required
     std::string line;
-    size_t xCol = _params.read<size_t>("cat_x_col");
-    size_t yCol = _params.read<size_t>("cat_y_col");
+    int xCol = _params.read<int>("cat_x_col");
+    int yCol = _params.read<int>("cat_y_col");
 
     // Set column numbers for optional columns
-    size_t idCol = _params.read("cat_id_col",0);
+    int idCol = _params.read("cat_id_col",0);
 
-    size_t magCol = _params.read("cat_mag_col",0);
-    size_t magErrCol = _params.read("cat_mag_err_col",0);
+    int magCol = _params.read("cat_mag_col",0);
+    int magErrCol = _params.read("cat_mag_err_col",0);
 
-    size_t sizeCol = _params.read("cat_size_col",0);
-    size_t size2Col = _params.read("cat_size2_col",0);
+    int sizeCol = _params.read("cat_size_col",0);
+    int size2Col = _params.read("cat_size2_col",0);
 
-    size_t flagCol = _params.read("cat_flag_col",0);
+    int flagCol = _params.read("cat_flag_col",0);
 
-    size_t skyCol = _params.read("cat_sky_col",0);
+    int skyCol = _params.read("cat_sky_col",0);
 
-    size_t raCol = _params.read("cat_ra_col",0);
-    size_t declCol = _params.read("cat_dec_col",0);
+    int raCol = _params.read("cat_ra_col",0);
+    int declCol = _params.read("cat_dec_col",0);
 
-    size_t noiseCol = _params.read("cat_noise_col",0);
+    int noiseCol = _params.read("cat_noise_col",0);
 
     // Set up allowed comment markers
     std::vector<std::string> commentMarker = 
@@ -441,7 +458,8 @@ void InputCatalog::readAscii(std::string file, std::string delim)
 
         // Skip if this is a comment.
         bool shouldSkip = false;
-        for(size_t k=0;k<commentMarker.size();++k) {
+        const int nCommentMarkers = commentMarker.size();
+        for(int k=0;k<nCommentMarkers;++k) {
             if (std::string(line,0,commentMarker[k].size()) == 
                 commentMarker[k]) {
                 shouldSkip = true;
@@ -519,18 +537,20 @@ void InputCatalog::readAscii(std::string file, std::string delim)
 
         // RA
         if (raCol) {
+            if (!declCol) 
+                throw ParameterException("cat_ra_col, but no cat_dec_col");
             double raVal = 0.;
-            Assert(raCol <= tokens.size());
-            raVal = tokens[raCol-1];
-            _ra.push_back(raVal);
-        } 
-
-        // Declination
-        if (declCol) {
             double declVal = 0.;
+            Assert(raCol <= tokens.size());
             Assert(declCol <= tokens.size());
+            raVal = tokens[raCol-1];
             declVal = tokens[declCol-1];
-            _decl.push_back(declVal);
+            Position skyPosVal(raVal,declVal);
+            skyPosVal *= 3600.; // deg -> arcsec
+            _skyPos.push_back(skyPosVal);
+            _skyBounds += skyPosVal;
+        } else if (declCol) {
+            throw ParameterException("cat_dec_col, but no cat_ra_col");
         }
 
         // Noise

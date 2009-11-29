@@ -92,8 +92,9 @@ void Polynomial2D<T>::write(std::ostream& fout) const
     std::ios_base::fmtflags oldf = 
         fout.setf(std::ios_base::scientific,std::ios_base::floatfield);
     int maxOrder = std::max(_xOrder,_yOrder);
-    if (maxOrder == 0) fout << "C " << (*_coeffs)(0,0) << std::endl;
-    else {
+    if (maxOrder == 0) {
+        fout << "C " << (*_coeffs)(0,0) << std::endl;
+    } else {
         fout << "P " << _xOrder << ' ' << _yOrder << ' ' << _scale << ' ';
         for(int m=0;m<=maxOrder;++m) {
             int i0 = std::min(_xOrder,m);
@@ -371,8 +372,8 @@ inline int fitSize(const int xOrder, const int yOrder)
 
 template <typename T>
 void Function2D<T>::doSimpleFit(
-    size_t xOrder, size_t yOrder, 
-    const std::vector<Position>& pos, const std::vector<T>& v, 
+    int xOrder, int yOrder, 
+    const std::vector<Position>& pos, const std::vector<T>& vals, 
     const std::vector<bool>& shouldUse, tmv::Vector<T> *f,
     const std::vector<double>* sigList,
     int *dof, tmv::Vector<T> *diff, tmv::Matrix<double>* cov)
@@ -396,49 +397,50 @@ void Function2D<T>::doSimpleFit(
     //
     // The solution to this equation, then, gives our answer for K.
     //
-    Assert(pos.size() == v.size());
-    Assert(shouldUse.size() == v.size());
-    Assert((sigList==0) || (sigList->size() == v.size()));
+    Assert(pos.size() == vals.size());
+    Assert(shouldUse.size() == vals.size());
+    Assert((sigList==0) || (sigList->size() == vals.size()));
     xdbg<<"Start SimpleFit: size = "<<pos.size()<<std::endl;
     xdbg<<"order = "<<xOrder<<','<<yOrder<<std::endl;
 
-    size_t highOrder = std::max(xOrder,yOrder);
-    size_t size = fitSize(xOrder,yOrder);
+    int highOrder = std::max(xOrder,yOrder);
+    int size = fitSize(xOrder,yOrder);
     xdbg<<"size = "<<size<<std::endl;
 
+    const int nVals = vals.size();
+
     Assert(f->size() == size);
-    Assert(!diff || diff->size() == v.size());
+    Assert(!diff || diff->size() == vals.size());
     Assert(!cov || (cov->colsize() == size && cov->rowsize() == size));
 
-    size_t nUse = 0;
-    for(size_t i=0;i<shouldUse.size();++i) if (shouldUse[i]) ++nUse;
+    int nUse = std::count(shouldUse.begin(),shouldUse.end(),true);
     xdbg<<"nuse = "<<nUse<<std::endl;
 
     tmv::Matrix<double> P(nUse,size,0.);
     tmv::Vector<T> V(nUse);
 
-    size_t ii=0;
-    for(size_t i=0;i<v.size();++i) if (shouldUse[i]) {
+    int ii=0;
+    for(int i=0;i<nVals;++i) if (shouldUse[i]) {
         if (sigList) {
             Assert((*sigList)[i] > 0.);
-            V(ii) = v[i]/(*sigList)[i];
+            V(ii) = vals[i]/(*sigList)[i];
         } else {
-            V(ii) = v[i];
+            V(ii) = vals[i];
         }
 
         tmv::Vector<double> px = definePX(xOrder,pos[i].getX());
         tmv::Vector<double> py = definePY(yOrder,pos[i].getY());
-        size_t pq=0;
-        for(size_t pplusq=0;pplusq<=highOrder;++pplusq) { 
-            for(size_t p=std::min(pplusq,xOrder),q=pplusq-p;
+        int pq=0;
+        for(int pplusq=0;pplusq<=highOrder;++pplusq) { 
+            for(int p=std::min(pplusq,xOrder),q=pplusq-p;
                 q<=std::min(pplusq,yOrder);--p,++q,++pq) {
-                Assert(p<px.size());
-                Assert(q<py.size());
-                Assert(pq<P.rowsize());
+                Assert(p<int(px.size()));
+                Assert(q<int(py.size()));
+                Assert(pq<int(P.rowsize()));
                 P(ii,pq) = px[p]*py[q];
             }
         }
-        Assert(pq == P.rowsize());
+        Assert(pq == int(P.rowsize()));
         if (sigList) P.row(ii) /= (*sigList)[i];
         ++ii;
     }
@@ -452,13 +454,14 @@ void Function2D<T>::doSimpleFit(
     xdbg<<"*f = "<<*f<<std::endl;
 
     if (diff) {
-        size_t k=0;
-        for(size_t i=0;i<v.size();++i) {
+        int k=0;
+        for(int i=0;i<nVals;++i) {
             if (shouldUse[i]) {
                 (*diff)(i) = V(k) - P.row(k) * (*f);
                 ++k;
+            } else {
+                (*diff)(i) = 0.;
             }
-            else (*diff)(i) = 0.;
         }
     }
     if (dof) {
@@ -474,17 +477,18 @@ void Function2D<T>::doSimpleFit(
 template <typename T>
 void Function2D<T>::simpleFit(
     int order, const std::vector<Position>& pos, 
-    const std::vector<T>& v, const std::vector<bool>& shouldUse, 
+    const std::vector<T>& vals, const std::vector<bool>& shouldUse, 
     const std::vector<double>* sig,
     double *chisqOut, int *dofOut, tmv::Matrix<double>* cov) 
 {
     tmv::Vector<T> fVect(fitSize(order,order));
     if (chisqOut) {
-        tmv::Vector<T> diff(v.size());
-        doSimpleFit(order,order,pos,v,shouldUse,&fVect,sig,dofOut,&diff,cov);
+        tmv::Vector<T> diff(vals.size());
+        doSimpleFit(order,order,pos,vals,shouldUse,&fVect,sig,dofOut,&diff,cov);
         *chisqOut = NormSq(diff);
+    } else {
+        doSimpleFit(order,order,pos,vals,shouldUse,&fVect,sig);
     }
-    else doSimpleFit(order,order,pos,v,shouldUse,&fVect,sig);
     setFunction(order,order,fVect);
 }
 
@@ -497,21 +501,22 @@ inline T absSq(const std::complex<T>& x) { return std::norm(x); }
 template <typename T>
 void Function2D<T>::outlierFit(
     int order,double nSig,
-    const std::vector<Position>& pos, const std::vector<T>& v,
+    const std::vector<Position>& pos, const std::vector<T>& vals,
     std::vector<bool> *shouldUse,
     const std::vector<double>* sig, double *chisqOut, int *dofOut, 
     tmv::Matrix<double> *cov)
 {
     xdbg<<"start outlier fit\n";
+    const int nVals = vals.size();
     bool isDone=false;
     tmv::Vector<T> fVect(fitSize(order,order));
     int dof;
     double chisq=0.;
     double nSigSq = nSig*nSig;
     while (!isDone) {
-        tmv::Vector<T> diff(v.size());
+        tmv::Vector<T> diff(nVals);
         xdbg<<"before dosimple\n";
-        doSimpleFit(order,order,pos,v,*shouldUse,&fVect,sig,&dof,&diff,cov);
+        doSimpleFit(order,order,pos,vals,*shouldUse,&fVect,sig,&dof,&diff,cov);
         xdbg<<"after dosimple\n";
         // Caclulate chisq, keeping the vector diffsq for later when
         // looking for outliers
@@ -525,8 +530,8 @@ void Function2D<T>::outlierFit(
         if (dof <= 0) break;
         double thresh=nSigSq*chisq/dof;
         xdbg<<"chisq = "<<chisq<<", thresh = "<<thresh<<std::endl;
-        for(size_t i=0;i<v.size();++i) if( (*shouldUse)[i]) { 
-            xdbg<<"pos ="<<pos[i]<<", v = "<<v[i]<<
+        for(int i=0;i<nVals;++i) if( (*shouldUse)[i]) { 
+            xdbg<<"pos ="<<pos[i]<<", v = "<<vals[i]<<
                 " diff = "<<diff[i]<<std::endl;
             if (absSq(diff[i]) > thresh) {
                 isDone = false; 
@@ -565,15 +570,15 @@ inline bool Equivalent(double chisq1,double chisq2, int n1, int n2,
 template <typename T>
 void Function2D<T>::orderFit(
     int maxOrder, double equivProb,
-    const std::vector<Position>& pos,const std::vector<T>& v,
+    const std::vector<Position>& pos,const std::vector<T>& vals,
     const std::vector<bool>& shouldUse, const std::vector<double>* sig,
     double *chisqOut, int *dofOut, tmv::Matrix<double>* cov) 
 {
     xdbg<<"Start OrderFit\n";
     tmv::Vector<T> fVectMax(fitSize(maxOrder,maxOrder));
-    tmv::Vector<T> diff(v.size());
+    tmv::Vector<T> diff(vals.size());
     int dofmax;
-    doSimpleFit(maxOrder,maxOrder,pos,v,shouldUse,
+    doSimpleFit(maxOrder,maxOrder,pos,vals,shouldUse,
                 &fVectMax,sig,&dofmax,&diff,cov);
     double chisqmax = NormSq(diff);
     xdbg<<"chisq,dof(n="<<maxOrder<<") = "<<chisqmax<<','<<dofmax<<std::endl;
@@ -583,7 +588,7 @@ void Function2D<T>::orderFit(
     std::auto_ptr<tmv::Vector<T> > fVect(0);
     for(tryOrder=0;tryOrder<maxOrder;++tryOrder) {
         fVect.reset(new tmv::Vector<T>(fitSize(tryOrder,tryOrder)));
-        doSimpleFit(tryOrder,tryOrder,pos,v,shouldUse,
+        doSimpleFit(tryOrder,tryOrder,pos,vals,shouldUse,
                     fVect.get(),sig,&dof,&diff,cov);
         chisq = NormSq(diff);
         xdbg<<"chisq,dof(n="<<tryOrder<<") = "<<chisq<<','<<dof<<"....  ";

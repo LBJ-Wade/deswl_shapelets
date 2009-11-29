@@ -9,145 +9,167 @@
 #include <iostream>
 #include <string>
 
-template <class T> class Bound_form;
+template <class T> class BoundForm;
 
-class Form {
-  template <class T> 
-    friend std::ostream& operator<<(std::ostream&, const Bound_form<T>&);
-  friend void FloatSetup(std::ostream&,const Form&);
-  friend void IntSetup(std::ostream&,const Form&);
-
-  int prc; // precision
-  int wdt; // width, 0 means as wide as necessary
-  std::ios_base::fmtflags fmt; // general sci, or fixed
-  std::ios_base::fmtflags base; // dec, hex, oct
-  std::ios_base::fmtflags just; // left, right, internal fill
-  char newfillch; // fill character
-  int doupper; // +1 to have uppercase E,X, -1 turn off, (0 leave as is)
-  int doplus; // +1 to have explicit plus for positive values, -1 off, 0 same
-  int dotrail; // +1 to write trailing zeros, -1 off, 0 same
-  int doboolalpha; // +1 to write "true","false", -1 off, 0 same
-  int ntrail; // number of spaces after output
-  char trailch; // character of trailing "spaces"
-  
+class Form 
+{
 public:
-  Form(): prc(6), wdt(0), fmt(), base(std::ios_base::dec),
-    just(std::ios_base::left), newfillch(0),
-    doupper(0), doplus(0), dotrail(0), doboolalpha(0),
-    ntrail(1), trailch(' ')  {}
-  template <class T> Bound_form<T> operator()(T val) const;
- 
-  Form& prec(int p) {prc = p; return *this;}
+    Form() : 
+        _prc(6), _wdt(0), _fmt(), _base(std::ios_base::dec),
+        _just(std::ios_base::left), _newFillCh(0),
+        _doUpper(0), _doPlus(0), _doTrail(0), _doBoolAlpha(0),
+        _nTrail(1), _trailCh(' ')  
+    {}
 
-  Form& sci() {fmt = std::ios_base::scientific; return *this;}
-  Form& fix() {fmt = std::ios_base::fixed; return *this;}
-  Form& gen() {fmt = ~std::ios_base::floatfield; return *this;}
+    template <class T> BoundForm<T> operator()(T val) const;
 
-  Form& width(int w) {wdt = w; return *this;}
-  Form& fill(char c) {newfillch = c; return *this;}
+    Form& prec(int p) { _prc = p; return *this; }
 
-  Form& dec() {base = std::ios_base::dec; return *this;}
-  Form& oct() {base = std::ios_base::oct; return *this;}
-  Form& hex() {base = std::ios_base::hex; return *this;}
+    Form& sci() { _fmt = std::ios_base::scientific; return *this; }
+    Form& fix() { _fmt = std::ios_base::fixed; return *this; }
+    Form& gen() { _fmt = ~std::ios_base::floatfield; return *this; }
 
-  Form& left() {just = std::ios_base::left; return *this;}
-  Form& right() {just = std::ios_base::right; return *this;}
-  Form& internal() {just = std::ios_base::internal; return *this;}
+    Form& width(int w) { _wdt = w; return *this; }
+    Form& fill(char c) { _newFillCh = c; return *this; }
 
-  Form& uppercase(bool b=true) {doupper = b?1:-1; return *this;}
-  Form& showpos(bool b=true) {doplus = b?1:-1; return *this;}
-  Form& showpoint(bool b=true) {dotrail = b?1:-1; return *this;}
-  Form& boolalpha(bool b=true) {doboolalpha = b?1:-1; return *this;}
+    Form& dec() { _base = std::ios_base::dec; return *this; }
+    Form& oct() { _base = std::ios_base::oct; return *this; }
+    Form& hex() { _base = std::ios_base::hex; return *this; }
 
-  Form& trail(int n,char ch=' ') {ntrail = n; trailch = ch; return *this;}
+    Form& left() { _just = std::ios_base::left; return *this; }
+    Form& right() { _just = std::ios_base::right; return *this; }
+    Form& internal() { _just = std::ios_base::internal; return *this; }
+
+    Form& uppercase(bool b=true) { _doUpper = b?1:-1; return *this; }
+    Form& showpos(bool b=true) { _doPlus = b?1:-1; return *this; }
+    Form& showpoint(bool b=true) { _doTrail = b?1:-1; return *this; }
+    Form& boolalpha(bool b=true) { _doBoolAlpha = b?1:-1; return *this; }
+
+    Form& trail(int n, char ch=' ') 
+    { _nTrail = n; _trailCh = ch; return *this; }
+
+private:
+    template <class T> 
+    friend std::ostream& operator<<(std::ostream&, const BoundForm<T>&);
+
+    friend void FloatSetup(std::ostream&, const Form&);
+    friend void IntSetup(std::ostream&, const Form&);
+
+    int _prc; // precision
+    int _wdt; // width, 0 means as wide as necessary
+    std::ios_base::fmtflags _fmt; // general sci, or fixed
+    std::ios_base::fmtflags _base; // dec, hex, oct
+    std::ios_base::fmtflags _just; // left, right, internal fill
+    char _newFillCh; // fill character
+    int _doUpper; // +1 to have uppercase E,X, -1 turn off, (0 leave as is)
+    int _doPlus; // +1 to have explicit plus for positive values, -1 off, 0 same
+    int _doTrail; // +1 to write trailing zeros, -1 off, 0 same
+    int _doBoolAlpha; // +1 to write "true","false", -1 off, 0 same
+    int _nTrail; // number of spaces after output
+    char _trailCh; // character of trailing "spaces"
+
 };
 
 template <class T>
-struct Bound_form {
-  const Form& f;
-  T val;
-  Bound_form(const Form& ff, T v) : f(ff), val(v) {}
+struct BoundForm 
+{
+    const Form& f;
+    T val;
+    BoundForm(const Form& f_, T val_) : f(f_), val(val_) {}
 };
 
 template <class T>
-inline Bound_form<T> Form::operator()(T val) const 
-  { return Bound_form<T>(*this,val); }
+inline BoundForm<T> Form::operator()(T val) const 
+{ return BoundForm<T>(*this,val); }
 
 inline void FloatSetup(std::ostream& s, const Form& f)
 {
-  s.precision(f.prc);
-  s.setf(f.fmt,std::ios_base::floatfield);
-  s.setf(f.just,std::ios_base::adjustfield);
-  if (f.wdt) s.width(f.wdt);
-  if (f.newfillch) s.fill(f.newfillch);
-  if (f.doupper && f.fmt == std::ios_base::scientific) {
-    if (f.doupper>0) s.setf(std::ios_base::uppercase);
-    else s.unsetf(std::ios_base::uppercase); 
-  }
-  if (f.doplus) {
-    if (f.doplus>0) s.setf(std::ios_base::showpos); 
-    else s.unsetf(std::ios_base::showpos); 
-  }
-  if (f.dotrail) {
-    if (f.dotrail>0) s.setf(std::ios_base::showpoint); 
-    else s.unsetf(std::ios_base::showpoint); 
-  }
+    s.precision(f._prc);
+    s.setf(f._fmt,std::ios_base::floatfield);
+    s.setf(f._just,std::ios_base::adjustfield);
+    if (f._wdt) s.width(f._wdt);
+    if (f._newFillCh) s.fill(f._newFillCh);
+    if (f._doUpper && f._fmt == std::ios_base::scientific) {
+        if (f._doUpper>0) s.setf(std::ios_base::uppercase);
+        else s.unsetf(std::ios_base::uppercase); 
+    }
+    if (f._doPlus) {
+        if (f._doPlus>0) s.setf(std::ios_base::showpos); 
+        else s.unsetf(std::ios_base::showpos); 
+    }
+    if (f._doTrail) {
+        if (f._doTrail>0) s.setf(std::ios_base::showpoint); 
+        else s.unsetf(std::ios_base::showpoint); 
+    }
 }
 
 inline void IntSetup(std::ostream& s, const Form& f)
 {
-  s.setf(f.just,std::ios_base::adjustfield);
-  s.setf(f.base,std::ios_base::basefield);
-  if (f.wdt) s.width(f.wdt);
-  if (f.newfillch) s.fill(f.newfillch);
-  if (f.doupper && f.base == std::ios_base::hex) {
-    if (f.doupper>0) s.setf(std::ios_base::uppercase); 
-    else s.unsetf(std::ios_base::uppercase); 
-  }
-  if (f.doplus) {
-    if (f.doplus>0) s.setf(std::ios_base::showpos); 
-    else s.unsetf(std::ios_base::showpos); 
-  }
-  if (f.base != std::ios_base::dec) s.setf(std::ios_base::showbase);
+    s.setf(f._just,std::ios_base::adjustfield);
+    s.setf(f._base,std::ios_base::basefield);
+    if (f._wdt) s.width(f._wdt);
+    if (f._newFillCh) s.fill(f._newFillCh);
+    if (f._doUpper && f._base == std::ios_base::hex) {
+        if (f._doUpper>0) s.setf(std::ios_base::uppercase); 
+        else s.unsetf(std::ios_base::uppercase); 
+    }
+    if (f._doPlus) {
+        if (f._doPlus>0) s.setf(std::ios_base::showpos); 
+        else s.unsetf(std::ios_base::showpos); 
+    }
+    if (f._base != std::ios_base::dec) s.setf(std::ios_base::showbase);
 }
 
-inline void Setup(std::ostream& os, const Bound_form<double>& bf)
+inline void Setup(std::ostream& os, const BoundForm<double>& bf)
 { FloatSetup(os,bf.f); }
-inline void Setup(std::ostream& os, const Bound_form<long double>& bf)
+
+inline void Setup(std::ostream& os, const BoundForm<long double>& bf)
 { FloatSetup(os,bf.f); }
-inline void Setup(std::ostream& os, const Bound_form<float>& bf)
+
+inline void Setup(std::ostream& os, const BoundForm<float>& bf)
 { FloatSetup(os,bf.f); }
-inline void Setup(std::ostream& os, const Bound_form<std::complex<double> >& bf)
+
+inline void Setup(std::ostream& os, const BoundForm<std::complex<double> >& bf)
 { FloatSetup(os,bf.f); }
-inline void Setup(std::ostream& os, const Bound_form<std::complex<long double> >& bf)
+
+inline void Setup(
+    std::ostream& os, const BoundForm<std::complex<long double> >& bf)
 { FloatSetup(os,bf.f); }
-inline void Setup(std::ostream& os, const Bound_form<std::complex<float> >& bf)
+
+inline void Setup(std::ostream& os, const BoundForm<std::complex<float> >& bf)
 { FloatSetup(os,bf.f); }
-inline void Setup(std::ostream& os, const Bound_form<int>& bf)
+
+inline void Setup(std::ostream& os, const BoundForm<int>& bf)
 { IntSetup(os,bf.f); }
-inline void Setup(std::ostream& os, const Bound_form<short>& bf)
+
+inline void Setup(std::ostream& os, const BoundForm<short>& bf)
 { IntSetup(os,bf.f); }
-inline void Setup(std::ostream& os, const Bound_form<long>& bf)
+
+inline void Setup(std::ostream& os, const BoundForm<long>& bf)
 { IntSetup(os,bf.f); }
-inline void Setup(std::ostream& os, const Bound_form<unsigned int>& bf)
+
+inline void Setup(std::ostream& os, const BoundForm<unsigned int>& bf)
 { IntSetup(os,bf.f); }
-inline void Setup(std::ostream& os, const Bound_form<unsigned short>& bf)
+
+inline void Setup(std::ostream& os, const BoundForm<unsigned short>& bf)
 { IntSetup(os,bf.f); }
-inline void Setup(std::ostream& os, const Bound_form<unsigned long>& bf)
+
+inline void Setup(std::ostream& os, const BoundForm<unsigned long>& bf)
 { IntSetup(os,bf.f); }
+
 template<class T>
-inline void Setup(std::ostream& os, const Bound_form<T>& bf)
+inline void Setup(std::ostream& os, const BoundForm<T>& bf)
 { FloatSetup(os,bf.f); }
 
 template <class T>
-inline std::ostream& operator<<(std::ostream& os, const Bound_form<T>& bf)
+inline std::ostream& operator<<(std::ostream& os, const BoundForm<T>& bf)
 {
-  std::ostringstream s;
-  Setup(s,bf);
-  s << bf.val;
-  if (bf.f.ntrail>0) s << std::string(bf.f.ntrail,bf.f.trailch);
-  os << s.str();
-  return os;
+    std::ostringstream s;
+    Setup(s,bf);
+    s << bf.val;
+    if (bf.f._nTrail>0) s << std::string(bf.f._nTrail,bf.f._trailCh);
+    os << s.str();
+    return os;
 }
 
 #endif

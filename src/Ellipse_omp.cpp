@@ -64,7 +64,7 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
   tmv::Vector<double> f(5);
 
   if (use_integ && order <= 3) {
-    if (dotimings) {
+    if (_shouldDoTimings) {
       gettimeofday(&tp,0);
       t1 = tp.tv_sec + tp.tv_usec/1.e6;
     }
@@ -197,17 +197,17 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
     xdbg<<"Done: x (Integrating) = "<<x<<std::endl;
     xdbg<<"f (integ) = "<<f<<std::endl;
     xdbg<<"b = "<<solver->GetB()<<std::endl;
-    if (dotimings) {
+    if (_shouldDoTimings) {
       gettimeofday(&tp,0);
       t2 = tp.tv_sec + tp.tv_usec/1.e6;
-      t_integ += t2-t1;
+      _times._tInteg += t2-t1;
     }
   }
 
 #if 0
   // We should be close enough for the exact solver to work.
   // But just to be safe, fit each of centroid, gamma, mu separately first:
-  if (dotimings) {
+  if (_shouldDoTimings) {
     gettimeofday(&tp,0);
     t1 = tp.tv_sec + tp.tv_usec/1.e6;
   }
@@ -246,10 +246,10 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
       dbg<<"f = "<<f<<std::endl;
       dbg<<"b = "<<solver->GetB()<<std::endl;
       if (XDEBUG) solver->TestJ(x,f,dbgout,1.e-5);
-      if (dotimings) {
+      if (_shouldDoTimings) {
 	gettimeofday(&tp,0);
 	t2 = tp.tv_sec + tp.tv_usec/1.e6;
-	t_centroid += t2-t1;
+	_times._tCentroid += t2-t1;
       }
       return false;
     }
@@ -257,13 +257,13 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
     xdbg<<"f = "<<f<<std::endl;
     xdbg<<"b = "<<solver->GetB()<<std::endl;
   }
-  if (dotimings) {
+  if (_shouldDoTimings) {
     gettimeofday(&tp,0);
     t2 = tp.tv_sec + tp.tv_usec/1.e6;
-    t_centroid += t2-t1;
+    _times._tCentroid += t2-t1;
   }
 
-  if (dotimings) {
+  if (_shouldDoTimings) {
     gettimeofday(&tp,0);
     t1 = tp.tv_sec + tp.tv_usec/1.e6;
   }
@@ -316,10 +316,10 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
       dbg<<"f = "<<f<<std::endl;
       dbg<<"b = "<<solver->GetB()<<std::endl;
       //if (XDEBUG) solver->TestJ(x,f,dbgout,1.e-5);
-      if (dotimings) {
+      if (_shouldDoTimings) {
 	gettimeofday(&tp,0);
 	t2 = tp.tv_sec + tp.tv_usec/1.e6;
-	t_gamma += t2-t1;
+	_times._tGamma += t2-t1;
       }
       return false;
     }
@@ -327,13 +327,13 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
     xdbg<<"f = "<<f<<std::endl;
     xdbg<<"b = "<<solver->GetB()<<std::endl;
   }
-  if (dotimings) {
+  if (_shouldDoTimings) {
     gettimeofday(&tp,0);
     t2 = tp.tv_sec + tp.tv_usec/1.e6;
-    t_centroid += t2-t1;
+    _times._tGamma += t2-t1;
   }
 
-  if (dotimings) {
+  if (_shouldDoTimings) {
     gettimeofday(&tp,0);
     t1 = tp.tv_sec + tp.tv_usec/1.e6;
   }
@@ -372,10 +372,10 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
       dbg<<"f = "<<f<<std::endl;
       dbg<<"b = "<<solver->GetB()<<std::endl;
       //if (XDEBUG) solver->TestJ(x,f,dbgout,1.e-5);
-      if (dotimings) {
+      if (_shouldDoTimings) {
 	gettimeofday(&tp,0);
 	t2 = tp.tv_sec + tp.tv_usec/1.e6;
-	t_gamma += t2-t1;
+	_times._tGamma += t2-t1;
       }
       return false;
     }
@@ -383,17 +383,17 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
     xdbg<<"f = "<<f<<std::endl;
     xdbg<<"b = "<<solver->GetB()<<std::endl;
   }
-  if (dotimings) {
+  if (_shouldDoTimings) {
     gettimeofday(&tp,0);
     t2 = tp.tv_sec + tp.tv_usec/1.e6;
-    t_centroid += t2-t1;
+    _times._tGamma += t2-t1;
   }
 #endif
 
   // Now fit everything, but first time, try to maintain the flux level
 #ifdef N_FLUX_ATTEMPTS
 #if N_FLUX_ATTEMPTS > 0
-  if (dotimings) {
+  if (_shouldDoTimings) {
     gettimeofday(&tp,0);
     t1 = tp.tv_sec + tp.tv_usec/1.e6;
   }
@@ -439,15 +439,15 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
   xdbg<<"Done: x (ML fixed flux) = "<<x<<std::endl;
   xdbg<<"f = "<<f<<std::endl;
   xdbg<<"b = "<<solver->GetB()<<std::endl;
-  if (dotimings) {
+  if (_shouldDoTimings) {
     gettimeofday(&tp,0);
     t2 = tp.tv_sec + tp.tv_usec/1.e6;
-    t_fixflux += t2-t1;
+    _times._tFixFlux += t2-t1;
   }
 #endif
 #endif
 
-  if (dotimings) {
+  if (_shouldDoTimings) {
     gettimeofday(&tp,0);
     t1 = tp.tv_sec + tp.tv_usec/1.e6;
   }
@@ -486,10 +486,10 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
     }
     if (ret) break;
     else if (iter == MAXITER) {
-      if (dotimings) {
+      if (_shouldDoTimings) {
 	gettimeofday(&tp,0);
 	t2 = tp.tv_sec + tp.tv_usec/1.e6;
-	t_final += t2-t1;
+	_times._tFinal += t2-t1;
       }
       return false;
     }
@@ -593,10 +593,10 @@ bool Ellipse::DoMeasure(const std::vector<PixelList>& pix,
       xdbg<<"D = "<<D<<std::endl;
     }
   }
-  if (dotimings) {
+  if (_shouldDoTimings) {
     gettimeofday(&tp,0);
     t2 = tp.tv_sec + tp.tv_usec/1.e6;
-    t_final += t2-t1;
+    _times._tFinal += t2-t1;
   }
 
   SetCen(std::complex<double>(x(0),x(1)));

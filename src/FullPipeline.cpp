@@ -4,7 +4,7 @@
 #include "Transformation.h"
 #include "InputCatalog.h"
 #include "StarCatalog.h"
-#include "FittedPSF.h"
+#include "FittedPsf.h"
 #include "PsfCatalog.h"
 #include "StarFinder.h"
 #include "ShearCatalog.h"
@@ -12,7 +12,7 @@
 #include "Log.h"
 #include "BasicSetup.h"
 
-static void DoFullPipeline(ConfigFile& params,
+static void doFullPipeline(ConfigFile& params,
     std::string logfile, std::auto_ptr<Log>& log)
 {
   log.reset(
@@ -73,10 +73,10 @@ static void DoFullPipeline(ConfigFile& params,
   // Write PSF catalog to file
   psfcat.write();
 
-  // MJ -- Should we make a FittedPSFLog?  Are there parameters here that
+  // MJ -- Should we make a FittedPsfLog?  Are there parameters here that
   //       we want to ingest into a DB meta-table?
-  //       If so, we would need to WritePSFCat after doing the
-  //       FittedPSF calculation, since the fittedpsf file is not ingested.
+  //       If so, we would need to WritePsfCat after doing the
+  //       FittedPsf calculation, since the fittedpsf file is not ingested.
 
   // Fit the PSF with a polynomial:
   FittedPsf fitpsf(psfcat,params);
@@ -93,11 +93,11 @@ static void DoFullPipeline(ConfigFile& params,
   ShearCatalog shearcat(incat,trans,params);
 
   // Measure shears and shapelet vectors
-  shearcat.MeasureShears(im,weight_im.get(),trans,fitpsf,
+  shearcat.measureShears(im,weight_im.get(),trans,fitpsf,
       static_cast<ShearLog&>(*log));
 
   // Write results to file
-  shearcat.Write();
+  shearcat.write();
 
   xdbg<<"ShearLog: \n"<<*log<<std::endl;
 
@@ -115,7 +115,7 @@ int main(int argc, char **argv) try
   std::auto_ptr<Log> log;
 
   try {
-    DoFullPipeline(params,logfile,log);
+    doFullPipeline(params,logfile,log);
   }
 #if 0
   // Change to 1 to let gdb see where the program bombed out.

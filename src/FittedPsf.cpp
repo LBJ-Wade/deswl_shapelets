@@ -4,7 +4,7 @@
 #include "TMV.h"
 #include <CCfits/CCfits>
 
-#include "FittedPSF.h"
+#include "FittedPsf.h"
 #include "dbg.h"
 #include "Function2D.h"
 #include "Legendre2D.h"
@@ -434,7 +434,7 @@ void FittedPsf::writeFits(std::string file) const
 
 
     std::string tmvVersion = tmv::TMV_Version();
-    std::string wlVersion = WlVersion();
+    std::string wlVersion = getWlVersion();
 
     table->addKey("tmvvers", tmvVersion, "version of TMV code");
     table->addKey("wlvers", wlVersion, "version of weak lensing code");
@@ -568,17 +568,18 @@ void FittedPsf::readFits(std::string file)
 
     // vector columns
     double* dptr=NULL;
-    std::valarray<double> dvec;
+    std::valarray<double> dVec;
 
     _avePsf.reset(new BVec(_psfOrder,_sigma));
     int nShapeletCoeff = (_psfOrder+1)*(_psfOrder+2)/2;
     Assert(int(_avePsf->size()) == nShapeletCoeff);
 
-    dvec.resize(0);
-    table.column(avePsfCol).read(dvec, 1);
+    dVec.resize(0);
+    table.column(avePsfCol).read(dVec, 1);
     dptr=(double*) _avePsf->cptr();
-    for (size_t j=0; j<dvec.size(); j++) {
-        dptr[j] = dvec[j];
+    int dSize = dVec.size();
+    for (int j=0; j<dSize; j++) {
+        dptr[j] = dVec[j];
     }
 
 
@@ -587,11 +588,12 @@ void FittedPsf::readFits(std::string file)
     _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(_nPca,_avePsf->size()));
     Assert(int(_mV->LinearView().size()) == nRotMatrix);
 
-    dvec.resize(0);
-    table.column(rotMatrixCol).read(dvec, 1);
+    dVec.resize(0);
+    table.column(rotMatrixCol).read(dVec, 1);
     dptr=(double*) _mV->cptr();
-    for (size_t j=0; j<dvec.size(); j++) {
-        dptr[j] = dvec[j];
+    dSize = dVec.size();
+    for (int j=0; j<dSize; j++) {
+        dptr[j] = dVec[j];
     }
 
 
@@ -602,11 +604,12 @@ void FittedPsf::readFits(std::string file)
     _f.reset(new tmv::Matrix<double>(_fitSize,_nPca));
     Assert(int(_f->LinearView().size()) == nInterpMatrix);
 
-    dvec.resize(0);
-    table.column(interpMatrixCol).read(dvec, 1);
+    dVec.resize(0);
+    table.column(interpMatrixCol).read(dVec, 1);
     dptr=(double*) _f->cptr();
-    for (size_t j=0; j<dvec.size(); j++) {
-        dptr[j] = dvec[j];
+    dSize = dVec.size();
+    for (int j=0; j<dSize; j++) {
+        dptr[j] = dVec[j];
     }
 }
 

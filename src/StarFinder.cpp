@@ -99,7 +99,8 @@ std::vector<PotentialStar*> StarFinder::findStars(
 
     // Make bounds of whole region called totalBounds
     Bounds totalBounds;
-    for(size_t k=0;k<allObj.size();k++) totalBounds += allObj[k]->getPos();
+    const int nObj = allObj.size();
+    for(int k=0;k<nObj;k++) totalBounds += allObj[k]->getPos();
     dbg<<"totalbounds = \n"<<totalBounds<<std::endl;
 
     // boundsar is the 3x3 (nDivX x ndivy) array of quadrant bounds
@@ -111,7 +112,8 @@ std::vector<PotentialStar*> StarFinder::findStars(
     std::vector<PotentialStar*> probStars;
 
     // For each section, find the stars and add to probStars
-    for(size_t i=0;i<qBounds.size();i++) 
+    const int nSection = qBounds.size();
+    for(int i=0;i<nSection;i++) 
     {
         dbg<<"i = "<<i<<": bounds = "<<qBounds[i]<<std::endl;
 
@@ -119,9 +121,10 @@ std::vector<PotentialStar*> StarFinder::findStars(
         // Note that someObj is automatically sorted by magnitude, since
         // allObj was sorted.
         std::vector<PotentialStar*> someObj;
-        for(size_t k=0;k<allObj.size();k++) 
+        for(int k=0;k<nObj;k++) {
             if (qBounds[i].includes(allObj[k]->getPos())) 
                 someObj.push_back(allObj[k]);
+        }
         dbg<<"added "<<someObj.size()<<" obj\n";
 
         // Does a really quick and dirty fit to the bright stars
@@ -144,32 +147,31 @@ std::vector<PotentialStar*> StarFinder::findStars(
                 someObj,_binSize1,minSize,maxSize,
                 int(_nStart1*someObj.size()),_minIter1,_magStep1,_maxRatio1,
                 true,fLinear);
-        dbg<<"peaklist has "<<qPeakList.size()<<" stars\n";
+        const int nPeak = qPeakList.size();
+        dbg<<"peaklist has "<<nPeak<<" stars\n";
 
         // Remove outliers using a median,percentile rejection scheme.
         // _binSize1/2. is the minimum value of "sigma".
         rejectOutliers(qPeakList,_reject1,_binSize1/2.,fLinear);
-        dbg<<"rejected outliers, now have "<<qPeakList.size()<<" stars\n";
+        dbg<<"rejected outliers, now have "<<nPeak<<" stars\n";
 
         // Use at most 10 (starsPerBin) stars per region to prevent one region 
         // from dominating the fit.  Use the 10 brightest stars to prevent being
         // position biased (as one would if it were based on size
-        size_t nStarsExpected = size_t(_starFrac * someObj.size());
-        if (qPeakList.size() < nStarsExpected) 
-        {
-            if (qPeakList.size() < size_t(0.2 * nStarsExpected)) 
-            {
-                if (_shouldOutputDesQa)
-                {
-                    std::cout<<"STATUS3BEG Warning: Only "<<qPeakList.size()<<" stars found in section "<<i<<". STATUS3END"<<std::endl;
+        int nStarsExpected = int(_starFrac * someObj.size());
+        if (nPeak < nStarsExpected) {
+            if (nPeak < int(0.2 * nStarsExpected)) {
+                if (_shouldOutputDesQa) {
+                    std::cout<<"STATUS3BEG Warning: Only "<<
+                        qPeakList.size()<<" stars found in section "<<
+                        i<<". STATUS3END"<<std::endl;
                 }
-                dbg<<"Warning: only "<<qPeakList.size()<<" stars found in section ";
-                dbg<<i<<"  "<<qBounds[i]<<std::endl;
+                dbg<<"Warning: only "<<qPeakList.size()<<
+                    " stars found in section "<<i<<
+                    "  "<<qBounds[i]<<std::endl;
             }
             probStars.insert(probStars.end(),qPeakList.begin(),qPeakList.end());
-        }
-        else 
-        {
+        } else {
             std::sort(qPeakList.begin(),qPeakList.end(),
                       std::mem_fun(&PotentialStar::isBrighterThan));
             probStars.insert(probStars.end(),qPeakList.begin(),
@@ -178,7 +180,7 @@ std::vector<PotentialStar*> StarFinder::findStars(
         dbg<<"added to probstars\n";
     }
     xdbg<<"done qbounds loop\n";
-    size_t nStars = probStars.size();
+    int nStars = probStars.size();
     dbg<<"nstars = "<<nStars<<std::endl;
 
     // Now we have a first estimate of which objects are stars.
@@ -209,7 +211,8 @@ std::vector<PotentialStar*> StarFinder::findStars(
     probStars = getPeakList(
         allObj,0.5*sigma,minSize,maxSize,
         int(_nStart2*allObj.size()),_minIter2,_magStep2,_purityRatio,false,f);
-    dbg<<"probstars has "<<probStars.size()<<" stars\n";
+    nStars = probStars.size();
+    dbg<<"probstars has "<<nStars<<" stars\n";
 
     // Remove outliers using a median,percentile rejection scheme.
     rejectOutliers(probStars,_reject2,sigma,f);
@@ -222,20 +225,20 @@ std::vector<PotentialStar*> StarFinder::findStars(
     // few passes to fix it.
     // And always do at least one refit.
     bool shouldRefit = true;
-    for(size_t iter=0;shouldRefit && iter<_maxRefitIter;iter++) {
+    for(int iter=0;shouldRefit && iter<_maxRefitIter;iter++) {
         dbg<<"starting refit\n"<<std::endl;
         shouldRefit = false;
-        std::vector<std::vector<PotentialStar*> > starsList(qBounds.size());
+        std::vector<std::vector<PotentialStar*> > starsList(nSection);
 
         // Add each star to the appropriate sublist
-        for(size_t k=0;k<probStars.size();k++) 
-            for(size_t i=0;i<qBounds.size();i++)
+        for(int k=0;k<nStars;k++) 
+            for(int i=0;i<nSection;i++)
                 if(qBounds[i].includes(probStars[k]->getPos()))
                     starsList[i].push_back(probStars[k]);
 
         // Make fitList, the new list of the 10 brightest stars per section
         std::vector<PotentialStar*> fitList;
-        for(size_t i=0;i<qBounds.size();i++) {
+        for(int i=0;i<nSection;i++) {
             // if there are still < 10 stars, give a warning, and
             // just add all the stars to fitList
             if (starsList[i].size() < _starsPerBin) {
@@ -279,12 +282,12 @@ std::vector<PotentialStar*> StarFinder::findStars(
             shouldRefit = true;
             dbg<<"fewer than "<<nStars<<" - so refit\n";
         }
-    } // while shouldRefit (and iter < _maxRefitIter)
+        nStars = probStars.size();
+    }
 
     dbg<<"done FindStars\n";
 
-    for(size_t i=0;i<probStars.size();i++) 
-    {
+    for(int i=0;i<nStars;i++) {
         xdbg<<"stars["<<i<<"]: size = "<<probStars[i]->getSize();
         xdbg<<", size - f(pos) = ";
         xdbg<<probStars[i]->getSize()-f(probStars[i]->getPos())<<std::endl;
@@ -299,8 +302,8 @@ void StarFinder::findMinMax(
 {
     double min1,max1;
     min1 = max1 = list[0]->getSize()-f(list[0]->getPos());
-    for(size_t k=1;k<list.size();k++) 
-    {
+    const int nStars = list.size();
+    for(int k=1;k<nStars;k++) {
         double size = list[k]->getSize() - f(list[k]->getPos());
         if (size > max1) max1 = size;
         if (size < min1) min1 = size;
@@ -318,11 +321,11 @@ void StarFinder::rejectOutliers(
     // "nSigma" is then how many of these "sigma" away from the median
     //  to consider something an outlier.
     
-    if (list.size() <= 4) return;
+    const int nStars = list.size();
+    if (nStars <= 4) return;
     // Find median, 1st and 3rd quartile stars;
-    std::vector<PotentialStar*> modifList(list.size());
-    for(size_t k=0;k<list.size();k++) 
-    {
+    std::vector<PotentialStar*> modifList(nStars);
+    for(int k=0;k<nStars;k++) {
         modifList[k] = new PotentialStar(*list[k]);
         double newSize = list[k]->getSize() - f(list[k]->getPos());
         modifList[k]->setSize(newSize);
@@ -340,27 +343,24 @@ void StarFinder::rejectOutliers(
     xdbg<<"q1,m,q3 = "<<q1<<" , "<<median<<" , "<<q3<<std::endl;
     xdbg<<"sigma = "<<sigma<<", nsig * sigma = "<<nSigma*sigma<<std::endl;
     // Remove elements which std::abs(x->getSize()-median) > nSigma*sigma
-    size_t j=0;
-    for(size_t k=0; k<modifList.size();k++) 
-    {
-        if (std::abs(modifList[k]->getSize()-median)>nSigma*sigma) 
-        {
+    int j=0;
+    for(int k=0; k<nStars;k++) {
+        if (std::abs(modifList[k]->getSize()-median)>nSigma*sigma) {
             xdbg<<"k = "<<k<<", size = "<<modifList[k]->getSize();
             xdbg<<" might be an outlier (median = "<<median<<")\n";
         }
         list[j] = list[k];  // Note: update original list, not modified version.
         j++;
     }
-    if (j<list.size()) list.erase(list.begin()+j,list.end());
-    for(size_t k=0;k<modifList.size();k++) delete modifList[k];
+    if (j<nStars) list.erase(list.begin()+j,list.end());
+    for(int k=0;k<nStars;k++) delete modifList[k];
 }
 
 std::vector<PotentialStar*> StarFinder::getPeakList(
     const std::vector<PotentialStar*>& objList,
     double binSize, double minSize, double maxSize,
-    size_t nStart, int minIter, double magStep, double maxSignifRatio,
-    bool isFirstPass,
-    const Function2D<double>& f)
+    int nStart, int minIter, double magStep, double maxSignifRatio,
+    bool isFirstPass, const Function2D<double>& f)
 {
     if (binSize < _minBinSize) binSize = _minBinSize;
 
@@ -370,8 +370,8 @@ std::vector<PotentialStar*> StarFinder::getPeakList(
     // Start with the nStart brightest objects, then step up in
     // magnitude by magStep at a time until histogram peak
     // gets dilluted.
-    size_t k;
-    Assert(nStart<=objList.size());
+    int k;
+    Assert(nStart<=int(objList.size()));
     for(k=0;k<nStart;k++) 
         hist.add(objList[k]->getSize()-f(objList[k]->getPos()),objList[k]);
     xdbg<<"added "<<nStart<<" objects\n";
@@ -468,9 +468,11 @@ std::vector<PotentialStar*> StarFinder::getPeakList(
                 xdbg<<"negative valley - new peak: "<<peak<<std::endl;
                 valley = hist.findFirstValleyAfter(peak,!isFirstPass);
                 xdbg<<"new valley: "<<valley<<std::endl;
-                if (valley < 0.0)
+                if (valley < 0.0) {
                     nextPeak = hist.findFirstPeakAfter(valley,!isFirstPass);
-                else break;
+                } else {
+                    break;
+                }
             }
         }
 
@@ -499,10 +501,10 @@ std::vector<PotentialStar*> StarFinder::getPeakList(
         // The refined counts allow the bins to be centered anywhere near
         // the respective peak and valley and finds how many objects
         // would fall in the optimally centered bin.
-        size_t peakCount = hist.getRefinedPeakCount(&peak);
+        int peakCount = hist.getRefinedPeakCount(&peak);
         xdbg<<"peakcount = "<<peakCount<<" centered at "<<peak<<std::endl;
         xdbg<<"before refined: valley = "<<valley<<std::endl;
-        size_t valleyCount = hist.getRefinedValleyCount(&valley);
+        int valleyCount = hist.getRefinedValleyCount(&valley);
         xdbg<<"valleycount = "<<valleyCount<<" centered at "<<valley<<std::endl;
 
         // Check for the horned pattern and use the next valley if it is there.
@@ -513,7 +515,7 @@ std::vector<PotentialStar*> StarFinder::getPeakList(
             (hist.findFirstPeakAfter(valley) - valley) < nBinsForHorn*binSize) {
             double newValley = hist.findFirstValleyAfter(
                 hist.findFirstPeakAfter(valley));
-            size_t newValleyCount = hist.getRefinedValleyCount(&newValley);
+            int newValleyCount = hist.getRefinedValleyCount(&newValley);
             if (((isFirstPass && newValleyCount <= valleyCount) ||
                  (!isFirstPass && valleyCount > 0 && newValleyCount == 0)) && 
                 newValley <= prevValley + nBinsForHorn*binSize) {
@@ -595,7 +597,7 @@ std::vector<PotentialStar*> StarFinder::getPeakList(
 }
 
 void StarFinder::fitStellarSizes(
-    Function2D<double> *f, size_t order, double sigClip,
+    Function2D<double> *f, int order, double sigClip,
     const std::vector<PotentialStar*>& starList, double *outSigma)
 {
     // Make list of positions
@@ -645,28 +647,31 @@ void StarFinder::roughlyFitBrightStars(
               std::mem_fun(&PotentialStar::isSmallerThan));
 
     xdbg<<"brightlist is:\n";
-    for(size_t i=0; i<std::min(size_t(20),brightList.size()); i++)
+    const int twenty = std::min(20,int(brightList.size()));
+    for(int i=0; i<twenty; i++) {
         xdbg<<brightList[i]->getMag()<<" , "<<
             brightList[i]->getSize()<<std::endl;
-    if (brightList.size() > 20) 
+    }
+    if (brightList.size() > 20) {
         xdbg<<"...  (total of "<<brightList.size()<<" elements)\n";
-    // Of the smallest 15, find the 5 that form the tightest peak
+    }
+    // Of the smallest 20, find the 5 that form the tightest peak
     // Originally I hardcoded this number as 5, but now it is calculated
     // from _starFrac.
-    size_t five = size_t(0.5*_starFrac*brightList.size());
+    int five = int(0.5*_starFrac*brightList.size());
     xdbg<<"'five' = "<<five<<std::endl;
-    if (five < 5) { five = 5; xdbg<<"'five' => "<<five<<std::endl; }
-    if (3*five-1 >= brightList.size()) 
-    {
+    if (five < 5) {
+        five = 5;
+        xdbg<<"'five' => "<<five<<std::endl; 
+    }
+    if (3*five-1 >= int(brightList.size())) {
         std::ostringstream err;
         err<<"Too few objects in brightList.  Increase startn1.";
         throw StarFinderException(err.str());
     }
-    Assert(3*five-1<brightList.size());
-    size_t peakStart = 0;
+    int peakStart = 0;
     double peakWidth = brightList[five-1]->getSize()-brightList[0]->getSize();
-    for(size_t k=1;k<=2*five;k++) 
-    {
+    for(int k=1;k<=2*five;k++) {
         Assert(k+five-1<brightList.size());
         double sizeRange = brightList[k+five-1]->getSize() -
             brightList[k]->getSize();
@@ -679,12 +684,18 @@ void StarFinder::roughlyFitBrightStars(
     xdbg<<"found peak starting at "<<peakStart<<
         " with width "<<peakWidth<<std::endl;
 
-    size_t k1=peakStart, k2=peakStart+five;
+    int k1=peakStart, k2=peakStart+five;
     // Now expand list to be 2*binSize1 wide
-    while (k1 > 0 && brightList[peakStart+2]->getSize() -
-           brightList[k1-1]->getSize() < _binSize1) k1--;
-    while (k2 < brightList.size() && brightList[k2]->getSize() - 
-           brightList[k1]->getSize() < 2.*_binSize1) k2++;
+    while (
+        k1 > 0 && brightList[peakStart+2]->getSize() -
+        brightList[k1-1]->getSize() < _binSize1) {
+        --k1;
+    }
+    while (
+        k2 < brightList.size() && 
+        brightList[k2]->getSize() - brightList[k1]->getSize() < 2.*_binSize1) {
+        ++k2;
+    }
     xdbg<<"expanded to "<<k1<<','<<k2<<std::endl;
 
     // Call these objects in the expanded peak stars

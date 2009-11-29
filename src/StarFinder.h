@@ -34,11 +34,11 @@ public :
     std::vector<PotentialStar*> getPeakList(
         const std::vector<PotentialStar*>& objList,
         double binSize, double minSize, double maxSize,
-        size_t nStart, int minIter, double magStep, double maxSignifRatio,
+        int nStart, int minIter, double magStep, double maxSignifRatio,
         bool isFirstPass, const Function2D<double>& f);
 
     void fitStellarSizes(
-        Function2D<double> *f, size_t order, double sigClip,
+        Function2D<double> *f, int order, double sigClip,
         const std::vector<PotentialStar*>& starList, double *outSigma);
 
     void roughlyFitBrightStars(
@@ -74,8 +74,8 @@ private :
     double _minMag;        // The min and max magnitude to consider
     double _maxMag;
     double _maxOutMag;
-    size_t _nDivX;         // Divide the image into nx by ny subsections
-    size_t _nDivY;
+    int _nDivX;         // Divide the image into nx by ny subsections
+    int _nDivY;
 
     // Parameters when finding stars in each subdivision
     double _nStart1;       // # objects to start with on first pass 
@@ -84,8 +84,8 @@ private :
     double _reject1;       // nsigma rejection.  (actually n x quartile size)
     double _maxRatio1;     // max ratio of count in valley / count in peak
     double _binSize1;      // binsize of histogram 
-    size_t _okValCount;    // if valley count <= this, ok no matter what peak is
-    size_t _minIter1;      // min number of mag steps to take
+    int _okValCount;    // if valley count <= this, ok no matter what peak is
+    int _minIter1;      // min number of mag steps to take
     double _maxRms;        // in initial linear fit, max rms to allow 
 
     // Parameters for last pass of whole image
@@ -94,13 +94,13 @@ private :
     double _minBinSize;    // Min width of histogram bins
     double _reject2;       // n quartile rejection
     double _purityRatio;   // max ratio of count in valley / count in peak
-    size_t _minIter2;      // min number of mag steps to take
+    int _minIter2;      // min number of mag steps to take
 
     // Parameters for fitting results of subsections
-    size_t _starsPerBin;   // How many stars per subsection?
-    size_t _fitOrder;      // order of fit for size(x,y)
+    int _starsPerBin;   // How many stars per subsection?
+    int _fitOrder;      // order of fit for size(x,y)
     double _fitSigClip;    // nsigma rejection in this fit
-    size_t _maxRefitIter;  // max number of times to refit whole image
+    int _maxRefitIter;  // max number of times to refit whole image
 
     bool _shouldOutputDesQa;  // Output warnings in DES QA format
 

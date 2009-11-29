@@ -3,50 +3,55 @@
 
 #include <vector>
 #include <string>
-#include "TMV.h"
 #include "Bounds.h"
 #include "ConfigFile.h"
-#include "Image.h"
-#include "Pixel.h"
-#include "Transformation.h"
-#include "FittedPSF.h"
-#include "dbg.h"
-#include "Name.h"
-#include "WlVersion.h"
 
 class CoaddCatalog 
 {
 
-  public :
+public :
 
     CoaddCatalog(ConfigFile& _params);
     ~CoaddCatalog();
 
-    size_t size() const { return id.size(); }
+    size_t size() const { return _id.size(); }
 
-    void ReadCatalog();
+    void readCatalog();
 
-    // Leave these public, rather than use Get and Set methods.
-    std::vector<long> id;
-    std::vector<Position> pos;
-    std::vector<Position> skypos;
+    const std::vector<long>& getIdList() const { return _id; }
+    const std::vector<Position>& getPosList() const { return _pos; }
+    const std::vector<Position>& getSkyPosList() const { return _skyPos; }
+    const std::vector<double>& getSkyList() const { return _sky; }
+    const std::vector<long>& getFlagsList() const { return _flags; }
+    const std::vector<float>& getMagList() const { return _mag; }
+    const std::vector<float>& getMagErrList() const { return _magErr; }
 
-    std::vector<double> sky;
-    std::vector<double> noise;
+    long getId(int i) const { return _id[i]; }
+    Position getPos(int i) const { return _pos[i]; }
+    Position getSkyPos(int i) const { return _skyPos[i]; }
+    double getSky(int i) const { return _sky[i]; }
+    long getFlags(int i) const { return _flags[i]; }
+    double getMag(int i) const { return _mag[i]; }
+    double getMagErr(int i) const { return _magErr[i]; }
 
-    std::vector<long> flags;
+    const Bounds& getSkyBounds() const { return _skyBounds; }
 
-    std::vector<float> ra;
-    std::vector<float> dec;
+private :
 
-    std::vector<float> mag;
-    std::vector<float> mag_err;
+    std::vector<long> _id;
+    std::vector<Position> _pos;
+    std::vector<Position> _skyPos;
 
-    Bounds skybounds;
+    std::vector<double> _sky;
 
-  private :
+    std::vector<long> _flags;
 
-    const ConfigFile& params;
+    std::vector<float> _mag;
+    std::vector<float> _magErr;
+
+    Bounds _skyBounds;
+
+    const ConfigFile& _params;
 
 };
 

@@ -7,138 +7,140 @@
 
 class Log 
 {
-  public :
+public :
 
     Log(const ConfigFile& params,
-	std::string logfile="", std::string fits_file="");
+        std::string logFile="", std::string fitsFile="");
     virtual ~Log();
 
-    void NoWriteLog(); // Don't write the log on deletion.
+    void noWriteLog(); // Don't write the log on deletion.
 
-	virtual void WriteMessage(std::string mess) const=0;
-    virtual void WriteLog() const = 0;
-    virtual void WriteLogToFitsHeader() const = 0;
-    virtual void Write(std::ostream& os) const = 0;
+    virtual void writeMessage(std::string message) const;
+    virtual void writeLog() const = 0;
+    virtual void writeLogToFitsHeader() const = 0;
+    virtual void write(std::ostream& os) const = 0;
 
-    ExitCode exitcode;
-    std::string extraexitinfo;
+    void setExitCode(ExitCode ec, const std::string& s="")
+    { 
+        _exitCode = ec; 
+        _extraExitInfo = s;
+    }
 
-  protected :
+protected :
 
-    const ConfigFile& params;
-    std::ostream* logout;
-    std::string fits_file;
+    ExitCode _exitCode;
+    std::string _extraExitInfo;
+
+    const ConfigFile& _params;
+    std::ostream* _logOut;
+    std::string _fitsFile;
 
 };
 
 class ShearLog : public Log 
 {
-  public :
+public :
 
     ShearLog(const ConfigFile& params,
-	std::string logfile="", std::string fits_file="");
+             std::string logFile="", std::string fitsFile="");
     virtual ~ShearLog();
 
-	virtual void WriteMessage(std::string mess) const;
-    virtual void WriteLog() const;
-    virtual void WriteLogToFitsHeader() const;
-    virtual void Write(std::ostream& os) const;
+    virtual void writeLog() const;
+    virtual void writeLogToFitsHeader() const;
+    virtual void write(std::ostream& os) const;
 
     ShearLog& operator+=(const ShearLog& rhs)
     {
-      nf_range1 += rhs.nf_range1;
-      nf_range2 += rhs.nf_range2;
-      nf_small += rhs.nf_small;
-      nf_tmverror += rhs.nf_tmverror;
-      nf_othererror += rhs.nf_othererror;
-      ns_native += rhs.ns_native;
-      nf_native += rhs.nf_native;
-      ns_mu += rhs.ns_mu;
-      nf_mu += rhs.nf_mu;
-      ns_gamma += rhs.ns_gamma;
-      nf_gamma += rhs.nf_gamma;
+        _nfRange1 += rhs._nfRange1;
+        _nfRange2 += rhs._nfRange2;
+        _nfSmall += rhs._nfSmall;
+        _nfTmvError += rhs._nfTmvError;
+        _nfOtherError += rhs._nfOtherError;
+        _nsNative += rhs._nsNative;
+        _nfNative += rhs._nfNative;
+        _nsMu += rhs._nsMu;
+        _nfMu += rhs._nfMu;
+        _nsGamma += rhs._nsGamma;
+        _nfGamma += rhs._nfGamma;
 
-      return *this;
+        return *this;
     }
 
-    int ngals;
-    int ngoodin;
-    int ngood;
-    int nf_range1;
-    int nf_range2;
-    int nf_small;
-    int nf_tmverror;
-    int nf_othererror;
-    int ns_native;
-    int nf_native;
-    int ns_mu;
-    int nf_mu;
-    int ns_gamma;
-    int nf_gamma;
-    int ns_good;
+    int _nGals;
+    int _nGoodIn;
+    int _nGood;
+    int _nfRange1;
+    int _nfRange2;
+    int _nfSmall;
+    int _nfTmvError;
+    int _nfOtherError;
+    int _nsNative;
+    int _nfNative;
+    int _nsMu;
+    int _nfMu;
+    int _nsGamma;
+    int _nfGamma;
+    int _nsGood;
 
 };
 
 class PsfLog : public Log 
 {
-  public :
+public :
 
     PsfLog(const ConfigFile& params,
-	std::string logfile="", std::string fits_file="");
+           std::string logFile="", std::string fitsFile="");
     virtual ~PsfLog();
 
-	virtual void WriteMessage(std::string mess) const;
-    virtual void WriteLog() const;
-    virtual void WriteLogToFitsHeader() const;
-    virtual void Write(std::ostream& os) const;
+    virtual void writeLog() const;
+    virtual void writeLogToFitsHeader() const;
+    virtual void write(std::ostream& os) const;
 
     PsfLog& operator+=(const PsfLog& rhs)
     {
-      nf_range += rhs.nf_range;
-      nf_tmverror += rhs.nf_tmverror;
-      nf_othererror += rhs.nf_othererror;
-      ns_psf += rhs.ns_psf;
-      nf_psf += rhs.nf_psf;
+        _nfRange += rhs._nfRange;
+        _nfTmvError += rhs._nfTmvError;
+        _nfOtherError += rhs._nfOtherError;
+        _nsPsf += rhs._nsPsf;
+        _nfPsf += rhs._nfPsf;
 
-      return *this;
+        return *this;
     }
 
-    int nstars;
-    int ngoodin;
-    int ngood;
-    int nf_range;
-    int nf_tmverror;
-    int nf_othererror;
-    int ns_psf;
-    int nf_psf;
-    int ns_good;
+    int _nStars;
+    int _nGoodIn;
+    int _nGood;
+    int _nfRange;
+    int _nfTmvError;
+    int _nfOtherError;
+    int _nsPsf;
+    int _nfPsf;
+    int _nsGood;
 
 };
 
 class FindStarsLog : public Log 
 {
-  public :
+public :
 
     FindStarsLog(const ConfigFile& params,
-	std::string logfile="", std::string fits_file="");
+                 std::string logFile="", std::string fitsFile="");
     virtual ~FindStarsLog();
 
-	virtual void WriteMessage(std::string mess) const;
-    virtual void WriteLog() const;
-    virtual void WriteLogToFitsHeader() const;
-    virtual void Write(std::ostream& os) const;
+    virtual void writeLog() const;
+    virtual void writeLogToFitsHeader() const;
+    virtual void write(std::ostream& os) const;
 
-    int ntot;
-    int nr_flag;
-    int nr_mag;
-    int nr_size;
-    int nobj;
-    int nallstars;
-    int nstars;
-
+    int _nTot;
+    int _nrFlag;
+    int _nrMag;
+    int _nrSize;
+    int _nObj;
+    int _nAllStars;
+    int _nStars;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Log& log)
-{ log.Write(os); return os; }
+{ log.write(os); return os; }
 
 #endif

@@ -5,40 +5,37 @@
 // for basename
 #include <libgen.h>
 
-std::string WlVersion()
+std::string getWlVersion()
 {
-	std::string badvers="NOTAG: unparseable";
-	std::string thisname="/src/WlVersion.cpp";
+    std::string badVers="NOTAG: unparseable";
+    std::string thisName="/src/WlVersion.cpp";
 
-	// this gets automatically updated by svn
-	// don't forget to do svn propset svn:keywords "HeadURL" thisfile
-	std::string svnURL="$HeadURL$";
+    // this gets automatically updated by svn
+    // don't forget to do svn propset svn:keywords "HeadURL" thisfile
+    std::string svnUrl="$HeadURL$";
 
-	std::vector<std::string> urltokens;
-	std::istringstream urlstream(svnURL);
-	std::string temp;
-	while (urlstream >> temp) {
-		urltokens.push_back(temp);
-	}
+    std::vector<std::string> urlTokens;
+    std::istringstream urlStream(svnUrl);
+    std::string temp;
+    while (urlStream >> temp) {
+        urlTokens.push_back(temp);
+    }
 
-	if (urltokens.size() < 3) {
-		std::cerr<<"URL string is not in 3 elements: \n\t"<<svnURL<<std::endl;
-		return badvers;
-	} 
-	std::string url=urltokens[1];
+    if (urlTokens.size() < 3) {
+        std::cerr<<"URL string is not in 3 elements: \n\t"<<svnUrl<<std::endl;
+        return badVers;
+    } 
+    std::string url=urlTokens[1];
 
-	size_t ind=url.find(thisname);
+    size_t ind=url.find(thisName);
 
-	if (ind == std::string::npos) {
-		std::cerr<<"Could not find '"<<thisname<<"' in url"<<std::endl;
-		return badvers;
-	} else {
-		std::string front=url.substr(0,ind);
-		// now grab the basename
-		std::string version = basename((char*)front.c_str());
-		return version;
-	}
-
+    if (ind == std::string::npos) {
+        std::cerr<<"Could not find '"<<thisName<<"' in url"<<std::endl;
+        return badVers;
+    } else {
+        std::string front=url.substr(0,ind);
+        // now grab the basename
+        std::string version = basename((char*)front.c_str());
+        return version;
+    }
 }
-
-

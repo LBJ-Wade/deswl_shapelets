@@ -52,11 +52,12 @@ if not (xxdexit == None):
 """
 
 libwl_files="""Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp BVec.cpp
-EllipseSolver.cpp Pixel.cpp Transformation.cpp ConfigFile.cpp FittedPSF.cpp
+EllipseSolver.cpp Pixel.cpp Transformation.cpp ConfigFile.cpp FittedPsf.cpp
 EllipseSolver2.cpp CrudeMeasure.cpp Name.cpp Log.cpp Ellipse.cpp PsiHelper.cpp
 Histogram.cpp StarFinder.cpp StarCatalog.cpp PsfCatalog.cpp Params.cpp
 ShearCatalog.cpp InputCatalog.cpp ExecuteCommand.cpp CoaddCatalog.cpp 
-ShearCatalogTree.cpp MultiShearCatalog.cpp WlVersion.cpp Pool.cpp""".split()
+ShearCatalogTree.cpp MultiShearCatalog.cpp WlVersion.cpp Pool.cpp
+MeasureShearAlgo.cpp MeasureShearAlgo2.cpp """.split()
 
 libwl_omp_files="""
 Ellipse_omp.cpp StarCatalog_omp.cpp PsfCatalog_omp.cpp Pixel_omp.cpp
@@ -82,7 +83,7 @@ libwl = env.Library('#lib/wl',obj_lib+obj_omp_lib)
 # Use env2 for these, since we have openmp stuff in the BasicSetup function.
 env2.Prepend(LIBS=['wl'])
 
-measurepsf = env2.Program('measurepsf', 'MeasurePSF.cpp')
+measurepsf = env2.Program('measurepsf', 'MeasurePsf.cpp')
 
 measureshear = env2.Program('measureshear', 'MeasureShear.cpp')
 
@@ -96,7 +97,7 @@ testwl = env2.Program('testwl', 'TestWL.cpp')
 
 testnl = env2.Program('testnl', 'TestNL.cpp')
 
-test_psfrec = env2.Program('test-psfrec', 'TestPSFRec.cpp')
+test_psfrec = env2.Program('test-psfrec', 'TestPsfRec.cpp')
 
 bin_install_dir = os.path.join(env['PREFIX'], 'bin')
 

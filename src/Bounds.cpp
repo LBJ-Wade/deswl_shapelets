@@ -121,7 +121,7 @@ double Bounds::getArea() const
 std::vector<Bounds> Bounds::quarter() const
 { return divide(2,2); }
 
-std::vector<Bounds> Bounds::divide(size_t nx,size_t ny) const
+std::vector<Bounds> Bounds::divide(int nx, int ny) const
 {
     if (!_isDefined) return std::vector<Bounds>(nx*ny);
     std::vector<Bounds> temp;
@@ -132,9 +132,9 @@ std::vector<Bounds> Bounds::divide(size_t nx,size_t ny) const
     y[0] = _yMin;  y[ny] = _yMax;
     double xstep = (_xMax-_xMin)/nx;
     double ystep = (_yMax-_yMin)/ny;
-    for(size_t i=1;i<nx;++i) x[i] = x[0]+i*xstep;
-    for(size_t j=1;j<ny;++j) y[j] = y[0]+j*ystep;
-    for(size_t i=0;i<nx;++i) for(size_t j=0;j<ny;++j)
+    for(int i=1;i<nx;++i) x[i] = x[0]+i*xstep;
+    for(int j=1;j<ny;++j) y[j] = y[0]+j*ystep;
+    for(int i=0;i<nx;++i) for(int j=0;j<ny;++j)
         temp.push_back(Bounds(x[i],x[i+1],y[j],y[j+1]));
     return temp;
 }

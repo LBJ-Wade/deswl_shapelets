@@ -55,6 +55,7 @@
 #include <limits>
 
 #include "Params.h"
+#include "dbg.h"
 
 //
 // Errors that can be thrown by classes in this file:
@@ -87,20 +88,11 @@ public:
 
     template <typename T> 
     explicit ConvertibleString(const T& x)
-    {
-        std::stringstream ss(*this);
-        ss << x;
-    }
+    { *this = x; }
 
     template <typename T> 
     explicit ConvertibleString(const std::vector<T>& x)
-    {
-        std::stringstream ss(*this);
-        ss << "{";
-        if (x.size() > 0) ss << x[0];
-        for(size_t i=1;i<x.size();++i) ss << ',' << x[i];
-        ss << "}";
-    }
+    { *this = x; }
 
     ~ConvertibleString() {};
 
@@ -113,19 +105,20 @@ public:
     template <typename T> 
     ConvertibleString& operator=(const T& x)
     {
-        std::stringstream ss;
-        ss << x;
-        *this = ss.str();
+        std::stringstream oss;
+        oss << x;
+        *this = oss.str();
         return *this;
     }
 
     template <typename T> 
     ConvertibleString& operator=(const std::vector<T>& x)
     {
-        std::stringstream ss;
-        if (x.size() > 0) ss << x[0];
-        for(size_t i=1;i<x.size();++i) ss << ' ' << x[i];
-        *this = ss.str();
+        std::stringstream oss;
+        const int n = x.size();
+        if (n > 0) oss << x[0];
+        for(int i=1;i<n;++i) oss << ' ' << x[i];
+        *this = oss.str();
         return *this;
     }
 
@@ -180,8 +173,8 @@ public:
         // Two syntaxes: "{1.,2.,3.}" or "1. 2. 3."
         if ((*this)[0] == '{') {
             // Using "{1.,2.,3.}" syntax
-            size_t i1 = this->find_first_not_of(" \t\n\r\f",1);
-            if (i1 == npos) {
+            int i1 = this->find_first_not_of(" \t\n\r\f",1);
+            if (i1 == std::string::npos) {
 #ifdef NOTHROW
                 std::cerr<<err<<std::endl; 
                 exit(1); 
@@ -215,7 +208,7 @@ public:
                     throw ParameterException(err);
 #endif
                 }
-                for(size_t i=1;i<temp.size();++i) {
+                for(int i=1;i<=nComma;++i) {
                     ss >> ch;
                     if (!ss || ch != ',') {
 #ifdef NOTHROW

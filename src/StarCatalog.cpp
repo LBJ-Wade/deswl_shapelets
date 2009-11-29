@@ -141,7 +141,7 @@ int StarCatalog::findStars(FindStarsLog& log)
     dbg<<"Finding stars"<<std::endl;
     long count=0;
     const int nObj = size();
-    log.ntot = nObj;
+    log._nTot = nObj;
 
     for (int i=0; i<nObj; ++i)
     {
@@ -149,20 +149,20 @@ int StarCatalog::findStars(FindStarsLog& log)
         // Only objects with no flags in SExtractor or updated size calculation
         if (_flags[i]) {
             xdbg<<"Reject "<<i<<" for input flags\n";
-            ++log.nr_flag;
+            ++log._nrFlag;
             continue;
         }
         // Range checking
         if (!finder.isOkSize(_objSize[i])) {
             xdbg<<"Reject "<<i<<" for size "<<_objSize[i]<<" outside range "<<
                 finder.getMinSize()<<" -- "<<finder.getMaxSize()<<std::endl;
-            ++log.nr_size;
+            ++log._nrSize;
             continue;
         }
         if (!finder.isOkMag(_mag[i])) {
             xdbg<<"Reject "<<i<<" for mag "<<_mag[i]<<" outside range "<<
                 finder.getMinMag()<<" -- "<<finder.getMaxMag()<<std::endl;
-            ++log.nr_mag;
+            ++log._nrMag;
             continue;
         }
         xdbg<<"OK: "<<_objSize[i]<<"  "<<_mag[i]<<std::endl;
@@ -172,14 +172,14 @@ int StarCatalog::findStars(FindStarsLog& log)
         maybestars.push_back(
             new PotentialStar(_pos[i],_mag[i],logObjSize,i,""));
     }
-    log.nobj = count;
+    log._nObj = count;
     dbg<<"  Possible Stars: "<<count<<"/"<<size()<<"\n";
 
     dbg<<"  Running FindStars\n";
     std::vector<PotentialStar*> stars = finder.findStars(maybestars);
     const int nStars = stars.size();
     dbg<<"  Found "<<nStars<<"\n";
-    log.nallstars = nStars;
+    log._nAllStars = nStars;
 
     _isAStar.resize(size(),0);
     count = 0;
@@ -192,7 +192,7 @@ int StarCatalog::findStars(FindStarsLog& log)
     }
     dbg<<"  Cut to "<<count<<" by maxoutmag cut\n";
 
-    log.nstars = count;
+    log._nStars = count;
 
     if (_params.read("des_qa",false)) {
         if (count < 100) {
@@ -264,7 +264,7 @@ void StarCatalog::writeFits(std::string file) const
 
     // Header Keywords
     std::string tmvvers = tmv::TMV_Version();
-    std::string wlvers = WlVersion();
+    std::string wlvers = getWlVersion();
 
     table->addKey("tmvvers", tmvvers, "version of TMV code");
     table->addKey("wlvers", wlvers, "version of weak lensing code");

@@ -10,7 +10,7 @@ struct PoolBlock
 {
     PoolBlock* prev;
     PoolBlock* next;
-    size_t size;
+    int size;
     bool free;
 };
 
@@ -45,7 +45,7 @@ public :
     Pool();
     ~Pool();
 
-    size_t totalMemoryUsed() const;
+    int totalMemoryUsed() const;
     void* allocate(size_t size);
     void deallocate(void *p, size_t = 0);
 

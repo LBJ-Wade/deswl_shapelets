@@ -218,15 +218,11 @@ void getSubPixList(PixelList& pix, const PixelList& allpix,
     double apsq = aperture*aperture;
 
     pix.clear();
-    for(size_t i=0;i<allpix.size();++i) {
-        xxdbg<<"allpix["<<i<<"] = "<<allpix[i].getPos()<<std::endl;
+    const int nPix = allpix.size();
+    for(int i=0;i<nPix;++i) {
         if (std::norm(allpix[i].getPos()) < apsq) {
             pix.push_back(allpix[i]);
-            xxdbg<<"added to pix\n";
-        } else {
-            xxdbg<<"not in aperture\n";
         }
-
     }
     xdbg<<"done: npix = "<<pix.size()<<std::endl;
     if (pix.size() < 10) flag |= LT10PIX;

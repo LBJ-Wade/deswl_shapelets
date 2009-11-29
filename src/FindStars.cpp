@@ -6,7 +6,7 @@
 #include "BasicSetup.h"
 #include <sys/time.h>
 
-static void DoFindStars(ConfigFile& params, FindStarsLog& log)
+static void doFindStars(ConfigFile& params, FindStarsLog& log)
 {
   bool timing = params.read("timing",false);
   timeval tp;
@@ -118,7 +118,7 @@ int main(int argc, char **argv) try
       new FindStarsLog(params,logfile,stars_file)); 
 
   try {
-    DoFindStars(params,*log);
+    doFindStars(params,*log);
   }
 #if 0
   // Change to 1 to let gdb see where the program bombed out.

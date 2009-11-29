@@ -1,7 +1,7 @@
 
 #include <valarray>
 #include "Image.h"
-#include "FittedPSF.h"
+#include "FittedPsf.h"
 #include "Transformation.h"
 #include "Log.h"
 #include "PsfCatalog.h"
@@ -9,7 +9,7 @@
 #include "BasicSetup.h"
 #include <sys/time.h>
 
-static void DoMeasurePsf(ConfigFile& params, PsfLog& log) 
+static void doMeasurePsf(ConfigFile& params, PsfLog& log) 
 {
   bool timing = params.read("timing",false);
   timeval tp;
@@ -142,7 +142,7 @@ int main(int argc, char **argv) try
       new PsfLog(params,logfile,psf_file)); 
 
   try {
-    DoMeasurePsf(params,*log);
+    doMeasurePsf(params,*log);
   }
 #if 0
   // Change to 1 to let gdb see where the program bombed out.

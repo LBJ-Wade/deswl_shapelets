@@ -1,130 +1,104 @@
 
 #include <valarray>
-#include "TMV.h"
 #include <CCfits/CCfits>
 
 #include "CoaddCatalog.h"
-#include "Ellipse.h"
-#include "ConfigFile.h"
 #include "dbg.h"
 #include "Params.h"
-#include "BVec.h"
-#include "Ellipse.h"
-#include "Pixel.h"
-#include "Image.h"
-#include "FittedPSF.h"
-#include "Log.h"
-#include "TimeVars.h"
+#include "Name.h"
 
-#define UseInverseTransform
-
-//#define OnlyNImages 10
-
-CoaddCatalog::CoaddCatalog(ConfigFile& _params):
-  params(_params)
+CoaddCatalog::CoaddCatalog(ConfigFile& params) :
+    _params(params)
 {
-  ReadCatalog();
+    readCatalog();
 
-  Assert(pos.size() == id.size());
-  Assert(skypos.size() == id.size());
-  Assert(ra.size() == id.size());
-  Assert(dec.size() == id.size());
-  Assert(sky.size() == id.size());
-  Assert(mag.size() == id.size());
-  Assert(mag_err.size() == id.size());
-  Assert(flags.size() == id.size());
+    Assert(_pos.size() == _id.size());
+    Assert(_skyPos.size() == _id.size());
+    Assert(_sky.size() == _id.size());
+    Assert(_mag.size() == _id.size());
+    Assert(_magErr.size() == _id.size());
+    Assert(_flags.size() == _id.size());
 
-  std::vector<int> flagcount(9,0);
-  std::vector<int> magcount(10,0);
-  for (size_t i=0; i<size(); i++) 
-  {
-    if (flags[i] & 1) flagcount[0]++; // neighbor or badpix
-    if (flags[i] & 2) flagcount[1]++; // deblended
-    if (flags[i] & 4) flagcount[2]++; // saturated
-    if (flags[i] & 8) flagcount[3]++; // edge
-    if (flags[i] & 16) flagcount[4]++; // incomplete aperture
-    if (flags[i] & 32) flagcount[5]++; // incomplete isophotal
-    if (flags[i] & 64) flagcount[6]++; // memory overflow in deblend
-    if (flags[i] & 128) flagcount[7]++; // memory overflow in extract
-    if (!flags[i]) flagcount[8]++; // no flags
+    std::vector<int> flagCount(9,0);
+    std::vector<int> magCount(10,0);
+    const int nObj = size();
+    for (int i=0; i<nObj; ++i) {
+        if (_flags[i] & 1) ++flagCount[0]; // neighbor or badpix
+        if (_flags[i] & 2) ++flagCount[1]; // deblended
+        if (_flags[i] & 4) ++flagCount[2]; // saturated
+        if (_flags[i] & 8) ++flagCount[3]; // edge
+        if (_flags[i] & 16) ++flagCount[4]; // incomplete aperture
+        if (_flags[i] & 32) ++flagCount[5]; // incomplete isophotal
+        if (_flags[i] & 64) ++flagCount[6]; // memory overflow in deblend
+        if (_flags[i] & 128) ++flagCount[7]; // memory overflow in extract
+        if (!_flags[i]) ++flagCount[8]; // no flags
 
-    if (mag[i] < 19) magcount[0]++;
-    else if (mag[i] < 20) magcount[1]++;
-    else if (mag[i] < 21) magcount[2]++;
-    else if (mag[i] < 22) magcount[3]++;
-    else if (mag[i] < 23) magcount[4]++;
-    else if (mag[i] < 24) magcount[5]++;
-    else if (mag[i] < 25) magcount[6]++;
-    else if (mag[i] < 26) magcount[7]++;
-    else if (mag[i] < 27) magcount[8]++;
-    else magcount[9]++;
-  }
-
-  bool output_dots = params.read("output_dots",false);
-  if (output_dots)
-  {
-    std::cerr<<"total ojbects = "<<size()<<std::endl;
-    std::cerr<<"flag counts = ";
-    for(int i=0;i<8;++i) std::cerr<<flagcount[i]<<" ";
-    std::cerr<<"  no flag: "<<flagcount[8]<<std::endl;
-    std::cerr<<"mag counts = ";
-    for(int i=0;i<10;++i) std::cerr<<magcount[i]<<" ";
-    std::cerr<<std::endl;
-  }
-
-  // Convert input flags into our flag schema
-  if (flags.size() == 0) 
-  {
-    dbg<<"No flags read in -- starting all with 0\n";
-    flags.resize(size(),0);
-  }
-  else 
-  {
-    long ignore_flags = ~0L;
-    dbg<<std::hex<<std::showbase;
-    if (params.keyExists("coaddcat_ignore_flags")) 
-    {
-      ignore_flags = params["coaddcat_ignore_flags"];
-      dbg<<"Using ignore flag parameter = "<<ignore_flags<<std::endl;
-    }
-    else if (params.keyExists("coaddcat_ok_flags")) 
-    {
-      ignore_flags = params["coaddcat_ok_flags"];
-      dbg<<"Using ok flag parameter = "<<ignore_flags<<std::endl;
-      ignore_flags = ~ignore_flags;
-      dbg<<"ignore flag = "<<ignore_flags<<std::endl;
-    } 
-    else 
-    {
-      dbg<<"No ok_flags or ignore_flags parameter: use ignore_flags = "<<
-	ignore_flags<<std::endl;
-    }
-    Assert(flags.size() == size());
-    for(size_t i=0;i<size();++i) 
-    {
-      flags[i] = (flags[i] & ignore_flags) ? INPUT_FLAG : 0;
-    }
-    if (params.keyExists("coaddcat_minnu_mag")) 
-    {
-      double minnu = params["coaddcat_minnu_mag"];
-      dbg<<"Limiting signal to noise in input magnitude to >= "<<minnu<<std::endl;
-      dbg<<"Marking fainter objects with flag INPUT_FLAG = "<<INPUT_FLAG<<std::endl;
-      // S/N = 1.086 / mag_err (= 2.5*log(e) / mag_err)
-      double max_magerr = 1.086/minnu;
-      dbg<<"(Corresponds to max mag_err = "<<minnu<<")\n";
-      for(size_t i=0;i<size();++i) 
-      {
-	if (mag_err[i] > max_magerr) flags[i] = INPUT_FLAG;
-      }
-    }
-    int goodcount = std::count(flags.begin(),flags.end(),0);
-    if (output_dots)
-    {
-      std::cerr<<"# good objects = "<<goodcount<<std::endl;
+        if (_mag[i] < 19) ++magCount[0];
+        else if (_mag[i] < 20) ++magCount[1];
+        else if (_mag[i] < 21) ++magCount[2];
+        else if (_mag[i] < 22) ++magCount[3];
+        else if (_mag[i] < 23) ++magCount[4];
+        else if (_mag[i] < 24) ++magCount[5];
+        else if (_mag[i] < 25) ++magCount[6];
+        else if (_mag[i] < 26) ++magCount[7];
+        else if (_mag[i] < 27) ++magCount[8];
+        else ++magCount[9];
     }
 
-    dbg<<std::dec<<std::noshowbase;
-  }
+    bool shouldOutputDots = _params.read("output_dots",false);
+    if (shouldOutputDots) {
+        std::cerr<<"total ojbects = "<<size()<<std::endl;
+        std::cerr<<"flag counts = ";
+        for(int i=0;i<8;++i) std::cerr<<flagCount[i]<<" ";
+        std::cerr<<"  no flag: "<<flagCount[8]<<std::endl;
+        std::cerr<<"mag counts = ";
+        for(int i=0;i<10;++i) std::cerr<<magCount[i]<<" ";
+        std::cerr<<std::endl;
+    }
+
+    // Convert input flags into our flag schema
+    if (_flags.size() == 0) {
+        dbg<<"No flags read in -- starting all with 0\n";
+        _flags.resize(size(),0);
+    } else {
+        long ignoreFlags = ~0L;
+        dbg<<std::hex<<std::showbase;
+        if (_params.keyExists("coaddcat_ignore_flags")) {
+            ignoreFlags = _params["coaddcat_ignore_flags"];
+            dbg<<"Using ignore flag parameter = "<<ignoreFlags<<std::endl;
+        } else if (_params.keyExists("coaddcat_ok_flags")) {
+            ignoreFlags = _params["coaddcat_ok_flags"];
+            dbg<<"Using ok flag parameter = "<<ignoreFlags<<std::endl;
+            ignoreFlags = ~ignoreFlags;
+            dbg<<"ignore flag = "<<ignoreFlags<<std::endl;
+        } else {
+            dbg<<"No ok_flags or ignore_flags parameter: use ignore_flags = "<<
+                ignoreFlags<<std::endl;
+        }
+        Assert(_flags.size() == size());
+        for(int i=0;i<nObj;++i) {
+            _flags[i] = (_flags[i] & ignoreFlags) ? INPUT_FLAG : 0;
+        }
+        if (_params.keyExists("coaddcat_minnu_mag")) {
+            double minNu = _params["coaddcat_minnu_mag"];
+            dbg<<"Limiting signal to noise in input magnitude to >= "<<
+                minNu<<std::endl;
+            dbg<<"Marking fainter objects with flag INPUT_FLAG = "<<
+                INPUT_FLAG<<std::endl;
+            // S/N = 1.086 / magErr (= 2.5*log(e) / magErr)
+            double maxMagErr = 1.086/minNu;
+            dbg<<"(Corresponds to max mag_err = "<<minNu<<")\n";
+            for(int i=0;i<nObj;++i) {
+                if (_magErr[i] > maxMagErr) _flags[i] = INPUT_FLAG;
+            }
+        }
+        int goodCount = std::count(_flags.begin(),_flags.end(),0);
+        if (shouldOutputDots) {
+            std::cerr<<"# good objects = "<<goodCount<<std::endl;
+        }
+
+        dbg<<std::dec<<std::noshowbase;
+    }
 }
 
 CoaddCatalog::~CoaddCatalog()
@@ -132,105 +106,94 @@ CoaddCatalog::~CoaddCatalog()
 }
 
 
-void CoaddCatalog::ReadCatalog()
+void CoaddCatalog::readCatalog()
 {
-  std::string file=params.get("coaddcat_file");
-  int hdu = params.read<int>("coaddcat_hdu");
+    std::string file=_params.get("coaddcat_file");
+    int hdu = _params.read<int>("coaddcat_hdu");
 
-  if (!doesFileExist(file))
-  {
-    throw FileNotFoundException(file);
-  }
-  try
-  {
-    dbg<<"Opening FITS file at hdu "<<hdu<<std::endl;
-    // true means read all as part of the construction
-    CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
-
-    CCfits::ExtHDU& table=fits.extension(hdu-1);
-
-    long nrows=table.rows();
-
-    dbg<<"  nrows = "<<nrows<<std::endl;
-    if (nrows <= 0) {
-      throw ReadException(
-          "CoaddCatalog found to have 0 rows.  Must have > 0 rows.");
+    if (!doesFileExist(file)) {
+        throw FileNotFoundException(file);
     }
+    try {
+        dbg<<"Opening FITS file at hdu "<<hdu<<std::endl;
+        // true means read all as part of the construction
+        CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
 
-    std::string id_col=params.get("coaddcat_id_col");
-    std::string x_col=params.get("coaddcat_x_col");
-    std::string y_col=params.get("coaddcat_y_col");
-    std::string sky_col=params.get("coaddcat_sky_col");
+        CCfits::ExtHDU& table=fits.extension(hdu-1);
 
-    std::string mag_col=params.get("coaddcat_mag_col");
-    std::string mag_err_col=params.get("coaddcat_mag_err_col");
+        long nRows=table.rows();
 
-    //std::string noise_col=params.get("coaddcat_noise_col");
-    std::string flags_col=params.get("coaddcat_flag_col");
-    std::string ra_col=params.get("coaddcat_ra_col");
-    std::string dec_col=params.get("coaddcat_dec_col");
+        dbg<<"  nrows = "<<nRows<<std::endl;
+        if (nRows <= 0) {
+            throw ReadException(
+                "CoaddCatalog found to have 0 rows.  Must have > 0 rows.");
+        }
 
-    long start=1;
-    long end=nrows;
+        std::string idCol=_params.get("coaddcat_id_col");
+        std::string xCol=_params.get("coaddcat_x_col");
+        std::string yCol=_params.get("coaddcat_y_col");
+        std::string skyCol=_params.get("coaddcat_sky_col");
 
-    dbg<<"Reading columns"<<std::endl;
-    dbg<<"  "<<id_col<<std::endl;
-    table.column(id_col).read(id, start, end);
+        std::string magCol=_params.get("coaddcat_mag_col");
+        std::string magErrCol=_params.get("coaddcat_mag_err_col");
 
-    dbg<<"  "<<x_col<<"  "<<y_col<<std::endl;
-    pos.resize(nrows);
-    std::vector<double> x;
-    std::vector<double> y;
-    table.column(x_col).read(x, start, end);
-    table.column(y_col).read(y, start, end);
+        std::string flagsCol=_params.get("coaddcat_flag_col");
+        std::string raCol=_params.get("coaddcat_ra_col");
+        std::string declCol=_params.get("coaddcat_dec_col");
 
-    dbg<<"  "<<sky_col<<std::endl;
-    table.column(sky_col).read(sky, start, end);
+        long start=1;
+        long end=nRows;
 
-    //dbg<<"  "<<noise_col<<std::endl;
-    //table.column(noise_col).read(noise, start, end);
-    noise.resize(nrows,0);
+        dbg<<"Reading columns"<<std::endl;
+        dbg<<"  "<<idCol<<std::endl;
+        table.column(idCol).read(_id, start, end);
 
-    dbg<<"  "<<mag_col<<std::endl;
-    table.column(mag_col).read(mag, start, end);
+        dbg<<"  "<<xCol<<"  "<<yCol<<std::endl;
+        _pos.resize(nRows);
+        std::vector<double> x;
+        std::vector<double> y;
+        table.column(xCol).read(x, start, end);
+        table.column(yCol).read(y, start, end);
 
-    dbg<<"  "<<mag_err_col<<std::endl;
-    table.column(mag_err_col).read(mag_err, start, end);
+        dbg<<"  "<<skyCol<<std::endl;
+        table.column(skyCol).read(_sky, start, end);
 
-    dbg<<"  "<<flags_col<<std::endl;
-    table.column(flags_col).read(flags, start, end);
+        dbg<<"  "<<magCol<<std::endl;
+        table.column(magCol).read(_mag, start, end);
 
-    dbg<<"  "<<ra_col<<"  "<<dec_col<<std::endl;
+        dbg<<"  "<<magErrCol<<std::endl;
+        table.column(magErrCol).read(_magErr, start, end);
 
-    table.column(ra_col).read(ra, start, end);
-    table.column(dec_col).read(dec, start, end);
+        dbg<<"  "<<flagsCol<<std::endl;
+        table.column(flagsCol).read(_flags, start, end);
 
-    xdbg<<"list of coaddcatalog: (id, pos, ra, dec, mag, flag)\n";
-    skypos.resize(nrows);
-    for(long i=0;i<nrows;++i) {
-      pos[i] = Position(x[i],y[i]);
-      skypos[i] = Position(ra[i],dec[i]);
-      // The convention for Position is to use arcsec for everything.
-      // ra and dec come in as degrees.  So wee need to convert to arcsec.
-      skypos[i] *= 3600.;  // deg -> arcsec
-      skybounds += skypos[i];
-      xdbg<<id[i]<<"  "<<x[i]<<"  "<<y[i]<<"  "<<ra[i]/15.<<"  "<<dec[i]<<"  "<<mag[i]<<"  "<<flags[i]<<std::endl;
+        dbg<<"  "<<raCol<<"  "<<declCol<<std::endl;
+        _skyPos.resize(nRows);
+        std::vector<float> ra;
+        std::vector<float> decl;
+        table.column(raCol).read(ra, start, end);
+        table.column(declCol).read(decl, start, end);
+
+        xdbg<<"list of coaddcatalog: (id, pos, ra, dec, mag, flag)\n";
+        for(long i=0;i<nRows;++i) {
+            _pos[i] = Position(x[i],y[i]);
+            _skyPos[i] = Position(ra[i],decl[i]);
+            // The convention for Position is to use arcsec for everything.
+            // ra and dec come in as degrees.  So wee need to convert to arcsec.
+            _skyPos[i] *= 3600.;  // deg -> arcsec
+            _skyBounds += _skyPos[i];
+            xdbg<<_id[i]<<"  "<<x[i]<<"  "<<y[i]<<"  "<<ra[i]/15.<<"  "<<
+                decl[i]<<"  "<<_mag[i]<<"  "<<_flags[i]<<std::endl;
+        }
+    } catch (CCfits::FitsException& e) {
+        throw ReadException(
+            "Error reading from "+file+" -- caught error\n" + e.message());
+    } catch (std::exception& e) {
+        throw ReadException(
+            "Error reading from "+file+" -- caught error\n" + e.what());
+    } catch (...) {
+        throw ReadException(
+            "Error reading from "+file+" -- caught unknown error");
     }
-  }
-  catch (CCfits::FitsException& e)
-  {
-    throw ReadException(
-        "Error reading from "+file+" -- caught error\n" + e.message());
-  }
-  catch (std::exception& e)
-  {
-    throw ReadException(
-        "Error reading from "+file+" -- caught error\n" + e.what());
-  }
-  catch (...)
-  {
-    throw ReadException(
-        "Error reading from "+file+" -- caught unknown error");
-  }
 }
 

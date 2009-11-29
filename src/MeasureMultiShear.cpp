@@ -1,7 +1,7 @@
 
 #include <valarray>
 #include "Image.h"
-#include "FittedPSF.h"
+#include "FittedPsf.h"
 #include "TimeVars.h"
 #include "Log.h"
 #include "CoaddCatalog.h"
@@ -20,7 +20,7 @@
 #endif
 #endif
 
-static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log) 
+static void doMeasureMultiShear(ConfigFile& params, ShearLog& log) 
 {
   bool timing = params.read("timing",false);
   timeval tp;
@@ -43,15 +43,16 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
     t1 = t2;
   }
 
-  MultiShearCatalog shearcat(coaddcat,params);
+  MultiShearCatalog shearCat(coaddcat,params);
   dbg<<"Made multishearcat\n";
-  dbg<<"Total bounds are "<<shearcat.skybounds<<std::endl;
-  dbg<<"Area = "<<shearcat.skybounds.getArea()/3600.<<" square arcmin\n";
-  dbg<<" = "<<shearcat.skybounds.getArea()/3600./3600.<<" square degrees\n";
+  dbg<<"Total bounds are "<<shearCat.getSkyBounds()<<std::endl;
+  dbg<<"Area = "<<shearCat.getSkyBounds().getArea()/3600.<<" square arcmin\n";
+  dbg<<" = "<<shearCat.getSkyBounds().getArea()/3600./3600.<<" square degrees\n";
 
-  log.ngals = shearcat.size();
-  log.ngoodin = std::count(shearcat.flags.begin(),shearcat.flags.end(),0);
-  dbg<<log.ngoodin<<"/"<<log.ngals<<" galaxies with no input flags\n";
+  log._nGals = shearCat.size();
+  log._nGoodIn = std::count(
+      shearCat.getFlagsList().begin(),shearCat.getFlagsList().end(),0);
+  dbg<<log._nGoodIn<<"/"<<log._nGals<<" galaxies with no input flags\n";
 
   if (timing) {
     gettimeofday(&tp,0);
@@ -66,7 +67,7 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
   long nshear = 0;
   double section_size = params.get("multishear_section_size");
   section_size *= 60.; // arcmin -> arcsec
-  std::vector<Bounds> section_bounds = shearcat.SplitBounds(section_size);
+  std::vector<Bounds> section_bounds = shearCat.splitBounds(section_size);
   for(size_t i=0;i<section_bounds.size();++i) 
   {
     dbg<<"Starting section "<<(i+1)<<"/"<<section_bounds.size()<<std::endl;
@@ -76,7 +77,7 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
       std::cerr<<"Starting section ";
       std::cerr<<(i+1)<<"/"<<section_bounds.size()<<std::endl;
     }
-    int npix = shearcat.GetPixels(section_bounds[i]);
+    int npix = shearCat.getPixels(section_bounds[i]);
     if (output_dots)
       std::cerr<<npix<<" galaxies in this section.\n";
 
@@ -88,7 +89,7 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
       t1 = t2;
     }
 
-    long nshear1 = shearcat.MeasureMultiShears(section_bounds[i],log);
+    long nshear1 = shearCat.measureMultiShears(section_bounds[i],log);
 
     nshear += nshear1;
     dbg<<"After MeasureShears: nshear = "<<nshear1<<"  "<<nshear<<std::endl;
@@ -120,18 +121,19 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
     std::cout<<"Time: Total calc time = "<<calctime;
   }
 
-  dbg<<"Done: "<<log.ns_gamma<<" successful shear measurements, ";
-  dbg<<(log.ngoodin-log.ns_gamma)<<" unsuccessful, ";
-  dbg<<(log.ngals-log.ngoodin)<<" with input flags\n";
-  log.ngood = std::count(shearcat.flags.begin(),shearcat.flags.end(),0);
-  dbg<<log.ngood<<" successful measurements with no measurement flags.\n";
+  dbg<<"Done: "<<log._nsGamma<<" successful shear measurements, ";
+  dbg<<(log._nGoodIn-log._nsGamma)<<" unsuccessful, ";
+  dbg<<(log._nGals-log._nGoodIn)<<" with input flags\n";
+  log._nGood = std::count(
+      shearCat.getFlagsList().begin(),shearCat.getFlagsList().end(),0);
+  dbg<<log._nGood<<" successful measurements with no measurement flags.\n";
 
   if (output_dots) 
   {
     std::cerr
       <<std::endl
-      <<"Success rate: "<<log.ns_gamma<<"/"<<log.ngoodin
-      <<"  # with no flags: "<<log.ngood
+      <<"Success rate: "<<log._nsGamma<<"/"<<log._nGoodIn
+      <<"  # with no flags: "<<log._nGood
       <<std::endl;
 #ifdef USE_POOL
     std::cerr<<"Memory used in PixelList pool = "<<
@@ -158,7 +160,7 @@ static void DoMeasureMultiShear(ConfigFile& params, ShearLog& log)
 #endif
   }
 
-  shearcat.Write();
+  shearCat.write();
   dbg<<"After Write\n";
 
   if (timing) {
@@ -191,7 +193,7 @@ int main(int argc, char **argv) try
 
   try 
   {
-    DoMeasureMultiShear(params,*log);
+    doMeasureMultiShear(params,*log);
   }
 #if 0
   // Change to 1 to let gdb see where the program bombed out.

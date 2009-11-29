@@ -7,19 +7,19 @@
 
 class ShearCatalogTree
 {
-  public :
+public :
 
     // Make from a ShearCatalog
-    ShearCatalogTree(const ShearCatalog& _incat);
+    ShearCatalogTree(const ShearCatalog& cat);
     ~ShearCatalogTree();
 
-    int FindNearestTo(const Position& pos) const;
+    int findNearestTo(const Position& pos) const;
 
-  private :
+private :
 
-    const ShearCatalog& incat;
+    const ShearCatalog& _cat;
     struct Node;
-    Node* top;
+    Node* _top;
 };
 
 #endif

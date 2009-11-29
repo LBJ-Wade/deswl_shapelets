@@ -8,467 +8,429 @@
 #include "Ellipse.h"
 #include "ShearCatalog.h"
 #include "ShearCatalogTree.h"
+#include "MeasureShearAlgo.h"
 
-int MultiShearCatalog::MeasureMultiShears(const Bounds& b, ShearLog& log)
+int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
 {
-  dbg<<"Start MeasureMultiShears for b = "<<b<<std::endl;
-  int ngals = skypos.size();
-  dbg<<"ngals = "<<ngals<<std::endl;
+    dbg<<"Start MeasureMultiShears for b = "<<b<<std::endl;
+    int nGals = _skyPos.size();
+    dbg<<"ngals = "<<nGals<<std::endl;
 
-  // Read some needed parameters
-  double gal_aperture = params.read<double>("shear_aperture");
-  double max_aperture = params.read("shear_max_aperture",0.);
-  int gal_order = params.read<int>("shear_gal_order");
-  int gal_order2 = params.read("shear_gal_order2",gal_order);
-  double f_psf = params.read<double>("shear_f_psf");
-  double min_gal_size = params.read<double>("shear_min_gal_size");
-  bool output_dots = params.read("output_dots",false);
-  bool timing = params.read("timing",false);
+    // Read some needed parameters
+    double galAperture = _params.read<double>("shear_aperture");
+    double maxAperture = _params.read("shear_max_aperture",0.);
+    int galOrder = _params.read<int>("shear_gal_order");
+    int galOrder2 = _params.read("shear_gal_order2",galOrder);
+    double fPsf = _params.read<double>("shear_f_psf");
+    double minGalSize = _params.read<double>("shear_min_gal_size");
+    bool shouldOutputDots = _params.read("output_dots",false);
+    bool isTiming = _params.read("timing",false);
 
-  OverallFitTimes alltimes;
+    OverallFitTimes allTimes;
 
-  int nsuccess = 0;
+    int nSuccess = 0;
 
 #ifdef ENDAT
-  ngals = ENDAT;
+    nGals = ENDAT;
 #endif
-  
-  // Main loop to measure shears
+
+    // Main loop to measure shears
 #ifdef _OPENMP
 #pragma omp parallel 
-  {
-    try {
+    {
+        try {
 #endif
-      OverallFitTimes times; // just for this thread
-      ShearLog log1(params); // just for this thread
-      log1.NoWriteLog();
+            OverallFitTimes times; // just for this thread
+            ShearLog log1(_params); // just for this thread
+            log1.noWriteLog();
 #ifdef _OPENMP
 #pragma omp for schedule(dynamic)
 #endif
-      for(int i=0;i<ngals;++i) 
-      {
-	if (!b.includes(skypos[i])) 
-	{
-	  xxdbg<<"Skipping galaxy "<<i<<" because "<<skypos[i]<<"not in bounds\n";
-	  continue;
-	}
-	if (flags[i]) 
-	{
-	  xxdbg<<"Skipping galaxy "<<i<<" because flag = "<<flags[i]<<std::endl;
-	  continue;
-	}
+            for(int i=0;i<nGals;++i) {
+                if (!b.includes(_skyPos[i])) continue;
+                if (_flags[i]) continue;
 #ifdef STARTAT
-	if (i < STARTAT) continue;
+                if (i < STARTAT) continue;
 #endif
 #ifdef SINGLEGAL
-	if (i < SINGLEGAL) continue;
-	if (i > SINGLEGAL) break;
+                if (i < SINGLEGAL) continue;
+                if (i > SINGLEGAL) break;
 #endif
 
-	if (output_dots)
+                if (shouldOutputDots) {
 #ifdef _OPENMP
 #pragma omp critical (output)
 #endif
-	{
-	  std::cerr<<"."; std::cerr.flush(); 
-	}
+                    {
+                        std::cerr<<"."; std::cerr.flush(); 
+                    }
+                }
 
-	if (pixlist[i].size() == 0) 
-	{
-	  dbg<<"no valid single epoch images.\n";
-	  flags[i] = NO_SINGLE_EPOCH_IMAGES;
-	  continue;
-	}
+                if (_pixList[i].size() == 0) {
+                    dbg<<"no valid single epoch images.\n";
+                    _flags[i] = NO_SINGLE_EPOCH_IMAGES;
+                    continue;
+                }
 
-	// Start with an error code of unknown failure, in case
-	// something happens that I don't detect as an error.
-	flags[i] = UNKNOWN_FAILURE;
-	long flag1 = 0;
+                // Start with an error code of unknown failure, in case
+                // something happens that I don't detect as an error.
+                _flags[i] = UNKNOWN_FAILURE;
+                long flag1 = 0;
 
-	MeasureMultiShear(
-	    // Input data:
-	    skypos[i], pixlist[i], psflist[i],
-	    // Parameters:
-	    gal_aperture, max_aperture, gal_order, gal_order2, 
-	    f_psf, min_gal_size, 
-	    // Time stats if desired:
-	    timing ? &times : 0, 
-	    // Log information
-	    log1,
-	    // Ouput values:
-	    shear[i], cov[i], shape[i], nu[i], flag1);
+                measureMultiShear(
+                    // Input data:
+                    _skyPos[i], _pixList[i], _psfList[i],
+                    // Parameters:
+                    galAperture, maxAperture, galOrder, galOrder2, 
+                    fPsf, minGalSize, 
+                    // Time stats if desired:
+                    isTiming ? &times : 0, 
+                    // Log information
+                    log1,
+                    // Ouput values:
+                    _shear[i], _cov[i], _shape[i], _nu[i], flag1);
 
-	flags[i] = flag1;
+                _flags[i] = flag1;
 
-	if (!flag1) {
-	  dbg<<"Successful shear measurement: "<<shear[i]<<std::endl;
-	  nsuccess++;
-	}
-	else {
-	  dbg<<"Unsuccessful shear measurement\n"; 
-	}
+                if (!flag1) {
+                    dbg<<"Successful shear measurement: "<<
+                        _shear[i]<<std::endl;
+                    nSuccess++;
+                } else {
+                    dbg<<"Unsuccessful shear measurement\n"; 
+                }
 
-	if (timing) {
-	  dbg<<"So far: ns = "<<times.ns_gamma<<",  nf = "<<times.nf_native;
-	  dbg<<", "<<times.nf_mu<<", "<<times.nf_gamma<<std::endl;
-	}
+                if (isTiming) {
+                    dbg<<"So far: ns = "<<times._nsGamma;
+                    dbg<<",  nf = "<<times._nfNative;
+                    dbg<<", "<<times._nfMu<<", "<<times._nfGamma<<std::endl;
+                }
 
-      }
+            }
 #ifdef _OPENMP
 #pragma omp critical (add_log)
 #endif
-      {
-	if (timing) alltimes += times;
-	log += log1;
-      }
+            {
+                if (isTiming) allTimes += times;
+                log += log1;
+            }
 #ifdef _OPENMP
-    } 
-    catch (...)
-    {
-      // This isn't supposed to happen.
-      std::cerr<<"STATUS5BEG Caught some error in parallel region STATUS5END\n";
-      exit(1);
+        } catch (...) {
+            // This isn't supposed to happen.
+            std::cerr<<"STATUS5BEG Caught some error in parallel region STATUS5END\n";
+            exit(1);
+        }
     }
-  }
 #endif
 
-  dbg<<nsuccess<<" successful shear measurements in this pass.\n";
-  dbg<<log.ns_gamma<<" successful shear measurements so far.\n";
+    dbg<<nSuccess<<" successful shear measurements in this pass.\n";
+    dbg<<log._nsGamma<<" successful shear measurements so far.\n";
 
-  if (timing) {
-    dbg<<"From timing structure:\n";
-    dbg<<alltimes.ns_gamma<<" successful shear measurements, ";
-    dbg<<alltimes.nf_native<<" + "<<alltimes.nf_mu;
-    dbg<<" + "<<alltimes.nf_gamma<<" unsuccessful\n";
-    std::cerr<<alltimes<<std::endl;
-  }
-  xdbg<<log<<std::endl;
+    if (isTiming) {
+        dbg<<"From timing structure:\n";
+        dbg<<allTimes._nsGamma<<" successful shear measurements, ";
+        dbg<<allTimes._nfNative<<" + "<<allTimes._nfMu;
+        dbg<<" + "<<allTimes._nfGamma<<" unsuccessful\n";
+        std::cerr<<allTimes<<std::endl;
+    }
+    xdbg<<log<<std::endl;
 
-  return nsuccess;
+    return nSuccess;
 }
 
-static void GetImagePixList(
-    std::vector<PixelList>& pixlist,
-    std::vector<BVec>& psflist,
-    std::vector<std::complex<double> >& se_shearlist,
-    std::vector<double>& se_sizelist,
-    long& input_flags, int& nimages_found, int& nimages_gotpix,
-    const Position& skypos,
+static void getImagePixList(
+    std::vector<PixelList>& pixList,
+    std::vector<BVec>& psfList,
+    std::vector<std::complex<double> >& seShearList,
+    std::vector<double>& seSizeList,
+    long& inputFlags, int& nImagesFound, int& nImagesGotPix,
+    const Position& skyPos,
     const Image<double>& im,
     const Transformation& trans,
-    const Transformation& invtrans,
-    BVec& psf, const FittedPsf& fitpsf,
-    const ShearCatalog& shearcat,
-    const ShearCatalogTree& shearcat_tree,
-    const Image<double>*const weight_im,
+    const Transformation& invTrans,
+    BVec& psf, const FittedPsf& fitPsf,
+    const ShearCatalog& shearCat,
+    const ShearCatalogTree& shearCatTree,
+    const Image<double>*const weightIm,
     const double noise, const double gain,
-    const std::string& sky_method, const double mean_sky, 
-    const Image<float>*const sky_map,
-    const double gal_aperture, const double max_aperture)
+    const std::string& skyMethod, const double meanSky, 
+    const Image<float>*const skyMap,
+    const double galAperture, const double maxAperture)
 {
-  Assert(psflist.size() == pixlist.size());
-  Assert(se_shearlist.size() == pixlist.size());
-  Assert(se_sizelist.size() == pixlist.size());
+    Assert(psfList.size() == pixList.size());
+    Assert(seShearList.size() == pixList.size());
+    Assert(seSizeList.size() == pixList.size());
 
-  // Convert ra/dec to x,y in this image
+    // Convert ra/dec to x,y in this image
 
-  // First, figure out a good starting point for the nonlinear solver:
-  Position pos;
-  dbg<<"skypos = "<<skypos<<std::endl;
-  invtrans.Transform(skypos,pos);
-  xdbg<<"invtrans(skypos) = "<<pos<<std::endl;
+    // First, figure out a good starting point for the nonlinear solver:
+    Position pos;
+    dbg<<"skypos = "<<skyPos<<std::endl;
+    invTrans.Transform(skyPos,pos);
+    xdbg<<"invtrans(skypos) = "<<pos<<std::endl;
 
-  // Now do the full non-linear solver, which should be pretty fast
-  // given the decent initial guess.
-  if (!trans.InverseTransform(skypos, pos) ) {
-    dbg << "InverseTransform failed for position "<<skypos<<".\n";
-    dbg << "Initial guess was "<<pos<<".\n";
-    input_flags |= TRANSFORM_EXCEPTION;
-  }
-  xdbg<<"after exact InverseTransform: pos -> "<<pos<<std::endl;
-  if (!(fitpsf.getBounds().includes(pos))) 
-  {
-    xdbg<<"Reject pos "<<pos<<" not in fitpsf bounds ";
-    xdbg<<fitpsf.getBounds()<<std::endl;
-    return;
-  }
+    // Now do the full non-linear solver, which should be pretty fast
+    // given the decent initial guess.
+    if (!trans.InverseTransform(skyPos, pos) ) {
+        dbg << "InverseTransform failed for position "<<skyPos<<".\n";
+        dbg << "Initial guess was "<<pos<<".\n";
+        inputFlags |= TRANSFORM_EXCEPTION;
+    }
+    xdbg<<"after exact InverseTransform: pos -> "<<pos<<std::endl;
+    if (!(fitPsf.getBounds().includes(pos))) {
+        xdbg<<"Reject pos "<<pos<<" not in fitpsf bounds ";
+        xdbg<<fitPsf.getBounds()<<std::endl;
+        return;
+    }
 
-  nimages_found++;
+    nImagesFound++;
 
-  try {
-    psf = fitpsf(pos);
-  } catch (RangeException& e) {
-    xdbg<<"fittedpsf range error: \n";
-    xdbg<<"p = "<<pos<<", b = "<<e.getBounds()<<std::endl;
-    input_flags |= FITTEDPSF_EXCEPTION;
-    return;
-  }
+    try {
+        psf = fitPsf(pos);
+    } catch (RangeException& e) {
+        xdbg<<"fittedpsf range error: \n";
+        xdbg<<"p = "<<pos<<", b = "<<e.getBounds()<<std::endl;
+        inputFlags |= FITTEDPSF_EXCEPTION;
+        return;
+    }
 
-  // Make sure the use of trans in getPixList won't throw:
-  try {
-    // We don't need to save skypos.  We just want to catch the range
-    // error here, so we don't need to worry about it for dudx, etc.
-    Position skypos1;
-    trans.Transform(pos,skypos1);
-  } catch (RangeException& e) {
-    dbg<<"distortion range error: \n";
-    xdbg<<"p = "<<pos<<", b = "<<e.getBounds()<<std::endl;
-    input_flags |= TRANSFORM_EXCEPTION;
-    return;
-  }
+    // Make sure the use of trans in getPixList won't throw:
+    try {
+        // We don't need to save skyPos.  We just want to catch the range
+        // error here, so we don't need to worry about it for dudx, etc.
+        Position skyPos1;
+        trans.Transform(pos,skyPos1);
+    } catch (RangeException& e) {
+        dbg<<"distortion range error: \n";
+        xdbg<<"p = "<<pos<<", b = "<<e.getBounds()<<std::endl;
+        inputFlags |= TRANSFORM_EXCEPTION;
+        return;
+    }
 
-  // Find the nearest object in the shear catalog:
-  int nearest = shearcat_tree.FindNearestTo(pos);
+    // Find the nearest object in the shear catalog:
+    int nearest = shearCatTree.findNearestTo(pos);
 
-  xxdbg<<"pixlist.size = "<<pixlist.size()<<std::endl;
-  xxdbg<<"psflist.size = "<<psflist.size()<<std::endl;
-  xxdbg<<"se_shearlist.size = "<<se_shearlist.size()<<std::endl;
-  xxdbg<<"se_sizelist.size = "<<se_sizelist.size()<<std::endl;
-  Assert(psflist.size() == pixlist.size());
-  Assert(se_shearlist.size() == pixlist.size());
-  Assert(se_sizelist.size() == pixlist.size());
+    Assert(psfList.size() == pixList.size());
+    Assert(seShearList.size() == pixList.size());
+    Assert(seSizeList.size() == pixList.size());
 
-  std::complex<double> se_shear = 0.;
-  double se_size = 0.;
-  double galap = max_aperture;
-  if (std::abs(shearcat.pos[nearest] - pos) < 1.)
-  { 
-    se_shear = shearcat.shear[nearest];
-    se_size = shearcat.shape[nearest].GetSigma();
-    // If we have a good measurement from the single_epoch image, use
-    // that sigma for the size.
-    // But expand it by 30% in case we need it.
-    galap = gal_aperture * se_size * 1.3;
-    if (galap > max_aperture) galap = max_aperture;
-  }
+    std::complex<double> seShear = 0.;
+    double seSize = 0.;
+    double galAp = maxAperture;
+    if (std::abs(shearCat.getPos(nearest) - pos) < 1.) { 
+        seShear = shearCat.getShear(nearest);
+        seSize = shearCat.getShape(nearest).GetSigma();
+        // If we have a good measurement from the single_epoch image, use
+        // that sigma for the size.
+        // But expand it by 30% in case we need it.
+        galAp = galAperture * seSize * 1.3;
+        if (galAp > maxAperture) galAp = maxAperture;
+    }
 
-  // Calculate the local sky value.
-  long flag = 0;
-  double sky=0;
-  if (sky_method == "MEAN")
-    sky = mean_sky;
-  else if (sky_method == "NEAREST")
-    sky = shearcat.sky[nearest];
-  else 
-  {
-    Assert(sky_method == "MAP");
-    sky = getLocalSky(*sky_map,pos,trans,galap,flag);
-    // If no pixels in aperture, then
-    // a) something is very wrong, but
-    // b) use the NEAREST method instead.
-    if (flag & BKG_NOPIX) sky = shearcat.sky[nearest];
-    input_flags |= flag;
-  }
+    // Calculate the local sky value.
+    long flag = 0;
+    double sky=0;
+    if (skyMethod == "MEAN") {
+        sky = meanSky;
+    } else if (skyMethod == "NEAREST") {
+        sky = shearCat.getSky(nearest);
+    } else {
+        Assert(skyMethod == "MAP");
+        sky = getLocalSky(*skyMap,pos,trans,galAp,flag);
+        // If no pixels in aperture, then
+        // a) something is very wrong, but
+        // b) use the NEAREST method instead.
+        if (flag & BKG_NOPIX) sky = shearCat.getSky(nearest);
+        inputFlags |= flag;
+    }
 
-  pixlist.push_back(PixelList());
+    pixList.push_back(PixelList());
 #ifdef PIXELLIST_BLOCK
-  pixlist.back().usePool();
+    pixList.back().usePool();
 #endif
-  xdbg<<"pixlist.size = "<<pixlist.size()<<std::endl;
+    xdbg<<"pixlist.size = "<<pixList.size()<<std::endl;
 
-  flag = 0;
-  getPixList(
-      im,pixlist.back(),pos,
-      sky,noise,gain,weight_im,trans,galap,flag);
-  xdbg<<"Got pixellist, flag = "<<flag<<std::endl;
+    flag = 0;
+    getPixList(
+        im,pixList.back(),pos,
+        sky,noise,gain,weightIm,trans,galAp,flag);
+    xdbg<<"Got pixellist, flag = "<<flag<<std::endl;
 
-  // Make sure not (edge or < 10 pixels) although edge is already
-  // checked above
-  if (flag == 0) {
-    dbg<<"pixlist.size = "<<pixlist.size()<<std::endl;
-    psflist.push_back(psf);
+    // Make sure not (edge or < 10 pixels) although edge is already
+    // checked above
+    if (flag == 0) {
+        dbg<<"pixlist.size = "<<pixList.size()<<std::endl;
+        psfList.push_back(psf);
 
-    // If object in the ShearCatalog is within 1 arcsec of the position
-    // then assume it is the correct object.
-    // Otherwise put in 0's to indicate we don't have an initial
-    // guess for this object (on this image).
-    if (std::abs(shearcat.pos[nearest] - pos) < 1.)
-    { 
-      se_shearlist.push_back(shearcat.shear[nearest]);
-      se_sizelist.push_back(shearcat.shape[nearest].GetSigma());
+        // If object in the ShearCatalog is within 1 arcsec of the position
+        // then assume it is the correct object.
+        // Otherwise put in 0's to indicate we don't have an initial
+        // guess for this object (on this image).
+        if (std::abs(shearCat.getPos(nearest) - pos) < 1.) { 
+            seShearList.push_back(shearCat.getShear(nearest));
+            seSizeList.push_back(shearCat.getShape(nearest).GetSigma());
+        } else {
+            seShearList.push_back(0.);
+            seSizeList.push_back(0.);
+        }
+        nImagesGotPix++;
+    } else {
+        inputFlags |= flag;
+        pixList.pop_back();
     }
-    else 
-    {
-      se_shearlist.push_back(0.);
-      se_sizelist.push_back(0.);
-    }
-    xxdbg<<"se_shearlist.size = "<<se_shearlist.size()<<std::endl;
-    xxdbg<<"se_sizelist.size = "<<se_sizelist.size()<<std::endl;
-    nimages_gotpix++;
-  } else {
-    input_flags |= flag;
-    pixlist.pop_back();
-    xxdbg<<"pixlist.size = "<<pixlist.size()<<std::endl;
-  }
 }
 
 // Get pixel lists from the file specified in params
-void MultiShearCatalog::GetImagePixelLists(int se_index, const Bounds& b)
+void MultiShearCatalog::getImagePixelLists(
+    int seIndex, const Bounds& bounds)
 {
-  dbg<<"Start GetImagePixelLists: se_index = "<<se_index<<std::endl;
+    dbg<<"Start GetImagePixelLists: se_index = "<<seIndex<<std::endl;
 
-  // If the skybounds for each shear catalog have been saved, then
-  // we might be able to skip the ShearCatalog load.
-  if (int(saved_se_skybounds.size()) > se_index)
-  {
-    Bounds se_skybounds = saved_se_skybounds[se_index];
-    dbg<<"saved bounds for image "<<se_index<<" = "<<se_skybounds;
-    if (!se_skybounds.intersects(b)) 
-    {
-      dbg<<"Skipping index "<<se_index<<" because bounds don't intersect\n";
-      return;
+    // If the skybounds for each shear catalog have been saved, then
+    // we might be able to skip the ShearCatalog load.
+    if (int(_savedSeSkyBounds.size()) > seIndex) {
+        Bounds seSkyBounds = _savedSeSkyBounds[seIndex];
+        dbg<<"saved bounds for image "<<seIndex<<" = "<<seSkyBounds;
+        if (!seSkyBounds.intersects(bounds)) {
+            dbg<<"Skipping index "<<seIndex<<
+                " because bounds don't intersect\n";
+            return;
+        }
     }
-  }
 
-  // Read the shear catalog
-  ShearCatalog shearcat(params);
-  Bounds se_skybounds = shearcat.skybounds;
-  Bounds se_bounds = shearcat.bounds;
-  dbg<<"bounds for image "<<se_index<<" = "<<se_skybounds;
+    // Read the shear catalog
+    ShearCatalog shearCat(_params);
+    Bounds seSkyBounds = shearCat.getSkyBounds();
+    Bounds seBounds = shearCat.getBounds();
+    dbg<<"bounds for image "<<seIndex<<" = "<<seSkyBounds;
 
-  // Skip this file if none of the objects in it are in this section of sky.
-  if (int(saved_se_skybounds.size()) <= se_index) // Then save the se_skybounds
-  {
-    Assert(int(saved_se_skybounds.size()) == se_index);
-    saved_se_skybounds.push_back(se_skybounds);
-  }
-  if (!se_skybounds.intersects(b)) 
-  {
-    dbg<<"Skipping index "<<se_index<<" because bounds don't intersect\n";
-    return;
-  }
+    // Skip this file if none of the objects in it are in this section of sky.
+    if (int(_savedSeSkyBounds.size()) <= seIndex) {
+        // Then save the seSkyBounds
+        Assert(int(_savedSeSkyBounds.size()) == seIndex);
+        _savedSeSkyBounds.push_back(seSkyBounds);
+    }
+    if (!seSkyBounds.intersects(bounds)) {
+        dbg<<"Skipping index "<<seIndex<<" because bounds don't intersect\n";
+        return;
+    }
 
-  // Read transformation between ra/dec and x/y
-  Transformation trans(params);
+    // Read transformation between ra/dec and x/y
+    Transformation trans(_params);
 
-  // Read the psf
-  FittedPsf fitpsf(params);
+    // Read the psf
+    FittedPsf fitPsf(_params);
 
-  // Make a tree of the shear catalog to more easily find the nearest
-  // single-epoch object to each coadd detection.
-  ShearCatalogTree shearcat_tree(shearcat);
+    // Make a tree of the shear catalog to more easily find the nearest
+    // single-epoch object to each coadd detection.
+    ShearCatalogTree shearCatTree(shearCat);
 
-  // Figure out which method we are going to use to calculate the 
-  // local sky values.
-  std::string sky_method = params.get("multishear_sky_method");
-  Assert(sky_method == "MEAN" || sky_method == "NEAREST"
-      || sky_method == "MAP");
-  double mean_sky=0.;
-  std::auto_ptr<Image<float> > sky_map(0);
-  if (sky_method == "MEAN")
-  {
-    for(size_t i=0;i<shearcat.size();++i) mean_sky += shearcat.sky[i];
-    mean_sky /= shearcat.size();
-  }
-  if (sky_method == "MAP")
-  {
-    int skymap_hdu = params.read("skymap_hdu",1);
-    sky_map.reset(
-        new Image<float>(makeName(params,"skymap",true,false),skymap_hdu));
-  }
+    // Figure out which method we are going to use to calculate the 
+    // local sky values.
+    std::string skyMethod = _params.get("multishear_sky_method");
+    Assert(skyMethod=="MEAN" || skyMethod=="NEAREST" || skyMethod=="MAP");
+    double meanSky=0.;
+    std::auto_ptr<Image<float> > skyMap(0);
+    if (skyMethod == "MEAN") {
+        const int nGals = shearCat.size();
+        for(int i=0;i<nGals;++i) meanSky += shearCat.getSky(i);
+        meanSky /= shearCat.size();
+    }
+    if (skyMethod == "MAP") {
+        int skyMapHdu = _params.read("skymap_hdu",1);
+        skyMap.reset(
+            new Image<float>(makeName(_params,"skymap",true,false),skyMapHdu));
+    }
 
-  BVec psf(fitpsf.getPsfOrder(), fitpsf.getSigma());
+    BVec psf(fitPsf.getPsfOrder(), fitPsf.getSigma());
 
-  // Make an inverse transformation that we will use as a starting 
-  // point for the more accurate InverseTransform function.
-  Transformation invtrans;
-  Bounds invb = invtrans.MakeInverseOf(trans,se_bounds,4);
-  dbg<<"skybounds = "<<skybounds<<std::endl;
-  dbg<<"se_skybounds = "<<se_skybounds<<std::endl;
-  dbg<<"se_bounds = "<<se_bounds<<std::endl;
-  dbg<<"invb = "<<invb<<std::endl;
+    // Make an inverse transformation that we will use as a starting 
+    // point for the more accurate InverseTransform function.
+    Transformation invTrans;
+    Bounds invBounds = invTrans.MakeInverseOf(trans,seBounds,4);
+    dbg<<"skybounds = "<<_skyBounds<<std::endl;
+    dbg<<"se_skybounds = "<<seSkyBounds<<std::endl;
+    dbg<<"se_bounds = "<<seBounds<<std::endl;
+    dbg<<"invb = "<<invBounds<<std::endl;
 
-  // We always use the maximum aperture size here, since we don't know
-  // how big the galaxy is yet, so we don't know what galap will be.
-  double gal_aperture = params.get("shear_aperture");
-  double max_aperture = params.get("shear_max_aperture");
+    // We always use the maximum aperture size here, since we don't know
+    // how big the galaxy is yet, so we don't know what galAp will be.
+    double galAperture = _params.get("shear_aperture");
+    double maxAperture = _params.get("shear_max_aperture");
 
-  // Load the image
-  // The bounds needed are 
-  std::auto_ptr<Image<double> > im;
-  std::auto_ptr<Image<double> > weight_im;
-  if (skybounds.includes(se_skybounds))
-    im.reset(new Image<double>(params,weight_im));
-  else
-  {
-    Bounds intersect = invb & skybounds;
-    dbg<<"intersect = invb & skybounds = "<<intersect<<std::endl;
+    // Load the image
+    // The bounds needed are 
+    std::auto_ptr<Image<double> > image;
+    std::auto_ptr<Image<double> > weightIm;
+    if (_skyBounds.includes(seSkyBounds)) {
+        image.reset(new Image<double>(_params,weightIm));
+    } else {
+        Bounds intersect = invBounds & _skyBounds;
+        dbg<<"intersect = invb & skybounds = "<<intersect<<std::endl;
 
-    Bounds subb;
-    subb += invtrans(intersect.get00());
-    subb += invtrans(intersect.get01());
-    subb += invtrans(intersect.get10());
-    subb += invtrans(intersect.get11());
+        Bounds subBounds;
+        subBounds += invTrans(intersect.get00());
+        subBounds += invTrans(intersect.get01());
+        subBounds += invTrans(intersect.get10());
+        subBounds += invTrans(intersect.get11());
 
-    // Grow bounds by max_aperture
-    tmv::SmallMatrix<double,2,2> D;
-    trans.GetDistortion(subb.getCenter(),D);
-    double det = std::abs(D.Det());
-    double pixscale = sqrt(det); // arcsec/pixel
-    subb.addBorder(max_aperture / pixscale);
+        // Grow bounds by maxAperture
+        tmv::SmallMatrix<double,2,2> D;
+        trans.GetDistortion(subBounds.getCenter(),D);
+        double det = std::abs(D.Det());
+        double pixScale = sqrt(det); // arcsec/pixel
+        subBounds.addBorder(maxAperture / pixScale);
 
-    dbg<<"subb = "<<subb<<std::endl;
-    im.reset(new Image<double>(params,weight_im,subb));
-  }
+        dbg<<"subb = "<<subBounds<<std::endl;
+        image.reset(new Image<double>(_params,weightIm,subBounds));
+    }
 
-  // We are using the weight image so the noise and gain are dummy variables
-  Assert(weight_im.get());
-  double noise = 0.0;
-  double gain = 0.0;
+    // We are using the weight image so the noise and gain are dummy variables
+    Assert(weightIm.get());
+    double noise = 0.0;
+    double gain = 0.0;
 
-  dbg<<"Extracting pixel lists\n";
-  // loop over the the objects, if the object falls on the image get
-  // the pixel list
-  Assert(pixlist.size() == skypos.size());
-  Assert(psflist.size() == skypos.size());
-  Assert(se_shearlist.size() == skypos.size());
-  Assert(se_sizelist.size() == skypos.size());
+    dbg<<"Extracting pixel lists\n";
+    // loop over the the objects, if the object falls on the image get
+    // the pixel list
+    Assert(_skyPos.size() == size());
+    Assert(_pixList.size() == size());
+    Assert(_psfList.size() == size());
+    Assert(_seShearList.size() == size());
+    Assert(_seSizeList.size() == size());
+    Assert(_flags.size() == size());
+    Assert(_inputFlags.size() == size());
+    Assert(_nImagesFound.size() == size());
+    Assert(_nImagesGotPix.size() == size());
 
-  const int n_size = size();
+    const int nGals = size();
 #ifdef _OPENMP
-//#pragma omp parallel for
+    //#pragma omp parallel for
 #endif
-  for (int i=0; i<n_size; ++i) 
-  {
-    Assert(i < int(flags.size()));
-    Assert(i < int(skypos.size()));
-    Assert(i < int(pixlist.size()));
-    Assert(i < int(psflist.size()));
-    Assert(i < int(se_shearlist.size()));
-    Assert(i < int(se_sizelist.size()));
-    Assert(i < int(input_flags.size()));
-    Assert(i < int(nimages_found.size()));
-    Assert(i < int(nimages_gotpix.size()));
-    if (!flags[i] && 
-	b.includes(skypos[i]) &&
-	invb.includes(skypos[i]))
+    for (int i=0; i<nGals; ++i) {
+        if (_flags[i]) continue;
+        if (!bounds.includes(_skyPos[i])) continue;
+        if (!invBounds.includes(_skyPos[i])) continue;
+        getImagePixList(
+            _pixList[i], _psfList[i], _seShearList[i], _seSizeList[i],
+            _inputFlags[i], _nImagesFound[i], _nImagesGotPix[i], _skyPos[i], 
+            *image, trans, invTrans, psf, fitPsf, shearCat, shearCatTree,
+            weightIm.get(), noise, gain,
+            skyMethod, meanSky, skyMap.get(),
+            galAperture, maxAperture);
+    } 
+    // Keep track of how much memory we are using.
+    // TODO: introduce a parameter max_memory and check to make sure
+    // we stay within the allowed memory usage.
+    bool shouldOutputDots = _params.read("output_dots",false);
+    if (shouldOutputDots) 
     {
-      GetImagePixList(
-	  pixlist[i], psflist[i], se_shearlist[i], se_sizelist[i],
-	  input_flags[i], nimages_found[i], nimages_gotpix[i], skypos[i], 
-	  *im, trans, invtrans, psf, fitpsf, shearcat, shearcat_tree,
-	  weight_im.get(), noise, gain,
-	  sky_method, mean_sky, sky_map.get(),
-	  gal_aperture, max_aperture);
+        std::cerr<<"Using image# "<<seIndex;
+        std::cerr<<"... Memory Usage in MultiShearCatalog = ";
+        std::cerr<<calculateMemoryFootprint()<<" MB";
+        std::cerr<<"\n";
     }
-  } 
-  // Keep track of how much memory we are using.
-  // TODO: introduce a parameter max_memory and check to make sure
-  // we stay within the allowed memory usage.
-  bool output_dots = params.read("output_dots",false);
-  if (output_dots) 
-  {
-    std::cerr<<"Using image# "<<se_index;
-    std::cerr<<"... Memory Usage in MultiShearCatalog = ";
-    std::cerr<<CalcMemoryFootprint()<<" MB";
-    //std::cerr<<" ["<<(MemoryFootprint(pixlist)/1024./1024.)<<"]";
-    //std::cerr<<" ["<<(MemoryFootprint(shape)/1024./1024.)<<"]";
-    std::cerr<<"\n";
-    //std::cerr<<"Memory used in PixelList pool = "<<
-      //pool_allocator<Pixel,PIXELLIST_BLOCK>::total_memory_used()/(1024.*1024.)<<
-      //" MB\n";
-  }
 
-  dbg<<"Done extracting pixel lists\n";
+    dbg<<"Done extracting pixel lists\n";
 }
 

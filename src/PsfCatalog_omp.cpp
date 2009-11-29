@@ -91,15 +91,15 @@ int PsfCatalog::measurePsf(
     nStars = ENDAT;
 #endif
 
-    log.nstars = nStars;
+    log._nStars = nStars;
 #ifdef STARTAT
-    log.nstars -= STARTAT;
+    log._nStars -= STARTAT;
 #endif
 #ifdef SINGLESTAR
-    log.nstars = 1;
+    log._nStars = 1;
 #endif
-    log.ngoodin = std::count(_flags.begin(),_flags.end(),0);
-    dbg<<log.ngoodin<<"/"<<log.nstars<<" stars with no input flags\n";
+    log._nGoodIn = std::count(_flags.begin(),_flags.end(),0);
+    dbg<<log._nGoodIn<<"/"<<log._nStars<<" stars with no input flags\n";
 
     Assert(nStars<=int(_pos.size()));
     Assert(nStars<=int(_sky.size()));
@@ -115,7 +115,7 @@ int PsfCatalog::measurePsf(
         {
 #endif
             PsfLog log1(_params);  // Just for this thread
-            log1.NoWriteLog();
+            log1.noWriteLog();
 #ifdef _OPENMP
 #pragma omp for schedule(guided)
 #endif
@@ -179,19 +179,19 @@ int PsfCatalog::measurePsf(
     }
 #endif
 
-    dbg<<log.ns_psf<<" successful star measurements, ";
-    dbg<<nStars-log.ns_psf<<" unsuccessful\n";
-    log.ngood = std::count(_flags.begin(),_flags.end(),0);
-    dbg<<log.ngood<<" with no flags\n";
+    dbg<<log._nsPsf<<" successful star measurements, ";
+    dbg<<nStars-log._nsPsf<<" unsuccessful\n";
+    log._nGood = std::count(_flags.begin(),_flags.end(),0);
+    dbg<<log._nGood<<" with no flags\n";
 
     if (shouldOutputDots) {
         std::cerr
             <<std::endl
-            <<"Success rate: "<<log.ns_psf<<"/"<<log.ngoodin
-            <<"  # with no flags: "<<log.ngood
+            <<"Success rate: "<<log._nsPsf<<"/"<<log._nGoodIn
+            <<"  # with no flags: "<<log._nGood
             <<std::endl;
     }
 
-    return log.ns_psf;
+    return log._nsPsf;
 }
 

@@ -32,8 +32,7 @@ public :
     const std::vector<float>& getMagErrList() const { return _magErr; }
     const std::vector<double>& getObjSizeList() const { return _objSize; }
     const std::vector<long>& getFlagsList() const { return _flags; }
-    const std::vector<float>& getRaList() const { return _ra; }
-    const std::vector<float>& getDeclList() const { return _decl; }
+    const std::vector<Position>& getSkyPosList() const { return _skyPos; }
     const std::vector<double>& getNoiseList() const { return _noise; }
 
     long getId(int i) const { return _id[i]; }
@@ -43,10 +42,11 @@ public :
     double getMagErr(int i) const { return _magErr[i]; }
     double getObjSizeList(int i) const { return _objSize[i]; }
     long getFlags(int i) const { return _flags[i]; }
-    Position getSkyPos(int i) const { return Position(_ra[i],_decl[i]); }
+    Position getSkyPos(int i) const { return _skyPos[i]; }
     double getNoise(int i) const { return _noise[i]; }
 
     const Bounds& getBounds() const { return _bounds; }
+    const Bounds& getSkyBounds() const { return _skyBounds; }
 
 private :
 
@@ -59,11 +59,11 @@ private :
     std::vector<float> _magErr;
     std::vector<double> _objSize;
     std::vector<long> _flags;
-    std::vector<float> _ra;
-    std::vector<float> _decl;
+    std::vector<Position> _skyPos;
     std::vector<double> _noise;
 
     Bounds _bounds;
+    Bounds _skyBounds;
 
 };
 
