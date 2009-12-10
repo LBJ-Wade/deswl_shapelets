@@ -20,7 +20,7 @@ static tmv::Vector<double> definePXY(
     double newX = (2.*x-xMin-xMax)/(xMax-xMin);
     temp[0] = 1.;
     if(order>0) temp[1] = newX;
-    for(int i=2;i<=order;i++) {
+    for(int i=2;i<=order;++i) {
         temp[i] = ((2.*i-1.)*newX*temp[i-1] - (i-1.)*temp[i-2])/i;
     }
     return temp;
@@ -62,8 +62,8 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
     // object without an error flag (usually n = 0).
     _sigma = -1.;
     const int nStars = psfCat.size();
-    for(int n=0;n<nStars;n++) if (!psfCat.getFlags(n)) {
-        _sigma = psfCat.getPsf(n).GetSigma();
+    for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
+        _sigma = psfCat.getPsf(n).getSigma();
         break;
     }
 
@@ -90,14 +90,14 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
     do {
 
         // Calculate the average psf vector
-        _avePsf.reset(new BVec(_psfOrder,_sigma));
+        _avePsf.reset(new DVector(psfSize));
         Assert(psfSize == int(_avePsf->size()));
         _avePsf->Zero();
         int nGoodPsf = 0;
-        for(int n=0;n<nStars;n++) if (!psfCat.getFlags(n)) {
-            Assert(psfCat.getPsf(n).GetSigma() == _sigma);
-            *_avePsf += psfCat.getPsf(n);
-            nGoodPsf++;
+        for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
+            Assert(psfCat.getPsf(n).getSigma() == _sigma);
+            *_avePsf += psfCat.getPsf(n).vec();
+            ++nGoodPsf;
         }
         if (nGoodPsf == 0) {
             dbg<<"ngoodpsf = 0 in FittedPsf constructor\n";
@@ -110,13 +110,13 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
         tmv::Matrix<double> mM(nGoodPsf,psfSize);
         tmv::DiagMatrix<double> inverseSigma(nGoodPsf);
         int i=0;
-        for(int n=0;n<nStars;n++) if (!psfCat.getFlags(n)) {
+        for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
             Assert(int(psfCat.getPsf(n).size()) == psfSize);
             Assert(i < nGoodPsf);
-            mM.row(i) = psfCat.getPsf(n) - *_avePsf;
+            mM.row(i) = psfCat.getPsf(n).vec() - *_avePsf;
             inverseSigma(i) = psfCat.getNu(n);
             _bounds += psfCat.getPos(n);
-            i++;
+            ++i;
         }
         Assert(i == nGoodPsf);
         xdbg<<"bounds = "<<_bounds<<std::endl;
@@ -142,7 +142,7 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
                 thresh *= double(_params["fitpsf_pca_thresh"]);
             else thresh *= tmv::Epsilon<double>();
             xdbg<<"thresh = "<<thresh<<std::endl;
-            for(_nPca=1;_nPca<int(mM.rowsize());_nPca++) {
+            for(_nPca=1;_nPca<int(mM.rowsize());++_nPca) {
                 if (mS(_nPca) < thresh) break;
             }
             xdbg<<"npca = "<<_nPca<<std::endl;
@@ -158,9 +158,9 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
         }
         tmv::Matrix<double> mP(nGoodPsf,_fitSize,0.);
         i=0;
-        for(int n=0;n<nStars;n++) if (!psfCat.getFlags(n)) {
+        for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
             setPRow(_fitOrder,psfCat.getPos(n),_bounds,mP.row(i));
-            i++;
+            ++i;
         }
         Assert(i == nGoodPsf);
         mP = inverseSigma * mP;
@@ -176,11 +176,11 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
 
         // Calculate the covariance matrix
         tmv::Matrix<double> cov(psfSize,psfSize,0.);
-        for(int n=0;n<nStars;n++) if (!psfCat.getFlags(n)) {
+        for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
             const BVec& data = psfCat.getPsf(n);
-            BVec fit(_psfOrder,_sigma);
-            interpolate(psfCat.getPos(n),fit);
-            tmv::Vector<double> diff = data - fit;
+            DVector fit(psfSize);
+            interpolateVector(psfCat.getPos(n),fit.View());
+            tmv::Vector<double> diff = data.vec() - fit;
             cov += diff ^ diff;
         }
         if (nGoodPsf > _fitSize) { 
@@ -194,15 +194,15 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
 
         // Clip out 3 sigma outliers:
         nOutliers = 0;
-        for(int n=0;n<nStars;n++) if (!psfCat.getFlags(n)) {
+        for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
             const BVec& data = psfCat.getPsf(n);
-            BVec fit(_psfOrder,_sigma);
-            interpolate(psfCat.getPos(n),fit);
-            tmv::Vector<double> diff = data - fit;
+            DVector fit(psfSize);
+            interpolateVector(psfCat.getPos(n),fit.View());
+            tmv::Vector<double> diff = data.vec() - fit;
             double dev = diff * cov.Inverse() * diff;
             if (dev > outlierThresh) {
                 xdbg<<"n = "<<n<<" is an outlier.\n";
-                xdbg<<"data = "<<data<<std::endl;
+                xdbg<<"data = "<<data.vec()<<std::endl;
                 xdbg<<"fit = "<<fit<<std::endl;
                 xdbg<<"diff = "<<diff<<std::endl;
                 xdbg<<"diff/cov = "<<diff/cov<<std::endl;
@@ -256,7 +256,8 @@ void FittedPsf::readAscii(std::string file)
     xdbg<<"fitorder = "<<_fitOrder<<", npca = "<<_nPca<<std::endl;
     xdbg<<"bounds = "<<_bounds<<std::endl;
     _fitSize = (_fitOrder+1)*(_fitOrder+2)/2;
-    _avePsf.reset(new BVec(_psfOrder,_sigma));
+    const int psfSize = (_psfOrder+1)*(_psfOrder+2)/2;
+    _avePsf.reset(new DVector(psfSize));
     fin >> *_avePsf;
     _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(_nPca,_avePsf->size()));
     fin >> *_mV;
@@ -570,7 +571,8 @@ void FittedPsf::readFits(std::string file)
     double* dptr=NULL;
     std::valarray<double> dVec;
 
-    _avePsf.reset(new BVec(_psfOrder,_sigma));
+    const int psfSize = (_psfOrder+1)*(_psfOrder+2)/2;
+    _avePsf.reset(new DVector(psfSize));
     int nShapeletCoeff = (_psfOrder+1)*(_psfOrder+2)/2;
     Assert(int(_avePsf->size()) == nShapeletCoeff);
 
@@ -578,7 +580,7 @@ void FittedPsf::readFits(std::string file)
     table.column(avePsfCol).read(dVec, 1);
     dptr=(double*) _avePsf->cptr();
     int dSize = dVec.size();
-    for (int j=0; j<dSize; j++) {
+    for (int j=0; j<dSize; ++j) {
         dptr[j] = dVec[j];
     }
 
@@ -592,7 +594,7 @@ void FittedPsf::readFits(std::string file)
     table.column(rotMatrixCol).read(dVec, 1);
     dptr=(double*) _mV->cptr();
     dSize = dVec.size();
-    for (int j=0; j<dSize; j++) {
+    for (int j=0; j<dSize; ++j) {
         dptr[j] = dVec[j];
     }
 
@@ -608,7 +610,7 @@ void FittedPsf::readFits(std::string file)
     table.column(interpMatrixCol).read(dVec, 1);
     dptr=(double*) _f->cptr();
     dSize = dVec.size();
-    for (int j=0; j<dSize; j++) {
+    for (int j=0; j<dSize; ++j) {
         dptr[j] = dVec[j];
     }
 }

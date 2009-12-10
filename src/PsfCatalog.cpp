@@ -29,14 +29,14 @@ void measureSinglePsf1(
     xdbg<<"npix = "<<nPix<<std::endl;
 
     Ellipse ell;
-    ell.FixGam();
-    ell.FixMu();
-    ell.PeakCentroid(pix[0],psfAp/3.);
-    ell.CrudeMeasure(pix[0],sigmaP);
+    ell.fixGam();
+    ell.fixMu();
+    ell.peakCentroid(pix[0],psfAp/3.);
+    ell.crudeMeasure(pix[0],sigmaP);
     tmv::Matrix<double> cov(psf.size(),psf.size());
 
     long flag1=0;
-    if (ell.Measure(pix,psfOrder,sigmaP,false,flag1,0,&psf,&cov)) {
+    if (ell.measure(pix,psfOrder,sigmaP,false,flag1,0,&psf,&cov)) {
         ++log._nsPsf;
     } else {
         xdbg<<"Measurement failed\n";
@@ -50,7 +50,7 @@ void measureSinglePsf1(
     // an error if it is more than a factor of 3 different.)
     BVec flux(0,sigmaP);
     tmv::Matrix<double> fluxCov(1,1);
-    ell.MeasureShapelet(pix,flux,&fluxCov);
+    ell.measureShapelet(pix,flux,&fluxCov);
     nu = flux(0) / std::sqrt(fluxCov(0,0));
     dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<nu<<std::endl;
     dbg<<" or  "<<psf(0)<<" / sqrt("<<cov(0,0)<<") = "<<
@@ -60,13 +60,13 @@ void measureSinglePsf1(
           psf(0) <= flux(0)*3.)) {
         dbg<<"Bad flux value: \n";
         dbg<<"flux = "<<flux(0)<<std::endl;
-        dbg<<"psf = "<<psf<<std::endl;
+        dbg<<"psf = "<<psf.vec()<<std::endl;
         flag |= PSF_BAD_FLUX;
     }
 
-    xdbg<<"psf = "<<psf<<std::endl;
-    psf.Normalize();  // Divide by (0,0) element
-    xdbg<<"Normalized psf: "<<psf<<std::endl;
+    xdbg<<"psf = "<<psf.vec()<<std::endl;
+    psf.normalize();  // Divide by (0,0) element
+    xdbg<<"Normalized psf: "<<psf.vec()<<std::endl;
 }
 
 void measureSinglePsf(
@@ -80,7 +80,7 @@ void measureSinglePsf(
         // We don't need to save skyPos.  We just want to catch the range
         // error here, so we don't need to worry about it for dudx, etc.
         Position skyPos;
-        trans.Transform(cen,skyPos);
+        trans.transform(cen,skyPos);
         dbg<<"skypos = "<<skyPos<<std::endl;
     } catch (RangeException& e) {
         xdbg<<"skip: transformation range error: \n";
@@ -142,7 +142,7 @@ PsfCatalog::PsfCatalog(
     BVec psfDefault(psfOrder,1.);
     const int psfSize = psfDefault.size();
     for (int i=0; i<psfSize; ++i) {
-        psfDefault[i] = DEFVALNEG;
+        psfDefault(i) = DEFVALNEG;
     }
     double nuDefault = DEFVALNEG;
 
@@ -280,8 +280,7 @@ void PsfCatalog::writeFits(std::string file) const
     // make vector copies for writing
     std::vector<double> x(nPsf);
     std::vector<double> y(nPsf);
-    for(int i=0;i<nPsf;++i) 
-    {
+    for(int i=0;i<nPsf;++i) {
         x[i] = _pos[i].getX();
         y[i] = _pos[i].getY();
     }
@@ -297,15 +296,14 @@ void PsfCatalog::writeFits(std::string file) const
 
     table->column(colNames[6]).write(_nu,startrow);
 
-    for (int i=0; i<nPsf; ++i) 
-    {
+    for (int i=0; i<nPsf; ++i) {
         int row = i+1;
-        long bOrder = _psf[i].GetOrder();
-        double bSigma = _psf[i].GetSigma();
+        long bOrder = _psf[i].getOrder();
+        double bSigma = _psf[i].getSigma();
 
         table->column(colNames[7]).write(&bOrder,1,row);
         table->column(colNames[8]).write(&bSigma,1,row);
-        double* cptr = const_cast<double *>(_psf[i].cptr());
+        double* cptr = const_cast<double *>(_psf[i].vec().cptr());
         table->column(colNames[9]).write(cptr, nCoeff, 1, row);
     }
 }
@@ -322,15 +320,13 @@ void PsfCatalog::writeAscii(std::string file, std::string delim) const
     const int nPsf = size();
 
     std::ofstream fout(file.c_str());
-    if (!fout) 
-    {
+    if (!fout) {
         throw WriteException("Error opening psf file"+file);
     }
 
     Form hexform; hexform.hex().trail(0);
 
-    for(int i=0;i<nPsf;++i) 
-    {
+    for(int i=0;i<nPsf;++i) {
         fout
             << _id[i] << delim
             << _pos[i].getX() << delim
@@ -339,11 +335,11 @@ void PsfCatalog::writeAscii(std::string file, std::string delim) const
             << _noise[i] << delim
             << hexform(_flags[i]) << delim
             << _nu[i] << delim
-            << _psf[i].GetOrder() << delim
-            << _psf[i].GetSigma();
+            << _psf[i].getOrder() << delim
+            << _psf[i].getSigma();
         const int nCoeff = _psf[i].size();
         for(int j=0;j<nCoeff;++j) {
-            fout << delim << _psf[i][j];
+            fout << delim << _psf[i](j);
         }
         fout << std::endl;
     }
@@ -468,8 +464,7 @@ void PsfCatalog::readFits(std::string file)
 
     // gotta loop for this one
     _psf.reserve(nRows);
-    for (int i=0; i<nRows; ++i) 
-    {
+    for (int i=0; i<nRows; ++i) {
         int row=i+1;
 
         _psf.push_back(BVec(order[i],sigma[i]));
@@ -479,7 +474,7 @@ void PsfCatalog::readFits(std::string file)
         // column into a valarray, period
         std::valarray<double> coeffs;
         table.column(coeffsCol).read(coeffs, row);
-        for (int j=0; j<nCoeff; ++j) _psf[i][j] = coeffs[j];
+        for (int j=0; j<nCoeff; ++j) _psf[i](j) = coeffs[j];
     }
 }
 
@@ -513,7 +508,7 @@ void PsfCatalog::readAscii(std::string file, std::string delim)
             _nu.push_back(nu1);
             _psf.push_back(BVec(bOrder,bSigma));
             const int nCoeffs = _psf.back().size();
-            for(int j=0;j<nCoeffs;++j) fin >> _psf.back()[j];
+            for(int j=0;j<nCoeffs;++j) fin >> _psf.back()(j);
         }
     } else {
         if (delim.size() > 1) {
@@ -542,10 +537,10 @@ void PsfCatalog::readAscii(std::string file, std::string delim)
             _psf.push_back(BVec(bOrder,bSigma));
             const int nCoeffs = _psf.back().size();
             for(int j=0;j<nCoeffs-1;++j) {
-                getline(fin,temp,d); _psf.back()[j] = temp;
+                getline(fin,temp,d); _psf.back()(j) = temp;
             }
             // Last one doesn't have a following delimiter
-            getline(fin,temp); _psf.back()[nCoeffs-1] = temp;
+            getline(fin,temp); _psf.back()(nCoeffs-1) = temp;
         }
     }
 }

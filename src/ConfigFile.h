@@ -174,7 +174,7 @@ public:
         if ((*this)[0] == '{') {
             // Using "{1.,2.,3.}" syntax
             int i1 = this->find_first_not_of(" \t\n\r\f",1);
-            if (i1 == std::string::npos) {
+            if (i1 == int(std::string::npos)) {
 #ifdef NOTHROW
                 std::cerr<<err<<std::endl; 
                 exit(1); 
@@ -269,7 +269,7 @@ template <> inline ConvertibleString::operator bool() const
          sup=="0" || sup=="NONE" ) {
         return false;
     } else if ( sup=="TRUE" || sup=="T" || sup=="YES" || sup=="Y" ||
-              sup=="1" ) {
+                sup=="1" ) {
         return true;
     } else {
         std::string err=
@@ -330,16 +330,16 @@ public:
     inline ConvertibleString operator[]( const std::string& key ) const
     { return get(key); }
 
-    template<class T> inline T read( const std::string& key ) const;
-    template<class T> inline T read(
+    template <typename T> inline T read( const std::string& key ) const;
+    template <typename T> inline T read(
         const std::string& key, const T& value ) const;
-    template<class T> inline bool readInto( 
+    template <typename T> inline bool readInto( 
         T& var, const std::string& key ) const;
-    template<class T> inline bool readInto( 
+    template <typename T> inline bool readInto( 
         T& var, const std::string& key, const T& value ) const;
 
     // Modify keys and values
-    template<class T> inline void add( std::string key, const T& value );
+    template <typename T> inline void add( std::string key, const T& value );
     void remove( const std::string& key );
 
     // Check whether key exists in configuration
@@ -380,7 +380,7 @@ inline std::ostream& operator<<( std::ostream& os, const ConfigFile& cf )
 inline std::istream& operator>>( std::istream& is, ConfigFile& cf )
 { cf.read(is); return is; }
 
-template<class T>
+template <typename T>
 T ConfigFile::read(const std::string& key) const
 {
     // Read the value corresponding to key
@@ -410,7 +410,7 @@ T ConfigFile::read(const std::string& key) const
 }
 
 
-template<class T>
+template <typename T>
 T ConfigFile::read( const std::string& key, const T& value ) const
 {
     // Return the value corresponding to key or given default value
@@ -436,7 +436,7 @@ T ConfigFile::read( const std::string& key, const T& value ) const
 }
 
 
-template<class T>
+template <typename T>
 bool ConfigFile::readInto( T& var, const std::string& key ) const
 {
     // Get the value corresponding to key and store in var
@@ -461,7 +461,7 @@ bool ConfigFile::readInto( T& var, const std::string& key ) const
 }
 
 
-template<class T>
+template <typename T>
 bool ConfigFile::readInto( 
     T& var, const std::string& key, const T& value ) const
 {
@@ -488,7 +488,7 @@ bool ConfigFile::readInto(
     return isFound;
 }
 
-template<class T>
+template <typename T>
 void ConfigFile::add( std::string key, const T& value )
 {
     // Add a key with given value

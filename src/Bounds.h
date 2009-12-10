@@ -146,7 +146,7 @@ public:
     Position get01() const { return Position(_xMin,_yMax); }
 
     Position get10() const { return Position(_xMax,_yMin); }
- 
+
     Position get11() const { return Position(_xMax,_yMax); }
 
     bool isWide() const { return (_xMax-_xMin > _yMax-_yMin); }

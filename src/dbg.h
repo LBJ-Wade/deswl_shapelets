@@ -5,8 +5,8 @@
 
 /* Put the following in the main program file:
 
-std::ostream* dbgout=0;
-bool XDEBUG=false;
+   std::ostream* dbgout=0;
+   bool XDEBUG=false;
 
 */
 
@@ -29,27 +29,29 @@ extern bool XDEBUG;
 #pragma omp threadprivate( dbgout , XDEBUG )
 #endif
 
-struct AssertFailure :
-  public std::runtime_error
+struct AssertFailureException :
+    public std::runtime_error
 {
-  AssertFailure(const char* e) : std::runtime_error(
-      std::string("Error - Assert ") + e + " failed") {}
+    AssertFailureException(const char* e) : std::runtime_error(
+        std::string("Error - Assert ") + e + " failed") {}
 };
 
 #ifdef NDEBUG
-  #define dbg if (false) (*dbgout)
-  #define xdbg if (false) (*dbgout)
-  #define xxdbg if (false) (*dbgout)
-  #define Assert(x)
+#define dbg if (false) (*dbgout)
+#define xdbg if (false) (*dbgout)
+#define xxdbg if (false) (*dbgout)
+#define Assert(x)
 #else
-  #define dbg if (dbgout) (*dbgout)
-  #define xdbg if (dbgout && XDEBUG) (*dbgout)
-  #define xxdbg if (false) (*dbgout)
-  #define Assert(x) \
-    do { if(!(x)) { \
-      dbg << "Error - Assert " #x " failed"<<std::endl; \
-      dbg << "on line "<<__LINE__<<" in file "<<__FILE__<<std::endl; \
-      throw AssertFailure(#x); } \
+#define dbg if (dbgout) (*dbgout)
+#define xdbg if (dbgout && XDEBUG) (*dbgout)
+#define xxdbg if (false) (*dbgout)
+#define Assert(x) \
+    do { \
+        if(!(x)) { \
+            dbg << "Error - Assert " #x " failed"<<std::endl; \
+            dbg << "on line "<<__LINE__<<" in file "<<__FILE__<<std::endl; \
+            throw AssertFailureException(#x); \
+        } \
     } while(false)
 #endif
 

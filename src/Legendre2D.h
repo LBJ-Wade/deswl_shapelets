@@ -4,7 +4,7 @@
 #include <iostream>
 #include "Function2D.h"
 
-template <class T>
+template <typename T>
 class Legendre2D : public Function2D<T> 
 {
 

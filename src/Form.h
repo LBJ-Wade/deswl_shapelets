@@ -9,7 +9,7 @@
 #include <iostream>
 #include <string>
 
-template <class T> class BoundForm;
+template <typename T> class BoundForm;
 
 class Form 
 {
@@ -21,7 +21,7 @@ public:
         _nTrail(1), _trailCh(' ')  
     {}
 
-    template <class T> BoundForm<T> operator()(T val) const;
+    template <typename T> BoundForm<T> operator()(T val) const;
 
     Form& prec(int p) { _prc = p; return *this; }
 
@@ -49,11 +49,11 @@ public:
     { _nTrail = n; _trailCh = ch; return *this; }
 
 private:
-    template <class T> 
+    template <typename T> 
     friend std::ostream& operator<<(std::ostream&, const BoundForm<T>&);
 
-    friend void FloatSetup(std::ostream&, const Form&);
-    friend void IntSetup(std::ostream&, const Form&);
+    friend void setupFloat(std::ostream&, const Form&);
+    friend void setupInt(std::ostream&, const Form&);
 
     int _prc; // precision
     int _wdt; // width, 0 means as wide as necessary
@@ -70,7 +70,7 @@ private:
 
 };
 
-template <class T>
+template <typename T>
 struct BoundForm 
 {
     const Form& f;
@@ -78,11 +78,11 @@ struct BoundForm
     BoundForm(const Form& f_, T val_) : f(f_), val(val_) {}
 };
 
-template <class T>
+template <typename T>
 inline BoundForm<T> Form::operator()(T val) const 
 { return BoundForm<T>(*this,val); }
 
-inline void FloatSetup(std::ostream& s, const Form& f)
+inline void setupFloat(std::ostream& s, const Form& f)
 {
     s.precision(f._prc);
     s.setf(f._fmt,std::ios_base::floatfield);
@@ -103,7 +103,7 @@ inline void FloatSetup(std::ostream& s, const Form& f)
     }
 }
 
-inline void IntSetup(std::ostream& s, const Form& f)
+inline void setupInt(std::ostream& s, const Form& f)
 {
     s.setf(f._just,std::ios_base::adjustfield);
     s.setf(f._base,std::ios_base::basefield);
@@ -120,52 +120,52 @@ inline void IntSetup(std::ostream& s, const Form& f)
     if (f._base != std::ios_base::dec) s.setf(std::ios_base::showbase);
 }
 
-inline void Setup(std::ostream& os, const BoundForm<double>& bf)
-{ FloatSetup(os,bf.f); }
+inline void setup(std::ostream& os, const BoundForm<double>& bf)
+{ setupFloat(os,bf.f); }
 
-inline void Setup(std::ostream& os, const BoundForm<long double>& bf)
-{ FloatSetup(os,bf.f); }
+inline void setup(std::ostream& os, const BoundForm<long double>& bf)
+{ setupFloat(os,bf.f); }
 
-inline void Setup(std::ostream& os, const BoundForm<float>& bf)
-{ FloatSetup(os,bf.f); }
+inline void setup(std::ostream& os, const BoundForm<float>& bf)
+{ setupFloat(os,bf.f); }
 
-inline void Setup(std::ostream& os, const BoundForm<std::complex<double> >& bf)
-{ FloatSetup(os,bf.f); }
+inline void setup(std::ostream& os, const BoundForm<std::complex<double> >& bf)
+{ setupFloat(os,bf.f); }
 
-inline void Setup(
+inline void setup(
     std::ostream& os, const BoundForm<std::complex<long double> >& bf)
-{ FloatSetup(os,bf.f); }
+{ setupFloat(os,bf.f); }
 
-inline void Setup(std::ostream& os, const BoundForm<std::complex<float> >& bf)
-{ FloatSetup(os,bf.f); }
+inline void setup(std::ostream& os, const BoundForm<std::complex<float> >& bf)
+{ setupFloat(os,bf.f); }
 
-inline void Setup(std::ostream& os, const BoundForm<int>& bf)
-{ IntSetup(os,bf.f); }
+inline void setup(std::ostream& os, const BoundForm<int>& bf)
+{ setupInt(os,bf.f); }
 
-inline void Setup(std::ostream& os, const BoundForm<short>& bf)
-{ IntSetup(os,bf.f); }
+inline void setup(std::ostream& os, const BoundForm<short>& bf)
+{ setupInt(os,bf.f); }
 
-inline void Setup(std::ostream& os, const BoundForm<long>& bf)
-{ IntSetup(os,bf.f); }
+inline void setup(std::ostream& os, const BoundForm<long>& bf)
+{ setupInt(os,bf.f); }
 
-inline void Setup(std::ostream& os, const BoundForm<unsigned int>& bf)
-{ IntSetup(os,bf.f); }
+inline void setup(std::ostream& os, const BoundForm<unsigned int>& bf)
+{ setupInt(os,bf.f); }
 
-inline void Setup(std::ostream& os, const BoundForm<unsigned short>& bf)
-{ IntSetup(os,bf.f); }
+inline void setup(std::ostream& os, const BoundForm<unsigned short>& bf)
+{ setupInt(os,bf.f); }
 
-inline void Setup(std::ostream& os, const BoundForm<unsigned long>& bf)
-{ IntSetup(os,bf.f); }
+inline void setup(std::ostream& os, const BoundForm<unsigned long>& bf)
+{ setupInt(os,bf.f); }
 
-template<class T>
-inline void Setup(std::ostream& os, const BoundForm<T>& bf)
-{ FloatSetup(os,bf.f); }
+template <typename T>
+inline void setup(std::ostream& os, const BoundForm<T>& bf)
+{ setupFloat(os,bf.f); }
 
-template <class T>
+template <typename T>
 inline std::ostream& operator<<(std::ostream& os, const BoundForm<T>& bf)
 {
     std::ostringstream s;
-    Setup(s,bf);
+    setup(s,bf);
     s << bf.val;
     if (bf.f._nTrail>0) s << std::string(bf.f._nTrail,bf.f._trailCh);
     os << s.str();

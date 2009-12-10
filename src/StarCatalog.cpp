@@ -44,14 +44,14 @@ static void calculateSigma1(
     }
 
     Ellipse ell;
-    ell.PeakCentroid(pix[0],psfAp/3.);
-    ell.CrudeMeasure(pix[0],sigma);
-    xdbg<<"Crude Measure: centroid = "<<ell.GetCen();
-    xdbg<<", mu = "<<ell.GetMu()<<std::endl;
+    ell.peakCentroid(pix[0],psfAp/3.);
+    ell.crudeMeasure(pix[0],sigma);
+    xdbg<<"Crude Measure: centroid = "<<ell.getCen();
+    xdbg<<", mu = "<<ell.getMu()<<std::endl;
     if (shouldUseShapeletSigma) {
-        if (ell.Measure(pix,2,sigma,true,flag1)) { // true means use integ first
+        if (ell.measure(pix,2,sigma,true,flag1)) { // true means use integ first
             xdbg<<"Successful 2nd order measure.\n";
-            xdbg<<"mu = "<<ell.GetMu()<<std::endl;
+            xdbg<<"mu = "<<ell.getMu()<<std::endl;
         } else {
             flag |= flag1;
             xdbg<<"Ellipse measure returned flag "<<flag1<<std::endl;
@@ -60,7 +60,7 @@ static void calculateSigma1(
         }
     }
 
-    double mu = ell.GetMu();
+    double mu = ell.getMu();
     sigma *= exp(mu);
     dbg<<"sigma = "<<sigma<<std::endl;
     Assert(sigma > 0);
@@ -223,51 +223,51 @@ void StarCatalog::writeFits(std::string file) const
     // ! means overwrite existing file
     CCfits::FITS fits("!"+file, CCfits::Write);
 
-    const int nfields = 9;
+    const int nFields = 9;
 
-    std::vector<string> colnames(nfields);
-    std::vector<string> colfmts(nfields);
-    std::vector<string> colunits(nfields);
+    std::vector<string> colNames(nFields);
+    std::vector<string> colFmts(nFields);
+    std::vector<string> colUnits(nFields);
 
-    colnames[0] = _params["stars_id_col"];
-    colnames[1] = _params["stars_x_col"];
-    colnames[2] = _params["stars_y_col"];
-    colnames[3] = _params["stars_sky_col"];
-    colnames[4] = _params["stars_noise_col"];
-    colnames[5] = _params["stars_flags_col"];
-    colnames[6] = _params["stars_mag_col"];
-    colnames[7] = _params["stars_objsize_col"];
-    colnames[8] = _params["stars_isastar_col"];
+    colNames[0] = _params["stars_id_col"];
+    colNames[1] = _params["stars_x_col"];
+    colNames[2] = _params["stars_y_col"];
+    colNames[3] = _params["stars_sky_col"];
+    colNames[4] = _params["stars_noise_col"];
+    colNames[5] = _params["stars_flags_col"];
+    colNames[6] = _params["stars_mag_col"];
+    colNames[7] = _params["stars_objsize_col"];
+    colNames[8] = _params["stars_isastar_col"];
 
-    colfmts[0] = "1J"; // id
-    colfmts[1] = "1D"; // x
-    colfmts[2] = "1D"; // y
-    colfmts[3] = "1D"; // sky
-    colfmts[4] = "1D"; // noise
-    colfmts[5] = "1J"; // flags
-    colfmts[6] = "1E"; // mag
-    colfmts[7] = "1D"; // sigma
-    colfmts[8] = "1J"; // star flag
+    colFmts[0] = "1J"; // id
+    colFmts[1] = "1D"; // x
+    colFmts[2] = "1D"; // y
+    colFmts[3] = "1D"; // sky
+    colFmts[4] = "1D"; // noise
+    colFmts[5] = "1J"; // flags
+    colFmts[6] = "1E"; // mag
+    colFmts[7] = "1D"; // sigma
+    colFmts[8] = "1J"; // star flag
 
-    colunits[0] = "None";     // id
-    colunits[1] = "pixels";   // x
-    colunits[2] = "pixels";   // y
-    colunits[3] = "ADU";      // sky
-    colunits[4] = "ADU^2";    // noise
-    colunits[5] = "None";     // flags
-    colunits[6] = "mags";     // mag
-    colunits[7] = "Arcsec";   // sigma0
-    colunits[8] = "None";     //star flag
+    colUnits[0] = "None";     // id
+    colUnits[1] = "pixels";   // x
+    colUnits[2] = "pixels";   // y
+    colUnits[3] = "ADU";      // sky
+    colUnits[4] = "ADU^2";    // noise
+    colUnits[5] = "None";     // flags
+    colUnits[6] = "mags";     // mag
+    colUnits[7] = "Arcsec";   // sigma0
+    colUnits[8] = "None";     //star flag
 
     CCfits::Table* table;
-    table = fits.addTable("findstars",nTot,colnames,colfmts,colunits);
+    table = fits.addTable("findstars",nTot,colNames,colFmts,colUnits);
 
     // Header Keywords
-    std::string tmvvers = tmv::TMV_Version();
-    std::string wlvers = getWlVersion();
+    std::string tmvVers = tmv::TMV_Version();
+    std::string wlVers = getWlVersion();
 
-    table->addKey("tmvvers", tmvvers, "version of TMV code");
-    table->addKey("wlvers", wlvers, "version of weak lensing code");
+    table->addKey("tmvvers", tmvVers, "version of TMV code");
+    table->addKey("wlvers", wlVers, "version of weak lensing code");
 
 
     // kind of kludgy but is more flexible than using type numbers or strings
@@ -330,15 +330,15 @@ void StarCatalog::writeFits(std::string file) const
     }
 
     int startrow=1;
-    table->column(colnames[0]).write(_id,startrow);
-    table->column(colnames[1]).write(x,startrow);
-    table->column(colnames[2]).write(y,startrow);
-    table->column(colnames[3]).write(_sky,startrow);
-    table->column(colnames[4]).write(_noise,startrow);
-    table->column(colnames[5]).write(_flags,startrow);
-    table->column(colnames[6]).write(_mag,startrow);
-    table->column(colnames[7]).write(_objSize,startrow);
-    table->column(colnames[8]).write(_isAStar,startrow);
+    table->column(colNames[0]).write(_id,startrow);
+    table->column(colNames[1]).write(x,startrow);
+    table->column(colNames[2]).write(y,startrow);
+    table->column(colNames[3]).write(_sky,startrow);
+    table->column(colNames[4]).write(_noise,startrow);
+    table->column(colNames[5]).write(_flags,startrow);
+    table->column(colNames[6]).write(_mag,startrow);
+    table->column(colNames[7]).write(_objSize,startrow);
+    table->column(colNames[8]).write(_isAStar,startrow);
 
 }
 

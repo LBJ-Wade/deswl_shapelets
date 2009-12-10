@@ -28,7 +28,7 @@ void StarCatalog::calculateSizes(
 #ifdef _OPENMP
 #pragma omp parallel for schedule(guided)
 #endif
-    for (int i=0; i<n; i++) if (!_flags[i]) {
+    for (int i=0; i<n; ++i) if (!_flags[i]) {
         dbg<<"use i = "<<i<<std::endl;
 
         // Negative value indicates not set yet.  Start with 1 then.

@@ -221,7 +221,7 @@ private:
     using Function2D<T>::_yOrder;
 };
 
-template <class T> class Polynomial2D : public Function2D<T> 
+template <typename T> class Polynomial2D : public Function2D<T> 
 {
 
 public:

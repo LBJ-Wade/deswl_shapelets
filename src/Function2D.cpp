@@ -409,9 +409,10 @@ void Function2D<T>::doSimpleFit(
 
     const int nVals = vals.size();
 
-    Assert(f->size() == size);
+    Assert(int(f->size()) == size);
     Assert(!diff || diff->size() == vals.size());
-    Assert(!cov || (cov->colsize() == size && cov->rowsize() == size));
+    Assert(!cov || 
+           (int(cov->colsize()) == size && int(cov->rowsize()) == size));
 
     int nUse = std::count(shouldUse.begin(),shouldUse.end(),true);
     xdbg<<"nuse = "<<nUse<<std::endl;

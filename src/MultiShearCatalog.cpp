@@ -177,18 +177,18 @@ void MultiShearCatalog::resize(int n)
 
     int galOrder = _params.get("shear_gal_order");
     BVec shapeDefault(galOrder,1.);
-    shapeDefault.SetAllTo(DEFVALNEG);
+    shapeDefault.vec().SetAllTo(DEFVALNEG);
     _shape.resize(n,shapeDefault);
 
 }
 
-template <class T>
+template <typename T>
 inline long long getMemoryFootprint(const T& x)
 {
     return sizeof(x); 
 }
 
-template <class T>
+template <typename T>
 inline long long getMemoryFootprint(T*const x)
 {
     long long res=sizeof(x);
@@ -196,7 +196,7 @@ inline long long getMemoryFootprint(T*const x)
     return res;
 }
 
-template <class T>
+template <typename T>
 inline long long getMemoryFootprint(const T*const x)
 {
     long long res=sizeof(x);
@@ -204,7 +204,7 @@ inline long long getMemoryFootprint(const T*const x)
     return res;
 }
 
-template <class T>
+template <typename T>
 inline long long getMemoryFootprint(const std::auto_ptr<T>& x)
 {
     long long res=sizeof(x);
@@ -212,7 +212,7 @@ inline long long getMemoryFootprint(const std::auto_ptr<T>& x)
     return res;
 }
 
-template <class T, class Alloc>
+template <typename T, class Alloc>
 inline long long getMemoryFootprint(const std::vector<T,Alloc>& x)
 {
     long long res=sizeof(x);
@@ -228,7 +228,7 @@ inline long long getMemoryFootprint(const PixelList& x)
     return res;
 }
 
-template <class T>
+template <typename T>
 inline long long getMemoryFootprint(const tmv::Vector<T>& x)
 {
     long long res=sizeof(x);
@@ -243,7 +243,7 @@ inline long long getMemoryFootprint(const BVec& x)
     return res;
 }
 
-template <class T>
+template <typename T>
 inline long long getMemoryFootprint(const tmv::Matrix<T>& x)
 {
     long long res=sizeof(x);
@@ -518,12 +518,12 @@ void MultiShearCatalog::writeFits(std::string file) const
 
     for (int i=0; i<nGals; ++i) {
         int row = i+1;
-        long bOrder = _shape[i].GetOrder();
-        double bSigma = _shape[i].GetSigma();
+        long bOrder = _shape[i].getOrder();
+        double bSigma = _shape[i].getSigma();
 
         table->column(colNames[orderColNum]).write(&bOrder,1,row);
         table->column(colNames[sigmaColNum]).write(&bSigma,1,row);
-        double* cptr = (double *) _shape[i].cptr();
+        double* cptr = (double *) _shape[i].vec().cptr();
         table->column(colNames[coeffsColNum]).write(cptr, nCoeff, 1, row);
 
     }
@@ -566,14 +566,14 @@ void MultiShearCatalog::writeAscii(std::string file, std::string delim) const
             << _cov[i](0,0) << delim
             << _cov[i](0,1) << delim
             << _cov[i](1,1) << delim
-            << _shape[i].GetOrder() << delim
-            << _shape[i].GetSigma() << delim
+            << _shape[i].getOrder() << delim
+            << _shape[i].getSigma() << delim
             << _nImagesFound[i] << delim
             << _nImagesGotPix[i] << delim
             << _inputFlags[i];
         const int nCoeffs = _shape[i].size();
         for(int j=0;j<nCoeffs;++j)
-            fout << delim << _shape[i][j];
+            fout << delim << _shape[i](j);
         fout << std::endl;
     }
 }
@@ -714,7 +714,7 @@ void MultiShearCatalog::readFits(std::string file)
         std::valarray<double> coeffs;
         table.column(coeffsCol).read(coeffs, row);
 
-        double* ptri = (double* ) _shape[i].cptr();
+        double* ptri = (double* ) _shape[i].vec().cptr();
         for (int j=0; j<nCoeff; ++j) {
             ptri[i] = coeffs[i];
         }
@@ -759,7 +759,7 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
             _shape.push_back(BVec(bOrder,bSigma));
             const int nCoeffs = _shape.back().size();
             for(int j=0;j<nCoeffs;++j) 
-                fin >> _shape.back()[j];
+                fin >> _shape.back()(j);
             _nImagesFound.push_back(nfound);
             _nImagesGotPix.push_back(ngotpix);
             _inputFlags.push_back(inflag);
@@ -797,10 +797,10 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
             _shape.push_back(BVec(bOrder,bSigma));
             const int nCoeffs = _shape.back().size();
             for(int j=0;j<nCoeffs-1;++j) {
-                getline(fin,temp,d); _shape.back()[j] = temp;
+                getline(fin,temp,d); _shape.back()(j) = temp;
             }
             // Last one doesn't have a following delimiter
-            getline(fin,temp); _shape.back()[nCoeffs-1] = temp;
+            getline(fin,temp); _shape.back()(nCoeffs-1) = temp;
             _nImagesFound.push_back(temp);
             _nImagesGotPix.push_back(temp);
             _inputFlags.push_back(temp);

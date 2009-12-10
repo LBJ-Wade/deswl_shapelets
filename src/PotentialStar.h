@@ -16,7 +16,7 @@ public:
 
     ~PotentialStar() {}
 
-    const Position& getPos() const {return _pos;}
+    const Position& getPos() const { return _pos; }
 
     double getMag() const { return _mag; }
 
@@ -24,15 +24,15 @@ public:
 
     long getIndex() const { return _index; }
 
-    const std::string& getLine() const {return _line;}
+    const std::string& getLine() const { return _line; }
 
-    void setSize(double newsize) {_size = newsize;}
+    void setSize(double newsize) { _size = newsize; }
 
     bool isBrighterThan(const PotentialStar* rhs) const
-    {return _mag < rhs->_mag;}
+    { return _mag < rhs->_mag; }
 
     bool isSmallerThan(const PotentialStar* rhs) const
-    {return _size < rhs->_size;}
+    { return _size < rhs->_size; }
 
 private:
 

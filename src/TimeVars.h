@@ -17,6 +17,7 @@ struct EllipseTimes
         _tMu += rhs._tMu;
         _tFixFlux += rhs._tFixFlux;
         _tFinal += rhs._tFinal;
+        return *this;
     }
 
     void reset()

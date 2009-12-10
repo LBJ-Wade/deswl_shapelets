@@ -11,21 +11,24 @@
 // n 0  1   2  2  3   3    4     4    4   5     5     5     6     6     6    6
 // m 0  1   2  0  3   1    4     2    0   5     3     1     6     4     2    0
 
-void MakePsi1(const tmv::VectorView<double>& psi, 
+void makePsi1(
+    const tmv::VectorView<double>& psi, 
     std::complex<double> z, int order);
 
-void MakePsi(const tmv::MatrixView<double>& psi, 
+void makePsi(
+    const tmv::MatrixView<double>& psi, 
     const tmv::Vector<std::complex<double> >& z, int order,
     const tmv::DiagMatrix<double>* coeff=0);
 
-void AugmentPsi(tmv::Matrix<double>& psi,
+void augmentPsi(
+    tmv::Matrix<double>& psi,
     const tmv::Vector<std::complex<double> >& z, int order);
 
-void SetupGx(tmv::Matrix<double>& Gx, int order1, int order2);
-void SetupGy(tmv::Matrix<double>& Gy, int order1, int order2);
-void SetupGg1(tmv::Matrix<double>& Gg1, int order1, int order2);
-void SetupGg2(tmv::Matrix<double>& Gg2, int order1, int order2);
-void SetupGmu(tmv::Matrix<double>& Gmu, int order1, int order2);
-void SetupGth(tmv::Matrix<double>& Gth, int order1, int order2);
+void setupGx(tmv::Matrix<double>& Gx, int order1, int order2);
+void setupGy(tmv::Matrix<double>& Gy, int order1, int order2);
+void setupGg1(tmv::Matrix<double>& Gg1, int order1, int order2);
+void setupGg2(tmv::Matrix<double>& Gg2, int order1, int order2);
+void setupGmu(tmv::Matrix<double>& Gmu, int order1, int order2);
+void setupGth(tmv::Matrix<double>& Gth, int order1, int order2);
 
 #endif

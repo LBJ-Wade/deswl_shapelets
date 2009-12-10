@@ -19,7 +19,7 @@ void executeCommand(
             if (result[len-1] == '\n') {
                 std::string tmp;
                 tmp.resize(len-1);
-                for (int i=0; i<len-1; i++) {
+                for (int i=0; i<len-1; ++i) {
                     tmp[i] = result[i];
                 }
                 result=tmp;

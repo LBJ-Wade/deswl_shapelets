@@ -8,96 +8,98 @@
 #include "BVec.h"
 #include "TimeVars.h"
 
-class Ellipse {
+class Ellipse 
+{
 
-  public :
+public :
 
     Ellipse() :
-      cen(0.), gamma(0.), mu(0.),
-      fixcen(false), fixgam(false), fixmu(false), f_psf(1.0),
-      _shouldDoTimings(false) {}
+        _cen(0.), _gamma(0.), _mu(0.),
+        _isFixedCen(false), _isFixedGamma(false), _isFixedMu(false), 
+        _fPsf(1.0), _shouldDoTimings(false) {}
 
-    Ellipse(double _x, double _y, double _g1, double _g2, double _mu) :
-      cen(_x,_y), gamma(_g1,_g2), mu(_mu), 
-      fixcen(false), fixgam(false), fixmu(false), f_psf(1.0),
-      _shouldDoTimings(false) {}
+    Ellipse(double x, double y, double g1, double g2, double mu) :
+        _cen(x,y), _gamma(g1,g2), _mu(mu), 
+        _isFixedCen(false), _isFixedGamma(false), _isFixedMu(false), 
+        _fPsf(1.0), _shouldDoTimings(false) {}
 
     Ellipse(double vals[]) :
-      cen(vals[0],vals[1]), gamma(vals[2],vals[3]), mu(vals[4]),
-      fixcen(false), fixgam(false), fixmu(false), f_psf(1.0),
-      _shouldDoTimings(false) {}
+        _cen(vals[0],vals[1]), _gamma(vals[2],vals[3]), _mu(vals[4]),
+        _isFixedCen(false), _isFixedGamma(false), _isFixedMu(false),
+        _fPsf(1.0), _shouldDoTimings(false) {}
 
-    bool Measure(const std::vector<PixelList>& pix, 
-	const std::vector<BVec>& psf,
-	int order, double sigma, bool use_iteg, long& flag, 
-	tmv::Matrix<double>* cov=0, 
-	BVec* bret=0, tmv::Matrix<double>* bcov=0);
-    bool Measure(const std::vector<PixelList>& pix, 
-	int order, double sigma, bool use_integ, long& flag, 
-	tmv::Matrix<double>* cov=0, 
-	BVec* bret=0, tmv::Matrix<double>* bcov=0);
+    bool measure(const std::vector<PixelList>& pix, 
+                 const std::vector<BVec>& psf,
+                 int order, double sigma, bool shouldUseInteg, long& flag, 
+                 tmv::Matrix<double>* cov=0, 
+                 BVec* bret=0, tmv::Matrix<double>* bcov=0);
+    bool measure(const std::vector<PixelList>& pix, 
+                 int order, double sigma, bool shouldUseInteg, long& flag, 
+                 tmv::Matrix<double>* cov=0, 
+                 BVec* bret=0, tmv::Matrix<double>* bcov=0);
 
-    void CrudeMeasure(const PixelList& pix, double sigma);
-    void CrudeMeasure(
-	const std::vector<PixelList>& pix, double sigma);
+    void crudeMeasure(const PixelList& pix, double sigma);
+    void crudeMeasure(
+        const std::vector<PixelList>& pix, double sigma);
 
-    void PeakCentroid(const PixelList& pix, double maxr);
+    void peakCentroid(const PixelList& pix, double maxr);
 
-    void MeasureShapelet(const std::vector<PixelList>& pix, 
-	const std::vector<BVec>& psf, BVec& bret,
-	tmv::Matrix<double>* bcov=0) const;
-    void MeasureShapelet(const std::vector<PixelList>& pix, 
-	BVec& bret, tmv::Matrix<double>* bcov=0) const;
+    void measureShapelet(const std::vector<PixelList>& pix, 
+                         const std::vector<BVec>& psf, BVec& bret,
+                         tmv::Matrix<double>* bcov=0) const;
+    void measureShapelet(const std::vector<PixelList>& pix, 
+                         BVec& bret, tmv::Matrix<double>* bcov=0) const;
 
-    void Write(std::ostream& os) const
-    { os << cen<<" "<<gamma<<" "<<mu; }
+    void write(std::ostream& os) const
+    { os << _cen<<" "<<_gamma<<" "<<_mu; }
 
-    std::complex<double> GetCen() const 
-    { return cen; }
-    std::complex<double> GetGamma() const 
-    { return gamma; }
-    double GetMu() const { return mu; }
+    std::complex<double> getCen() const 
+    { return _cen; }
+    std::complex<double> getGamma() const 
+    { return _gamma; }
+    double getMu() const { return _mu; }
 
-    void SetCen(const std::complex<double>& _cen)
-    { cen = _cen; }
-    void SetGamma(const std::complex<double>& _gamma)
-    { gamma = _gamma; }
-    void SetMu(const double _mu) { mu = _mu; }
+    void setCen(const std::complex<double>& cen)
+    { _cen = cen; }
+    void setGamma(const std::complex<double>& gamma)
+    { _gamma = gamma; }
+    void setMu(const double mu) { _mu = mu; }
 
-    void FixCen() { fixcen = true; }
-    void FixGam() { fixgam = true; }
-    void FixMu() { fixmu = true; }
+    void fixCen() { _isFixedCen = true; }
+    void fixGam() { _isFixedGamma = true; }
+    void fixMu() { _isFixedMu = true; }
 
-    void UnFixCen() { fixcen = false; }
-    void UnFixGam() { fixgam = false; }
-    void UnFixMu() { fixmu = false; }
+    void unfixCen() { _isFixedCen = false; }
+    void unfixGam() { _isFixedGamma = false; }
+    void unfixMu() { _isFixedMu = false; }
 
-    bool isFixCen() const { return fixcen; }
-    bool isFixGam() const { return fixgam; }
-    bool isFixMu() const { return fixmu; }
+    bool isFixedCen() const { return _isFixedCen; }
+    bool isFixedGamma() const { return _isFixedGamma; }
+    bool isFixedMu() const { return _isFixedMu; }
 
-    void SetFP(double fp) { f_psf = fp; }
-    double GetFP() const { return f_psf; }
+    void setFP(double fp) { _fPsf = fp; }
+    double getFP() const { return _fPsf; }
 
     void doTimings() { _shouldDoTimings = true; }
     void resetTimes() { _times.reset(); }
     const EllipseTimes& getTimes() { return _times; }
 
-  private :
+private :
 
-    bool DoMeasure(const std::vector<PixelList>& pix, 
-	const std::vector<BVec>* psf, int order, double sigma,
-	bool use_integ, long& flag, tmv::Matrix<double>* cov=0, 
-	BVec* bret=0, tmv::Matrix<double>* bcov=0);
-    void DoMeasureShapelet(const std::vector<PixelList>& pix, 
-	const std::vector<BVec>* psf, BVec& bret,
-	tmv::Matrix<double>* bcov=0) const;
+    bool doMeasure(const std::vector<PixelList>& pix, 
+                   const std::vector<BVec>* psf, int order, double sigma,
+                   bool shouldUseInteg, long& flag, tmv::Matrix<double>* cov=0, 
+                   BVec* bret=0, tmv::Matrix<double>* bcov=0);
+    void doMeasureShapelet(const std::vector<PixelList>& pix, 
+                           const std::vector<BVec>* psf, BVec& bret,
+                           tmv::Matrix<double>* bcov=0) const;
 
-    std::complex<double> cen,gamma;
-    double mu; 
+    std::complex<double> _cen;
+    std::complex<double> _gamma;
+    double _mu; 
 
-    bool fixcen,fixgam,fixmu;
-    double f_psf;
+    bool _isFixedCen,_isFixedGamma,_isFixedMu;
+    double _fPsf;
 
     bool _shouldDoTimings;
 
@@ -105,6 +107,6 @@ class Ellipse {
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Ellipse& s)
-{ s.Write(os); return os; }
+{ s.write(os); return os; }
 
 #endif

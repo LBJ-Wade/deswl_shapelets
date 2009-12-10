@@ -11,129 +11,125 @@
 
 static void doMeasureShear(ConfigFile& params, ShearLog& log) 
 {
-  bool timing = params.read("timing",false);
-  timeval tp;
-  double t1=0.,t2=0.;
+    bool isTiming = params.read("timing",false);
+    timeval tp;
+    double t1=0.,t2=0.;
 
-  if (timing) {
-    gettimeofday(&tp,0);
-    t1 = tp.tv_sec + tp.tv_usec/1.e6;
-  }
+    if (isTiming) {
+        gettimeofday(&tp,0);
+        t1 = tp.tv_sec + tp.tv_usec/1.e6;
+    }
 
-  // Load image:
-  std::auto_ptr<Image<double> > weight_im;
-  Image<double> im(params,weight_im);
+    // Load image:
+    std::auto_ptr<Image<double> > weightIm;
+    Image<double> im(params,weightIm);
 
-  if (timing) {
-    gettimeofday(&tp,0);
-    t2 = tp.tv_sec + tp.tv_usec/1.e6;
-    std::cout<<"Time: Open imgae = "<<t2-t1<<std::endl;
-    t1 = t2;
-  }
+    if (isTiming) {
+        gettimeofday(&tp,0);
+        t2 = tp.tv_sec + tp.tv_usec/1.e6;
+        std::cout<<"Time: Open imgae = "<<t2-t1<<std::endl;
+        t1 = t2;
+    }
 
-  // Read distortion function
-  Transformation trans(params);
+    // Read distortion function
+    Transformation trans(params);
 
-  if (timing) {
-    gettimeofday(&tp,0);
-    t2 = tp.tv_sec + tp.tv_usec/1.e6;
-    std::cout<<"Time: Read Transformation = "<<t2-t1<<std::endl;
-    t1 = t2;
-  }
+    if (isTiming) {
+        gettimeofday(&tp,0);
+        t2 = tp.tv_sec + tp.tv_usec/1.e6;
+        std::cout<<"Time: Read Transformation = "<<t2-t1<<std::endl;
+        t1 = t2;
+    }
 
-  // Read input catalog
-  InputCatalog incat(params,&im);
+    // Read input catalog
+    InputCatalog inCat(params,&im);
 
-  if (timing) {
-    gettimeofday(&tp,0);
-    t2 = tp.tv_sec + tp.tv_usec/1.e6;
-    std::cout<<"Time: Read InputCatalog = "<<t2-t1<<std::endl;
-    t1 = t2;
-  }
+    if (isTiming) {
+        gettimeofday(&tp,0);
+        t2 = tp.tv_sec + tp.tv_usec/1.e6;
+        std::cout<<"Time: Read InputCatalog = "<<t2-t1<<std::endl;
+        t1 = t2;
+    }
 
-  // Read the fitted psf file
-  FittedPsf fitpsf(params);
+    // Read the fitted psf file
+    FittedPsf fitPsf(params);
 
-  if (timing) {
-    gettimeofday(&tp,0);
-    t2 = tp.tv_sec + tp.tv_usec/1.e6;
-    std::cout<<"Time: Read FittedPSF = "<<t2-t1<<std::endl;
-    t1 = t2;
-  }
+    if (isTiming) {
+        gettimeofday(&tp,0);
+        t2 = tp.tv_sec + tp.tv_usec/1.e6;
+        std::cout<<"Time: Read FittedPSF = "<<t2-t1<<std::endl;
+        t1 = t2;
+    }
 
-  // Create shear catalog
-  ShearCatalog shearcat(incat,trans,params);
+    // Create shear catalog
+    ShearCatalog shearCat(inCat,trans,params);
 
-  if (timing) {
-    gettimeofday(&tp,0);
-    t2 = tp.tv_sec + tp.tv_usec/1.e6;
-    std::cout<<"Time: Create ShearCatalog = "<<t2-t1<<std::endl;
-    t1 = t2;
-  }
+    if (isTiming) {
+        gettimeofday(&tp,0);
+        t2 = tp.tv_sec + tp.tv_usec/1.e6;
+        std::cout<<"Time: Create ShearCatalog = "<<t2-t1<<std::endl;
+        t1 = t2;
+    }
 
-  // Measure shears and shapelet vectors
-  int nshear = shearcat.measureShears(im,weight_im.get(),trans,fitpsf,log);
+    // Measure shears and shapelet vectors
+    int nShear = shearCat.measureShears(im,weightIm.get(),trans,fitPsf,log);
 
-  if (timing) {
-    gettimeofday(&tp,0);
-    t2 = tp.tv_sec + tp.tv_usec/1.e6;
-    std::cout<<"Time: Measure Shears = "<<t2-t1<<std::endl;
-    t1 = t2;
-  }
+    if (isTiming) {
+        gettimeofday(&tp,0);
+        t2 = tp.tv_sec + tp.tv_usec/1.e6;
+        std::cout<<"Time: Measure Shears = "<<t2-t1<<std::endl;
+        t1 = t2;
+    }
 
-  // Write results to file
-  shearcat.write();
+    // Write results to file
+    shearCat.write();
 
-  if (timing) {
-    gettimeofday(&tp,0);
-    t2 = tp.tv_sec + tp.tv_usec/1.e6;
-    std::cout<<"Time: Write ShearCatalog = "<<t2-t1<<std::endl;
-    t1 = t2;
-  }
+    if (isTiming) {
+        gettimeofday(&tp,0);
+        t2 = tp.tv_sec + tp.tv_usec/1.e6;
+        std::cout<<"Time: Write ShearCatalog = "<<t2-t1<<std::endl;
+        t1 = t2;
+    }
 
-  if (nshear == 0) {
-      throw ProcessingException(
-          "No successful shear measurements");
-  }
+    if (nShear == 0) {
+        throw ProcessingException(
+            "No successful shear measurements");
+    }
 
-  xdbg<<"Log: \n"<<log<<std::endl;
+    xdbg<<"Log: \n"<<log<<std::endl;
 }
 
 int main(int argc, char **argv) try 
 {
-  ConfigFile params;
-  if (BasicSetup(argc,argv,params,"measureshear")) return EXIT_FAILURE;
+    ConfigFile params;
+    if (basicSetup(argc,argv,params,"measureshear")) return EXIT_FAILURE;
 
-  // Setup Log
-  std::string logfile = ""; // Default is to stdout
-  if (params.keyExists("log_file") || params.keyExists("log_ext")) 
-    logfile = makeName(params,"log",false,false);
-  std::string shear_file = makeName(params,"shear",false,false);
-  std::auto_ptr<ShearLog> log (
-      new ShearLog(params,logfile,shear_file)); 
+    // Setup Log
+    std::string logFile = ""; // Default is to stdout
+    if (params.keyExists("log_file") || params.keyExists("log_ext")) 
+        logFile = makeName(params,"log",false,false);
+    std::string shearFile = makeName(params,"shear",false,false);
+    std::auto_ptr<ShearLog> log (
+        new ShearLog(params,logFile,shearFile)); 
 
-  try {
-    doMeasureShear(params,*log);
-  }
+    try {
+        doMeasureShear(params,*log);
+    }
 #if 0
-  // Change to 1 to let gdb see where the program bombed out.
-  catch(int) {}
+    // Change to 1 to let gdb see where the program bombed out.
+    catch(int) {}
 #else
-  CATCHALL
+    CATCHALL;
 #endif
 
-  if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}
-  return EXIT_SUCCESS; // = 0 typically.  Defined in <cstdlib>
-}
-catch (std::exception& e)
-{
-  std::cerr<<"Fatal error: Caught \n"<<e.what()<<std::endl;
-  std::cout<<"STATUS5BEG Fatal error: "<<e.what()<<" STATUS5END\n";
-  return EXIT_FAILURE;
-}
-catch (...)
-{
-  std::cerr<<"Fatal error: Cought an exception.\n";
-  std::cout<<"STATUS5BEG Fatal error: unknown exception STATUS5END\n";
-  return EXIT_FAILURE;
+    if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}
+    return EXIT_SUCCESS; // = 0 typically.  Defined in <cstdlib>
+} catch (std::exception& e) {
+    std::cerr<<"Fatal error: Caught \n"<<e.what()<<std::endl;
+    std::cout<<"STATUS5BEG Fatal error: "<<e.what()<<" STATUS5END\n";
+    return EXIT_FAILURE;
+} catch (...) {
+    std::cerr<<"Fatal error: Cought an exception.\n";
+    std::cout<<"STATUS5BEG Fatal error: unknown exception STATUS5END\n";
+    return EXIT_FAILURE;
 }

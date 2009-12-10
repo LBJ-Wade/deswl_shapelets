@@ -15,7 +15,7 @@ std::ostream* dbgout = 0;
 bool XDEBUG = false;
 
 // Some things that are done at the beginning of each executable
-inline int BasicSetup(
+inline int basicSetup(
     int argc, char **argv,
     ConfigFile& params, std::string exec)
 {
@@ -95,8 +95,10 @@ inline int BasicSetup(
         else dbgout = &std::cout;
     }
 
+#ifndef USE_EIGEN
     // Send TMV warnings to the debug output
     tmv::WriteWarningsTo(dbgout);
+#endif
 
     // Read fits params
     dbg<<"Config params = \n"<<params<<std::endl;
@@ -107,8 +109,22 @@ inline int BasicSetup(
     return 0;
 }
 
+#ifdef USE_EIGEN
+#define CATCHTMV
+#else
+#define CATCHTMV \
+    catch (tmv::Error& e) { \
+        dbg<<"Caught \n"<<e<<std::endl; \
+        std::cerr<<"Caught \n"<<e<<std::endl; \
+        if (log.get()) { \
+            log->setExitCode(FAILURE_PROCESSING_ERROR, e.what()); \
+        } \
+        return EXIT_FAILURE; \
+    }
+#endif
+
 #define CATCHALL \
-    catch (FileNotFoundException& e) { \
+    CATCHTMV catch (FileNotFoundException& e) { \
         dbg<<"Caught \n"<<e.what()<<std::endl; \
         std::cerr<<"Caught \n"<<e.what()<<std::endl; \
         if (log.get()) { \
@@ -139,13 +155,6 @@ inline int BasicSetup(
     } catch (ProcessingException& e) { \
         dbg<<"Caught \n"<<e.what()<<std::endl; \
         std::cerr<<"Caught \n"<<e.what()<<std::endl; \
-        if (log.get()) { \
-            log->setExitCode(FAILURE_PROCESSING_ERROR, e.what()); \
-        } \
-        return EXIT_FAILURE; \
-    } catch (tmv::Error& e) { \
-        dbg<<"Caught \n"<<e<<std::endl; \
-        std::cerr<<"Caught \n"<<e<<std::endl; \
         if (log.get()) { \
             log->setExitCode(FAILURE_PROCESSING_ERROR, e.what()); \
         } \

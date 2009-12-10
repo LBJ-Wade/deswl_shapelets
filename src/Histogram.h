@@ -6,7 +6,7 @@
 #include <vector>
 #include <iostream>
 
-template <class T>
+template <typename T>
 class Histogram {
 
 public:

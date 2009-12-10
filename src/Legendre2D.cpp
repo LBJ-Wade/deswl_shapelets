@@ -12,18 +12,13 @@ static std::string makeRangeExceptionMessage(
 }
 
 RangeException::RangeException(const Position& p, const Bounds& b) : 
-    std::runtime_error(makeRangeExceptionMessage(p,b)), _p(p), _b(b) {}
+    std::runtime_error(makeRangeExceptionMessage(p,b)), _p(p), _b(b) 
+{}
 
-
-template <class T>
+template <typename T>
 void Legendre2D<T>::setFunction(
     int xOrder, int yOrder, const tmv::Vector<T>& fVect)
 {
-    dbg<<"Start setFunction:\n";
-    dbg<<"parameters: "<<xOrder<<"  "<<yOrder<<"  "<<fVect<<std::endl;
-    dbg<<"member vars: "<<_xOrder<<"  "<<_yOrder<<std::endl;
-    if (_coeffs.get()) dbg<<*_coeffs<<std::endl;
-
     if (_xOrder != xOrder || _yOrder != yOrder) {
         _xOrder = xOrder; _yOrder = yOrder;
         _coeffs.reset(new tmv::Matrix<T>(_xOrder+1,_yOrder+1,0.));
@@ -31,15 +26,13 @@ void Legendre2D<T>::setFunction(
     int k=0;
     for(int m=0; m <= std::max(_xOrder,_yOrder); ++m) {
         for(int i=std::min(m,_xOrder);m-i<=std::min(m,_yOrder);--i) { 
-            dbg<<k<<"  "<<m<<"  "<<i<<std::endl;
             (*_coeffs)(i,m-i) = fVect(k++);
         }
     }
-    dbg<<"done\n";
     Assert(k==(int)fVect.size());
 }
 
-template <class T>
+template <typename T>
 Legendre2D<T>::Legendre2D(std::istream& fin) : Function2D<T>()
 {
     // Order of parameters is same as for Polynomial2D.  Difference
@@ -56,7 +49,7 @@ Legendre2D<T>::Legendre2D(std::istream& fin) : Function2D<T>()
     if (!fin) throw std::runtime_error("reading (legendre) function");
 }
 
-template <class T>
+template <typename T>
 void Legendre2D<T>::write(std::ostream& fout) const
 {
     int oldprec = fout.precision(6);
@@ -79,7 +72,7 @@ void Legendre2D<T>::write(std::ostream& fout) const
     fout.flags(oldf);
 }
 
-template <class T>
+template <typename T>
 void Legendre2D<T>::addLinear(T a, T b, T c)
 {
     double xAve = (getXMin() + getXMax())/2.;
@@ -92,14 +85,14 @@ void Legendre2D<T>::addLinear(T a, T b, T c)
     (*_coeffs)(0,1) += c*yRange/2.;
 }
 
-template <class T>
+template <typename T>
 void Legendre2D<T>::linearPreTransform(T , T , T , T , T , T )
 {
     // Not implemented yet.
     Assert(false);
 }
 
-template <class T>
+template <typename T>
 void Legendre2D<T>::operator+=(const Function2D<T>& rhs)
 {
     const Legendre2D<T>* lrhs = dynamic_cast<const Legendre2D<T>*>(&rhs);
@@ -122,7 +115,7 @@ void Legendre2D<T>::operator+=(const Function2D<T>& rhs)
 
 // dP_2n(x)/dx = Sum_k=0..n-1 (4k+3) P_2k+1(x)
 // dP_2n+1(x)/dx = Sum_k=0..n (4k+1) P_2k(x)
-template <class T>
+template <typename T>
 std::auto_ptr<Function2D<T> > Legendre2D<T>::dFdX() const 
 {
     if (_xOrder == 0) {
@@ -163,7 +156,7 @@ std::auto_ptr<Function2D<T> > Legendre2D<T>::dFdX() const
 
 // dP_2n(x)/dx = Sum_k=0..n-1 (4k+3) P_2k+1(x)
 // dP_2n+1(x)/dx = Sum_k=0..n-1 (4k+1) P_2k(x)
-template <class T>
+template <typename T>
 std::auto_ptr<Function2D<T> > Legendre2D<T>::dFdY() const 
 {
     if (_yOrder == 0) {
@@ -202,7 +195,7 @@ std::auto_ptr<Function2D<T> > Legendre2D<T>::dFdY() const
     return std::auto_ptr<Function2D<T> >(temp);
 }
 
-template <class T>
+template <typename T>
 tmv::Vector<double> Legendre2D<T>::definePXY(
     int order, double xy, double min, double max) const
 {
@@ -214,7 +207,7 @@ tmv::Vector<double> Legendre2D<T>::definePXY(
     return temp;
 }
 
-template <class T>
+template <typename T>
 tmv::Vector<double> Legendre2D<T>::definePX(int order, double x) const
 {
     if (x < getXMin() || x > getXMax()) {
@@ -225,7 +218,7 @@ tmv::Vector<double> Legendre2D<T>::definePX(int order, double x) const
     return definePXY(order,x,getXMin(),getXMax());
 }
 
-template <class T>
+template <typename T>
 tmv::Vector<double> Legendre2D<T>::definePY(int order, double y) const
 {
     if (y < getYMin() || y > getYMax()) {

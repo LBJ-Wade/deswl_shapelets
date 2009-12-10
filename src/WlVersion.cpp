@@ -12,7 +12,8 @@ std::string getWlVersion()
 
     // this gets automatically updated by svn
     // don't forget to do svn propset svn:keywords "HeadURL" thisfile
-    std::string svnUrl="$HeadURL$";
+    std::string svnUrl=
+        "$HeadURL$";
 
     std::vector<std::string> urlTokens;
     std::istringstream urlStream(svnUrl);
@@ -27,7 +28,7 @@ std::string getWlVersion()
     } 
     std::string url=urlTokens[1];
 
-    size_t ind=url.find(thisName);
+    std::string::size_type ind=url.find(thisName);
 
     if (ind == std::string::npos) {
         std::cerr<<"Could not find '"<<thisName<<"' in url"<<std::endl;

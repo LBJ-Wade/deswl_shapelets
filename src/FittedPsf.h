@@ -50,10 +50,10 @@ public :
     {
         Assert(_avePsf.get());
         Assert(_mV.get());
-        Assert(b.GetOrder() == _psfOrder);
+        Assert(b.getOrder() == _psfOrder);
         Assert(b.size() == _avePsf->size());
-        b.SetSigma(_sigma);
-        interpolateVector(pos,b.View());
+        b.setSigma(_sigma);
+        interpolateVector(pos,b.vec().View());
     }
 
     // This next construct with FittedPsfAtXY allows you to write:
@@ -82,24 +82,26 @@ private :
     std::auto_ptr<tmv::Matrix<double> > _f;
 };
 
-class FittedPsfAtXY : public tmv::AssignableToVector<double> {
+class FittedPsfAtXY : public AssignableToBVec
+{
 
 public :
 
-    FittedPsfAtXY(const FittedPsf& _psf, Position _pos) :
-        psf(_psf), pos(_pos) {}
+    FittedPsfAtXY(const FittedPsf& psf, Position pos) :
+        _psf(psf), _pos(pos) 
+    {}
 
-    size_t size() const { return psf._avePsf->size(); }
-    void AssignToV(const tmv::VectorView<double>& b) const
-    { psf.interpolateVector(pos,b); }
+    size_t size() const { return _psf._avePsf->size(); }
+    int getOrder() const { return _psf.getPsfOrder(); }
+    double getSigma() const { return _psf.getSigma(); }
 
-    void AssignToV(const tmv::VectorView<std::complex<double> >& ) const
-    { Assert(false); }
+    void AssignTo(BVec& b) const
+    { _psf.interpolate(_pos,b); }
 
 private :
 
-    const FittedPsf& psf;
-    Position pos;
+    const FittedPsf& _psf;
+    Position _pos;
 };
 
 inline FittedPsfAtXY FittedPsf::operator()(Position pos) const

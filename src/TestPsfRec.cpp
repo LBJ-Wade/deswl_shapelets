@@ -14,83 +14,76 @@
 // for Position
 #include "Bounds.h"
 
-using namespace std;
-
 std::ostream* dbgout = 0;
 bool XDEBUG = true;
-
-#define xdbgout (XDEBUG ? dbgout : 0)
 
 
 int main(int argc, char **argv) 
 {
 
-	if (argc < 4) {
-		std::cout<<"usage: test_psfrec config psf_file fitpsf_file\n";
-		exit(45);
-	}
+    if (argc < 4) {
+        std::cout<<"usage: test_psfrec config psf_file fitpsf_file\n";
+        exit(45);
+    }
 
-	//dbgout = &std::cerr;
+    std::string configFile=argv[1];
+    std::string psfFile=argv[2];
+    std::string fitPsfFile=argv[3];
 
-	string config_file=argv[1];
-	string psf_file=argv[2];
-	string fitpsf_file=argv[3];
+    std::cerr<<"\n";
+    std::cerr<<"config_file: "<<configFile<<"\n";
+    std::cerr<<"psf_file: "<<psfFile<<"\n";
+    std::cerr<<"fitpsf_file: "<<fitPsfFile<<"\n";
 
-
-	cerr<<"\n";
-	cerr<<"config_file: "<<config_file<<"\n";
-	cerr<<"psf_file: "<<psf_file<<"\n";
-	cerr<<"fitpsf_file: "<<fitpsf_file<<"\n";
-
-	cerr<<"Loading config...\n";
-	ConfigFile params(config_file);
-	string fp((const char*)fitsparams_config,fitsparams_config_len);
-	istringstream is(fp);
-	params.read(is);
+    std::cerr<<"Loading config...\n";
+    ConfigFile params(configFile);
+    std::string fp((const char*)fitsparams_config,fitsparams_config_len);
+    std::istringstream is(fp);
+    params.read(is);
 
 
-	cerr<<"Loading a PSFCatalog\n";
-	PsfCatalog psfcat(params, psf_file);
+    std::cerr<<"Loading a PSFCatalog\n";
+    PsfCatalog psfCat(params, psfFile);
 
-	cerr<<"Loading a FittedPSF\n";
-	FittedPsf fitpsf(params, fitpsf_file);
+    std::cerr<<"Loading a FittedPSF\n";
+    FittedPsf fitPsf(params, fitPsfFile);
 
-	BVec ipsf(fitpsf.getPsfOrder(), fitpsf.getSigma());
+    BVec iPsf(fitPsf.getPsfOrder(), fitPsf.getSigma());
 
-	// Test the reconstructions
-	cout<<"NROWS = "<<psfcat.size()<<"\n";
-	cout<<"{'_DELIM': ' ',\n";
-	cout<<" '_DTYPE': [('id','i4'),\n";
-	cout<<"            ('psf_flags','i4'),\n";
-	cout<<"            ('x','f4'),('y','f4'),\n";
-	cout<<"            ('e1','f4'),('e2','f4'),\n";
-	cout<<"            ('e1interp','f4'),('e2interp','f4')],\n";
-	cout<<" 'config_file': '"<<config_file<<"',\n";
-	cout<<" 'psf_file': '"<<psf_file<<"',\n";
-	cout<<" 'fitpsf_file': '"<<fitpsf_file<<"'}\n";
-	cout<<"END\n";
-	cout<<"\n";
-	const int nStars = psfcat.size();
-	for (int i=0; i<nStars; i++) {
+    // Test the reconstructions
+    std::cout<<"NROWS = "<<psfCat.size()<<"\n";
+    std::cout<<"{'_DELIM': ' ',\n";
+    std::cout<<" '_DTYPE': [('id','i4'),\n";
+    std::cout<<"            ('psf_flags','i4'),\n";
+    std::cout<<"            ('x','f4'),('y','f4'),\n";
+    std::cout<<"            ('e1','f4'),('e2','f4'),\n";
+    std::cout<<"            ('e1interp','f4'),('e2interp','f4')],\n";
+    std::cout<<" 'config_file': '"<<configFile<<"',\n";
+    std::cout<<" 'psf_file': '"<<psfFile<<"',\n";
+    std::cout<<" 'fitpsf_file': '"<<fitPsfFile<<"'}\n";
+    std::cout<<"END\n";
+    std::cout<<"\n";
+    const int nStars = psfCat.size();
+    for (int i=0; i<nStars; ++i) {
 
-		double e1 = sqrt(2)*psfcat.getPsf(i)[3];
-		double e2 = sqrt(2)*psfcat.getPsf(i)[4];
+        double e1 = sqrt(2)*psfCat.getPsf(i)(3);
+        double e2 = sqrt(2)*psfCat.getPsf(i)(4);
 
-		fitpsf.interpolate(psfcat.getPos(i), ipsf);
+        fitPsf.interpolate(psfCat.getPos(i), iPsf);
 
-		double ie1 = sqrt(2)*ipsf[3];
-		double ie2 = sqrt(2)*ipsf[4];
-		cout<<psfcat.getId(i)
-			<<" "<<psfcat.getFlags(i)
-			<<" "<<psfcat.getPos(i).getX()
-			<<" "<<psfcat.getPos(i).getY()
-			<<" "<<e1
-			<<" "<<e2
-			<<" "<<ie1
-			<<" "<<ie2
-			<<"\n";
-	}
+        double ie1 = sqrt(2)*iPsf(3);
+        double ie2 = sqrt(2)*iPsf(4);
+        std::cout<<psfCat.getId(i)
+            <<" "<<psfCat.getFlags(i)
+            <<" "<<psfCat.getPos(i).getX()
+            <<" "<<psfCat.getPos(i).getY()
+            <<" "<<e1
+            <<" "<<e2
+            <<" "<<ie1
+            <<" "<<ie2
+            <<"\n";
+    }
 
-	exit(0);
+    exit(0);
 
 }

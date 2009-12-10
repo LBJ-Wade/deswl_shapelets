@@ -61,7 +61,7 @@ int ShearCatalog::measureShears(
 #ifdef _OPENMP
 #pragma omp for schedule(dynamic)
 #endif
-            for(int i=0;i<nGals;i++) {
+            for(int i=0;i<nGals;++i) {
                 if (_flags[i]) continue;
 #ifdef STARTAT
                 if (i < STARTAT) continue;

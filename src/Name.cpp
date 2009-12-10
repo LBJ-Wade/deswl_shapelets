@@ -41,8 +41,7 @@ void setRoot(ConfigFile& params, const std::string& imageFileName)
     std::string imageExt;
     int extPos;
     bool isFound = false;
-    for(int i=0;i<nExt;i++) 
-    {
+    for(int i=0;i<nExt;++i) {
         imageExt = allImageExt[i];
         dbg<<"image_ext = "<<imageExt<<std::endl;
         if (imageExt.size() > imageFileName.size()) continue;
@@ -57,12 +56,12 @@ void setRoot(ConfigFile& params, const std::string& imageFileName)
     }
     if (!isFound) {
         throw ParameterException(
-                "image file "+imageFileName+
-                " does not end with "+params["image_ext"]);
+            "image file "+imageFileName+
+            " does not end with "+params["image_ext"]);
     }
 
     // Calculate the root
-    int rootPos = imageFileName.find_last_of('/',extPos);
+    std::string::size_type rootPos = imageFileName.find_last_of('/',extPos);
     if (rootPos == std::string::npos) rootPos = 0;
     else ++rootPos;
     dbg<<"root_pos = "<<rootPos<<std::endl;
@@ -88,8 +87,7 @@ void setRoot(ConfigFile& params)
 {
     Assert(params.keyExists("root") || params.keyExists("image_file"));
 
-    if (!params.keyExists("root")) 
-    {
+    if (!params.keyExists("root")) {
         // Get image name and extensions from params
         dbg<<"Make root from image_file\n";
         std::string imageFileName = params["image_file"];
@@ -106,12 +104,10 @@ std::string makeName(
 
     xdbg<<"Making name for "<<what<<std::endl;
     std::string name;
-    if (params.keyExists((what+"_file"))) 
-    {
+    if (params.keyExists((what+"_file"))) {
         xdbg<<(what+"_file")<<" parameter exists, so use that.\n";
         name = params[what+"_file"];
-        if (mustExist) 
-        {
+        if (mustExist) {
             if (!doesFileExist(name)) throw FileNotFoundException(name);
         }
     } else {
@@ -137,13 +133,13 @@ std::string makeName(
         xdbg<<"pre = "<<pre<<std::endl;
 
         const int nExt = ext.size();
-        for(int i=0;i<nExt;i++) {
+        for(int i=0;i<nExt;++i) {
             name = pre + root + ext[i];
             if (mustExist) {
                 if (doesFileExist(name)) break;
                 if (i == nExt-1) {
                     std::string allNames;
-                    for(int j=0;j<nExt;j++) {
+                    for(int j=0;j<nExt;++j) {
                         if (j > 0) allNames += ",";
                         name = pre + root + ext[j];
                         allNames += name;
@@ -177,7 +173,7 @@ std::vector<std::string> makeMultiName(
         else if (params.keyExists("output_prefix")) pre=params["output_prefix"];
 
         const int nExt = ext.size();
-        for(int i=0;i<nExt;i++) {
+        for(int i=0;i<nExt;++i) {
             std::string name = pre + root + ext[i];
             xdbg<<"name = "<<name<<std::endl;
             nameList.push_back(name);

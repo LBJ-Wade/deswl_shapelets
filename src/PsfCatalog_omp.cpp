@@ -38,7 +38,7 @@ double PsfCatalog::estimateSigma(
 #ifdef _OPENMP
 #pragma omp parallel for schedule(guided) reduction(+ : meanMu) reduction(+ : count)
 #endif
-    for (int i=0; i<nStars; i++) if (!_flags[i]) {
+    for (int i=0; i<nStars; ++i) if (!_flags[i]) {
         dbg<<"use i = "<<i<<std::endl;
 
         double sigma = sigmaP;
@@ -50,7 +50,7 @@ double PsfCatalog::estimateSigma(
         // Ignore errors -- just don't add to meanMu
         if (flag1) continue;
         meanMu += log(sigma);
-        count++;
+        ++count;
     } // End omp parallel for
 
     if (count < nStars/3) {
@@ -119,7 +119,7 @@ int PsfCatalog::measurePsf(
 #ifdef _OPENMP
 #pragma omp for schedule(guided)
 #endif
-            for(int i=0;i<nStars;i++) if (!_flags[i]) 
+            for(int i=0;i<nStars;++i) if (!_flags[i]) 
             {
 #ifdef STARTAT
                 if (i < STARTAT) continue;
@@ -159,7 +159,8 @@ int PsfCatalog::measurePsf(
 
                 _flags[i] = flag1;
                 if (!flag1) {
-                    dbg<<"Successful psf measurement: "<<_psf[i]<<std::endl;
+                    dbg<<"Successful psf measurement: "<<
+                        _psf[i].vec()<<std::endl;
                 } else {
                     dbg<<"Unsuccessful psf measurement\n"; 
                 }

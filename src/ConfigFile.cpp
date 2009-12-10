@@ -139,12 +139,11 @@ void ConfigFile::read(std::istream& is)
 {
     // Load a ConfigFile from is
     // Read in keys and values, keeping internal whitespace
-    typedef std::string::size_type pos;
     const std::string& delim = _delimiter;  // separator
     const std::string& comm = _comment;    // comment
     const std::string& inc = _include;      // include directive
     const std::string& sentry = _sentry;     // end of file sentry
-    const pos skip = delim.size();            // length of separator
+    const std::string::size_type skip = delim.size(); // length of separator
 
     std::string nextLine = "";  
     // might need to read ahead to see where value ends
@@ -183,7 +182,7 @@ void ConfigFile::read(std::istream& is)
         if( sentry != "" && line.find(sentry) != std::string::npos ) return;
 
         // Parse the line if it contains a delimiter
-        pos delimPos = line.find( delim );
+        std::string::size_type delimPos = line.find( delim );
         if( delimPos < std::string::npos ) {
             // Extract the key
             std::string key = line.substr( 0, delimPos );

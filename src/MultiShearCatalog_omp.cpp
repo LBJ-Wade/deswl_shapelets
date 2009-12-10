@@ -95,7 +95,7 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                 if (!flag1) {
                     dbg<<"Successful shear measurement: "<<
                         _shear[i]<<std::endl;
-                    nSuccess++;
+                    ++nSuccess;
                 } else {
                     dbg<<"Unsuccessful shear measurement\n"; 
                 }
@@ -166,12 +166,12 @@ static void getImagePixList(
     // First, figure out a good starting point for the nonlinear solver:
     Position pos;
     dbg<<"skypos = "<<skyPos<<std::endl;
-    invTrans.Transform(skyPos,pos);
+    invTrans.transform(skyPos,pos);
     xdbg<<"invtrans(skypos) = "<<pos<<std::endl;
 
     // Now do the full non-linear solver, which should be pretty fast
     // given the decent initial guess.
-    if (!trans.InverseTransform(skyPos, pos) ) {
+    if (!trans.inverseTransform(skyPos, pos) ) {
         dbg << "InverseTransform failed for position "<<skyPos<<".\n";
         dbg << "Initial guess was "<<pos<<".\n";
         inputFlags |= TRANSFORM_EXCEPTION;
@@ -183,7 +183,7 @@ static void getImagePixList(
         return;
     }
 
-    nImagesFound++;
+    ++nImagesFound;
 
     try {
         psf = fitPsf(pos);
@@ -199,7 +199,7 @@ static void getImagePixList(
         // We don't need to save skyPos.  We just want to catch the range
         // error here, so we don't need to worry about it for dudx, etc.
         Position skyPos1;
-        trans.Transform(pos,skyPos1);
+        trans.transform(pos,skyPos1);
     } catch (RangeException& e) {
         dbg<<"distortion range error: \n";
         xdbg<<"p = "<<pos<<", b = "<<e.getBounds()<<std::endl;
@@ -219,7 +219,7 @@ static void getImagePixList(
     double galAp = maxAperture;
     if (std::abs(shearCat.getPos(nearest) - pos) < 1.) { 
         seShear = shearCat.getShear(nearest);
-        seSize = shearCat.getShape(nearest).GetSigma();
+        seSize = shearCat.getShape(nearest).getSigma();
         // If we have a good measurement from the single_epoch image, use
         // that sigma for the size.
         // But expand it by 30% in case we need it.
@@ -268,12 +268,12 @@ static void getImagePixList(
         // guess for this object (on this image).
         if (std::abs(shearCat.getPos(nearest) - pos) < 1.) { 
             seShearList.push_back(shearCat.getShear(nearest));
-            seSizeList.push_back(shearCat.getShape(nearest).GetSigma());
+            seSizeList.push_back(shearCat.getShape(nearest).getSigma());
         } else {
             seShearList.push_back(0.);
             seSizeList.push_back(0.);
         }
-        nImagesGotPix++;
+        ++nImagesGotPix;
     } else {
         inputFlags |= flag;
         pixList.pop_back();
@@ -347,7 +347,7 @@ void MultiShearCatalog::getImagePixelLists(
     // Make an inverse transformation that we will use as a starting 
     // point for the more accurate InverseTransform function.
     Transformation invTrans;
-    Bounds invBounds = invTrans.MakeInverseOf(trans,seBounds,4);
+    Bounds invBounds = invTrans.makeInverseOf(trans,seBounds,4);
     dbg<<"skybounds = "<<_skyBounds<<std::endl;
     dbg<<"se_skybounds = "<<seSkyBounds<<std::endl;
     dbg<<"se_bounds = "<<seBounds<<std::endl;
@@ -376,7 +376,7 @@ void MultiShearCatalog::getImagePixelLists(
 
         // Grow bounds by maxAperture
         tmv::SmallMatrix<double,2,2> D;
-        trans.GetDistortion(subBounds.getCenter(),D);
+        trans.getDistortion(subBounds.getCenter(),D);
         double det = std::abs(D.Det());
         double pixScale = sqrt(det); // arcsec/pixel
         subBounds.addBorder(maxAperture / pixScale);

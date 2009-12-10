@@ -18,7 +18,7 @@ void getPixList(
     }
 
     tmv::SmallMatrix<double,2,2> localD;
-    trans.GetDistortion(cen,localD);
+    trans.getDistortion(cen,localD);
 
     double det = std::abs(localD.Det());
     double pixScale = sqrt(det); // arcsec/pixel
@@ -74,17 +74,17 @@ void getPixList(
     int nPix = 0;
 
     double chipX = xMin+i1-xCen;
-    for(int i=i1;i<=i2;i++,chipX+=1.) {
+    for(int i=i1;i<=i2;++i,chipX+=1.) {
         double chipY = yMin+j1-yCen;
         double u = localD(0,0)*chipX+localD(0,1)*chipY;
         double v = localD(1,0)*chipX+localD(1,1)*chipY;
-        for(int j=j1;j<=j2;j++,u+=localD(0,1),v+=localD(1,1)) {
+        for(int j=j1;j<=j2;++j,u+=localD(0,1),v+=localD(1,1)) {
             // u,v are in arcsec
             double rsq = u*u + v*v;
             if (rsq <= apsq) 
             {
                 shouldUsePix[i-i1][j-j1] = true;
-                nPix++;
+                ++nPix;
             }
         }
     }
@@ -96,11 +96,11 @@ void getPixList(
 
     int k=0;
     chipX = xMin+i1-xCen;
-    for(int i=i1;i<=i2;i++,chipX+=1.) {
+    for(int i=i1;i<=i2;++i,chipX+=1.) {
         double chipY = yMin+j1-yCen;
         double u = localD(0,0)*chipX+localD(0,1)*chipY;
         double v = localD(1,0)*chipX+localD(1,1)*chipY;
-        for(int j=j1;j<=j2;j++,u+=localD(0,1),v+=localD(1,1)) {
+        for(int j=j1;j<=j2;++j,u+=localD(0,1),v+=localD(1,1)) {
             if (shouldUsePix[i-i1][j-j1]) {
                 double flux = im(i,j)-sky;
                 double inverseVariance;
@@ -141,7 +141,7 @@ double getLocalSky(
     xdbg<<"Start GetLocalSky\n";
 
     tmv::SmallMatrix<double,2,2> localD;
-    trans.GetDistortion(cen,localD);
+    trans.getDistortion(cen,localD);
 
     double det = std::abs(localD.Det());
     double pixScale = sqrt(det); // arcsec/pixel
@@ -184,17 +184,17 @@ double getLocalSky(
     int nPix = 0;
 
     double chipX = xMin+i1-xCen;
-    for(int i=i1;i<=i2;i++,chipX+=1.) {
+    for(int i=i1;i<=i2;++i,chipX+=1.) {
         double chipY = yMin+j1-yCen;
         double u = localD(0,0)*chipX+localD(0,1)*chipY;
         double v = localD(1,0)*chipX+localD(1,1)*chipY;
-        for(int j=j1;j<=j2;j++,u+=localD(0,1),v+=localD(1,1)) {
+        for(int j=j1;j<=j2;++j,u+=localD(0,1),v+=localD(1,1)) {
             // u,v are in arcsec
             double rsq = u*u + v*v;
             if (rsq <= apsq) 
             {
                 meanSky += bkg(i,j);
-                nPix++;
+                ++nPix;
             }
         }
     }

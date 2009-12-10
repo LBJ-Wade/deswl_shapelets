@@ -45,7 +45,7 @@ ShearCatalog::ShearCatalog(
         _skyPos.resize(nGals,skyPosDefault);
         for(int i=0;i<nGals;++i) {
             try {
-                trans.Transform(_pos[i],_skyPos[i]);
+                trans.transform(_pos[i],_skyPos[i]);
             } catch (RangeException& e) {
                 xdbg<<"distortion range error\n";
                 xdbg<<"p = "<<_pos[i]<<", b = "<<e.getBounds()<<std::endl;
@@ -61,7 +61,7 @@ ShearCatalog::ShearCatalog(
         for(int i=0;i<nGals;++i) {
             try {
                 Position temp;
-                trans.Transform(_pos[i],temp);
+                trans.transform(_pos[i],temp);
                 xdbg<<_pos[i]<<"  "<<_skyPos[i]/3600.<<"  "<<temp/3600.;
                 xdbg<<"  "<<temp-_skyPos[i]<<std::endl;
                 rmsError += std::norm(temp-_skyPos[i]);
@@ -93,7 +93,7 @@ ShearCatalog::ShearCatalog(
 
     int galOrder = _params.read<int>("shear_gal_order");
     BVec shapeDefault(galOrder,1.);
-    shapeDefault.SetAllTo(DEFVALNEG);
+    shapeDefault.vec().SetAllTo(DEFVALNEG);
     _shape.resize(nGals,shapeDefault);
 
     Assert(_id.size() == size());
@@ -183,6 +183,7 @@ void ShearCatalog::writeFits(std::string file) const
     int nCoeff = _shape[0].size();
     dbg<<"ncoeff = "<<nCoeff<<std::endl;
     colFmts[16] = ConvertibleString(nCoeff) + "D"; // shapelet coeffs
+    dbg<<"colfmts[16] = "<<colFmts[16]<<std::endl;
 
     colUnits[0] = "None";   // id
     colUnits[1] = "Pixels"; // x
@@ -278,12 +279,12 @@ void ShearCatalog::writeFits(std::string file) const
 
     for (int i=0; i<nGals; ++i) {
         int row = i+1;
-        long bOrder = _shape[i].GetOrder();
-        double bSigma = _shape[i].GetSigma();
+        long bOrder = _shape[i].getOrder();
+        double bSigma = _shape[i].getSigma();
 
         table->column(colNames[14]).write(&bOrder,1,row);
         table->column(colNames[15]).write(&bSigma,1,row);
-        double* cptr = (double *) _shape[i].cptr();
+        double* cptr = (double *) _shape[i].vec().cptr();
         table->column(colNames[16]).write(cptr, nCoeff, 1, row);
     }
 }
@@ -325,11 +326,11 @@ void ShearCatalog::writeAscii(std::string file, std::string delim) const
             << _cov[i](0,0) << delim
             << _cov[i](0,1) << delim
             << _cov[i](1,1) << delim
-            << _shape[i].GetOrder() << delim
-            << _shape[i].GetSigma();
+            << _shape[i].getOrder() << delim
+            << _shape[i].getSigma();
         const int nCoeff = _shape[i].size();
         for(int j=0;j<nCoeff;++j)
-            fout << delim << _shape[i][j];
+            fout << delim << _shape[i](j);
         fout << std::endl;
     }
 }
@@ -493,8 +494,8 @@ void ShearCatalog::readFits(std::string file)
 
         std::valarray<double> coeffs(nCoeff);
         table.column(coeffsCol).read(coeffs, row);
-        for(int j=0;j<nCoeff;++j) _shape[i][j] = coeffs[j];
-        xxdbg<<"shape => "<<_shape[i]<<std::endl;
+        for(int j=0;j<nCoeff;++j) _shape[i](j) = coeffs[j];
+        xxdbg<<"shape => "<<_shape[i].vec()<<std::endl;
     }
     dbg<<"Done ReadFits\n";
 }
@@ -529,7 +530,7 @@ void ShearCatalog::readAscii(std::string file, std::string delim)
             _shape.push_back(BVec(bOrder,bSigma));
             const int nCoeff = _shape.back().size();
             for(int j=0; j<nCoeff; ++j)
-                fin >> _shape.back()[j];
+                fin >> _shape.back()(j);
         }
     } else {
         if (delim.size() > 1) {
@@ -569,10 +570,10 @@ void ShearCatalog::readAscii(std::string file, std::string delim)
             _shape.push_back(BVec(bOrder,bSigma));
             const int nCoeff = _shape.back().size();
             for(int j=0;j<nCoeff-1;++j) {
-                getline(fin,temp,d); _shape.back()[j] = temp;
+                getline(fin,temp,d); _shape.back()(j) = temp;
             }
             // Last one doesn't have a following delimiter
-            getline(fin,temp); _shape.back()[nCoeff-1] = temp;
+            getline(fin,temp); _shape.back()(nCoeff-1) = temp;
         }
     }
 }
