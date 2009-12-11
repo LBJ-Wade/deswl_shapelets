@@ -34,8 +34,7 @@ ShearCatalog::ShearCatalog(
 
     // Fix flags to only have INPUT_FLAG set.
     // (I don't think this is necessary, but just in case.)
-    for (int i=0; i<nGals; ++i) 
-    {
+    for (int i=0; i<nGals; ++i) {
         _flags[i] &= INPUT_FLAG;
     }
 
@@ -50,7 +49,7 @@ ShearCatalog::ShearCatalog(
                 xdbg<<"distortion range error\n";
                 xdbg<<"p = "<<_pos[i]<<", b = "<<e.getBounds()<<std::endl;
             }                       
-            _skyBounds += _skyPos[i];
+            if (!_flags[i]) _skyBounds += _skyPos[i];
         }
     } else {
         Assert(int(_skyPos.size()) == nGals);
@@ -385,7 +384,7 @@ void ShearCatalog::readFits(std::string file)
 {
     int hdu = _params.read("shear_hdu",2);
 
-    dbg<<"Opening FITS file at hdu "<<hdu<<std::endl;
+    dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
     // true means read all as part of the construction
     CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
 
@@ -629,7 +628,16 @@ void ShearCatalog::read()
             _skyPos[i] *= 3600.; // deg -> arcsec
     }
 
-    for(int i=0;i<nGals;++i) _skyBounds += _skyPos[i];
+    // Calculate the skyBounds using only the good objects:
+    Bounds skyBounds2; // In degrees, rather than arcsec
+    for(int i=0;i<nGals;++i) if (!_flags[i]) {
+        _skyBounds += _skyPos[i];
+        Position temp = _skyPos[i];
+        temp /= 3600.;
+        skyBounds2 += temp;
+    }
+    dbg<<"skyBounds = "<<_skyBounds<<std::endl;
+    dbg<<"in degrees: "<<skyBounds2<<std::endl;
 
     dbg<<"Done Read ShearCatalog\n";
 }

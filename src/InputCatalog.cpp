@@ -202,6 +202,19 @@ InputCatalog::InputCatalog(ConfigFile& params, const Image<double>* im) :
         dbg<<std::dec<<std::noshowbase;
     }
 
+    // Calculate the skyBounds using only the good objects:
+    if (_skyPos.size() == _id.size()) {
+        Bounds skyBounds2; // In degrees, rather than arcsec
+        for(int i=0;i<nRows;++i) if (!_flags[i]) {
+            _skyBounds += _skyPos[i];
+            Position temp = _skyPos[i];
+            temp /= 3600.;
+            skyBounds2 += temp;
+        }
+        dbg<<"skyBounds = "<<_skyBounds<<std::endl;
+        dbg<<"in degrees: "<<skyBounds2<<std::endl;
+    }
+
     // At this point the vectors that are guaranteed to be filled are:
     // id, pos, sky, noise, flags
     Assert(_pos.size() == _id.size());
@@ -257,7 +270,7 @@ void InputCatalog::readFits(std::string file)
 
     int hdu = _params.read("cat_hdu" , 2);
 
-    dbg<<"Opening FITS file at hdu "<<hdu<<std::endl;
+    dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
     // true means read all as part of the construction
     CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
 
@@ -371,7 +384,6 @@ void InputCatalog::readFits(std::string file)
             // The convention for Position is to use arcsec for everything.
             // ra and dec come in as degrees.  So wee need to convert to arcsec.
             _skyPos[i] *= 3600.;  // deg -> arcsec
-            _skyBounds += _skyPos[i];
         }
     } else if (_params.keyExists("cat_dec_col")) {
         throw ParameterException("cat_dec_col, but no cat_ra_col");
@@ -549,7 +561,6 @@ void InputCatalog::readAscii(std::string file, std::string delim)
             Position skyPosVal(raVal,declVal);
             skyPosVal *= 3600.; // deg -> arcsec
             _skyPos.push_back(skyPosVal);
-            _skyBounds += skyPosVal;
         } else if (declCol) {
             throw ParameterException("cat_dec_col, but no cat_ra_col");
         }

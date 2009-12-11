@@ -402,7 +402,7 @@ bool Ellipse::doMeasure(
     solver->setMaxIter(50);
     xdbg<<"Final solver:\n";
     for(int iter = 1;iter<=MAXITER;++iter) {
-        if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-6)) exit(1);
+        //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-6)) exit(1);
         bool ret = solver->solve(x,f);
         if (ret) break;
         else if (iter == MAXITER) {
@@ -415,7 +415,7 @@ bool Ellipse::doMeasure(
         }
         dbg<<"Final solver pass failed - x = "<<x<<std::endl;
         dbg<<"b = "<<solver->getB().vec()<<std::endl;
-        if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-5)) exit(1);
+        //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-5)) exit(1);
 #if 1 
         // Try bumping it to get out of a local well and continue:
         BVec b1 = solver->getB();

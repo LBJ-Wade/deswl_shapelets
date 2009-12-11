@@ -79,26 +79,34 @@ CoaddCatalog::CoaddCatalog(ConfigFile& params) :
         for(int i=0;i<nObj;++i) {
             _flags[i] = (_flags[i] & ignoreFlags) ? INPUT_FLAG : 0;
         }
-        if (_params.keyExists("coaddcat_minnu_mag")) {
-            double minNu = _params["coaddcat_minnu_mag"];
-            dbg<<"Limiting signal to noise in input magnitude to >= "<<
-                minNu<<std::endl;
-            dbg<<"Marking fainter objects with flag INPUT_FLAG = "<<
-                INPUT_FLAG<<std::endl;
-            // S/N = 1.086 / magErr (= 2.5*log(e) / magErr)
-            double maxMagErr = 1.086/minNu;
-            dbg<<"(Corresponds to max mag_err = "<<minNu<<")\n";
-            for(int i=0;i<nObj;++i) {
-                if (_magErr[i] > maxMagErr) _flags[i] = INPUT_FLAG;
-            }
-        }
-        int goodCount = std::count(_flags.begin(),_flags.end(),0);
-        if (shouldOutputDots) {
-            std::cerr<<"# good objects = "<<goodCount<<std::endl;
-        }
-
         dbg<<std::dec<<std::noshowbase;
     }
+    if (_params.keyExists("coaddcat_minnu_mag")) {
+        double minNu = _params["coaddcat_minnu_mag"];
+        dbg<<"Limiting signal to noise in input magnitude to >= "<<
+            minNu<<std::endl;
+        dbg<<"Marking fainter objects with flag INPUT_FLAG = "<<
+            INPUT_FLAG<<std::endl;
+        // S/N = 1.086 / magErr (= 2.5*log(e) / magErr)
+        double maxMagErr = 1.086/minNu;
+        dbg<<"(Corresponds to max mag_err = "<<minNu<<")\n";
+        for(int i=0;i<nObj;++i) {
+            if (_magErr[i] > maxMagErr) _flags[i] = INPUT_FLAG;
+        }
+    }
+    int goodCount = std::count(_flags.begin(),_flags.end(),0);
+    if (shouldOutputDots) {
+        std::cerr<<"# good objects = "<<goodCount<<std::endl;
+    }
+    Bounds skyBounds2; // In degrees, rather than arcsec
+    for(int i=0;i<nObj;++i) {
+        _skyBounds += _skyPos[i];
+        Position temp = _skyPos[i];
+        temp /= 3600.;
+        skyBounds2 += temp;
+    }
+    dbg<<"skyBounds = "<<_skyBounds<<std::endl;
+    dbg<<"in degrees: "<<skyBounds2<<std::endl;
 }
 
 CoaddCatalog::~CoaddCatalog()
@@ -115,9 +123,14 @@ void CoaddCatalog::readCatalog()
         throw FileNotFoundException(file);
     }
     try {
-        dbg<<"Opening FITS file at hdu "<<hdu<<std::endl;
+        dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
         // true means read all as part of the construction
-        CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
+        // Is there any reason we need this to be true?
+        // It seems to cause problems on the computers the desdm team
+        // run the code on, and switching to false doesn't seem to break
+        // anything...
+        //CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
+        CCfits::FITS fits(file, CCfits::Read, hdu-1, false);
 
         CCfits::ExtHDU& table=fits.extension(hdu-1);
 
@@ -181,7 +194,6 @@ void CoaddCatalog::readCatalog()
             // The convention for Position is to use arcsec for everything.
             // ra and dec come in as degrees.  So wee need to convert to arcsec.
             _skyPos[i] *= 3600.;  // deg -> arcsec
-            _skyBounds += _skyPos[i];
             xdbg<<_id[i]<<"  "<<x[i]<<"  "<<y[i]<<"  "<<ra[i]/15.<<"  "<<
                 decl[i]<<"  "<<_mag[i]<<"  "<<_flags[i]<<std::endl;
         }

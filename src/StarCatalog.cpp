@@ -423,7 +423,7 @@ void StarCatalog::readFits(std::string file)
 {
     int hdu = _params.read("stars_hdu",2);
 
-    dbg<<"Opening FITS file at hdu "<<hdu<<std::endl;
+    dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
     // true means read all as part of the construction
     CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
 
