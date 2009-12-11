@@ -629,9 +629,11 @@ static Function2D<double>* convertTNX(
         for(int i=0;i<xorder1;++i) {
             wcsin >> a[i][j];
         }
-        if (crossterms == TNX_XNONE) xorder1 = 1;
-        else if (crossterms == TNX_XHALF) 
-            if (j+1+xorder > maxorder) xorder1--;
+        if (crossterms == TNX_XNONE) {
+            xorder1 = 1;
+        } else if (crossterms == TNX_XHALF) {
+            if (j+1+xorder > maxorder) --xorder1;
+        }
     }
     if (!wcsin) {
         throw ReadException(

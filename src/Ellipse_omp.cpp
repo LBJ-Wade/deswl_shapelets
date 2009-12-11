@@ -94,8 +94,7 @@ bool Ellipse::doMeasure(
             xdbg<<"Integrating solver, centroid only:\n";
             //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-5)) exit(1);
             bool ret = solver->solve(x,f);
-            if (!ret) 
-            {
+            if (!ret) {
                 dbg<<"failed integrating solver, centroid - x = "<<x<<std::endl;
                 dbg<<"f = "<<f<<"  Norm(f) = "<<Norm(f)<<std::endl;
                 dbg<<"b = "<<solver->getB().vec()<<std::endl;

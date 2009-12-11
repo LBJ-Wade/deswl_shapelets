@@ -399,8 +399,7 @@ void PsfCatalog::readFits(std::string file)
     }
 
     dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
-    // true means read all as part of the construction
-    CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
+    CCfits::FITS fits(file, CCfits::Read, hdu-1);
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 

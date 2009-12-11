@@ -282,9 +282,9 @@ void FittedPsf::write() const
             std::vector<std::string> ios = _params["fitpsf_io"];
             Assert(ios.size() == fileList.size());
             isFitsIo = (ios[i] == "FITS");
-        }
-        else if (file.find("fits") != std::string::npos) 
+        } else if (file.find("fits") != std::string::npos) {
             isFitsIo = true;
+        }
 
         try {
             if (isFitsIo) {
@@ -503,8 +503,7 @@ void FittedPsf::readFits(std::string file)
     }
 
     dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
-    // true means read all as part of the construction
-    CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
+    CCfits::FITS fits(file, CCfits::Read, hdu-1);
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 

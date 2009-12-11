@@ -280,8 +280,7 @@ void EllipseSolver::ESImpl::doF(
     // Typically, these large values end up with overflows, which 
     // lead to nans and/or inf's in the resulting f.
     // Use 2 x the previous value;
-    if (NormInf(x-xinit) > 4.) 
-    {
+    if (NormInf(x-xinit) > 4.) {
         f = b.vec().SubVector(0,6);
         if (flux == 0.) flux = b(0);
         f /= flux;
@@ -296,8 +295,7 @@ void EllipseSolver::ESImpl::doF(
     double mu = x[4];
     // Also guard against gsq > 1, since it leads to nan's with the sqrt(1-gsq)
     // factor below.
-    if (gsq > 0.99 || (mu < -3. && Norm(x-xinit) > 0.3))
-    {
+    if (gsq > 0.99 || (mu < -3. && Norm(x-xinit) > 0.3)) {
         f = b.vec().SubVector(0,6);
         if (flux == 0.) flux = b(0);
         f /= flux;
@@ -1071,12 +1069,9 @@ bool EllipseSolver::solve(tmv::Vector<double>& x, tmv::Vector<double>& f) const
 
     _pimpl->flux = 0;
     bool ret;
-    try
-    {
+    try {
         ret = NLSolver::solve(_pimpl->x_short,_pimpl->f_short);
-    }
-    catch (...)
-    {
+    } catch (...) {
         ret = false;
     }
 

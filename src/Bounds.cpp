@@ -15,8 +15,7 @@ void Bounds::operator+=(const Position& pos)
         else if (pos.getX() > _xMax) _xMax = pos.getX();
         if (pos.getY() < _yMin) _yMin = pos.getY();
         else if (pos.getY() > _yMax) _yMax = pos.getY();
-    }
-    else {
+    } else {
         _xMin = _xMax = pos.getX();
         _yMin = _yMax = pos.getY();
         _isDefined = true;
@@ -32,8 +31,7 @@ void Bounds::operator+=(const Bounds& rhs)
         if (rhs.getXMax() > _xMax) _xMax = rhs.getXMax();
         if (rhs.getYMin() < _yMin) _yMin = rhs.getYMin();
         if (rhs.getYMax() > _yMax) _yMax = rhs.getYMax();
-    }
-    else {
+    } else {
         *this = rhs;
         _isDefined = true;
     }

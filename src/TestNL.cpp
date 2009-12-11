@@ -367,8 +367,7 @@ int main() try
         std::cout<<"xfinal = "<<xtot<<std::endl;
         // This one is looking for a local minimum, not an exact answer.
         // The minimum should have Norm(f) ~= 4.
-        if (!(Norm(f) <= 5.0)) 
-        {
+        if (!(Norm(f) <= 5.0)) {
             std::cout<<"f = "<<f<<std::endl;
             std::cout<<"Norm(f) = "<<Norm(f)<<std::endl;
             std::cout<<"NonLinear2 Test failed.\n";
@@ -416,8 +415,7 @@ int main() try
         // This test is hard for most solvers, but Dogleg should get it.
         // It will probably come back as finding the local minimum instead 
         // of the exact answer, but the two are equivalent in this case.
-        if (!(Norm(f) <= 1.e-15)) 
-        {
+        if (!(Norm(f) <= 1.e-15)) {
             std::cout<<"Powell Test failed.\n";
             return 1;
         }
@@ -482,8 +480,7 @@ int main() try
             std::cout<<"Norm(f) = "<<Norm(f)<<std::endl;
             // Lambda > 0 is a challenge for most solvers.
             // Hybrid should get it even when lambda is very large.
-            if (!(Norm(x-x0) <= 1.e-8)) 
-            {
+            if (!(Norm(x-x0) <= 1.e-8)) {
                 std::cout<<"Rosenbrock Test failed for lambda = "<<lambda<<".\n";
                 return 1;
             }

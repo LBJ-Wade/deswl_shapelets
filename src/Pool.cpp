@@ -52,12 +52,9 @@ void* Pool<blockSize>::allocate(size_t size)
     _comparisonBlock.size = size; // need this for lower_bound to work.
     PoolBlock* b;
     SetIt low = _freeBlocks.lower_bound(&_comparisonBlock);
-    if (low == _freeBlocks.end()) 
-    {
+    if (low == _freeBlocks.end()) {
         b = growPool();
-    }
-    else
-    {
+    } else {
         b = *low;
         _freeBlocks.erase(low);
     }
@@ -65,8 +62,7 @@ void* Pool<blockSize>::allocate(size_t size)
     // If the block is the right size or only slightly larger,
     // then we can use the whole block for this allocation,
     // and we don't need to do anything with the remainder.
-    if(b->size - size < 2*sizeof(PoolBlock))
-    {
+    if(b->size - size < 2*sizeof(PoolBlock)) {
         b->free = 0;
         char* ret = reinterpret_cast<char *>(b) + sizeof(PoolBlock);
 #ifdef VG
@@ -75,12 +71,10 @@ void* Pool<blockSize>::allocate(size_t size)
         //checkp(ret,size);
         //check();
         return ret;
-    }
-    // Otherwise, we need to split the block into two pieces.
-    // We return the first piece, and push the other piece back onto
-    // the _freeBlocks list.
-    else
-    {
+    } else {
+        // Otherwise, we need to split the block into two pieces.
+        // We return the first piece, and push the other piece back onto
+        // the _freeBlocks list.
         PoolBlock* newBlock = reinterpret_cast<PoolBlock*>(
             reinterpret_cast<char*>(b) + size2);
 
@@ -122,8 +116,7 @@ void Pool<blockSize>::deallocate(void *p, size_t)
     // See if we need to combine this newly freed block with either 
     // the previous block or the next block:
     // 1) Combine with both:
-    if (b->prev && b->next && b->prev->free && b->next->free)
-    {
+    if (b->prev && b->next && b->prev->free && b->next->free) {
         _freeBlocks.erase(b->prev);
         _freeBlocks.erase(b->next);
         b->prev->size += b->size + b->next->size + 2*sizeof(PoolBlock);
@@ -132,29 +125,23 @@ void Pool<blockSize>::deallocate(void *p, size_t)
         // Need to erase and insert it to get it in the right place,
         // since _freeBlocks is sorted by size.
         _freeBlocks.insert(b->prev);
-    }
-    // 2) Combine with prev
-    else if (b->prev && b->prev->free)
-    {
+    } else if (b->prev && b->prev->free) {
+        // 2) Combine with prev
         _freeBlocks.erase(b->prev);
         b->prev->size += b->size + sizeof(PoolBlock);
         b->prev->next = b->next;
         if (b->next) b->next->prev = b->prev;
         _freeBlocks.insert(b->prev);
-    }
-    // 3) Combine with next
-    else if (b->next && b->next->free)
-    {
+    } else if (b->next && b->next->free) {
+        // 3) Combine with next
         _freeBlocks.erase(b->next);
         b->size += b->next->size + sizeof(PoolBlock);
         b->next = b->next->next;
         if (b->next) b->next->prev = b;
         b->free = 1;
         _freeBlocks.insert(b);
-    }
-    // 4) No combining
-    else 
-    {
+    } else {
+        // 4) No combining
         b->free = 1;
         _freeBlocks.insert(b);
     }
@@ -168,11 +155,10 @@ void Pool<blockSize>::dump()
 {
     std::cerr<<"dump:\n";
     std::cerr<<"_allBlocks:\n";
-    for (ListIt block=_allBlocks.begin(); block!=_allBlocks.end(); ++block)
-    {
+    for (ListIt block=_allBlocks.begin(); block!=_allBlocks.end(); ++block) {
         std::cerr<<(void*)*block<<" ... "<<(void*)(*block+blockSize)<<std::endl;
-        for (PoolBlock* b = reinterpret_cast<PoolBlock*>(*block); b; b=b->next)
-        {
+        for (PoolBlock* b = reinterpret_cast<PoolBlock*>(*block);
+             b; b=b->next) {
             std::cerr<<(b->free ? "  F " : "    ");
             std::cerr<<(void*)b<<"  Size="<<b->size;
             std::cerr<<"   prev="<<(void*)b->prev<<", next="<<(void*)b->next;
@@ -180,8 +166,7 @@ void Pool<blockSize>::dump()
         }
     }
     std::cerr<<"freeBlocks: \n";
-    for (SetIt block=_freeBlocks.begin(); block!=_freeBlocks.end(); ++block)
-    {
+    for (SetIt block=_freeBlocks.begin(); block!=_freeBlocks.end(); ++block) {
         std::cerr<<" Size="<<(*block)->size<<"   "<<(void*)(*block)<<std::endl;
     }
     std::cerr<<"end dump\n";
@@ -190,8 +175,7 @@ void Pool<blockSize>::dump()
 template <int blockSize>
 void Pool<blockSize>::checkp(char* p, int size)
 {
-    for (ListIt block=_allBlocks.begin(); block!=_allBlocks.end(); ++block)
-    {
+    for (ListIt block=_allBlocks.begin(); block!=_allBlocks.end(); ++block) {
         if (p >= *block && (p+size) <= (*block + blockSize)) return;
     }
     std::cerr<<"p is not in _allBlocks\n";
@@ -206,24 +190,21 @@ void Pool<blockSize>::check()
 {
     std::set<PoolBlockPtr> freeBlocks2;
 
-    for (ListIt block=_allBlocks.begin(); block!=_allBlocks.end(); ++block)
-    {
-        for (PoolBlock* b = reinterpret_cast<PoolBlock*>(*block); b; b=b->next)
-        {
+    for (ListIt block=_allBlocks.begin(); block!=_allBlocks.end(); ++block) {
+        for (PoolBlock* b = reinterpret_cast<PoolBlock*>(*block);
+             b; b=b->next) {
             int size2 = b->size + sizeof(PoolBlock);
             if (b->free) freeBlocks2.insert(b);
 
             // Check that this block fits into full block.
-            if ((char*)b < *block)
-            {
+            if ((char*)b < *block) {
                 std::cerr<<"b is off the front of the block\n";
                 std::cerr<<"b = "<<(void*)b<<"  "<<b->size<<std::endl;
                 std::cerr<<"*block = "<<(void*)(*block)<<std::endl;
                 dump();
                 exit(1);
             }
-            if ((char*)b + size2 > *block + blockSize)
-            {
+            if ((char*)b + size2 > *block + blockSize) {
                 std::cerr<<"b extends off the back of the block\n";
                 std::cerr<<"b = "<<(void*)b<<"  "<<b->size<<std::endl;
                 std::cerr<<"b+size2 = "<<(void*)((char*)b+size2)<<std::endl;
@@ -235,10 +216,8 @@ void Pool<blockSize>::check()
             }
 
             // Check that b->next is correct:
-            if (b->next) 
-            {
-                if ((char*)b+size2 != (char*)b->next)
-                {
+            if (b->next) {
+                if ((char*)b+size2 != (char*)b->next) {
                     std::cerr<<"Bad b size:\n";
                     std::cerr<<"b = "<<(void*)b<<"  "<<b->size<<std::endl;
                     std::cerr<<"b+size2 = "<<(void*)((char*)b+size2)<<std::endl;
@@ -246,8 +225,7 @@ void Pool<blockSize>::check()
                     dump();
                     exit(1);
                 }
-                if (b->next->prev != b)
-                {
+                if (b->next->prev != b) {
                     std::cerr<<"Pointer error:\n";
                     std::cerr<<"b = "<<(void*)b<<"  "<<b->size<<std::endl;
                     std::cerr<<"b->next->prev = "<<
@@ -255,12 +233,10 @@ void Pool<blockSize>::check()
                     dump();
                     exit(1);
                 }
-            }
-            // If no b->next, then make sure block fills the rest of pool block:
-            else
-            {
-                if ((char*)b+size2 != *block+blockSize)
-                {
+            } else {
+                // If no b->next, then make sure block fills the rest of 
+                // pool block:
+                if ((char*)b+size2 != *block+blockSize) {
                     std::cerr<<"Last b is wrong size:\n";
                     std::cerr<<"b = "<<(void*)b<<"  "<<b->size<<std::endl;
                     std::cerr<<"b+size2 = "<<(void*)((char*)b+size2)<<std::endl;
@@ -273,17 +249,14 @@ void Pool<blockSize>::check()
         }
     }
 
-    if (_freeBlocks != freeBlocks2)
-    {
+    if (_freeBlocks != freeBlocks2) {
         std::cerr<<"freeBlocks doesn't match actual set of free blocks\n";
         std::cerr<<"Found:\n";
-        for(SetIt block=freeBlocks2.begin();block!=freeBlocks2.end();++block)
-        {
+        for(SetIt block=freeBlocks2.begin();block!=freeBlocks2.end();++block) {
             std::cerr<<"  "<<(*block)->size<<"  "<<(void*)(*block)<<std::endl;
         }
         std::cerr<<"_freeBlocks structure has:\n";
-        for(SetIt block=_freeBlocks.begin();block!=_freeBlocks.end();++block)
-        {
+        for(SetIt block=_freeBlocks.begin();block!=_freeBlocks.end();++block) {
             std::cerr<<"  "<<(*block)->size<<"  "<<(void*)(*block)<<std::endl;
         }
         dump();

@@ -285,8 +285,7 @@ void EllipseSolver2::ESImpl2::calculateF(
     if (isFixedGamma) { xx[2] = fixg1;  xx[3] = fixg2; }
     if (isFixedMu) { xx[4] = fixm; }
 
-    if (NormInf(xx-xinit) > 4.) 
-    {
+    if (NormInf(xx-xinit) > 4.) {
         if (flux == 0.) flux = b(0);
         if (shouldUseFlux) {
             f(0) = 2.*(b(0)/flux-1.);
@@ -301,15 +300,15 @@ void EllipseSolver2::ESImpl2::calculateF(
     double mu = xx[4];
     double gsq = std::norm(g);
 
-    if (gsq > 0.99 || (mu < -2. && Norm(xx-xinit) > 0.3))
-    {
+    if (gsq > 0.99 || (mu < -2. && Norm(xx-xinit) > 0.3)) {
         if (flux == 0.) flux = b(0);
         if (flux == 0.) flux = 1.;
         if (shouldUseFlux) {
             f(0) = 2.*(b(0)/flux-1.);
             f.SubVector(1,f.size()) = 2.*U*b.vec().SubVector(1,6)/flux; 
+        } else {
+            f = 2.*U*b.vec().SubVector(1,6)/flux; 
         }
-        else f = 2.*U*b.vec().SubVector(1,6)/flux; 
         return; 
     }
 

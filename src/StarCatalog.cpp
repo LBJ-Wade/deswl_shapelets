@@ -143,8 +143,7 @@ int StarCatalog::findStars(FindStarsLog& log)
     const int nObj = size();
     log._nTot = nObj;
 
-    for (int i=0; i<nObj; ++i)
-    {
+    for (int i=0; i<nObj; ++i) {
         // A series of checks
         // Only objects with no flags in SExtractor or updated size calculation
         if (_flags[i]) {
@@ -286,8 +285,7 @@ void StarCatalog::writeFits(std::string file) const
     writeParamToTable(_params, table, "noise_method", str);
     writeParamToTable(_params, table, "dist_method", str);
 
-    if (_params.keyExists("stars_minsize")) 
-    {
+    if (_params.keyExists("stars_minsize")) {
         writeParamToTable(_params, table, "stars_minsize", dbl);
         writeParamToTable(_params, table, "stars_maxsize", dbl);
         writeParamToTable(_params, table, "stars_minmag", dbl);
@@ -401,8 +399,9 @@ void StarCatalog::write() const
                     std::vector<std::string> delims = _params["stars_delim"];
                     Assert(delims.size() == files.size());
                     delim = delims[i];
+                } else if (file.find("csv") != std::string::npos) {
+                    delim = ",";
                 }
-                else if (file.find("csv") != std::string::npos) delim = ",";
                 writeAscii(file,delim);
             }
         } catch (CCfits::FitsException& e) {
@@ -424,8 +423,7 @@ void StarCatalog::readFits(std::string file)
     int hdu = _params.read("stars_hdu",2);
 
     dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
-    // true means read all as part of the construction
-    CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
+    CCfits::FITS fits(file, CCfits::Read, hdu-1);
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 

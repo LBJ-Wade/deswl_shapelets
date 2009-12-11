@@ -13,13 +13,13 @@ enum NoiseMethod {
     VALUE, CATALOG, CATALOG_SIGMA, GAIN_VALUE, GAIN_FITS, WEIGHT_IMAGE
 };
 
-static void readGain(const std::string& file, ConfigFile& params)
+static void readGain(const std::string& file, int hdu, ConfigFile& params)
 {
     if (!doesFileExist(file)) {
         throw FileNotFoundException(file);
     }
     xdbg<<"ReadGain: from fits file "<<file<<std::endl;
-    CCfits::FITS fits(file, CCfits::Read, false);
+    CCfits::FITS fits(file, CCfits::Read, hdu-1);
 
     float gain, readNoise;
 
@@ -89,7 +89,9 @@ InputCatalog::InputCatalog(ConfigFile& params, const Image<double>* im) :
     } else if (noiseMethod == "GAIN_FITS") {
         // params, not _params, since we need a non-const version,
         // and the _params object we store as a const reference.
-        readGain(makeName(_params,"image",true,false),params);
+        std::string imageName = makeName(_params,"image",true,false);
+        int hdu = _params.read("image_hdu",1);
+        readGain(imageName,hdu,params);
         xdbg<<"Read gain = "<<_params["image_gain"]<<
             ", rdn = "<<_params["image_readnoise"]<<std::endl;
         gain = _params.read<double>("image_gain");
@@ -185,8 +187,7 @@ InputCatalog::InputCatalog(ConfigFile& params, const Image<double>* im) :
         if (_params.keyExists("cat_ignore_flags")) {
             ignoreFlags = _params["cat_ignore_flags"];
             dbg<<"Using ignore flag parameter = "<<ignoreFlags<<std::endl;
-        }
-        else if (_params.keyExists("cat_ok_flags")) {
+        } else if (_params.keyExists("cat_ok_flags")) {
             ignoreFlags = _params["cat_ok_flags"];
             dbg<<"Using ok flag parameter = "<<ignoreFlags<<std::endl;
             ignoreFlags = ~ignoreFlags;
@@ -271,8 +272,7 @@ void InputCatalog::readFits(std::string file)
     int hdu = _params.read("cat_hdu" , 2);
 
     dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
-    // true means read all as part of the construction
-    CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
+    CCfits::FITS fits(file, CCfits::Read, hdu-1);
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 

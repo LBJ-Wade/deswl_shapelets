@@ -84,8 +84,9 @@ ConvertibleString ConfigFile::get( const std::string& key ) const
         throw ParameterException(
             "ConfigFile error: key "+key2+" not found");
 #endif
+    } else {
+        return p->second;
     }
-    else return p->second;
 }
 
 void ConfigFile::remove( const std::string& key )

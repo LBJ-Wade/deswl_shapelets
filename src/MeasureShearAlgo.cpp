@@ -34,8 +34,7 @@ void measureSingleShear1(
     double sigmaObs = 2.*sigmaP;
     double galAp = galAperture * sigmaObs;
     xdbg<<"galap = "<<galAperture<<" * "<<sigmaObs<<" = "<<galAp<<std::endl;
-    if (maxAperture > 0. && galAp > maxAperture) 
-    {
+    if (maxAperture > 0. && galAp > maxAperture) {
         galAp = maxAperture;
         xdbg<<"      => "<<galAp<<std::endl;
     }
@@ -56,16 +55,13 @@ void measureSingleShear1(
 
     if (times) ell.doTimings();
     long flag1=0;
-    if (ell.measure(pix,go,sigmaObs,true,flag1)) 
-    {
+    if (ell.measure(pix,go,sigmaObs,true,flag1)) {
         if (times) times->successNative(ell.getTimes());
         ++log._nsNative;
         dbg<<"Successful native fit:\n";
         dbg<<"Z = "<<ell.getCen()<<std::endl;
         dbg<<"Mu = "<<ell.getMu()<<std::endl;
-    }
-    else 
-    {
+    } else {
         if (times) times->failNative(ell.getTimes());
         ++log._nfNative;
         dbg<<"Native measurement failed\n";
@@ -76,8 +72,7 @@ void measureSingleShear1(
     // Now we can do a deconvolving fit, but one that does not 
     // shear the coordinates.
     sigmaObs *= exp(ell.getMu());
-    if (sigmaObs < minGalSize*sigmaP) 
-    {
+    if (sigmaObs < minGalSize*sigmaP) {
         dbg<<"skip: galaxy is too small -- "<<sigmaObs<<
             " psf size = "<<sigmaP<<std::endl;
         ++log._nfSmall;
@@ -106,12 +101,10 @@ void measureSingleShear1(
     ell.setFP(fPsf);
     if (times) ell.resetTimes();
     flag1 = 0;
-    if (ell.measure(pix,psf,go,sigma,false,flag1)) 
-    {
+    if (ell.measure(pix,psf,go,sigma,false,flag1)) {
         if (times) times->successMu(ell.getTimes());
         ++log._nsMu;
-        if (flag1) 
-        {
+        if (flag1) {
             Assert((flag1 & ~(SHEAR_LOCAL_MIN | SHEAR_POOR_FIT)) == false);
             // This is just bumps the Ellipse flags up two spots
             // from the SHEAR_* to SHAPE_* flags.
@@ -121,9 +114,7 @@ void measureSingleShear1(
         }
         dbg<<"Successful deconvolving fit:\n";
         xdbg<<"Mu = "<<ell.getMu()<<std::endl;
-    }
-    else 
-    {
+    } else {
         if (times) times->failMu(ell.getTimes());
         ++log._nfMu;
         dbg<<"Deconvolving measurement failed\n";
@@ -185,8 +176,7 @@ void measureSingleShear1(
     // Under normal circumstances, b20/b00 ~= conj(gamma)/sqrt(2)
     gale = std::complex<double>(shapelet(3),shapelet(4));
     gale /= shapelet(0);
-    if (std::abs(gale) < 0.5) 
-    {
+    if (std::abs(gale) < 0.5) {
         ell.setGamma(conj(gale) * sqrt(2.));
         shear = ell.getGamma();
     }
@@ -196,16 +186,14 @@ void measureSingleShear1(
     ell.unfixGam();
     go = galOrder2;
     galSize = (go+1)*(go+2)/2;
-    if (npix <= galSize) 
-    {
+    if (npix <= galSize) {
         while (npix <= galSize) { galSize -= go+1; --go; }
         dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
         dbg<<"Reduced gal_order to "<<go<<" gal_size = "<<galSize<<std::endl;
     }
     if (times) ell.resetTimes();
     tmv::Matrix<double> cov(5,5);
-    if (ell.measure(pix,psf,go,sigma,false,flag,&cov)) 
-    {
+    if (ell.measure(pix,psf,go,sigma,false,flag,&cov)) {
         if (times) times->successGamma(ell.getTimes());
         ++log._nsGamma;
         dbg<<"Successful Gamma fit\n";
@@ -215,9 +203,7 @@ void measureSingleShear1(
             cov.SubMatrix(2,4,2,4);
         if (!(cov1.Det() > 0.)) flag |= SHEAR_BAD_COVAR;
         else shearcov = cov1;
-    }
-    else 
-    {
+    } else {
         if (times) times->failGamma(ell.getTimes());
         ++log._nfGamma;
         dbg<<"Measurement failed\n";
@@ -244,16 +230,13 @@ void measureSingleShear(
     double& nu, long& flag)
 {
     // Get coordinates of the galaxy, and convert to sky coordinates
-    try 
-    {
+    try {
         // We don't need to save skypos.  We just want to catch the range
         // error here, so we don't need to worry about it for dudx, etc.
         Position skyPos;
         trans.transform(cen,skyPos);
         dbg<<"skypos = "<<skyPos<<std::endl;
-    } 
-    catch (RangeException& e) 
-    {
+    } catch (RangeException& e) {
         dbg<<"distortion range error: \n";
         xdbg<<"p = "<<cen<<", b = "<<e.getBounds()<<std::endl;
         if (times) ++times->_nfRange1;
@@ -265,13 +248,10 @@ void measureSingleShear(
     // Calculate the psf from the fitted-psf formula:
     std::vector<BVec> psf(1,
                           BVec(fitpsf.getPsfOrder(), fitpsf.getSigma()));
-    try 
-    {
+    try {
         dbg<<"for fittedpsf cen = "<<cen<<std::endl;
         psf[0] = fitpsf(cen);
-    } 
-    catch (RangeException& e) 
-    {
+    } catch (RangeException& e) {
         dbg<<"fittedpsf range error: \n";
         xdbg<<"p = "<<cen<<", b = "<<e.getBounds()<<std::endl;
         if (times) ++times->_nfRange2;
@@ -282,8 +262,7 @@ void measureSingleShear(
 
     // Do the real meat of the calculation:
     dbg<<"measure single shear cen = "<<cen<<std::endl;
-    try 
-    {
+    try {
         measureSingleShear1(
             // Input data:
             cen, im, sky, trans, psf,
@@ -298,16 +277,12 @@ void measureSingleShear(
             log,
             // Ouput values:
             shear, shearcov, shapelet, nu, flag);
-    }
-    catch (tmv::Error& e) 
-    {
+    } catch (tmv::Error& e) {
         dbg<<"TMV Error thrown in MeasureSingleShear\n";
         dbg<<e<<std::endl;
         ++log._nfTmvError;
         flag |= TMV_EXCEPTION;
-    } 
-    catch (...) 
-    {
+    } catch (...) {
         dbg<<"unkown exception in MeasureSingleShear\n";
         ++log._nfOtherError;
         flag |= UNKNOWN_EXCEPTION;

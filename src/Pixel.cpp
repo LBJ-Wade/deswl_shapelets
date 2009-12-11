@@ -81,8 +81,7 @@ void getPixList(
         for(int j=j1;j<=j2;++j,u+=localD(0,1),v+=localD(1,1)) {
             // u,v are in arcsec
             double rsq = u*u + v*v;
-            if (rsq <= apsq) 
-            {
+            if (rsq <= apsq) {
                 shouldUsePix[i-i1][j-j1] = true;
                 ++nPix;
             }
@@ -191,8 +190,7 @@ double getLocalSky(
         for(int j=j1;j<=j2;++j,u+=localD(0,1),v+=localD(1,1)) {
             // u,v are in arcsec
             double rsq = u*u + v*v;
-            if (rsq <= apsq) 
-            {
+            if (rsq <= apsq) {
                 meanSky += bkg(i,j);
                 ++nPix;
             }

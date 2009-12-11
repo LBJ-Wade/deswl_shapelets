@@ -423,8 +423,7 @@ void MultiShearCatalog::getImagePixelLists(
     // TODO: introduce a parameter max_memory and check to make sure
     // we stay within the allowed memory usage.
     bool shouldOutputDots = _params.read("output_dots",false);
-    if (shouldOutputDots) 
-    {
+    if (shouldOutputDots) {
         std::cerr<<"Using image# "<<seIndex;
         std::cerr<<"... Memory Usage in MultiShearCatalog = ";
         std::cerr<<calculateMemoryFootprint()<<" MB";

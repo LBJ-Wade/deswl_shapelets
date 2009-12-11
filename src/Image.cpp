@@ -17,16 +17,14 @@ Image<T>::Image(
     xdbg<<"Opened image "<<makeName(params,"image",true,false)<<std::endl;
 
     // Load weight image (if necessary)
-    if (params["noise_method"] == "WEIGHT_IMAGE") 
-    {
+    if (params["noise_method"] == "WEIGHT_IMAGE") {
         int weightHdu = params.read("weight_hdu",1);
         weightIm.reset(
             new Image<T>(makeName(params,"weight",true,false),weightHdu));
         dbg<<"Opened weight image.\n";
 
         // Make sure any bad pixels are marked with 0 variance.
-        if (params.keyExists("badpix_file") || params.keyExists("badpix_ext"))
-        {
+        if (params.keyExists("badpix_file") || params.keyExists("badpix_ext")) {
             int badpixHdu = params.read("badpix_hdu",1);
             std::string badpixName = makeName(params,"badpix",true,false);
             dbg<<"badpix name = "<<badpixName<<std::endl;
@@ -34,11 +32,11 @@ Image<T>::Image(
             Image<float> badpixIm(badpixName,badpixHdu);
             dbg<<"Opened badpix image.\n";
 
-            for(int i=0;i<=weightIm->getMaxI();++i)
-                for(int j=0;j<=weightIm->getMaxJ();++j)
-                {
+            for(int i=0;i<=weightIm->getMaxI();++i) {
+                for(int j=0;j<=weightIm->getMaxJ();++j) {
                     if (badpixIm(i,j) > 0.0) (*weightIm)(i,j) = 0.0;
                 }
+            }
         }
     }
 }
@@ -154,16 +152,14 @@ Image<T>::Image(
     xdbg<<"Opened image "<<makeName(params,"image",true,false)<<std::endl;
 
     // Load weight image (if necessary)
-    if (params["noise_method"] == "WEIGHT_IMAGE") 
-    {
+    if (params["noise_method"] == "WEIGHT_IMAGE") {
         int weightHdu = params.read("weight_hdu",1);
         weightIm.reset(
             new Image<T>(makeName(params,"weight",true,false),weightHdu,x1,x2,y1,y2));
         dbg<<"Opened weight image.\n";
 
         // Make sure any bad pixels are marked with 0 variance.
-        if (params.keyExists("badpix_file") || params.keyExists("badpix_ext"))
-        {
+        if (params.keyExists("badpix_file") || params.keyExists("badpix_ext")) {
             int badpixHdu = params.read("badpix_hdu",1);
             std::string badpixName = makeName(params,"badpix",true,false);
             dbg<<"badpix name = "<<badpixName<<std::endl;
@@ -171,11 +167,11 @@ Image<T>::Image(
             Image<float> badpixIm(badpixName,badpixHdu,x1,x2,y1,y2);
             dbg<<"Opened badpix image.\n";
 
-            for(int i=0;i<=weightIm->getMaxI();++i)
-                for(int j=0;j<=weightIm->getMaxJ();++j)
-                {
+            for(int i=0;i<=weightIm->getMaxI();++i) {
+                for(int j=0;j<=weightIm->getMaxJ();++j) {
                     if (badpixIm(i,j) > 0.0) (*weightIm)(i,j) = 0.0;
                 }
+            }
         }
     }
 }
@@ -194,16 +190,14 @@ Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm,
     xdbg<<"Opened image "<<makeName(params,"image",true,false)<<std::endl;
 
     // Load weight image (if necessary)
-    if (params["noise_method"] == "WEIGHT_IMAGE") 
-    {
+    if (params["noise_method"] == "WEIGHT_IMAGE") {
         int weightHdu = params.read("weight_hdu",1);
         weightIm.reset(
             new Image<T>(makeName(params,"weight",true,false),weightHdu,bounds));
         dbg<<"Opened weight image.\n";
 
         // Make sure any bad pixels are marked with 0 variance.
-        if (params.keyExists("badpix_file") || params.keyExists("badpix_ext"))
-        {
+        if (params.keyExists("badpix_file") || params.keyExists("badpix_ext")) {
             int badpixHdu = params.read("badpix_hdu",1);
             std::string badpixName = makeName(params,"badpix",true,false);
             dbg<<"badpix name = "<<badpixName<<std::endl;
@@ -211,11 +205,11 @@ Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm,
             Image<float> badpixIm(badpixName,badpixHdu,bounds);
             dbg<<"Opened badpix image.\n";
 
-            for(int i=0;i<=weightIm->getMaxI();++i)
-                for(int j=0;j<=weightIm->getMaxJ();++j)
-                {
+            for(int i=0;i<=weightIm->getMaxI();++i) {
+                for(int j=0;j<=weightIm->getMaxJ();++j) {
                     if (badpixIm(i,j) > 0.0) (*weightIm)(i,j) = 0.0;
                 }
+            }
         }
     }
 }

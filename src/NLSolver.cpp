@@ -485,8 +485,7 @@ bool NLSolver::solveDogleg(
                 xdbg<<"h = "<<h<<std::endl;
                 rhoDenom = delta*(2.*alpha*normG-delta)/(2.*alpha);
                 xdbg<<"rhodenom = "<<rhoDenom<<std::endl;
-            }
-            else {
+            } else {
                 xdbg<<"dogleg\n";
                 temp = h + alpha*g;
                 double a = NormSq(temp);
@@ -713,8 +712,7 @@ bool NLSolver::solveHybrid(
                 double rho = (Q-QNew) / (-h*g-0.5*NormSq(J*h));
                 if (rho > 0.75) {
                     delta = std::max(delta,3.*normH);
-                }
-                else if (rho < 0.25) {
+                } else if (rho < 0.25) {
                     delta /= 2.;
                     double min_delta = _minStep * (Norm(x)+_minStep);
                     if (delta < min_delta) {
@@ -1004,8 +1002,9 @@ bool NLSolver::solveSecantDogleg(
             y = fNew-f;
             J.col(j) = y/eta;
             double djy = D.row(j)*y;
-            if (djy < sqrtEps*eta) resetd = true;
-            else {
+            if (djy < sqrtEps*eta) {
+                resetd = true;
+            } else {
                 djodjy = D.row(j)/djy;
                 D -= ((D*y) ^ djodjy);
                 D.row(j) += eta*djodjy;

@@ -395,8 +395,7 @@ std::vector<PotentialStar*> StarFinder::getPeakList(
         //xdbg<<"new valley1 = "<<valley1<<" ("<<hist[valley1]<<")\n";
 
         double newValley1 = hist.findFirstValleyAfter(peak1);
-        if (!(newValley1 > valley1)) 
-        {
+        if (!(newValley1 > valley1)) {
             std::ostringstream err;
             err<<"Couldn't find a stellar peak.  ";
             err<<"All the objects seem to be basically the same size.";
@@ -412,8 +411,7 @@ std::vector<PotentialStar*> StarFinder::getPeakList(
     // Sometimes the stellar peak is horned (eg. 212), in which case, find
     // the next peak
     double nBinsForHorn = isFirstPass ? 2.5 : 4.5;
-    if (peak2-peak1 < nBinsForHorn*binSize && peak2+binSize < maxSize) 
-    {
+    if (peak2-peak1 < nBinsForHorn*binSize && peak2+binSize < maxSize) {
         valley1 = hist.findFirstValleyAfter(peak2);
         peak2 = hist.findFirstPeakAfter(peak2+binSize);
         xdbg<<"horn pattern: next peak2 = "<<peak2<<" ("<<hist[peak2]<<")\n";

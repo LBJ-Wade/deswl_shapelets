@@ -124,13 +124,7 @@ void CoaddCatalog::readCatalog()
     }
     try {
         dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
-        // true means read all as part of the construction
-        // Is there any reason we need this to be true?
-        // It seems to cause problems on the computers the desdm team
-        // run the code on, and switching to false doesn't seem to break
-        // anything...
-        //CCfits::FITS fits(file, CCfits::Read, hdu-1, true);
-        CCfits::FITS fits(file, CCfits::Read, hdu-1, false);
+        CCfits::FITS fits(file, CCfits::Read, hdu-1);
 
         CCfits::ExtHDU& table=fits.extension(hdu-1);
 

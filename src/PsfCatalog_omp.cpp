@@ -111,16 +111,14 @@ int PsfCatalog::measurePsf(
 #ifdef _OPENMP
 #pragma omp parallel 
     {
-        try 
-        {
+        try {
 #endif
             PsfLog log1(_params);  // Just for this thread
             log1.noWriteLog();
 #ifdef _OPENMP
 #pragma omp for schedule(guided)
 #endif
-            for(int i=0;i<nStars;++i) if (!_flags[i]) 
-            {
+            for(int i=0;i<nStars;++i) if (!_flags[i]) {
 #ifdef STARTAT
                 if (i < STARTAT) continue;
 #endif
@@ -129,12 +127,13 @@ int PsfCatalog::measurePsf(
                 if (i > SINGLESTAR) break;
                 XDEBUG = true;
 #endif
-                if (shouldOutputDots)
+                if (shouldOutputDots) {
 #ifdef _OPENMP
 #pragma omp critical (output)
 #endif
-                {
-                    std::cerr<<"."; std::cerr.flush(); 
+                    {
+                        std::cerr<<"."; std::cerr.flush(); 
+                    }
                 }
                 dbg<<"star "<<i<<":\n";
                 dbg<<"pos["<<i<<"] = "<<_pos[i]<<std::endl;
