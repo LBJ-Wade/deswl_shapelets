@@ -9,6 +9,29 @@ PixelList::PixelList(const int n) :
     _shouldUsePool(false), _v1(new std::vector<Pixel>(n)) 
 {}
 
+PixelList::PixelList(const PixelList& rhs) :
+    _shouldUsePool(false), _v1(new std::vector<Pixel>(rhs.size())) 
+{
+    if (rhs._shouldUsePool) 
+        std::copy(rhs._v2->begin(),rhs._v2->end(),_v1->begin());
+    else *_v1 = *rhs._v1;
+}
+
+PixelList& PixelList::operator=(const PixelList& rhs)
+{
+    if (size() != rhs.size()) resize(rhs.size());
+
+    if (_shouldUsePool) {
+        if (rhs._shouldUsePool) *_v2 = *rhs._v2;
+        else std::copy(rhs._v1->begin(),rhs._v1->end(),_v2->begin());
+    } else {
+        if (rhs._shouldUsePool) 
+            std::copy(rhs._v2->begin(),rhs._v2->end(),_v1->begin());
+        else *_v1 = *rhs._v1;
+    }
+    return *this;
+}
+
 PixelList::~PixelList()
 {
 #ifdef _OPENMP
@@ -53,6 +76,9 @@ void PixelList::reserve(const int n)
         _v1->reserve(n);
     }
 }
+
+size_t PixelList::capacity() const
+{ return _shouldUsePool ? _v2->capacity() : _v1->capacity(); }
 
 void PixelList::resize(const int n)
 {

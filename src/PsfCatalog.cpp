@@ -324,22 +324,24 @@ void PsfCatalog::writeAscii(std::string file, std::string delim) const
         throw WriteException("Error opening psf file"+file);
     }
 
-    Form hexform; hexform.hex().trail(0);
+    Form sci8; sci8.sci().trail(0).prec(8);
+    Form fix3; fix3.fix().trail(0).prec(3);
+    Form fix6; fix6.fix().trail(0).prec(3);
 
     for(int i=0;i<nPsf;++i) {
         fout
             << _id[i] << delim
-            << _pos[i].getX() << delim
-            << _pos[i].getY() << delim
-            << _sky[i] << delim
-            << _noise[i] << delim
-            << hexform(_flags[i]) << delim
-            << _nu[i] << delim
+            << fix3(_pos[i].getX()) << delim
+            << fix3(_pos[i].getY()) << delim
+            << fix3(_sky[i]) << delim
+            << sci8(_noise[i]) << delim
+            << _flags[i] << delim
+            << fix3(_nu[i]) << delim
             << _psf[i].getOrder() << delim
-            << _psf[i].getSigma();
+            << fix6(_psf[i].getSigma());
         const int nCoeff = _psf[i].size();
         for(int j=0;j<nCoeff;++j) {
-            fout << delim << _psf[i](j);
+            fout << delim << sci8(_psf[i](j));
         }
         fout << std::endl;
     }
@@ -399,7 +401,8 @@ void PsfCatalog::readFits(std::string file)
     }
 
     dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
-    CCfits::FITS fits(file, CCfits::Read, hdu-1);
+    CCfits::FITS fits(file, CCfits::Read);
+    if (hdu > 1) fits.read(hdu-1);
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 

@@ -44,6 +44,7 @@ static void calculateSigma1(
     }
 
     Ellipse ell;
+    ell.fixGam();
     ell.peakCentroid(pix[0],psfAp/3.);
     ell.crudeMeasure(pix[0],sigma);
     xdbg<<"Crude Measure: centroid = "<<ell.getCen();
@@ -53,7 +54,7 @@ static void calculateSigma1(
             xdbg<<"Successful 2nd order measure.\n";
             xdbg<<"mu = "<<ell.getMu()<<std::endl;
         } else {
-            flag |= flag1;
+            flag |= NATIVE_FAILED;
             xdbg<<"Ellipse measure returned flag "<<flag1<<std::endl;
             sigma = DEFVALNEG;
             return;
@@ -356,17 +357,21 @@ void StarCatalog::writeAscii(std::string file, std::string delim) const
         throw WriteException("Error opening stars file"+file);
     }
 
+    Form sci8; sci8.sci().trail(0).prec(8);
+    Form fix3; fix3.fix().trail(0).prec(3);
+    Form fix6; fix6.fix().trail(0).prec(6);
+
     const int nTot = size();
     for (int i=0; i<nTot; ++i) {
         fout 
             << _id[i] << delim
-            << _pos[i].getX() << delim
-            << _pos[i].getY() << delim
-            << _sky[i] << delim
-            << _noise[i] << delim
+            << fix3(_pos[i].getX()) << delim
+            << fix3(_pos[i].getY()) << delim
+            << fix3(_sky[i]) << delim
+            << sci8(_noise[i]) << delim
             << _flags[i] << delim
-            << _mag[i] << delim
-            << _objSize[i] << delim
+            << fix3(_mag[i]) << delim
+            << fix6(_objSize[i]) << delim
             << _isAStar[i] << std::endl;
     }
 
@@ -423,7 +428,8 @@ void StarCatalog::readFits(std::string file)
     int hdu = _params.read("stars_hdu",2);
 
     dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
-    CCfits::FITS fits(file, CCfits::Read, hdu-1);
+    CCfits::FITS fits(file, CCfits::Read);
+    if (hdu > 1) fits.read(hdu-1);
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 

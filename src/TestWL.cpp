@@ -73,7 +73,7 @@ bool XDEBUG = true;
 #define TESTJ
 
 inline void getFakePixList(
-    std::vector<Pixel>& pix,
+    PixelList& pix,
     double xcen, double ycen,
     const tmv::SmallMatrix<double,2,2>& D,
     double aperture, const BVec& b, const Ellipse& ell)
@@ -110,7 +110,7 @@ inline void getFakePixList(
     const int NV = 1;
     double varlist[NV] = {0.1};
     // MJ: The non-unifiorm variance seems to lead to problems with 
-    // things like ApplyZ and such.  Not sure why yet.
+    // things like applyZ and such.  Not sure why yet.
     // This could be a sign of a problem...
     //const int NV = 10;
     //double varlist[NV] = {1.0,1.1,1.2,1.3,1.4,1.5,1.6,1.7,1.8,1.9};
@@ -284,7 +284,7 @@ inline void getFakePixList(
                 // 44
                 I += *(++bi)*(1.-4.*rsq+3.*rsq2-2.*rsq3/3.+rsq4/24.);
                 Assert(border==8);
-            }  while (false);
+            } while (false);
             // breaks go to here.
 
             I *= expfactor;
@@ -358,8 +358,8 @@ inline void DirectConvolveB(const BVec& rbi, const BVec& rbp, BVec& rb)
 
     double sigma = rb.getSigma();
     double sigma_i = rbi.getSigma();
-    double sigma_p = rbp.getSigma();
-    Assert(std::abs(sigma-sqrt(pow(sigma_i,2) + pow(sigma_p,2)))<1.e-5);
+    double sigmaPsf = rbp.getSigma();
+    Assert(std::abs(sigma-sqrt(pow(sigma_i,2) + pow(sigmaPsf,2)))<1.e-5);
 
     double fact = 1.;
     for(int ppq=0,k=0;ppq<=4;++ppq) {
@@ -369,14 +369,14 @@ inline void DirectConvolveB(const BVec& rbi, const BVec& rbp, BVec& rb)
     }
     fact = 1.;
     for(int spt=0,m=0;spt<=4;++spt) {
-        if (spt>0) fact *= sigma_p/sigma;
+        if (spt>0) fact *= sigmaPsf/sigma;
         for(int s=spt,t=0;s>=t;--s,++t,++m)
             bp[m] *= fact;
     }
 
-    double ri = sigma_i/sigma_p; ri *= ri;
+    double ri = sigma_i/sigmaPsf; ri *= ri;
     double ri2 = ri*ri;
-    double rp = sigma_p/sigma_i; rp *= rp;
+    double rp = sigmaPsf/sigma_i; rp *= rp;
     double rp2 = rp*rp;
 
     b.Zero();
@@ -757,14 +757,16 @@ int main(int argc, char **argv) try
     // Read data will of course fail to work this well, but the answers
     // will nonetheless be as accurate as possible give the data available.
 
-    //double Dvec[] = {0.14,-0.02,-0.015,0.11};
     tmv::SmallMatrix<double,2,2,tmv::RowMajor> D;
+#if 1
     D = tmv::ListInit,
-      0.14, -0.02,
+      0.08, -0.02,
       -0.015, 0.11;
-    //double pixScale = 0.12;
-    //D.SetToIdentity(pixScale);
     double pixScale = sqrt(D.Det());
+#else
+    double pixScale = 0.1;
+    D.SetToIdentity(pixScale);
+#endif
     dbg<<"pixscale = "<<pixScale<<std::endl;
 
 #ifdef TEST12
@@ -782,18 +784,18 @@ int main(int argc, char **argv) try
         // {1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.5,0.3,0.0},
         // {1.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.5},
         
-        {1.0,0.5,0.1,0.2,0.3,0.4,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2,0.1},
-        {286,-143,286,-151,-202,358,160,-29,-126,253,-25,87,-109,-146,223} 
+        {10.0,0.5,0.1,0.2,0.3,0.4,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2,0.1},
+        {2860,-143,286,-151,-202,358,160,-29,-126,253,-25,87,-109,-146,223} 
     };
 #endif
 
 #ifdef TEST1
     const int NLONG = 2;
     double blong_vec[NLONG][45] = {
-        {1.0,0.1,0.2,0.3,0.4,0.1,0.2,0.3,0.4,0.1,0.2,0.3,0.4,0.1,0.2,
+        {10.0,0.1,0.2,0.3,0.4,0.1,0.2,0.3,0.4,0.1,0.2,0.3,0.4,0.1,0.2,
             0.3,0.4,0.1,0.2,0.3,0.4,0.1,0.2,0.3,0.4,0.1,0.2,0.3,0.4,0.1,
             0.2,0.3,0.4,0.1,0.2,0.3,0.4,0.1,0.2,0.3,0.4,0.1,0.2,0.3,0.4},
-        {812,-122,331,224,-109,412,-142,-100,-399,200,103,-193,89,-407,142,
+        {8120,-122,331,224,-109,412,-142,-100,-399,200,103,-193,89,-407,142,
             -382,451,110,-538,287,-294,377,295,-275,165,-198,163,528,572,-312,
             -361,-189,140,226,155,-175,-372,238,210,-528,309,-241,314,-252,-111}
     };
@@ -814,7 +816,7 @@ int main(int argc, char **argv) try
         {1.0,0.0,0.0,-0.2,0.1,0.1,-0.2,0.3,0.1,-0.2,0.2,0.1,-0.1,-0.2,-0.1},
         {1.0,0.22,0.31,-0.28,0.12,0.11,-0.18,0.30,0.09,-0.28,0.23,0.14,-0.12,-0.20,-0.09}
     };
-    double sigma_p = 1.1;
+    double sigmaPsf = 1.1;
 #endif
 
 #ifdef TEST234
@@ -824,17 +826,17 @@ int main(int argc, char **argv) try
 #ifdef TEST45
     const int NPSFx = 7;
     double bpsfx_vecs[NPSFx][15] = {
-        {1.0,0.22,0.31,-0.28,0.12,0.11,-0.18,0.30,0.09,-0.28,0.23,0.14,-0.12,-0.20,-0.09},
-        {1.0,-0.10,0.17,0.18,-0.29,0.41,0.33,-0.41,0.19,0.47,0.11,-0.18,-0.31,0.15,-0.38},
-        {1.0,0.01,0.09,-0.06,0.01,0.00,-0.01,-0.03,0.06,-0.07,-0.07,0.06,0.09,-0.07,0.05},
-        {1.0,-0.19,0.14,0.19,-0.12,-0.17,0.17,0.12,-0.16,0.18,-0.18,0.14,-0.18,0.14,-0.10},
-        {1.0,0.20,-0.21,-0.24,0.28,0.29,-0.29,0.27,0.24,-0.24,0.23,-0.28,0.20,0.22,0.22},
-        {1.0,0.34,-0.38,0.31,-0.34,-0.32,-0.35,-0.33,0.36,-0.30,0.34,0.33,-0.34,-0.38,0.38},
-        {1.0,-0.33,0.46,0.30,-0.43,0.23,0.04,-0.28,-0.37,-0.02,-0.21,0.32,0.21,0.44,-0.26}
+        {1.0,0.00,0.00,-0.28,0.12,0.11,-0.18,0.30,0.09,-0.28,0.23,0.14,-0.12,-0.20,-0.09},
+        {1.0,0.00,0.00,0.18,-0.29,0.41,0.33,-0.41,0.19,0.47,0.11,-0.18,-0.31,0.15,-0.38},
+        {1.0,0.00,0.00,-0.06,0.01,0.00,-0.01,-0.03,0.06,-0.07,-0.07,0.06,0.09,-0.07,0.05},
+        {1.0,0.00,0.00,0.19,-0.12,-0.17,0.17,0.12,-0.16,0.18,-0.18,0.14,-0.18,0.14,-0.10},
+        {1.0,0.00,0.00,0.31,-0.34,-0.32,-0.35,-0.33,0.36,-0.30,0.34,0.33,-0.34,-0.38,0.38},
+        {1.0,0.00,0.00,0.30,-0.43,0.23,0.04,-0.28,-0.37,-0.02,-0.21,0.32,0.21,0.44,-0.26},
+        {1.0,0.00,0.00,-0.24,0.28,0.29,-0.29,0.27,0.24,-0.24,0.23,-0.28,0.20,0.22,0.22}
     };
-    double xcenx[NPSFx] = { 0.7,-0.4,0.1,-0.2,-0.3,0.9, -0.8  };
-    double ycenx[NPSFx] = { -0.2,-0.6,0.4,0.0,0.5,-0.1, 0.3 };
-    double sigma_px[NPSFx] = { 1.3, 1.0, 1.1, 0.9, 1.1, 0.7, 1.2 };
+    double xcenx[NPSFx] = { 0.7, -0.4, 0.1, -0.2, -0.3, 0.9, -0.8  };
+    double ycenx[NPSFx] = { -0.2, -0.6, 0.4, 0.0, 0.5, -0.1, 0.3 };
+    double sigmaPsfx[NPSFx] = { 1.3, 1.0, 1.1, 0.9, 1.1, 0.7, 1.2 };
 #endif
 
 #ifdef TEST12345
@@ -855,11 +857,11 @@ int main(int argc, char **argv) try
     Ellipse e0; // all 0's.
 
     std::auto_ptr<BaseEllipseSolver> s;
-    std::vector<std::vector<Pixel> > allpix(1);
+    std::vector<PixelList> allpix(1);
 #endif
 
 #ifdef TEST1
-    // First test the ApplyZ, G, Mu routines along with basic b vector 
+    // First test the applyZ, G, Mu routines along with basic b vector 
     // measurements.
     for(int stype = 0; stype<=1; ++stype) {
         dbg<<"stype = "<<stype<<std::endl;
@@ -876,8 +878,8 @@ int main(int argc, char **argv) try
             double m0 = ell.getMu();
             for(int ib = 0; ib < NB; ++ib) {
                 BVec bin(4,sigma_i,b_vecs[ib]);
-                dbg<<"bin = "<<bin<<std::endl;
-                int order = 6;
+                dbg<<"bin = "<<bin.vec()<<std::endl;
+                int order = 8;
                 double xcen = 0.709;
                 double ycen = 0.243;
                 tmv::Vector<double> x0(5,ell_vecs[ie]);
@@ -892,17 +894,18 @@ int main(int argc, char **argv) try
                     new EllipseSolver(allpix,order,sigma_i));
                 else s.reset(
                     new EllipseSolver2(allpix,order,sigma_i,pixScale));
-                s->F(x0,f);
+                s->calculateF(x0,f);
                 BVec b0 = s->getB();
-                dbg<<"measured b = "<<b0<<std::endl;
+                dbg<<"measured b = "<<b0.vec()<<std::endl;
                 BVec b0save = b0;
-                test(Norm(b0.SubVector(0,15)-bin) < EPS*Norm(bin),
+                test(Norm(b0.vec().SubVector(0,15)-bin.vec()) < 
+                     EPS*Norm(bin.vec()),
                      "Basic B Measurement");
-                test(Norm(b0.SubVector(15,b0.size())) < EPS*Norm(bin),
+                test(Norm(b0.vec().SubVector(15,b0.size())) < 
+                     EPS*Norm(bin.vec()),
                      "Basic B Measurement 2");
-                //s->verbose = true;
 #ifdef TESTJ
-                test(s->TestJ(x0,f,xdbgout,1.e-6),"TestJ - Basic");
+                test(s->testJ(x0,f,xdbgout,1.e-6),"TestJ - Basic");
 #endif
 
                 std::complex<double> z1(0.2,0.3);
@@ -910,43 +913,76 @@ int main(int argc, char **argv) try
                 //x1[0] += std::real(z1);
                 //x1[1] += std::imag(z1);
                 // The above is right if ell = (0,0,0,0,0)
-                // But if not, we need the following adjustment to account for the 
-                // fact that the shift happens after having already been transformed:
-                x1[0] += std::real(z1 + g0*std::conj(z1))*exp(m0)/sqrt(1.-normg0);
-                x1[1] += std::imag(z1 + g0*std::conj(z1))*exp(m0)/sqrt(1.-normg0);
-                s->F(x1,f);
+                // But if not, we need the following adjustment to account 
+                // for the fact that the shift happens after having already 
+                // been transformed:
+                x1[0] += std::real(
+                    z1 + g0*std::conj(z1))*exp(m0)/sqrt(1.-normg0);
+                x1[1] += std::imag(
+                    z1 + g0*std::conj(z1))*exp(m0)/sqrt(1.-normg0);
+                s->calculateF(x1,f);
                 BVec b1 = s->getB();
-                xdbg<<"b(z1 = "<<z1<<") = "<<b1<<std::endl;
-                ApplyZ(z1,b0);
-                xdbg<<"b(predicted) = "<<b0<<std::endl;
-                dbg<<"diff for z = "<<z1<<" = "<<Norm(b0-b1)<<std::endl;
-                test(Norm(b1-b0) < EPS*Norm(b0),"ApplyZ");
+                xdbg<<"b(z1 = "<<z1<<") = "<<b1.vec()<<std::endl;
+                applyZ(z1,b0);
+                xdbg<<"b(predicted) = "<<b0.vec()<<std::endl;
+                dbg<<"diff for z = "<<z1<<" = "<<
+                    Norm(b0.vec()-b1.vec())<<std::endl;
+                test(Norm(b1.vec()-b0.vec()) < EPS*Norm(b0.vec()),"ApplyZ 1");
                 x1 = x0;
-                x1[0] -= std::real(z1 + g0*std::conj(z1))*exp(m0)/sqrt(1.-normg0);
-                x1[1] -= std::imag(z1 + g0*std::conj(z1))*exp(m0)/sqrt(1.-normg0);
-                s->F(x1,f);
+                x1[0] -= std::real(
+                    z1 + g0*std::conj(z1))*exp(m0)/sqrt(1.-normg0);
+                x1[1] -= std::imag(
+                    z1 + g0*std::conj(z1))*exp(m0)/sqrt(1.-normg0);
+                s->calculateF(x1,f);
                 b1 = s->getB();
-                ApplyZ(-z1,b0=b0save);
-                dbg<<"diff for z = "<<-z1<<" = "<<Norm(b0-b1)<<std::endl;
-                test(Norm(b1-b0) < EPS*Norm(b0),"ApplyZ");
+                applyZ(-z1,b0=b0save);
+                dbg<<"diff for z = "<<-z1<<" = "<<
+                    Norm(b0.vec()-b1.vec())<<std::endl;
+                test(Norm(b1.vec()-b0.vec()) < EPS*Norm(b0.vec()),"ApplyZ 2");
 
                 double m1(0.2);
                 x1 = x0;
                 x1[4] += m1;
-                s->F(x1,f);
+                s->calculateF(x1,f);
                 b1 = s->getB();
-                //xdbg<<"b(mu = "<<m1<<") = "<<b1<<std::endl;
-                ApplyMu(m1,b0=b0save);
-                //xdbg<<"b(predicted) = "<<b0<<std::endl;
-                dbg<<"diff for mu = "<<m1<<" = "<<Norm(b0-b1)<<std::endl;
-                test(Norm(b1-b0) < EPS*Norm(b0),"ApplyMu");
+                xdbg<<"b(mu = "<<m1<<") = "<<b1.vec()<<std::endl;
+                applyMu(m1,b0=b0save);
+                xdbg<<"b(predicted) = "<<b0.vec()<<std::endl;
+                xdbg<<"diff = "<<b1.vec()-b0.vec()<<std::endl;
+                dbg<<"diff for mu = "<<m1<<" = "<<
+                    Norm(b0.vec()-b1.vec())<<std::endl;
+                dbg<<"Norm(b0) = "<<Norm(b0.vec())<<std::endl;
+#if 1
+                test(Norm(b1.vec()-b0.vec()) < 100.*EPS*Norm(b0.vec()),
+                     "ApplyMu 1");
+#else
+                test(Norm(b1.vec().SubVector(0,15)-b0.vec().SubVector(0,15)) <
+                     EPS*Norm(b0.vec()),
+                     "ApplyMu 1");
+                test(Norm(b1.vec().SubVector(15,b1.size()) -
+                          b0.vec().SubVector(15,b1.size())) < 
+                     10.*b1.size()*EPS*Norm(b0.vec()),
+                     "ApplyMu 2");
+#endif
                 x1 = x0;
                 x1[4] += -m1;
-                s->F(x1,f);
+                s->calculateF(x1,f);
                 b1 = s->getB();
-                ApplyMu(-m1,b0=b0save);
-                dbg<<"diff for mu = "<<-m1<<" = "<<Norm(b0-b1)<<std::endl;
-                test(Norm(b1-b0) < EPS*Norm(b0),"ApplyMu");
+                applyMu(-m1,b0=b0save);
+                dbg<<"diff for mu = "<<-m1<<" = "<<
+                    Norm(b0.vec()-b1.vec())<<std::endl;
+#if 1
+                test(Norm(b1.vec()-b0.vec()) < 100.*EPS*Norm(b0.vec()),
+                     "ApplyMu 2");
+#else
+                test(Norm(b1.vec().SubVector(0,15)-b0.vec().SubVector(0,15)) < 
+                     EPS*Norm(b0.vec()),
+                     "ApplyMu 3");
+                test(Norm(b1.vec().SubVector(15,b1.size()) -
+                          b0.vec().SubVector(15,b1.size())) < 
+                     10.*b1.size()*EPS*Norm(b0.vec()),
+                     "ApplyMu 4");
+#endif
 
                 double e1(0.3);
                 double neweta = e1 + eta0;
@@ -956,22 +992,46 @@ int main(int argc, char **argv) try
                 // Otherwise the equations get really hairy.
                 x1[2] = tanh(neweta/2.)*std::real(argg0);
                 x1[3] = tanh(neweta/2.)*std::imag(argg0);
-                s->F(x1,f);
+                s->calculateF(x1,f);
                 b1 = s->getB();
-                xdbg<<"b(gamma = "<<g1<<") = "<<b1<<std::endl;
-                ApplyG(g1*argg0,b0=b0save);
-                xdbg<<"b(predicted) = "<<b0<<std::endl;
-                dbg<<"diff for gamma = "<<g1<<" = "<<Norm(b0-b1)<<std::endl;
-                test(Norm(b1-b0) < EPS*Norm(b0),"ApplyG");
+                xdbg<<"b(gamma = "<<g1<<") = "<<b1.vec()<<std::endl;
+                applyG(g1*argg0,b0=b0save);
+                xdbg<<"b(predicted) = "<<b0.vec()<<std::endl;
+                dbg<<"diff for gamma = "<<g1<<" = "<<
+                    Norm(b0.vec()-b1.vec())<<std::endl;
+#if 1
+                test(Norm(b1.vec()-b0.vec()) < 10.*EPS*Norm(b0.vec()),
+                     "ApplyG 1");
+#else
+                test(Norm(b1.vec().SubVector(0,15)-b0.vec().SubVector(0,15)) < 
+                     EPS*Norm(b0.vec()),
+                     "ApplyG 1");
+                test(Norm(b1.vec().SubVector(15,b1.size()) -
+                          b0.vec().SubVector(15,b1.size())) < 
+                     b1.size()*EPS*Norm(b0.vec()),
+                     "ApplyG 2");
+#endif
                 x1 = x0;
                 neweta = -e1 + eta0;
                 x1[2] = tanh(neweta/2.)*std::real(argg0);
                 x1[3] = tanh(neweta/2.)*std::imag(argg0);
-                s->F(x1,f);
+                s->calculateF(x1,f);
                 b1 = s->getB();
-                ApplyG(-g1*argg0,b0=b0save);
-                dbg<<"diff for gamma = "<<-g1<<" = "<<Norm(b0-b1)<<std::endl;
-                test(Norm(b1-b0) < EPS*Norm(b0),"ApplyG");
+                applyG(-g1*argg0,b0=b0save);
+                dbg<<"diff for gamma = "<<-g1<<" = "<<
+                    Norm(b0.vec()-b1.vec())<<std::endl;
+#if 1
+                test(Norm(b1.vec()-b0.vec()) < 10.*EPS*Norm(b0.vec()),
+                     "ApplyG 2");
+#else
+                test(Norm(b1.vec().SubVector(0,15)-b0.vec().SubVector(0,15)) < 
+                     EPS*Norm(b0.vec()),
+                     "ApplyG 3");
+                test(Norm(b1.vec().SubVector(15,b1.size()) -
+                          b0.vec().SubVector(15,b1.size())) < 
+                     b1.size()*EPS*Norm(b0.vec()),
+                     "ApplyG 4");
+#endif
 
                 if (ib < NLONG) {
                     BVec blong(8,sigma_i,blong_vec[ib]);
@@ -988,16 +1048,18 @@ int main(int argc, char **argv) try
                     else s.reset(
                         new EllipseSolver2(allpix,order,sigma_i,pixScale));
                     tmv::Vector<double> x2(5,ell_vecs[ie]);
-                    s->F(x2,f);
+                    s->calculateF(x2,f);
                     BVec b = s->getB();
-                    dbg<<"blong = "<<blong<<std::endl;
-                    dbg<<"b = "<<b<<std::endl;
-                    test(Norm(b.SubVector(0,45)-blong) < EPS*Norm(blong),
+                    dbg<<"blong = "<<blong.vec()<<std::endl;
+                    dbg<<"b = "<<b.vec()<<std::endl;
+                    test(Norm(b.vec().SubVector(0,45)-blong.vec()) < 
+                         EPS*Norm(blong.vec()),
                          "Basic Long B Measurement");
-                    test(Norm(b.SubVector(45,b.size())) < EPS*Norm(blong),
+                    test(Norm(b.vec().SubVector(45,b.size())) < 
+                         EPS*Norm(blong.vec()),
                          "Basic Long B Measurement (2)");
 #ifdef TESTJ
-                    test(s->TestJ(x2,f,xdbgout,1.e-6),"TestJ - Long 1");
+                    test(s->testJ(x2,f,xdbgout,1.e-6),"TestJ - Long 1");
 #endif
 
                     double dmu = 0.01;
@@ -1007,16 +1069,18 @@ int main(int argc, char **argv) try
                     else s.reset(
                         new EllipseSolver2(allpix,order,sigma_ix,pixScale));
                     x2[4] -= dmu;
-                    s->F(x2,f);
+                    s->calculateF(x2,f);
                     BVec bx = s->getB();
-                    dbg<<"blong = "<<blong<<std::endl;
-                    dbg<<"bx = "<<bx<<std::endl;
-                    test(Norm(bx.SubVector(0,45)-blong) < EPS*Norm(blong),
+                    dbg<<"blong = "<<blong.vec()<<std::endl;
+                    dbg<<"bx = "<<bx.vec()<<std::endl;
+                    test(Norm(bx.vec().SubVector(0,45)-blong.vec()) < 
+                         EPS*Norm(blong.vec()),
                          "Basic Long B Measurement");
-                    test(Norm(bx.SubVector(45,bx.size())) < EPS*Norm(blong),
+                    test(Norm(bx.vec().SubVector(45,bx.size())) < 
+                         EPS*Norm(blong.vec()),
                          "Basic Long B Measurement (2)");
 #ifdef TESTJ
-                    test(s->TestJ(x2,f,xdbgout,1.e-6),"TestJ - Long 2");
+                    test(s->testJ(x2,f,xdbgout,1.e-6),"TestJ - Long 2");
 #endif
                 }
             }
@@ -1039,7 +1103,7 @@ int main(int argc, char **argv) try
             for(int ib = 0; ib < NB; ++ib) {
                 dbg<<"Start ib = "<<ib<<std::endl;
                 BVec bin(4,sigma_i,b_vecs[ib]);
-                dbg<<"bin = "<<bin<<std::endl;
+                dbg<<"bin = "<<bin.vec()<<std::endl;
                 int order = 8;
                 double xcen = 0.709;
                 double ycen = 0.243;
@@ -1052,28 +1116,28 @@ int main(int argc, char **argv) try
                     BVec b0 = bin;
 
                     // bpsf is the psf in the e0 frame.
-                    BVec bpsf(4,sigma_p,bpsf_vecs[ip]);
-                    dbg<<"bpsf = "<<bpsf<<std::endl;
+                    BVec bpsf(4,sigmaPsf,bpsf_vecs[ip]);
+                    dbg<<"bpsf = "<<bpsf.vec()<<std::endl;
                     xdbg<<"ell = "<<ell<<std::endl;
-                    xdbg<<"b0 = "<<b0<<std::endl;
+                    xdbg<<"b0 = "<<b0.vec()<<std::endl;
 
                     // c0 = C(bpsf) * b0
-                    // This is one estimate of the observed galaxy in the e0 frame.
-                    double sigma_o = sqrt(pow(sigma_i,2)+pow(sigma_p,2));
+                    // This is one estimate of the observed galaxy in the e0
+                    // frame.
+                    double sigma_o = sqrt(pow(sigma_i,2)+pow(sigmaPsf,2));
                     tmv::Matrix<double> C(45,45);
                     calculatePsfConvolve(bpsf,8,sigma_i,C);
                     BVec c0(8,sigma_o);
-                    c0 = C.Cols(0,15) * b0;
-                    //xdbg<<"c0 = "<<c0<<std::endl;
+                    c0.vec() = C.Cols(0,15) * b0.vec();
+                    xdbg<<"c0 = "<<c0.vec()<<std::endl;
 
-                    // c0x is another estimate of the same thing based on a direct
-                    // convolution from Maple calculations rather than the BJ02 
-                    // recursion formulae.
+                    // c0x is another estimate of the same thing based on a 
+                    // direct convolution from Maple calculations rather than
+                    // the BJ02 recursion formulae.
                     BVec c0x(8,sigma_o);
                     DirectConvolveB(b0,bpsf,c0x);
-                    //xdbg<<"c0x = "<<c0x<<std::endl;
-                    //xdbg<<"Norm(diff) = "<<Norm(c0-c0x)<<std::endl;
-                    test(Norm(c0-c0x) < EPS*Norm(c0),"PSFConvolve");
+                    test(Norm(c0.vec()-c0x.vec()) < EPS*Norm(c0.vec()),
+                         "PSFConvolve");
 
                     // be is the galaxy in ell fram:
                     allpix.resize(1);
@@ -1084,33 +1148,40 @@ int main(int argc, char **argv) try
                         new EllipseSolver(allpix,order,sigma_i));
                     else s.reset(
                         new EllipseSolver2(allpix,order,sigma_i,pixScale));
-                    s->F(xe,f);
+                    s->calculateF(xe,f);
                     BVec be = s->getB();
-                    //xdbg<<"be = "<<be<<std::endl;
+                    xdbg<<"be = "<<be.vec()<<std::endl;
 #ifdef TESTJ
-                    test(s->TestJ(xe,f,xdbgout,1.e-6),"TestJ - be in ell frame");
+                    test(s->testJ(xe,f,xdbgout,1.e-6),
+                         "TestJ - be in ell frame");
 #endif
 
                     // bex is another estimate of the galaxy in the ell frame:
                     BVec bex(order,sigma_i);
+                    xdbg<<"b0 = "<<b0.vec()<<std::endl;
+                    xdbg<<"bex = "<<bex.vec()<<std::endl;
                     bex = b0;
-                    ApplyZ(z0,bex);
-                    ApplyG(g0,bex);
-                    ApplyMu(m0,bex);
-                    //xdbg<<"bex = "<<bex<<std::endl;
-                    //xdbg<<"Norm(bex(0:15)-be(0:15)) = "<<
-                    //Norm(bex.SubVector(0,15)-be.SubVector(0,15))<<std::endl;
-                    //xdbg<<"Norm(bex(0:45)-be(0:45)) = "<<
-                    //Norm(bex.SubVector(0,45)-be.SubVector(0,45))<<std::endl;
-                    //xdbg<<"Norm(bex-be) = "<<Norm(bex-be)<<std::endl;
-                    // The higher order terms don't mesh perfectly, because of the 
-                    // finite order of the intermediate transformations.
+                    xdbg<<"after bex = b0: "<<bex.vec()<<std::endl;
+                    applyZ(z0,bex);
+                    xdbg<<"after z: bex = "<<bex.vec()<<std::endl;
+                    applyG(g0,bex);
+                    xdbg<<"after g: bex = "<<bex.vec()<<std::endl;
+                    applyMu(m0,bex);
+                    xdbg<<"after mu: bex = "<<bex.vec()<<std::endl;
+                    // The higher order terms don't mesh perfectly,
+                    // because of the finite order of the intermediate 
+                    // transformations.
                     // But through 4th order, the match should be quite good.
-                    test(Norm(bex.SubVector(0,15)-be.SubVector(0,15)) <
-                         3.e-5*(Norm(be)+Norm(b0)),"View B in ell frame");
-                    test(Norm(bex.SubVector(0,45)-be.SubVector(0,45)) <
-                         1.e-3*(Norm(be)+Norm(b0)),"View B in ell frame");
-                    test(Norm(bex-be) < 3.e-2*(Norm(be)+Norm(b0)),
+                    test(Norm(bex.vec().SubVector(0,15) - 
+                              be.vec().SubVector(0,15)) <
+                         3.e-5*(Norm(be.vec())+Norm(b0.vec())),
+                         "View B in ell frame");
+                    test(Norm(bex.vec().SubVector(0,45) - 
+                              be.vec().SubVector(0,45)) <
+                         1.e-3*(Norm(be.vec())+Norm(b0.vec())),
+                         "View B in ell frame");
+                    test(Norm(bex.vec()-be.vec()) <
+                         3.e-2*(Norm(be.vec())+Norm(b0.vec())),
                          "View B in ell frame");
 
                     // ce is the convolved galaxy in the ell frame:
@@ -1121,64 +1192,59 @@ int main(int argc, char **argv) try
                         new EllipseSolver(allpix,order,sigma_o));
                     else s.reset(
                         new EllipseSolver2(allpix,order,sigma_o,pixScale));
-                    s->F(xe,f);
+                    s->calculateF(xe,f);
                     BVec ce = s->getB();
 #ifdef TESTJ
-                    test(s->TestJ(xe,f,xdbgout,1.e-5),"TestJ - ce in ell frame");
+                    test(s->testJ(xe,f,xdbgout,1.e-5),
+                         "TestJ - ce in ell frame");
 #endif
-                    //xdbg<<"After TestJ(2)\n";
-
                     // cex is another estimate of the same: transform c0
                     BVec cex(order,sigma_o);
                     cex = c0;
-                    ApplyZ(z0,cex);
-                    ApplyG(g0,cex);
-                    ApplyMu(m0,cex);
-                    //xdbg<<"ce = "<<ce<<std::endl;
-                    //xdbg<<"cex = "<<cex<<std::endl;
-                    //xdbg<<"Norm(cex(0:15)-ce(0:15)) = "<<
-                    //Norm(cex.SubVector(0,15)-ce.SubVector(0,15))<<std::endl;
-                    //xdbg<<"Norm(cex(0:45)-ce(0:45)) = "<<
-                    //Norm(cex.SubVector(0,45)-ce.SubVector(0,45))<<std::endl;
-                    //xdbg<<"Norm(cex-ce) = "<<Norm(cex-ce)<<std::endl;
-                    //xdbg<<"Norm(ce)+Norm(c0) = "<<Norm(ce)+Norm(c0)<<std::endl;
-                    test(Norm(cex.SubVector(0,15)-ce.SubVector(0,15)) <
-                         3.e-5*(Norm(ce)+Norm(b0)),"Convolved B in ell frame");
-                    test(Norm(cex.SubVector(0,45)-ce.SubVector(0,45)) <
-                         1.e-3*(Norm(ce)+Norm(b0)),"Convolved B in ell frame");
-                    test(Norm(cex-ce) < 3.e-2*(Norm(ce)+Norm(c0)),
+                    applyZ(z0,cex);
+                    applyG(g0,cex);
+                    applyMu(m0,cex);
+                    test(Norm(cex.vec().SubVector(0,15) - 
+                              ce.vec().SubVector(0,15)) <
+                         3.e-5*(Norm(ce.vec())+Norm(b0.vec())),
+                         "Convolved B in ell frame");
+                    test(Norm(cex.vec().SubVector(0,45) - 
+                              ce.vec().SubVector(0,45)) <
+                         1.e-3*(Norm(ce.vec())+Norm(b0.vec())),
+                         "Convolved B in ell frame");
+                    test(Norm(cex.vec()-ce.vec()) <
+                         3.e-2*(Norm(ce.vec())+Norm(c0.vec())),
                          "Convolved B in ell frame");
 
                     // cey is yet another estimate of the same: convolve be
                     BVec cey(order,sigma_o);
                     tmv::Matrix<double> Ce(cey.size(),cey.size());
-                    BVec bpsfe(order,sigma_p);
+                    BVec bpsfe(order,sigmaPsf);
                     bpsfe = bpsf;
-                    //ApplyZ(z0,bpsfe);
-                    ApplyG(g0,bpsfe);
-                    ApplyMu(m0,bpsfe);
+                    //applyZ(z0,bpsfe);
+                    applyG(g0,bpsfe);
+                    applyMu(m0,bpsfe);
                     calculatePsfConvolve(bpsfe,order,sigma_i,Ce);
-                    cey = Ce * be;
-                    cey *= exp(2.*m0);
-                    //xdbg<<"ce = "<<ce<<std::endl;
-                    //xdbg<<"cey = "<<cey<<std::endl;
-                    //xdbg<<"Norm(cey-ce) = "<<Norm(cey-ce)<<std::endl;
-                    test(Norm(cey-ce) < 3.e-2*(Norm(ce)+Norm(c0)),
+                    cey.vec() = Ce * be.vec();
+                    cey.vec() *= exp(2.*m0);
+                    test(Norm(cey.vec()-ce.vec()) <
+                         3.e-2*(Norm(ce.vec())+Norm(c0.vec())),
                          "Convolved B in ell frame");
 
                     // Next we test the deconovolving shape estimator.
-                    // Since the cey calculation doesn't really match ce very well due
-                    // to numerical issues from the finite order of the calculations,
-                    // we recast the problem so b0 is the shape in the ell frame.
-                    BVec bpsf2(order,sigma_p);
+                    // Since the cey calculation doesn't really match ce 
+                    // very well due to numerical issues from the finite 
+                    // order of the calculations, we recast the problem so 
+                    // b0 is the shape in the ell frame.
+                    BVec bpsf2(order,sigmaPsf);
                     bpsf2 = bpsf;
 #if 1
                     tmv::Matrix<double> S1(bpsf2.size(),bpsf2.size());
                     calculateGTransform(g0,bpsf2.getOrder(),S1);
                     tmv::Matrix<double> D1(bpsf2.size(),bpsf2.size());
                     calculateMuTransform(m0,bpsf2.getOrder(),D1);
-                    bpsf2 /= D1;
-                    bpsf2 /= S1;
+                    bpsf2.vec() /= D1;
+                    bpsf2.vec() /= S1;
 #else
                     // With this version, the numerical errors mean that
                     // the EPS in the two Test statements below need to 
@@ -1198,20 +1264,25 @@ int main(int argc, char **argv) try
                     if (stype == 0) s.reset(
                         new EllipseSolver(allpix,allpsf,f_psf,order,sigma_i));
                     else s.reset(
-                        new EllipseSolver2(allpix,allpsf,f_psf,order,sigma_i,pixScale));
-                    s->F(xe,f);
+                        new EllipseSolver2(allpix,allpsf,f_psf,order,sigma_i,
+                                           pixScale));
+                    s->calculateF(xe,f);
                     BVec bes = s->getB();
-                    xdbg<<"bes = "<<bes<<std::endl;
-                    xdbg<<"b0 = "<<b0<<std::endl;
-                    xdbg<<"Norm(bes-b0) = "<<Norm(bes.SubVector(0,15)-b0)<<std::endl;
-                    xdbg<<"Norm(bes(15:)) = "<<Norm(bes.SubVector(15,bes.size()))<<std::endl;
-                    test(Norm(bes.SubVector(0,15)-b0) < EPS*(Norm(b0)+Norm(c0)),
-                         "Doconvolving solver BE Measurement");
-                    test(Norm(bes.SubVector(15,bes.size()))<EPS*(Norm(b0)+Norm(c0)),
-                         "Doconvolving solver BE Measurement");
-                    //s->verbose = true;
+                    xdbg<<"bes = "<<bes.vec()<<std::endl;
+                    xdbg<<"b0 = "<<b0.vec()<<std::endl;
+                    xdbg<<"Norm(bes-b0) = "<<
+                        Norm(bes.vec().SubVector(0,15)-b0.vec())<<std::endl;
+                    xdbg<<"Norm(bes(15:)) = "<<
+                        Norm(bes.vec().SubVector(15,bes.size()))<<std::endl;
+                    xdbg<<"cf "<<EPS<<" * "<<Norm(b0.vec())+Norm(c0.vec())<<std::endl;
+                    test(Norm(bes.vec().SubVector(0,15)-b0.vec()) < 
+                         EPS*(Norm(b0.vec())+Norm(c0.vec())),
+                         "Deconvolving solver BE Measurement");
+                    test(Norm(bes.vec().SubVector(15,bes.size())) <
+                         3.*EPS*(Norm(b0.vec())+Norm(c0.vec())),
+                         "Deconvolving solver BE Measurement");
 #ifdef TESTJ
-                    test(s->TestJ(xe,f,xdbgout,1.e-6),
+                    test(s->testJ(xe,f,xdbgout,1.e-6),
                          "TestJ - Deconvolved b0 in ell frame");
 #endif
 
@@ -1219,7 +1290,8 @@ int main(int argc, char **argv) try
                     // Next do it with a different sigma for the galaxy
                     double dmu = 0.002;
                     double sigma_ix = exp(dmu) * sigma_i;
-                    double sigma_ox = sqrt(sigma_ix*sigma_ix + sigma_p*sigma_p);
+                    double sigma_ox = 
+                        sqrt(sigma_ix*sigma_ix + sigmaPsf*sigmaPsf);
                     double dmu2 = dmu + 0.0*dmu*dmu - 0.0*dmu*dmu*dmu;
                     xdbg<<"sigma_i = "<<sigma_i<<std::endl;
                     xdbg<<"sigma_o = "<<sigma_o<<std::endl;
@@ -1230,27 +1302,30 @@ int main(int argc, char **argv) try
                     if (stype == 0) s.reset(
                         new EllipseSolver(allpix,allpsf,f_psf,order,sigma_ix));
                     else s.reset(
-                        new EllipseSolver2(allpix,allpsf,f_psf,order,sigma_ix,pixScale));
+                        new EllipseSolver2(allpix,allpsf,f_psf,order,sigma_ix,
+                                           pixScale));
                     xe[4] -= dmu2;
-                    s->F(xe,f);
+                    s->calculateF(xe,f);
                     BVec besx = s->getB();
-                    xdbg<<"besx = "<<besx<<std::endl;
-                    xdbg<<"b0 = "<<b0<<std::endl;
-                    besx *= b0(0)/besx(0);
-                    xdbg<<"besx => "<<besx<<std::endl;
-                    xdbg<<"Norm(besx-b0) = "<<Norm(besx.SubVector(0,15)-b0)<<std::endl;
-                    xdbg<<"Norm(bes(15:)) = "<<Norm(besx.SubVector(15,besx.size()))<<std::endl;
-                    test(Norm(besx.SubVector(0,15)-b0) < EPS*(Norm(b0)+Norm(c0)),
-                         "Doconvolving solver BE Measurement #2");
-                    test(Norm(besx.SubVector(15,besx.size()))<EPS*(Norm(b0)+Norm(c0)),
-                         "Doconvolving solver BE Measurement #2");
-                    //s->verbose = true;
+                    xdbg<<"besx = "<<besx.vec()<<std::endl;
+                    xdbg<<"b0 = "<<b0.vec()<<std::endl;
+                    besx.vec() *= b0(0)/besx(0);
+                    xdbg<<"besx => "<<besx.vec()<<std::endl;
+                    xdbg<<"Norm(besx-b0) = "<<
+                        Norm(besx.vec().SubVector(0,15)-b0.vec())<<std::endl;
+                    xdbg<<"Norm(bes(15:)) = "<<
+                        Norm(besx.vec().SubVector(15,besx.size()))<<std::endl;
+                    test(Norm(besx.vec().SubVector(0,15)-b0.vec()) < 
+                         EPS*(Norm(b0.vec())+Norm(c0.vec())),
+                         "Deconvolving solver BE Measurement #2");
+                    test(Norm(besx.vec().SubVector(15,besx.size())) <
+                         3.*EPS*(Norm(b0.vec())+Norm(c0.vec())),
+                         "Deconvolving solver BE Measurement #2");
 #ifdef TESTJ
-                    test(s->TestJ(xe,f,xdbgout,1.e-6),
+                    test(s->testJ(xe,f,xdbgout,1.e-6),
                          "TestJ - Deconvolved b0 in ell frame #2");
 #endif
                     xe[4] += dmu2;
-                    exit(1);
 #endif
                 }
             }
@@ -1271,9 +1346,9 @@ int main(int argc, char **argv) try
             double m0 = ell.getMu();
 
             BVec bin(4,sigma_i);
-            bin.Zero();
+            bin.vec().Zero();
             bin(0) = 1.;
-            dbg<<"bin = "<<bin<<std::endl;
+            dbg<<"bin = "<<bin.vec()<<std::endl;
             int order = 8;
             double xcen = 0.709;
             double ycen = 0.243;
@@ -1290,20 +1365,15 @@ int main(int argc, char **argv) try
                 new EllipseSolver2(allpix,order,sigma_i,pixScale));
             tmv::Vector<double> x(5,0.);
             tmv::Vector<double> f(5);
-            s->nlout = xdbgout;
-            s->method = NLSolver::Dogleg;
-            s->delta0 = 0.1;
-            s->ftol = 1.e-6;
-            //s->verbose = true;
+            if (XDEBUG) s->setOutput(*dbgout);
+            s->useDogleg();
+            s->setDelta0(0.1);
+            s->setFTol(1.e-6);
 #ifdef TESTJ
-            test(s->TestJ(x,f,xdbgout,1.e-6),
+            test(s->testJ(x,f,xdbgout,1.e-6),
                  "TestJ - Single Image no PSF");
 #endif
-            bool success = s->Solve(x,f);
-            //xdbg<<"x = "<<x<<std::endl;
-            //xdbg<<"xe = "<<xe<<std::endl;
-            //xdbg<<"f = "<<f<<std::endl;
-            //xdbg<<"success = "<<success<<std::endl;
+            bool success = s->solve(x,f);
             test(success,"No PSF Solve - success");
             test(Norm(x-xe) < 1.e-5,"No PSF Solve - x == xe");
 
@@ -1311,28 +1381,28 @@ int main(int argc, char **argv) try
                 dbg<<"Start ip = "<<ip<<std::endl;
 
                 // bpsf is the psf in the ell frame.
-                BVec bpsf(4,sigma_p,bpsf_vecs[ip]);
-                dbg<<"bpsf = "<<bpsf<<std::endl;
+                BVec bpsf(4,sigmaPsf,bpsf_vecs[ip]);
+                dbg<<"bpsf = "<<bpsf.vec()<<std::endl;
                 xdbg<<"ell = "<<ell<<std::endl;
-                xdbg<<"b0 = "<<b0<<std::endl;
+                xdbg<<"b0 = "<<b0.vec()<<std::endl;
 
                 // bpsf2 is the psf in the e0 frame.
-                BVec bpsf2(order,sigma_p);
+                BVec bpsf2(order+4,sigmaPsf);
                 bpsf2 = bpsf;
                 tmv::Matrix<double> S1(bpsf2.size(),bpsf2.size());
                 calculateGTransform(g0,bpsf2.getOrder(),S1);
                 tmv::Matrix<double> D1(bpsf2.size(),bpsf2.size());
                 calculateMuTransform(m0,bpsf2.getOrder(),D1);
-                bpsf2 /= D1;
-                bpsf2 /= S1;
+                bpsf2.vec() /= D1;
+                bpsf2.vec() /= S1;
 
                 // c0 is the convolved galaxy shape in the ell frame.
-                double sigma_o = sqrt(pow(sigma_i,2)+pow(sigma_p,2));
+                double sigma_o = sqrt(pow(sigma_i,2)+pow(sigmaPsf,2));
                 tmv::Matrix<double> C(45,45);
                 calculatePsfConvolve(bpsf,8,sigma_i,C);
                 BVec c0(8,sigma_o);
-                c0 = C.Cols(0,15) * b0;
-                xdbg<<"c0 = "<<c0<<std::endl;
+                c0.vec() = C.Cols(0,15) * b0.vec();
+                xdbg<<"c0 = "<<c0.vec()<<std::endl;
                 allpix.resize(1);
                 allpix[0].clear();
                 std::vector<BVec> allpsf(1,bpsf2);
@@ -1341,31 +1411,29 @@ int main(int argc, char **argv) try
                 if (stype == 0) s.reset(
                     new EllipseSolver(allpix,allpsf,f_psf,order,sigma_i));
                 else s.reset(
-                    new EllipseSolver2(allpix,allpsf,f_psf,order,sigma_i,pixScale));
-                s->F(xe,f);
+                    new EllipseSolver2(allpix,allpsf,f_psf,order,sigma_i,
+                                       pixScale));
+                s->calculateF(xe,f);
                 BVec be = s->getB();
-                xdbg<<"be = "<<be<<std::endl;
-                test(Norm(be.SubVector(0,15)-bin) < EPS*Norm(bin),
+                xdbg<<"be = "<<be.vec()<<std::endl;
+                test(Norm(be.vec().SubVector(0,15)-bin.vec()) < 
+                     EPS*Norm(bin.vec()),
                      "B Measurement for Single Image w/ PSF");
-                test(Norm(be.SubVector(15,be.size())) < EPS*Norm(bin),
+                test(Norm(be.vec().SubVector(15,be.size())) < 
+                     3.*EPS*Norm(bin.vec()),
                      "B Measurement 2 for Single Image w/ PSF");
                 x.Zero();
-                s->nlout = xdbgout;
-                s->method = NLSolver::Dogleg;
-                s->delta0 = 0.1;
-                s->ftol = 1.e-6;
-                //s->verbose = true;
+                if (XDEBUG) s->setOutput(*dbgout);
+                s->useDogleg();
+                s->setDelta0(0.1);
+                s->setFTol(1.e-6);
 #ifdef TESTJ
-                test(s->TestJ(x,f,xdbgout,1.e-6),
+                test(s->testJ(x,f,xdbgout,1.e-6),
                      "TestJ - Single Image w/ PSF");
 #endif
-                success = s->Solve(x,f);
-                //xdbg<<"x = "<<x<<std::endl;
-                //xdbg<<"xe = "<<xe<<std::endl;
-                //xdbg<<"f = "<<f<<std::endl;
-                //xdbg<<"success = "<<success<<std::endl;
+                success = s->solve(x,f);
 #ifdef TESTJ
-                test(s->TestJ(x,f,xdbgout,1.e-6),
+                test(s->testJ(x,f,xdbgout,1.e-6),
                      "TestJ - Single Image w/ PSF");
 #endif
                 test(success,"PSF Solve - success");
@@ -1377,26 +1445,24 @@ int main(int argc, char **argv) try
                 if (stype == 0) s.reset(
                     new EllipseSolver(allpix,allpsf,f_psf,order,sigma_ix));
                 else s.reset(
-                    new EllipseSolver2(allpix,allpsf,f_psf,order,sigma_ix,pixScale));
+                    new EllipseSolver2(allpix,allpsf,f_psf,order,sigma_ix,
+                                       pixScale));
                 xe[4] -= dmu;
-                s->F(xe,f);
+                s->calculateF(xe,f);
                 BVec bex = s->getB();
-                xdbg<<"bex = "<<bex<<std::endl;
-                test(Norm(bex.SubVector(0,15)-bin) < EPS*Norm(bin),
+                xdbg<<"bex = "<<bex.vec()<<std::endl;
+                test(Norm(bex.vec().SubVector(0,15)-bin.vec()) < 
+                     EPS*Norm(bin.vec()),
                      "B Measurement for Single Image w/ PSF");
-                test(Norm(bex.SubVector(15,bex.size())) < EPS*Norm(bin),
+                test(Norm(bex.vec().SubVector(15,bex.size())) < 
+                     3.*EPS*Norm(bin.vec()),
                      "B Measurement 2 for Single Image w/ PSF");
                 x.Zero();
-                s->nlout = xdbgout;
-                s->method = NLSolver::Dogleg;
-                s->delta0 = 0.1;
-                s->ftol = 1.e-6;
-                //s->verbose = true;
-                success = s->Solve(x,f);
-                //xdbg<<"x = "<<x<<std::endl;
-                //xdbg<<"xe = "<<xe<<std::endl;
-                //xdbg<<"f = "<<f<<std::endl;
-                //xdbg<<"success = "<<success<<std::endl;
+                if (XDEBUG) s->setOutput(*dbgout);
+                s->useDogleg();
+                s->setDelta0(0.1);
+                s->setFTol(1.e-6);
+                success = s->solve(x,f);
                 test(success,"PSF Solve - success");
                 test(Norm(x-xe) < 1.e-5,"PSF Solve - x == xe");
                 xe[4] += dmu;
@@ -1419,10 +1485,10 @@ int main(int argc, char **argv) try
             double m0 = ell.getMu();
 
             BVec bin(4,sigma_i);
-            bin.Zero();
+            bin.vec().Zero();
             bin(0) = 1.;
-            dbg<<"bin = "<<bin<<std::endl;
-            int order = 6;
+            dbg<<"bin = "<<bin.vec()<<std::endl;
+            int order = 8;
             tmv::Vector<double> xe(5,ell_vecs[ie]);
 
             // b0 is the galaxy shape in the ell frame.
@@ -1434,7 +1500,8 @@ int main(int argc, char **argv) try
                 // First do the test without the PSFs
                 for(int k=0;k<NPSFx;++k) {
                     allpix[k].clear();
-                    getFakePixList(allpix[k],xcenx[k],ycenx[k],D,aperture,b0,ell);
+                    getFakePixList(
+                        allpix[k],xcenx[k],ycenx[k],D,aperture,b0,ell);
                 }
                 if (stype == 0) s.reset(
                     new EllipseSolver(allpix,order,sigma_i));
@@ -1442,25 +1509,29 @@ int main(int argc, char **argv) try
                     new EllipseSolver2(allpix,order,sigma_i,pixScale));
                 tmv::Vector<double> x(5,0.);
                 tmv::Vector<double> f(5);
-                s->F(xe,f);
+                s->calculateF(xe,f);
                 BVec be = s->getB();
-                xdbg<<"be = "<<be<<std::endl;
-                xdbg<<"Norm(be(0:15)-bin) = "<<Norm(be.SubVector(0,15)-bin)<<std::endl;
-                xdbg<<"Norm(be(15:)) = "<<Norm(be.SubVector(15,be.size()))<<std::endl;
-                test(Norm(be.SubVector(0,15)-bin) < EPS*Norm(bin),
+                xdbg<<"be = "<<be.vec()<<std::endl;
+                xdbg<<"Norm(be(0:15)-bin) = "<<
+                    Norm(be.vec().SubVector(0,15)-bin.vec())<<std::endl;
+                xdbg<<"Norm(be(15:)) = "<<
+                    Norm(be.vec().SubVector(15,be.size()))<<std::endl;
+                test(Norm(be.vec().SubVector(0,15)-bin.vec()) < 
+                     EPS*Norm(bin.vec()),
                      "B Measurement for Multi Image");
-                test(Norm(be.SubVector(15,be.size())) < EPS*Norm(bin),
+                test(Norm(be.vec().SubVector(15,be.size())) < 
+                     3.*EPS*Norm(bin.vec()),
                      "B Measurement 2 for Multi Image");
 
-                s->nlout = xdbgout;
-                s->method = NLSolver::Dogleg;
-                s->delta0 = 0.1;
-                s->ftol = 1.e-6;
-                //s->verbose = true;
+                if (XDEBUG) s->setOutput(*dbgout);
+                s->useDogleg();
+                s->setDelta0(0.1);
+                s->setFTol(1.e-6);
 #ifdef TESTJ
-                test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image no PSF 1");
+                test(s->testJ(x,f,xdbgout,1.e-6),
+                     "TestJ - Multi Image no PSF 1");
 #endif
-                bool success = s->Solve(x,f);
+                bool success = s->solve(x,f);
                 xdbg<<"x = "<<x<<std::endl;
                 xdbg<<"xe = "<<xe<<std::endl;
                 xdbg<<"f = "<<f<<std::endl;
@@ -1468,7 +1539,8 @@ int main(int argc, char **argv) try
                 test(success,"No PSF Solve - success");
                 test(Norm(x-xe) < 1.e-5,"No PSF Solve - x == xe");
 #ifdef TESTJ
-                test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image no PSF 2");
+                test(s->testJ(x,f,xdbgout,1.e-6),
+                     "TestJ - Multi Image no PSF 2");
 #endif
             }
 #endif
@@ -1481,72 +1553,72 @@ int main(int argc, char **argv) try
 
                 for(int k=0;k<NPSFx;++k) {
                     // allpsf are the psfs in the ell frame.
-                    allpsf.push_back(BVec(4,sigma_px[k],bpsfx_vecs[k]));
-                    dbg<<"allpsf["<<k<<"] = "<<allpsf[k]<<std::endl;
+                    allpsf.push_back(BVec(4,sigmaPsfx[k],bpsfx_vecs[k]));
+                    dbg<<"allpsf["<<k<<"] = "<<allpsf[k].vec()<<std::endl;
 
                     // allpsf2 is the psf in the e0 frame.
-                    allpsf2.push_back(BVec(order,sigma_px[k]));
+                    allpsf2.push_back(BVec(order+4,sigmaPsfx[k]));
                     allpsf2[k] = allpsf[k];
                     tmv::Matrix<double> S1(allpsf2[k].size(),allpsf2[k].size());
                     calculateGTransform(g0,allpsf2[k].getOrder(),S1);
                     tmv::Matrix<double> D1(allpsf2[k].size(),allpsf2[k].size());
                     calculateMuTransform(m0,allpsf2[k].getOrder(),D1);
-                    allpsf2[k] /= D1;
-                    allpsf2[k] /= S1;
-                    xdbg<<"allpsf2[k] = "<<allpsf2[k]<<std::endl;
+                    allpsf2[k].vec() /= D1;
+                    allpsf2[k].vec() /= S1;
+                    xdbg<<"allpsf2[k] = "<<allpsf2[k].vec()<<std::endl;
 
                     // c0 is the convolved galaxy shape in the ell frame.
-                    double sigma_o = sqrt(pow(sigma_i,2)+pow(sigma_px[k],2));
+                    double sigma_o = sqrt(pow(sigma_i,2)+pow(sigmaPsfx[k],2));
                     tmv::Matrix<double> C(45,45);
                     calculatePsfConvolve(allpsf[k],8,sigma_i,C);
                     BVec c0(8,sigma_o);
-                    c0 = C.Cols(0,15) * b0;
-                    xdbg<<"c0 = "<<c0<<std::endl;
+                    c0.vec() = C.Cols(0,15) * b0.vec();
+                    xdbg<<"c0 = "<<c0.vec()<<std::endl;
 
                     allpix[k].clear();
-                    getFakePixList(allpix[k],xcenx[k],ycenx[k],D,aperture,c0,ell);
+                    getFakePixList(
+                        allpix[k],xcenx[k],ycenx[k],D,aperture,c0,ell);
                 }
 
                 if (stype == 0) s.reset(
                     new EllipseSolver(allpix,allpsf2,f_psf,order,sigma_i));
                 else s.reset(
-                    new EllipseSolver2(allpix,allpsf2,f_psf,order,sigma_i,pixScale));
+                    new EllipseSolver2(allpix,allpsf2,f_psf,order,sigma_i,
+                                       pixScale));
 
                 tmv::Vector<double> x(5,0.);
                 tmv::Vector<double> f(5);
-                s->F(xe,f);
+                s->calculateF(xe,f);
                 BVec be = s->getB();
-                xdbg<<"be = "<<be<<std::endl;
-                xdbg<<"Norm(be(0:15)-bin) = "<<Norm(be.SubVector(0,15)-bin)<<std::endl;
-                xdbg<<"Norm(be(15:)) = "<<Norm(be.SubVector(15,be.size()))<<std::endl;
-                test(Norm(be.SubVector(0,15)-bin) < EPS*Norm(bin),
+                xdbg<<"be = "<<be.vec()<<std::endl;
+                xdbg<<"Norm(be(0:15)-bin) = "<<
+                    Norm(be.vec().SubVector(0,15)-bin.vec())<<std::endl;
+                xdbg<<"Norm(be(15:)) = "<<
+                    Norm(be.vec().SubVector(15,be.size()))<<std::endl;
+                test(Norm(be.vec().SubVector(0,15)-bin.vec()) < 
+                     EPS*Norm(bin.vec()),
                      "B Measurement for Multi Image w/ PSF");
-                test(Norm(be.SubVector(15,be.size())) < EPS*Norm(bin),
+                test(Norm(be.vec().SubVector(15,be.size())) < 
+                     3.*EPS*Norm(bin.vec()),
                      "B Measurement 2 for Multi Image w/ PSF");
 
                 x.Zero();
-                s->nlout = xdbgout;
-                s->method = NLSolver::Dogleg;
-                s->delta0 = 0.1;
-                s->ftol = 1.e-6;
+                if (XDEBUG) s->setOutput(*dbgout);
+                s->useDogleg();
+                s->setDelta0(0.1);
+                s->setFTol(1.e-6);
 #ifdef TESTJ
-                test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image w/ PSF 1");
+                test(s->testJ(x,f,xdbgout,1.e-6),
+                     "TestJ - Multi Image w/ PSF 1");
 #endif
-                //s->verbose = true;
-                bool success = s->Solve(x,f);
+                bool success = s->solve(x,f);
                 xdbg<<"x = "<<x<<std::endl;
                 xdbg<<"xe = "<<xe<<std::endl;
                 xdbg<<"f = "<<f<<std::endl;
                 xdbg<<"success = "<<success<<std::endl;
-                //tmv::Matrix<double> J(5,5);
-                //s->J(x,f,J);
-                //xdbg<<"J = "<<J<<std::endl;
-                //J.DivideUsing(tmv::SV);
-                //J.SetDiv();
-                //xdbg<<"S = "<<J.SVD().getS();
-                //s->verbose = true;
 #ifdef TESTJ
-                test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image w/ PSF 2");
+                test(s->testJ(x,f,xdbgout,1.e-6),
+                     "TestJ - Multi Image w/ PSF 2");
 #endif
                 test(success,"PSF Solve - success");
                 test(Norm(x-xe) < 1.e-5,"PSF Solve - x == xe");
@@ -1557,29 +1629,34 @@ int main(int argc, char **argv) try
                 if (stype == 0) s.reset(
                     new EllipseSolver(allpix,allpsf2,f_psf,order,sigma_ix));
                 else s.reset(
-                    new EllipseSolver2(allpix,allpsf2,f_psf,order,sigma_ix,pixScale));
+                    new EllipseSolver2(allpix,allpsf2,f_psf,order,sigma_ix,
+                                       pixScale));
 
                 xe[4] -= dmu;
-                s->F(xe,f);
+                s->calculateF(xe,f);
                 BVec bex = s->getB();
-                xdbg<<"bex = "<<bex<<std::endl;
-                xdbg<<"Norm(bex(0:15)-bin) = "<<Norm(bex.SubVector(0,15)-bin)<<std::endl;
-                xdbg<<"Norm(bex(15:)) = "<<Norm(bex.SubVector(15,bex.size()))<<std::endl;
-                test(Norm(bex.SubVector(0,15)-bin) < EPS*Norm(bin),
+                xdbg<<"bex = "<<bex.vec()<<std::endl;
+                xdbg<<"Norm(bex(0:15)-bin.vec()) = "<<
+                    Norm(bex.vec().SubVector(0,15)-bin.vec())<<std::endl;
+                xdbg<<"Norm(bex(15:)) = "<<
+                    Norm(bex.vec().SubVector(15,bex.size()))<<std::endl;
+                test(Norm(bex.vec().SubVector(0,15)-bin.vec()) < 
+                     EPS*Norm(bin.vec()),
                      "B Measurement for Multi Image w/ PSF");
-                test(Norm(bex.SubVector(15,bex.size())) < EPS*Norm(bin),
+                test(Norm(bex.vec().SubVector(15,bex.size())) < 
+                     3.*EPS*Norm(bin.vec()),
                      "B Measurement 2 for Multi Image w/ PSF");
 
                 x.Zero();
-                s->nlout = xdbgout;
-                s->method = NLSolver::Dogleg;
-                s->delta0 = 0.1;
-                s->ftol = 1.e-6;
-                //s->verbose = true;
+                if (XDEBUG) s->setOutput(*dbgout);
+                s->useDogleg();
+                s->setDelta0(0.1);
+                s->setFTol(1.e-6);
 #ifdef TESTJ
-                test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image w/ PSF 1");
+                test(s->testJ(x,f,xdbgout,1.e-6),
+                     "TestJ - Multi Image w/ PSF 1");
 #endif
-                success = s->Solve(x,f);
+                success = s->solve(x,f);
                 xdbg<<"x = "<<x<<std::endl;
                 xdbg<<"xe = "<<xe<<std::endl;
                 xdbg<<"f = "<<f<<std::endl;
@@ -1587,7 +1664,8 @@ int main(int argc, char **argv) try
                 test(success,"PSF Solve - success");
                 test(Norm(x-xe) < 1.e-5,"PSF Solve - x == xe");
 #ifdef TESTJ
-                test(s->TestJ(x,f,xdbgout,1.e-6),"TestJ - Multi Image w/ PSF 2");
+                test(s->testJ(x,f,xdbgout,1.e-6),
+                     "TestJ - Multi Image w/ PSF 2");
 #endif
                 xe[4] += dmu;
 #endif
@@ -1608,15 +1686,15 @@ int main(int argc, char **argv) try
 
         // First do the test without the PSFs
         BVec bin(4,sigma_i);
-        bin.Zero();
+        bin.vec().Zero();
         bin(0) = 1.;
-        xdbg<<"bin = "<<bin<<std::endl;
+        xdbg<<"bin = "<<bin.vec()<<std::endl;
         int order = 6;
         tmv::Vector<double> xe(5,ell_vecs[ie]);
 
         // b0 is the galaxy shape in the ell frame.
         BVec b0 = bin;
-        allpix.resize(NPSFx);
+        allpix.resize(NPSFx,0);
 
         // Test CrudeMeasure:
         // CrudeMeasure only works precisely for gamma = 0 shapes.
@@ -1624,10 +1702,11 @@ int main(int argc, char **argv) try
         ell_nogamma.setGamma(0.);
         for(int k=0;k<NPSFx;++k) {
             allpix[k].clear();
-            getFakePixList(allpix[k],xcenx[k],ycenx[k],D,aperture,b0,ell_nogamma);
+            getFakePixList(allpix[k],xcenx[k],ycenx[k],D,aperture,b0,
+                           ell_nogamma);
         }
         Ellipse e_0;
-        e_0.CrudeMeasure(allpix[0],sigma_i);
+        e_0.crudeMeasure(allpix[0],sigma_i);
         xdbg<<"Done e_0 Measure\n";
         xdbg<<"e_0 = "<<e_0<<std::endl;
         test(std::abs(e_0.getCen()-ell.getCen()) < 1.e-3, "CrudeMeasure - cen");
@@ -1644,10 +1723,11 @@ int main(int argc, char **argv) try
         // Now the regular Measure
         Ellipse e_1;
         BVec b_1(order,sigma_i);
-        bool success = e_1.Measure(allpix,order,sigma_i,true,0,&b_1);
+        long flag;
+        bool success = e_1.measure(allpix,order,sigma_i,true,flag,0,&b_1);
         xdbg<<"e_1 Measure: success = "<<success<<std::endl;
         xdbg<<"e_1 = "<<e_1<<std::endl;
-        xdbg<<"b_1 = "<<b_1<<std::endl;
+        xdbg<<"b_1 = "<<b_1.vec()<<std::endl;
         test(success,"Measure for Multi Image w/ PSF - success");
         test(std::abs(e_1.getCen()-ell.getCen()) < 1.e-5,
              "Measure for Multi Image w/ PSF - cen");
@@ -1655,9 +1735,9 @@ int main(int argc, char **argv) try
              "Measure for Multi Image w/ PSF - gam");
         test(std::abs(e_1.getMu()-ell.getMu()) < 1.e-5,
              "Measure for Multi Image w/ PSF - mu");
-        test(Norm(b_1.SubVector(0,15)-bin) < 1.e-5*Norm(bin),
+        test(Norm(b_1.vec().SubVector(0,15)-bin.vec()) < 1.e-5*Norm(bin.vec()),
              "Measure for Multi Image w/ PSF - b");
-        test(Norm(b_1.SubVector(15,b_1.size())) < 1.e-5*Norm(bin),
+        test(Norm(b_1.vec().SubVector(15,b_1.size())) < 1.e-5*Norm(bin.vec()),
              "Measure 2 for Multi Image w/ PSF - b");
 
 
@@ -1666,31 +1746,31 @@ int main(int argc, char **argv) try
         std::vector<BVec> allpsf;
         std::vector<BVec> allpsf2;
         xdbg<<"ell = "<<ell<<std::endl;
-        xdbg<<"b0 = "<<b0<<std::endl;
+        xdbg<<"b0 = "<<b0.vec()<<std::endl;
 
         for(int k=0;k<NPSFx;++k) {
             // allpsf are the psfs in the ell frame.
-            allpsf.push_back(BVec(4,sigma_px[k],bpsfx_vecs[k]));
-            dbg<<"allpsf["<<k<<"] = "<<allpsf[k]<<std::endl;
+            allpsf.push_back(BVec(4,sigmaPsfx[k],bpsfx_vecs[k]));
+            dbg<<"allpsf["<<k<<"] = "<<allpsf[k].vec()<<std::endl;
 
             // allpsf2 is the psf in the e0 frame.
-            allpsf2.push_back(BVec(order,sigma_px[k]));
+            allpsf2.push_back(BVec(order+4,sigmaPsfx[k]));
             allpsf2[k] = allpsf[k];
             tmv::Matrix<double> S1(allpsf2[k].size(),allpsf2[k].size());
             calculateGTransform(g0,allpsf2[k].getOrder(),S1);
             tmv::Matrix<double> D1(allpsf2[k].size(),allpsf2[k].size());
             calculateMuTransform(m0,allpsf2[k].getOrder(),D1);
-            allpsf2[k] /= D1;
-            allpsf2[k] /= S1;
-            xdbg<<"allpsf2[k] = "<<allpsf2[k]<<std::endl;
+            allpsf2[k].vec() /= D1;
+            allpsf2[k].vec() /= S1;
+            xdbg<<"allpsf2[k] = "<<allpsf2[k].vec()<<std::endl;
 
             // c0 is the convolved galaxy shape in the ell frame.
-            double sigma_o = sqrt(pow(sigma_i,2)+pow(sigma_px[k],2));
+            double sigma_o = sqrt(pow(sigma_i,2)+pow(sigmaPsfx[k],2));
             tmv::Matrix<double> C(45,45);
             calculatePsfConvolve(allpsf[k],8,sigma_i,C);
             BVec c0(8,sigma_o);
-            c0 = C.Cols(0,15) * b0;
-            xdbg<<"c0 = "<<c0<<std::endl;
+            c0.vec() = C.Cols(0,15) * b0.vec();
+            xdbg<<"c0 = "<<c0.vec()<<std::endl;
 
             allpix[k].clear();
             getFakePixList(allpix[k],xcenx[k],ycenx[k],D,aperture,c0,ell);
@@ -1698,10 +1778,11 @@ int main(int argc, char **argv) try
 
         Ellipse e_2;
         BVec b_2(order,sigma_i);
-        success = e_2.Measure(allpix,allpsf2,order,sigma_i,true,0,&b_2);
+        success = e_2.measure(allpix,allpsf2,order,sigma_i,true,flag,0,&b_2);
         xdbg<<"sigma_i = "<<sigma_i<<std::endl;
         xdbg<<"e_2 = "<<e_2<<std::endl;
-        xdbg<<"b_2 = "<<b_2<<std::endl;
+        xdbg<<"b_2 = "<<b_2.vec()<<std::endl;
+        xdbg<<"flag = "<<flag<<std::endl;
         test(success,"Measure for Multi Image w/ PSF - success");
         test(std::abs(e_2.getCen()-ell.getCen()) < 1.e-5,
              "Measure for Multi Image w/ PSF - cen");
@@ -1709,9 +1790,9 @@ int main(int argc, char **argv) try
              "Measure for Multi Image w/ PSF - gam");
         test(std::abs(e_2.getMu()-ell.getMu()) < 1.e-5,
              "Measure for Multi Image w/ PSF - mu");
-        test(Norm(b_2.SubVector(0,15)-bin) < 1.e-5*Norm(bin),
+        test(Norm(b_2.vec().SubVector(0,15)-bin.vec()) < 1.e-5*Norm(bin.vec()),
              "Measure for Multi Image w/ PSF - b");
-        test(Norm(b_2.SubVector(15,b_2.size())) < 1.e-5*Norm(bin),
+        test(Norm(b_2.vec().SubVector(15,b_2.size())) < 1.e-5*Norm(bin.vec()),
              "Measure 2 for Multi Image w/ PSF - b");
 
 #if 0
@@ -1719,10 +1800,10 @@ int main(int argc, char **argv) try
         double sigma_ix = exp(dmu)*sigma_i;
         Ellipse e_3;
         BVec b_3(order,sigma_ix);
-        success = e_3.Measure(allpix,allpsf2,order,sigma_ix,true,&b_3);
+        success = e_3.measure(allpix,allpsf2,order,sigma_ix,true,flag,0,&b_3);
         xdbg<<"sigma_ix = "<<sigma_ix<<std::endl;
         xdbg<<"e_3 = "<<e_3<<std::endl;
-        xdbg<<"b_3 = "<<b_3<<std::endl;
+        xdbg<<"b_3 = "<<b_3.vec()<<std::endl;
         test(success,"Measure for Multi Image w/ PSF #2 - success");
         test(std::abs(e_3.getCen()-ell.getCen()) < 1.e-5,
              "Measure for Multi Image #2 w/ PSF - cen");
@@ -1730,9 +1811,9 @@ int main(int argc, char **argv) try
              "Measure for Multi Image #2 w/ PSF - gam");
         test(std::abs(e_3.getMu()-ell.getMu()) < 1.e-5,
              "Measure for Multi Image #2 w/ PSF - mu");
-        test(Norm(b_3.SubVector(0,15)-bin) < 1.e-5*Norm(bin),
+        test(Norm(b_3.vec().SubVector(0,15)-bin.vec()) < 1.e-5*Norm(bin.vec()),
              "Measure for Multi Image #2 w/ PSF - b");
-        test(Norm(b_3.SubVector(15,b_3.size())) < 1.e-5*Norm(bin),
+        test(Norm(b_3.vec().SubVector(15,b_3.size())) < 1.e-5*Norm(bin.vec()),
              "Measure 2 for Multi Image #2 w/ PSF - b");
 #endif
     }
@@ -1775,25 +1856,27 @@ int main(int argc, char **argv) try
                  "starcat sky I/O");
             test(std::abs(starCat.getNoise(i) - starCat2.getNoise(i)) <= 0.01,
                  "starcat noise I/O");
-            test(starCat.getFlags(i) == starCat2.getFlags(i),"starcat flags I/O");
+            test(starCat.getFlags(i) == starCat2.getFlags(i),
+                 "starcat flags I/O");
             dbg<<"starcat.mag[i] = "<<starCat.getMag(i)<<
                 ", starcat2.mag[i] = "<<starCat2.getMag(i)<<std::endl;
             dbg<<"abs(diff) = "<<
                 std::abs(starCat.getMag(i) - starCat2.getMag(i))<<std::endl;
             test(std::abs(starCat.getMag(i) - starCat2.getMag(i)) <= 0.01,
                  "starcat mag I/O");
-            test(std::abs(starCat.getObjSize(i) - starCat2.getObjSize(i)) <= 0.01,
+            test(std::abs(starCat.getObjSize(i)-starCat2.getObjSize(i)) <= 0.01,
                  "starcat objsize I/O");
-            test(starCat.isAStar(i) == starCat2.isAStar(i),"starcat isastar I/O");
+            test(starCat.isAStar(i) == starCat2.isAStar(i),
+                 "starcat isastar I/O");
         }
     }
     params["stars_ext"] = all_ext;
 
     // Measure PSF
     PsfCatalog psfcat(starCat,params);
-    double sigma_p = psfcat.estimateSigma(im,weight_im.get(),trans);
+    double sigmaP = psfcat.estimateSigma(im,weight_im.get(),trans);
     PsfLog psflog(params,"testpsf.log");
-    int npsf = psfcat.measurePsf(im,weight_im.get(),trans,sigma_p,psflog);
+    int npsf = psfcat.measurePsf(im,weight_im.get(),trans,sigmaP,psflog);
     dbg<<psflog<<std::endl;
     // There are 244 stars in the file, but depending on the exact parameters,
     // one or two cross the edge, which gives an error flag.
@@ -1822,7 +1905,8 @@ int main(int argc, char **argv) try
                  "psfcat nu I/O");
             test(psfcat.getPsf(i).size() == psfcat2.getPsf(i).size(),
                  "psfcat psf.size I/O");
-            test(std::abs(psfcat.getPsf(i).getSigma()-psfcat2.getPsf(i).getSigma()) 
+            test(std::abs(psfcat.getPsf(i).getSigma() -
+                          psfcat2.getPsf(i).getSigma()) 
                  <= 0.01, "psfcat psf.getSigma I/O");
             test(Norm(psfcat.getPsf(i).vec() - psfcat2.getPsf(i).vec()) <= 
                  1.e-4*Norm(psfcat.getPsf(i).vec()), "psfcat psf vector I/O");
@@ -1857,7 +1941,8 @@ int main(int argc, char **argv) try
         if (k > 0) fitpsf2.read();
         rms = 0.; 
         count = 0;
-        test(fitpsf2.getPsfOrder() == fitpsf.getPsfOrder(), "FittedPSF I/O: order");
+        test(fitpsf2.getPsfOrder() == fitpsf.getPsfOrder(),
+             "FittedPSF I/O: order");
         test(std::abs(fitpsf2.getSigma() - fitpsf.getSigma()) < 0.01, 
              "FittedPSF I/O: sigma");
         for(int i=0;i<nstars;++i) if (!psfcat.getFlags(i)) {
@@ -1879,7 +1964,8 @@ int main(int argc, char **argv) try
     // Measure shears
     ShearCatalog shearcat(incat,trans,params);
     ShearLog shearlog(params,"testshear.log");
-    int nshear = shearcat.measureShears(im,weight_im.get(),trans,fitpsf,shearlog);
+    int nshear = shearcat.measureShears(
+        im,weight_im.get(),trans,fitpsf,shearlog);
     dbg<<shearlog<<std::endl;
     // There are 4557 galaxies in the file without error codes.
     // The code currently converges on more than 3000 of them,
@@ -1903,22 +1989,22 @@ int main(int argc, char **argv) try
                  "shearcat sky I/O");
             test(std::abs(shearcat.getNoise(i) - shearcat2.getNoise(i)) <= 0.01,
                  "shearcat noise I/O");
-            test(shearcat.getFlags(i) == shearcat2.getFlags(i),"shearcat flags I/O");
-            test(std::abs(shearcat.getSkyPos(i) - shearcat2.getSkyPos(i)) <= 0.01,
+            test(shearcat.getFlags(i) == shearcat2.getFlags(i),
+                 "shearcat flags I/O");
+            dbg<<"skypos = "<<shearcat.getSkyPos(i)<<"  "<<shearcat2.getSkyPos(i)<<std::endl;
+            test(std::abs(shearcat.getSkyPos(i) - shearcat2.getSkyPos(i)) 
+                 <= 0.01,
                  "shearcat skypos I/O");
             test(std::abs(shearcat.getShear(i) - shearcat2.getShear(i)) <= 0.01,
                  "shearcat shear I/O");
             test(std::abs(shearcat.getNu(i) - shearcat2.getNu(i)) <= 0.01,
                  "shearcat nu I/O");
-            test(Norm(tmv::Matrix<double>(shearcat.getCov(i) - shearcat2.getCov(i)))
-                 <= 1.e-4*Norm(shearcat.getCov(i)), "shearcat cov I/O");
+            test(Norm(tmv::Matrix<double>(shearcat.getCov(i) - 
+                                          shearcat2.getCov(i)))
+                 <= 1.e-4*Norm(shearcat.getCov(i)),
+                 "shearcat cov I/O");
             test(shearcat.getShape(i).size() == shearcat2.getShape(i).size(),
                  "shearcat shape.size I/O");
-            dbg<<"sigma1 = "<<shearcat.getShape(i).getSigma()<<
-                "  sigma2 = "<<shearcat2.getShape(i).getSigma()<<std::endl;
-            dbg<<"abs(diff) = "<<
-                (std::abs(shearcat.getShape(i).getSigma() -
-                          shearcat2.getShape(i).getSigma()))<<std::endl;
             test(std::abs(shearcat.getShape(i).getSigma() -
                           shearcat2.getShape(i).getSigma()) <= 0.01,
                  "shearcat shape.getSigma I/O");

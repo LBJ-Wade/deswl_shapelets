@@ -60,6 +60,8 @@ public :
 
     PixelList();
     PixelList(const int n);
+    PixelList(const PixelList& rhs);
+    PixelList& operator=(const PixelList& rhs);
     ~PixelList();
 
     void usePool();
@@ -67,6 +69,7 @@ public :
     // These mimic the same functionality of a std::vector<Pixel>
     size_t size() const;
     void reserve(const int n);
+    size_t capacity() const;
     void resize(const int n);
     void clear();
     void push_back(const Pixel& p);
@@ -79,6 +82,7 @@ private :
     boost::shared_ptr<std::vector<Pixel> > _v1;
     typedef PoolAllocator<Pixel,PIXELLIST_BLOCK> PoolAllocPixel;
     boost::shared_ptr<std::vector<Pixel,PoolAllocPixel> > _v2;
+
 };
 
 void getPixList(

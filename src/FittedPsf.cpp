@@ -503,7 +503,8 @@ void FittedPsf::readFits(std::string file)
     }
 
     dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
-    CCfits::FITS fits(file, CCfits::Read, hdu-1);
+    CCfits::FITS fits(file, CCfits::Read);
+    if (hdu > 1) fits.read(hdu-1);
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 

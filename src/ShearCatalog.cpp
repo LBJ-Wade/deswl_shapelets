@@ -249,8 +249,8 @@ void ShearCatalog::writeFits(std::string file) const
         x[i] = _pos[i].getX();
         y[i] = _pos[i].getY();
         // internally we use arcseconds
-        ra[i] = _skyPos[i].getX()/3600;
-        dec[i] = _skyPos[i].getY()/3600;
+        ra[i] = _skyPos[i].getX()/3600.;
+        dec[i] = _skyPos[i].getY()/3600.;
         shear1[i] = real(_shear[i]);
         shear2[i] = imag(_shear[i]);
         cov00[i] = _cov[i](0,0);
@@ -305,30 +305,33 @@ void ShearCatalog::writeAscii(std::string file, std::string delim) const
         throw WriteException("Error opening shear file"+file);
     }
 
-    Form hexForm; hexForm.hex().trail(0);
+    Form sci8; sci8.sci().trail(0).prec(8);
+    Form fix3; fix3.fix().trail(0).prec(3);
+    Form fix8; fix8.fix().trail(0).prec(8);
+    Form fix6; fix6.fix().trail(0).prec(6);
 
     const int nGals = size();
     for(int i=0;i<nGals;++i) {
         fout
             << _id[i] << delim
-            << _pos[i].getX() << delim
-            << _pos[i].getY() << delim
-            << _sky[i] << delim
-            << _noise[i] << delim
-            << hexForm(_flags[i]) << delim
-            << _skyPos[i].getX()/3600 << delim // internally we use arcsec
-            << _skyPos[i].getY()/3600 << delim
-            << real(_shear[i]) << delim
-            << imag(_shear[i]) << delim
-            << _nu[i] << delim
-            << _cov[i](0,0) << delim
-            << _cov[i](0,1) << delim
-            << _cov[i](1,1) << delim
+            << fix3(_pos[i].getX()) << delim
+            << fix3(_pos[i].getY()) << delim
+            << fix3(_sky[i]) << delim
+            << sci8(_noise[i]) << delim
+            << _flags[i] << delim
+            << fix8(_skyPos[i].getX()/3600.) << delim 
+            << fix8(_skyPos[i].getY()/3600.) << delim
+            << sci8(real(_shear[i])) << delim
+            << sci8(imag(_shear[i])) << delim
+            << fix3(_nu[i]) << delim
+            << sci8(_cov[i](0,0)) << delim
+            << sci8(_cov[i](0,1)) << delim
+            << sci8(_cov[i](1,1)) << delim
             << _shape[i].getOrder() << delim
-            << _shape[i].getSigma();
+            << fix6(_shape[i].getSigma());
         const int nCoeff = _shape[i].size();
         for(int j=0;j<nCoeff;++j)
-            fout << delim << _shape[i](j);
+            fout << delim << sci8(_shape[i](j));
         fout << std::endl;
     }
 }
@@ -384,7 +387,8 @@ void ShearCatalog::readFits(std::string file)
     int hdu = _params.read("shear_hdu",2);
 
     dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
-    CCfits::FITS fits(file, CCfits::Read, hdu-1);
+    CCfits::FITS fits(file, CCfits::Read);
+    if (hdu > 1) fits.read(hdu-1);
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 
@@ -445,7 +449,7 @@ void ShearCatalog::readFits(std::string file)
     table.column(raCol).read(ra, start, end);
     table.column(decCol).read(dec, start, end);
     for(long i=0;i<nRows;++i) {
-        _skyPos[i] = Position(ra[i],dec[i]);
+        _skyPos[i] = Position(ra[i]*3600.,dec[i]*3600.);
     }
 
     dbg<<"  "<<shear1Col<<"  "<<shear2Col<<std::endl;
@@ -519,7 +523,7 @@ void ShearCatalog::readAscii(std::string file, std::string delim)
             _sky.push_back(sky1);
             _noise.push_back(noise1);
             _flags.push_back(flag);
-            _skyPos.push_back(Position(ra,dec));
+            _skyPos.push_back(Position(ra*3600.,dec*3600.));
             _shear.push_back(std::complex<double>(s1,s2));
             _nu.push_back(nu1);
             _cov.push_back(tmv::SmallMatrix<double,2,2>());
@@ -552,7 +556,7 @@ void ShearCatalog::readAscii(std::string file, std::string delim)
             getline(fin,temp,d); _flags.push_back(temp);
             getline(fin,temp,d); ra = temp;
             getline(fin,temp,d); dec = temp;
-            _skyPos.push_back(Position(ra,dec));
+            _skyPos.push_back(Position(ra*3600.,dec*3600.));
             getline(fin,temp,d); s1 = temp;
             getline(fin,temp,d); s2 = temp;
             _shear.push_back(std::complex<double>(s1,s2));
@@ -619,12 +623,6 @@ void ShearCatalog::read()
     Assert(_pos.size() == size());
     Assert(_skyPos.size() == size());
     for(int i=0;i<nGals;++i) _bounds += _pos[i];
-
-    // This corrects for the old value of the skypos values.
-    if (_params.read("shear_dc4_input_format",false)) {
-        for(int i=0;i<nGals;++i)
-            _skyPos[i] *= 3600.; // deg -> arcsec
-    }
 
     // Calculate the skyBounds using only the good objects:
     Bounds skyBounds2; // In degrees, rather than arcsec

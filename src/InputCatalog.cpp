@@ -19,7 +19,8 @@ static void readGain(const std::string& file, int hdu, ConfigFile& params)
         throw FileNotFoundException(file);
     }
     xdbg<<"ReadGain: from fits file "<<file<<std::endl;
-    CCfits::FITS fits(file, CCfits::Read, hdu-1);
+    CCfits::FITS fits(file, CCfits::Read);
+    if (hdu > 1) fits.read(hdu-1);
 
     float gain, readNoise;
 
@@ -272,7 +273,8 @@ void InputCatalog::readFits(std::string file)
     int hdu = _params.read("cat_hdu" , 2);
 
     dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
-    CCfits::FITS fits(file, CCfits::Read, hdu-1);
+    CCfits::FITS fits(file, CCfits::Read);
+    if (hdu > 1) fits.read(hdu-1);
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 

@@ -1,7 +1,6 @@
 
 #include "EllipseSolver.h"
 #include "TMV.h"
-#include "dbg.h"
 #include "PsiHelper.h"
 
 static int calculateMaxPsfOrder(const std::vector<BVec>& psf)
@@ -69,7 +68,7 @@ public :
     mutable tmv::Vector<double> b1;
     mutable tmv::Matrix<double> dbdE;
     mutable tmv::Matrix<double> dbdE1;
-    mutable tmv::Vector<double> IA;
+    mutable tmv::Vector<double> AtI;
     mutable tmv::Matrix<double> dCdE;
     mutable double fixuc,fixvc,fixg1,fixg2,fixm,flux;
     double pixScale;
@@ -135,7 +134,7 @@ EllipseSolver2::ESImpl2::ESImpl2(
     U((isFixedCen?0:2)+(isFixedGamma?0:2)+(isFixedMu?0:1),5,0.),
     xinit(5,0.), xx(5), x_short(U.colsize()),
     f_short(U.colsize()+(shouldUseFlux?1:0)),
-    b1(nsize), dbdE(nsize,5), dbdE1(nsize,5), IA(np2size),
+    b1(nsize), dbdE(nsize,5), dbdE1(nsize,5), AtI(np2size),
     dCdE(0,0), pixScale(_pixScale), normD(b.size()), maxpsforder(0),
     _Gx(np2size,nsize), _Gy(np2size,nsize),
     _Gg1(np2size,nsize), _Gg2(np2size,nsize),
@@ -199,7 +198,7 @@ EllipseSolver2::ESImpl2::ESImpl2(
     U((isFixedCen?0:2)+(isFixedGamma?0:2)+(isFixedMu?0:1),5,0.),
     xinit(5,0.), xx(5), x_short(U.colsize()),
     f_short(U.colsize()+(shouldUseFlux?1:0)),
-    b1(nsize), dbdE(nsize,5), dbdE1(nsize,5), IA(np2size),
+    b1(nsize), dbdE(nsize,5), dbdE1(nsize,5), AtI(np2size),
     dCdE(nsize,nsize), pixScale(_pixScale), normD(b.size()),
     maxpsforder(calculateMaxPsfOrder(_psf)),
     _Gx(np2size,nsize), _Gy(np2size,nsize),
@@ -327,8 +326,9 @@ void EllipseSolver2::ESImpl2::calculateF(
         Z1.SubVector(n,nx) /= sigma_obs[k];
 
         makePsi(A[k],Z1.SubVector(n,nx),b.getOrder());
-        b1 = I.SubVector(n,nx) * A[k];
-        b1 *= normD;
+        // b = C^-1 normD AT I
+        b1 = A[k].Transpose() * I.SubVector(n,nx);
+        b1 = normD * b1;
 
         if (psf) {
             int psfsize = (*psf)[k].size();
@@ -357,6 +357,7 @@ void EllipseSolver2::ESImpl2::calculateF(
     } else {
         f = U*b.vec().SubVector(1,6)/flux;
     }
+    // Leave this out of f, but get it right in case getB is called.
     b.vec() *= exp(-2.*mu);
 }
 
@@ -364,10 +365,9 @@ void EllipseSolver2::ESImpl2::calculateJ(
     const tmv::Vector<double>& x, const tmv::Vector<double>& f,
     tmv::Matrix<double>& J) const
 {
-    // b = exp(-2 mu) C^-1 normD AT I
-    // db/dE = exp(-2 mu) C^-1 normD (dA/dE)T I
-    //         - exp(-2 mu) C^-1 (dC/dE) C^-1 normD AT I
-    //         [and if E == mu] -2 b
+    // b = C^-1 normD AT I
+    // db/dE = C^-1 normD (dA/dE)T I
+    //         - C^-1 (dC/dE) C^-1 normD AT I
     Assert(x.size() == U.colsize());
     Assert(J.rowsize() == U.colsize());
     if (shouldUseFlux) {
@@ -405,32 +405,34 @@ void EllipseSolver2::ESImpl2::calculateJ(
 
         augmentPsi(A_aux[k],Z1.SubVector(n,nx),b.getOrder());
 
-        //tmv::Vector<double> IA = exp(-2.*mu) * I.SubVector(n,nx) * A_aux;
-        IA = I.SubVector(n,nx) * A_aux[k];
+        AtI = A_aux[k].Transpose() * I.SubVector(n,nx);
 
-        dbdE1.col(0) = -IA * m*(1.-g1)*Gx;
-        dbdE1.col(0) += IA * m*g2*Gy;
+        dbdE1.col(0) = -m*(1.-g1) * Gx.Transpose() * AtI;
+        dbdE1.col(0) += m*g2 * Gy.Transpose() * AtI;
 
-        dbdE1.col(1) = -IA * m*(1.+g1)*Gy;
-        dbdE1.col(1) += IA * m*g2*Gx;
+        dbdE1.col(1) = -m*(1.+g1) * Gy.Transpose() * AtI;
+        dbdE1.col(1) += m*g2 * Gx.Transpose() * AtI;
 
-        dbdE1.col(2) = -IA * fact*Gg1;
-        dbdE1.col(2) += IA * fact*g2*Gth;
+        dbdE1.col(2) = -fact * Gg1.Transpose() * AtI;
+        dbdE1.col(2) += fact*g2 * Gth.Transpose() * AtI;
 
-        dbdE1.col(3) = -IA * fact*Gg2;
-        dbdE1.col(3) -= IA * fact*g1*Gth;
+        dbdE1.col(3) = -fact * Gg2.Transpose() * AtI;
+        dbdE1.col(3) -= fact*g1 * Gth.Transpose() * AtI;
 
-        dbdE1.col(4) = -IA * Gmu;
+        dbdE1.col(4) = -Gmu.Transpose() * AtI;
 
         dbdE1 = normD * dbdE1;
-        b1 = normD * IA.SubVector(0,nsize);
+
+        // So far dbdE1 = normD * (dA/dE)T * I
 
         if (psf) {
-            // dbdE -= dCdE b
+
+            // dbdE -= dCdE C^-1 normD AT I
             int n2 = ((*psf)[k].getOrder()+3)*((*psf)[k].getOrder()+4)/2;
             size_t psfsize = (*psf)[k].size();
 
             Assert(C[k].DivIsSet());
+            b1 = normD * AtI.SubVector(0,nsize);
             b1 /= C[k];
 
             tmv::MatrixView<double> dTdE = _dTdE.SubMatrix(0,psfsize,0,psfsize);
@@ -463,6 +465,8 @@ void EllipseSolver2::ESImpl2::calculateJ(
 
             Assert(C[k].DivIsSet());
             dbdE1 /= C[k];
+            // db/dE = C^-1 normD (dA/dE)T I
+            //         - C^-1 (dC/dE) C^-1 normD AT I
         }
 
         dbdE += dbdE1;

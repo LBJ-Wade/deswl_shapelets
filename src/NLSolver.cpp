@@ -33,11 +33,14 @@ void NLSolver::calculateJ(
 
     tmv::Vector<double> x2 = x;
     tmv::Vector<double> f2(f.size());
+    tmv::Vector<double> f1(f.size());
     for(size_t j=0;j<x.size();++j) {
         const double dx = sqrtEps * (Norm(x) + 1.);
         x2(j) += dx;
         this->calculateF(x2,f2);
-        df.col(j) = (f2-f)/dx;
+        x2(j) -= 2.*dx;
+        this->calculateF(x2,f1);
+        df.col(j) = (f2-f1)/(2.*dx);
         x2(j) = x(j);
     }
 }

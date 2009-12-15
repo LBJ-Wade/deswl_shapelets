@@ -15,7 +15,7 @@ inline void preTest(std::string s)
     }
 }
 
-inline void test(bool x, std::string s)
+inline void doTest(bool x, std::string s)
 {
     if (x) {
         if (shouldShowTests) std::cout<<"  Passed"<<std::endl;
@@ -34,10 +34,10 @@ inline void test(bool x, std::string s)
     }
 }
 
-#define runTest(x,s) \
+#define test(x,s) \
     do { \
         preTest(s); \
-        test(x,s); \
+        doTest(x,s); \
     } while (false)
 
 #endif

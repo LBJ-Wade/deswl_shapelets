@@ -551,29 +551,32 @@ void MultiShearCatalog::writeAscii(std::string file, std::string delim) const
         throw WriteException("Error opening shear file"+file);
     }
 
-    Form hexForm; hexForm.hex().trail(0);
+    Form sci8; sci8.sci().trail(0).prec(8);
+    Form fix3; fix3.fix().trail(0).prec(3);
+    Form fix8; fix8.fix().trail(0).prec(8);
+    Form fix6; fix6.fix().trail(0).prec(6);
 
     const int nGals = size();
     for(int i=0;i<nGals;++i) {
         fout
             << _id[i] << delim
-            << _skyPos[i].getX()/3600. << delim
-            << _skyPos[i].getY()/3600. << delim
-            << hexForm(_flags[i]) << delim
-            << real(_shear[i]) << delim
-            << imag(_shear[i]) << delim
-            << _nu[i] << delim
-            << _cov[i](0,0) << delim
-            << _cov[i](0,1) << delim
-            << _cov[i](1,1) << delim
-            << _shape[i].getOrder() << delim
-            << _shape[i].getSigma() << delim
+            << fix8(_skyPos[i].getX()/3600.) << delim
+            << fix8(_skyPos[i].getY()/3600.) << delim
+            << _flags[i] << delim
+            << sci8(real(_shear[i])) << delim
+            << sci8(imag(_shear[i])) << delim
+            << fix3(_nu[i]) << delim
+            << sci8(_cov[i](0,0)) << delim
+            << sci8(_cov[i](0,1)) << delim
+            << sci8(_cov[i](1,1)) << delim
             << _nImagesFound[i] << delim
             << _nImagesGotPix[i] << delim
-            << _inputFlags[i];
+            << _inputFlags[i] << delim
+            << _shape[i].getOrder() << delim
+            << fix6(_shape[i].getSigma()) << delim;
         const int nCoeffs = _shape[i].size();
         for(int j=0;j<nCoeffs;++j)
-            fout << delim << _shape[i](j);
+            fout << delim << sci8(_shape[i](j));
         fout << std::endl;
     }
 }
@@ -622,7 +625,8 @@ void MultiShearCatalog::readFits(std::string file)
     int hdu = _params.read("multishear_hdu",2);
 
     dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
-    CCfits::FITS fits(file, CCfits::Read, hdu-1);
+    CCfits::FITS fits(file, CCfits::Read);
+    if (hdu > 1) fits.read(hdu-1);
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 
@@ -746,8 +750,9 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
         double ra,decl,s1,s2,nu1,c00,c01,c11,bSigma;
         while ( fin >> id1 >> ra >> decl >> 
                 flag >> s1 >> s2 >> nu1 >>
-                c00 >> c01 >> c11 >> bOrder >> bSigma >>
-                nfound >> ngotpix >> inflag ) {
+                c00 >> c01 >> c11 >> 
+                nfound >> ngotpix >> inflag >>
+                bOrder >> bSigma) {
             _id.push_back(id1);
             _skyPos.push_back(Position(ra,decl));
             _flags.push_back(flag);
@@ -755,13 +760,13 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
             _nu.push_back(nu1);
             _cov.push_back(tmv::SmallMatrix<double,2,2>());
             _cov.back() = tmv::ListInit, c00, c01, c01, c11;
+            _nImagesFound.push_back(nfound);
+            _nImagesGotPix.push_back(ngotpix);
+            _inputFlags.push_back(inflag);
             _shape.push_back(BVec(bOrder,bSigma));
             const int nCoeffs = _shape.back().size();
             for(int j=0;j<nCoeffs;++j) 
                 fin >> _shape.back()(j);
-            _nImagesFound.push_back(nfound);
-            _nImagesGotPix.push_back(ngotpix);
-            _inputFlags.push_back(inflag);
         }
     } else {
         if (delim.size() > 1) {
@@ -791,6 +796,9 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
             getline(fin,temp,d); c11 = temp;
             _cov.push_back(tmv::SmallMatrix<double,2,2>());
             _cov.back() = tmv::ListInit, c00, c01, c01, c11;
+            getline(fin,temp,d); _nImagesFound.push_back(temp);
+            getline(fin,temp,d); _nImagesGotPix.push_back(temp);
+            getline(fin,temp,d); _inputFlags.push_back(temp);
             getline(fin,temp,d); bOrder = temp;
             getline(fin,temp,d); bSigma = temp;
             _shape.push_back(BVec(bOrder,bSigma));
@@ -800,9 +808,6 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
             }
             // Last one doesn't have a following delimiter
             getline(fin,temp); _shape.back()(nCoeffs-1) = temp;
-            _nImagesFound.push_back(temp);
-            _nImagesGotPix.push_back(temp);
-            _inputFlags.push_back(temp);
         }
     }
 }

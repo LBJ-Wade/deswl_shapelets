@@ -11,6 +11,12 @@ BVec& BVec::operator=(const AssignableToBVec& rhs)
     return *this; 
 }
 
+BVec& BVec::operator=(const BVec& rhs)
+{
+    rhs.AssignTo(*this);
+    return *this; 
+}
+
 void BVec::AssignTo(BVec& rhs) const
 {
     Assert(rhs.getOrder() >= getOrder());

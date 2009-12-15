@@ -4,11 +4,13 @@
 #ifdef USE_EIGEN
 #include "Eigen/Core"
 typedef Eigen::VectorXd DVector;
+typedef Eigen::Block<DVector,Dynamic,1> DVectorView;
 typedef Eigen::MatrixXd DMatrix;
 typedef Eigen::Block<DMatrix> DMatrixView;
 #else
 #include "TMV.h"
 typedef tmv::Vector<double> DVector;
+typedef tmv::VectorView<double> DVectorView;
 typedef tmv::Matrix<double> DMatrix;
 typedef tmv::MatrixView<double> DMatrixView;
 #endif
@@ -48,6 +50,7 @@ public :
     ~BVec() {}
 
     BVec& operator=(const AssignableToBVec& rhs);
+    BVec& operator=(const BVec& rhs);
 
     void AssignTo(BVec& bvec) const;
 
