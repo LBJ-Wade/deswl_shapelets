@@ -118,6 +118,7 @@ private :
     std::vector<std::string> _imageFileList;
     std::vector<std::string> _shearFileList;
     std::vector<std::string> _fitPsfFileList;
+    std::vector<std::string> _skyMapFileList;
     std::vector<Bounds> _savedSeSkyBounds;
 };
 

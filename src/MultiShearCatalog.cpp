@@ -85,6 +85,11 @@ int MultiShearCatalog::getPixels(const Bounds& bounds)
         _params["shear_file"] = shearFile;
         _params["fitpsf_file"] = fitPsfFile;
 
+        if (_skyMapFileList.size() > 0) {
+            std::string skyMapFile = _skyMapFileList[iFile];
+            _params["skymap_file"] = skyMapFile;
+        }
+
         // Load the pixels
         getImagePixelLists(iFile,bounds);
         dbg<<"\n";
@@ -127,17 +132,32 @@ void MultiShearCatalog::readFileLists()
         _imageFileList.clear();
         _shearFileList.clear();
         _fitPsfFileList.clear();
+        _skyMapFileList.clear();
 
         std::string imageFilename;
         std::string shearFilename;
-        std::string psfFilename;
-        while (flist >> imageFilename >> shearFilename >> psfFilename) {
+        std::string fitPsfFilename;
+        std::string skyMapFilename;
+        bool isSkyMapInList = _params.read("multishear_skymap_in_list",false);
+
+        while (flist >> imageFilename >> shearFilename >> fitPsfFilename) {
             _imageFileList.push_back(imageFilename);
             _shearFileList.push_back(shearFilename);
-            _fitPsfFileList.push_back(psfFilename);
+            _fitPsfFileList.push_back(fitPsfFilename);
             dbg<<"Files are :\n"<<imageFilename<<std::endl;
             dbg<<shearFilename<<std::endl;
-            dbg<<psfFilename<<std::endl;
+            dbg<<fitPsfFilename<<std::endl;
+            if (isSkyMapInList) {
+                flist >> skyMapFilename;
+                if (!flist) {
+                    throw ReadException(
+                        "Unable to read skyMapFilename in list file " + file);
+                }
+                _skyMapFileList.push_back(skyMapFilename);
+            }
+        }
+        if (isSkyMapInList) {
+            Assert(_skyMapFileList.size() == _imageFileList.size());
         }
     } catch (std::exception& e) {
         throw ReadException(
@@ -150,7 +170,6 @@ void MultiShearCatalog::readFileLists()
     dbg<<"Done reading file lists\n";
     Assert(_shearFileList.size() == _imageFileList.size());
     Assert(_fitPsfFileList.size() == _imageFileList.size());
-
 }
 
 void MultiShearCatalog::resize(int n)
@@ -291,6 +310,8 @@ double MultiShearCatalog::calculateMemoryFootprint(bool shouldGetMax) const
         getMemoryFootprint(_shearFileList)/1024./1024.<<" MB\n";
     dbg<<"fitpsf_file_list: "<<
         getMemoryFootprint(_fitPsfFileList)/1024./1024.<<" MB\n";
+    dbg<<"skymap_file_list: "<<
+        getMemoryFootprint(_skyMapFileList)/1024./1024.<<" MB\n";
     dbg<<"saved_se_skybounds: "<<
         getMemoryFootprint(_savedSeSkyBounds)/1024./1024.<<" MB\n";
 
@@ -312,6 +333,7 @@ double MultiShearCatalog::calculateMemoryFootprint(bool shouldGetMax) const
         getMemoryFootprint(_imageFileList) +
         getMemoryFootprint(_shearFileList) +
         getMemoryFootprint(_fitPsfFileList) +
+        getMemoryFootprint(_skyMapFileList) +
         getMemoryFootprint(_savedSeSkyBounds);
     totMem /= 1024.*1024.;  // B -> MB
     dbg<<"totmem = "<<totMem<<std::endl;
