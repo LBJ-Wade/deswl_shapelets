@@ -7,7 +7,7 @@
 #include "Params.h"
 #include "Name.h"
 
-CoaddCatalog::CoaddCatalog(ConfigFile& params) :
+CoaddCatalog::CoaddCatalog(const ConfigFile& params) :
     _params(params)
 {
     readCatalog();
@@ -117,7 +117,7 @@ CoaddCatalog::~CoaddCatalog()
 void CoaddCatalog::readCatalog()
 {
     std::string file=_params.get("coaddcat_file");
-    int hdu = _params.read<int>("coaddcat_hdu");
+    int hdu = getHdu(_params,"coaddcat",file,1);
 
     if (!doesFileExist(file)) {
         throw FileNotFoundException(file);

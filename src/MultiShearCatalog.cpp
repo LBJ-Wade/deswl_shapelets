@@ -644,7 +644,7 @@ void MultiShearCatalog::read()
 
 void MultiShearCatalog::readFits(std::string file)
 {
-    int hdu = _params.read("multishear_hdu",2);
+    int hdu = getHdu(_params,"multishear",file,2);
 
     dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
     CCfits::FITS fits(file, CCfits::Read);

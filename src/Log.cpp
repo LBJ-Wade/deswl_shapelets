@@ -3,7 +3,7 @@
 #include <CCfits/CCfits>
 #include "Log.h"
 #include "Params.h"
-
+#include "Name.h"
 
 Log::Log(const ConfigFile& params,
          std::string logFile, std::string fitsFile) :
@@ -75,7 +75,7 @@ void ShearLog::writeLogToFitsHeader() const
     if ("" == _fitsFile) return;
 
     try {
-        int hdu = this->_params.read("shear_hdu",2);
+        int hdu = getHdu(this->_params,"shear",_fitsFile,2);
         CCfits::FITS fits(_fitsFile, CCfits::Write, hdu-1);
 
         CCfits::ExtHDU& table=fits.extension(hdu-1);
@@ -217,7 +217,7 @@ void PsfLog::writeLogToFitsHeader() const
     if ("" == _fitsFile) return;
 
     try {
-        int hdu = this->_params.read("psf_hdu",2);
+        int hdu = getHdu(this->_params,"psf",_fitsFile,2);
         CCfits::FITS fits(_fitsFile, CCfits::Write, hdu-1);
 
         CCfits::ExtHDU& table=fits.extension(hdu-1);
@@ -316,7 +316,7 @@ void FindStarsLog::writeLogToFitsHeader() const
     if ("" == _fitsFile) return;
 
     try {
-        int hdu = this->_params.read("stars_hdu",2);
+        int hdu = getHdu(this->_params,"stars",_fitsFile,2);
         CCfits::FITS fits(_fitsFile, CCfits::Write, hdu-1);
 
         CCfits::ExtHDU& table=fits.extension(hdu-1);

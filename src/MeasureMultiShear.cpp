@@ -22,6 +22,8 @@
 
 static void doMeasureMultiShear(ConfigFile& params, ShearLog& log) 
 {
+    const double ARCSEC_PER_RAD = 206264.806247;
+
     bool isTiming = params.read("timing",false);
     timeval tp;
     double t1=0.,t2=0.;
@@ -46,12 +48,27 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
     MultiShearCatalog shearCat(coaddCat,params);
     dbg<<"Made multishearcat\n";
     dbg<<"Total bounds are "<<shearCat.getSkyBounds()<<std::endl;
-    dbg<<"Area = "<<shearCat.getSkyBounds().getArea()/3600.<<" square arcmin\n";
-    dbg<<" = "<<shearCat.getSkyBounds().getArea()/3600./3600.<<" square degrees\n";
+    double area = shearCat.getSkyBounds().getArea();
+    area /= 3600.;
+    dbg<<"Raw area = "<<area<<" square arcmin\n";
+    double dec = shearCat.getSkyBounds().getCenter().getY();
+    area *= cos(dec / ARCSEC_PER_RAD);
+    dbg<<"Corrected area = "<<area<<" square arcmin";
+    area /= 3600.;
+    dbg<<" = "<<area<<" square degrees\n";
 
     log._nGals = shearCat.size();
-    log._nGoodIn = std::count(
-        shearCat.getFlagsList().begin(),shearCat.getFlagsList().end(),0);
+    xdbg<<"nGals = "<<log._nGals<<std::endl;
+    xdbg<<"flagslist.size = "<<shearCat.getFlagsList().size()<<std::endl;
+    int nGood = 0;
+    for(int i=0;i<int(shearCat.getFlagsList().size());++i)
+        if (shearCat.getFlagsList()[i] == 0) ++nGood;
+    xdbg<<"nGood 1 = "<<nGood<<std::endl;
+
+    //log._nGoodIn = std::count(
+        //shearCat.getFlagsList().begin(),shearCat.getFlagsList().end(),0);
+    log._nGoodIn = nGood;
+    xdbg<<"nGood = "<<log._nGoodIn<<std::endl;
     dbg<<log._nGoodIn<<"/"<<log._nGals<<" galaxies with no input flags\n";
 
     if (isTiming) {
@@ -66,6 +83,7 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
 
     long nShear = 0;
     double sectionSize = params.get("multishear_section_size");
+    xdbg<<"sectionSize = "<<sectionSize<<std::endl;
     sectionSize *= 60.; // arcmin -> arcsec
     std::vector<Bounds> sectionBounds = shearCat.splitBounds(sectionSize);
     for(size_t i=0;i<sectionBounds.size();++i) {
@@ -188,7 +206,7 @@ int main(int argc, char **argv) try
     try {
         doMeasureMultiShear(params,*log);
     }
-#if 0
+#if 1
     // Change to 1 to let gdb see where the program bombed out.
     catch(int) {}
 #else

@@ -93,6 +93,7 @@ inline int basicSetup(
 #endif
         }
         else dbgout = &std::cout;
+        dbgout->setf(std::ios_base::unitbuf);
     }
 
 #ifndef USE_EIGEN

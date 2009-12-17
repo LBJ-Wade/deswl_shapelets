@@ -88,11 +88,9 @@ InputCatalog::InputCatalog(ConfigFile& params, const Image<double>* im) :
         readNoise = _params.read<double>("image_readnoise");
         dbg<<"gain, readnoise = "<<gain<<"  "<<readNoise<<std::endl;
     } else if (noiseMethod == "GAIN_FITS") {
-        // params, not _params, since we need a non-const version,
-        // and the _params object we store as a const reference.
-        std::string imageName = makeName(_params,"image",true,false);
-        int hdu = _params.read("image_hdu",1);
-        readGain(imageName,hdu,params);
+        std::string imageName = makeName(_params,"image",true,true);
+        int hdu = getHdu(_params,"image",imageName,1);
+        readGain(imageName,hdu,_params);
         xdbg<<"Read gain = "<<_params["image_gain"]<<
             ", rdn = "<<_params["image_readnoise"]<<std::endl;
         gain = _params.read<double>("image_gain");
@@ -227,7 +225,7 @@ InputCatalog::InputCatalog(ConfigFile& params, const Image<double>* im) :
 
 void InputCatalog::read()
 {
-    std::string file = makeName(_params,"cat",true,false);
+    std::string file = makeName(_params,"cat",true,true);
     dbg<< "Reading input cat from file: " << file << std::endl;
 
     bool isFitsIo = false;
@@ -270,7 +268,7 @@ void InputCatalog::readFits(std::string file)
 {
     dbg<< "Reading cat from FITS file: " << file << std::endl;
 
-    int hdu = _params.read("cat_hdu" , 2);
+    int hdu = getHdu(_params,"cat",file,1);
 
     dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
     CCfits::FITS fits(file, CCfits::Read);

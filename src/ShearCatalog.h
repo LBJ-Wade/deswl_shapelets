@@ -19,8 +19,9 @@ class ShearCatalog
 public :
 
     // Make from incat, trans
-    ShearCatalog(const InputCatalog& inCat, const Transformation& trans,
-                 const ConfigFile& params);
+    ShearCatalog(
+        const InputCatalog& inCat, const Transformation& trans,
+        const ConfigFile& params);
 
     // Read from file
     ShearCatalog(const ConfigFile& params);

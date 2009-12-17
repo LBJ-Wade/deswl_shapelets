@@ -337,9 +337,9 @@ void MultiShearCatalog::getImagePixelLists(
         meanSky /= shearCat.size();
     }
     if (skyMethod == "MAP") {
-        int skyMapHdu = _params.read("skymap_hdu",1);
-        skyMap.reset(
-            new Image<float>(makeName(_params,"skymap",true,false),skyMapHdu));
+        std::string skyMapName = makeName(_params,"skymap",true,true);
+        int skyMapHdu = getHdu(_params,"skymap",skyMapName,1);
+        skyMap.reset(new Image<float>(skyMapName,skyMapHdu));
     }
 
     BVec psf(fitPsf.getPsfOrder(), fitPsf.getSigma());

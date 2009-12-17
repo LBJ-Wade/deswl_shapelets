@@ -26,10 +26,10 @@ public:
     // parameters used by the findstars algorithm.
     StarCatalog(
         const InputCatalog& inCat,
-        ConfigFile& params, std::string fsPrefix = "stars_");
+        const ConfigFile& params, std::string fsPrefix = "stars_");
 
     // Read in from file
-    StarCatalog(ConfigFile& params, std::string fsPrefix = "stars_");
+    StarCatalog(const ConfigFile& params, std::string fsPrefix = "stars_");
 
     size_t size() const { return _id.size(); }
     void read();

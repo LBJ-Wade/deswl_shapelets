@@ -50,7 +50,7 @@ public :
 
 private :
 
-    const ConfigFile& _params;
+    ConfigFile& _params;
 
     std::vector<long> _id;
     std::vector<Position> _pos;

@@ -18,4 +18,8 @@ std::string makeName(
 std::vector<std::string> makeMultiName(
     const ConfigFile& params, const std::string& what);
 
+int getHdu(
+    const ConfigFile& params, const std::string& what, 
+    const std::string& name, int def);
+
 #endif

@@ -99,7 +99,7 @@ void calculateSigma(
 
 StarCatalog::StarCatalog(
     const InputCatalog& inCat,
-    ConfigFile& params, std::string fsPrefix) :
+    const ConfigFile& params, std::string fsPrefix) :
     _id(inCat.getIdList()), _pos(inCat.getPosList()), 
     _sky(inCat.getSkyList()), _noise(inCat.getNoiseList()),
     _flags(inCat.getFlagsList()), _mag(inCat.getMagList()), 
@@ -117,7 +117,7 @@ StarCatalog::StarCatalog(
     Assert(_isAStar.size() == size());
 }
 
-StarCatalog::StarCatalog(ConfigFile& params, std::string fsPrefix) :
+StarCatalog::StarCatalog(const ConfigFile& params, std::string fsPrefix) :
     _params(params), _prefix(fsPrefix)
 { 
     read();
@@ -425,7 +425,7 @@ void StarCatalog::write() const
 
 void StarCatalog::readFits(std::string file) 
 {
-    int hdu = _params.read("stars_hdu",2);
+    int hdu = getHdu(_params,"stars",file,2);
 
     dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
     CCfits::FITS fits(file, CCfits::Read);

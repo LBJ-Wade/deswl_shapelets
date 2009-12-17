@@ -11,7 +11,7 @@ class CoaddCatalog
 
 public :
 
-    CoaddCatalog(ConfigFile& _params);
+    CoaddCatalog(const ConfigFile& _params);
     ~CoaddCatalog();
 
     size_t size() const { return _id.size(); }
