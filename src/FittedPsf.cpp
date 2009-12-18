@@ -499,7 +499,7 @@ void FittedPsf::readFits(std::string file)
     // must do this way because of the const thing
     int hdu = getHdu(_params,"fitpsf",file,2);
 
-    dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
+    dbg<<"Opening FittedPsf file "<<file<<" at hdu "<<hdu<<std::endl;
     CCfits::FITS fits(file, CCfits::Read);
     if (hdu > 1) fits.read(hdu-1);
 

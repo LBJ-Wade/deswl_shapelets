@@ -46,15 +46,13 @@ CoaddCatalog::CoaddCatalog(const ConfigFile& params) :
     }
 
     bool shouldOutputDots = _params.read("output_dots",false);
-    if (shouldOutputDots) {
-        std::cerr<<"total ojbects = "<<size()<<std::endl;
-        std::cerr<<"flag counts = ";
-        for(int i=0;i<8;++i) std::cerr<<flagCount[i]<<" ";
-        std::cerr<<"  no flag: "<<flagCount[8]<<std::endl;
-        std::cerr<<"mag counts = ";
-        for(int i=0;i<10;++i) std::cerr<<magCount[i]<<" ";
-        std::cerr<<std::endl;
-    }
+    dbg<<"total ojbects = "<<size()<<std::endl;
+    dbg<<"flag counts = ";
+    for(int i=0;i<8;++i) dbg<<flagCount[i]<<" ";
+    dbg<<"  no flag: "<<flagCount[8]<<std::endl;
+    dbg<<"mag counts = ";
+    for(int i=0;i<10;++i) dbg<<magCount[i]<<" ";
+    dbg<<std::endl;
 
     // Convert input flags into our flag schema
     if (_flags.size() == 0) {
@@ -96,10 +94,10 @@ CoaddCatalog::CoaddCatalog(const ConfigFile& params) :
     }
     int goodCount = std::count(_flags.begin(),_flags.end(),0);
     if (shouldOutputDots) {
-        std::cerr<<"# good objects = "<<goodCount<<std::endl;
+        std::cerr<<"Total # good objects = "<<goodCount<<std::endl;
     }
     Bounds skyBounds2; // In degrees, rather than arcsec
-    for(int i=0;i<nObj;++i) {
+    for(int i=0;i<nObj;++i) if (!_flags[i]) {
         _skyBounds += _skyPos[i];
         Position temp = _skyPos[i];
         temp /= 3600.;
@@ -123,7 +121,7 @@ void CoaddCatalog::readCatalog()
         throw FileNotFoundException(file);
     }
     try {
-        dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
+        dbg<<"Opening CoaddCatalog file "<<file<<" at hdu "<<hdu<<std::endl;
         CCfits::FITS fits(file, CCfits::Read);
         if (hdu > 1) fits.read(hdu-1);
 

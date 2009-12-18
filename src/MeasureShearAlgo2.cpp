@@ -259,8 +259,11 @@ void measureMultiShear(
         dbg<<e<<std::endl;
         ++log._nfTmvError;
         flag |= TMV_EXCEPTION;
-    } catch (std::exception) {
-        throw;
+    } catch (std::exception& e) {
+        dbg<<"std::exception thrown in MeasureSingleShear\n";
+        dbg<<e.what()<<std::endl;
+        ++log._nfOtherError;
+        flag |= STD_EXCEPTION;
     } catch (...) {
         dbg<<"unkown exception in MeasureSingleShear\n";
         ++log._nfOtherError;

@@ -115,16 +115,22 @@ void EllipseSolver::calculateJ(
 static size_t calculateSumSize(const std::vector<PixelList>& v)
 {
     size_t sum = 0;
-    for(size_t i=0;i<v.size();++i) sum += v[i].size();
+    dbg<<"nPix = ";
+    for(size_t i=0;i<v.size();++i) {
+        if (i==0) dbg<<v.size();
+        else dbg<<" + "<<v.size();
+        sum += v[i].size();
+    }
+    dbg<<" = "<<sum<<std::endl;
     return sum;
 }
 
 EllipseSolver::ESImpl::ESImpl(
     const std::vector<PixelList>& _pix, 
-    int _order, double _sigma, 
+    int order, double _sigma, 
     bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux) :
-    nsize((_order+1)*(_order+2)/2),
-    np2size((_order+3)*(_order+4)/2), b(_order,_sigma),
+    nsize((order+1)*(order+2)/2),
+    np2size((order+3)*(order+4)/2), b(order,_sigma),
     pix(_pix), psf(0), f_psf(1.), sigma_obs(pix.size(),_sigma),
     I(calculateSumSize(pix)), Z(I.size()), Z1(I.size()), W(I.size()), 
     psi(I.size(),nsize,0.), A_aux(I.size(),np2size,0.), AC(0,0),
@@ -141,13 +147,15 @@ EllipseSolver::ESImpl::ESImpl(
     _Gth(np2size,nsize), _Gmu(np2size,nsize),
     _dTdE(0,0)
 {
-    for(size_t k=0,n=0;k<pix.size();++k) {
+    size_t n=0;
+    for(size_t k=0;k<pix.size();++k) {
         for(size_t i=0;i<pix[k].size();++i,++n) {
             I(n) = pix[k][i].getFlux()*pix[k][i].getInverseSigma();
             W(n) = pix[k][i].getInverseSigma();
             Z(n) = pix[k][i].getPos();
         }
     }
+    Assert(n == I.size());
 
     A.DivideUsing(tmv::QR);
     A.SaveDiv();
@@ -159,12 +167,12 @@ EllipseSolver::ESImpl::ESImpl(
     if (!fixgam) { U(k++,2) = 1.; U(k++,3) = 1.; }
     if (!fixmu) { U(k,4) = 1.; }
 
-    setupGx(_Gx,_order+2,_order);
-    setupGy(_Gy,_order+2,_order);
-    setupGg1(_Gg1,_order+2,_order);
-    setupGg2(_Gg2,_order+2,_order);
-    setupGth(_Gth,_order+2,_order);
-    setupGmu(_Gmu,_order+2,_order);
+    setupGx(_Gx,order+2,order);
+    setupGy(_Gy,order+2,order);
+    setupGg1(_Gg1,order+2,order);
+    setupGg2(_Gg2,order+2,order);
+    setupGth(_Gth,order+2,order);
+    setupGmu(_Gmu,order+2,order);
 }
 
 static int calculateMaxPsfOrder(const std::vector<BVec>& psf)
@@ -176,9 +184,9 @@ static int calculateMaxPsfOrder(const std::vector<BVec>& psf)
     return maxpsforder;
 }
 
-#define ORDER_1 (std::max(maxpsforder,_order))
-#define ORDER_2 (std::max(maxpsforder,_order+2))
-#define ORDER_3 (std::max(maxpsforder+2,_order))
+#define ORDER_1 (std::max(maxpsforder,order))
+#define ORDER_2 (std::max(maxpsforder,order+2))
+#define ORDER_3 (std::max(maxpsforder+2,order))
 #define SIZE_1 (ORDER_1+1)*(ORDER_1+2)/2
 #define SIZE_1b (ORDER_1+3)*(ORDER_1+4)/2
 #define SIZE_2 (ORDER_2+1)*(ORDER_2+2)/2
@@ -188,10 +196,10 @@ static int calculateMaxPsfOrder(const std::vector<BVec>& psf)
 EllipseSolver::ESImpl::ESImpl(
     const std::vector<PixelList>& _pix, 
     const std::vector<BVec>& _psf,
-    double _fp, int _order, double _sigma, 
+    double _fp, int order, double _sigma, 
     bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux) :
-    nsize((_order+1)*(_order+2)/2),
-    np2size((_order+3)*(_order+4)/2), b(_order,_sigma),
+    nsize((order+1)*(order+2)/2),
+    np2size((order+3)*(order+4)/2), b(order,_sigma),
     pix(_pix), psf(&_psf), f_psf(_fp), sigma_obs(pix.size()),
     I(calculateSumSize(pix)), Z(I.size()), Z1(I.size()), W(I.size()), 
     psi(I.size(),nsize,0.), A_aux(I.size(),np2size), AC(I.size(),nsize),
@@ -233,6 +241,8 @@ EllipseSolver::ESImpl::ESImpl(
 
     AC.DivideUsing(tmv::QR);
     AC.SaveDiv();
+    dbg<<"AC.colsize = nPixels = "<<I.size()<<" = "<<AC.colsize()<<std::endl;
+    dbg<<"AC.rowsize = nModel("<<order<<") = "<<nsize<<" = "<<AC.rowsize()<<std::endl;
     Assert(AC.colsize() >= AC.rowsize());
     // Otherwise there are too few pixels to constrain model.
 
@@ -241,8 +251,8 @@ EllipseSolver::ESImpl::ESImpl(
     if (!fixgam) { U(k++,2) = 1.; U(k++,3) = 1.; }
     if (!fixmu) { U(k,4) = 1.; }
 
-    setupGx(_Gx,_order+2,_order);
-    setupGy(_Gy,_order+2,_order);
+    setupGx(_Gx,order+2,order);
+    setupGy(_Gy,order+2,order);
     setupGg1(_Gg1,ORDER_1+2,ORDER_1);
     setupGg2(_Gg2,ORDER_1+2,ORDER_1);
     setupGth(_Gth,ORDER_1+2,ORDER_1);

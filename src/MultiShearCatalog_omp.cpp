@@ -77,6 +77,7 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                 _flags[i] = UNKNOWN_FAILURE;
                 long flag1 = 0;
 
+#if 1
                 measureMultiShear(
                     // Input data:
                     _skyPos[i], _pixList[i], _psfList[i],
@@ -89,6 +90,12 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                     log1,
                     // Ouput values:
                     _shear[i], _cov[i], _shape[i], _nu[i], flag1);
+#else
+                _shear[i] = std::complex<double>(0.1,0.2);
+                _cov[i] = tmv::ListInit , 1., 0., 0., 1.;
+                _shape[i].vec().Zero();
+                _nu[i] = 10.;
+#endif
 
                 _flags[i] = flag1;
 
@@ -115,8 +122,12 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                 log += log1;
             }
 #ifdef _OPENMP
-        } catch (...) {
+        } catch (std::exception& e) {
             // This isn't supposed to happen.
+            std::cerr<<"Caught "<<e.what()<<std::endl;
+            std::cerr<<"STATUS5BEG Caught some error in parallel region STATUS5END\n";
+            exit(1);
+        } catch (...) {
             std::cerr<<"STATUS5BEG Caught some error in parallel region STATUS5END\n";
             exit(1);
         }
@@ -422,13 +433,10 @@ void MultiShearCatalog::getImagePixelLists(
     // Keep track of how much memory we are using.
     // TODO: introduce a parameter max_memory and check to make sure
     // we stay within the allowed memory usage.
-    bool shouldOutputDots = _params.read("output_dots",false);
-    if (shouldOutputDots) {
-        std::cerr<<"Using image# "<<seIndex;
-        std::cerr<<"... Memory Usage in MultiShearCatalog = ";
-        std::cerr<<calculateMemoryFootprint()<<" MB";
-        std::cerr<<"\n";
-    }
+    dbg<<"Using image# "<<seIndex;
+    dbg<<"... Memory Usage in MultiShearCatalog = ";
+    dbg<<calculateMemoryFootprint()<<" MB";
+    dbg<<"\n";
 
     dbg<<"Done extracting pixel lists\n";
 }

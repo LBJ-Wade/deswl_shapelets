@@ -52,21 +52,22 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
     area /= 3600.;
     dbg<<"Raw area = "<<area<<" square arcmin\n";
     double dec = shearCat.getSkyBounds().getCenter().getY();
-    area *= cos(dec / ARCSEC_PER_RAD);
+    double cosdec = cos(dec / ARCSEC_PER_RAD);
+    area *= cosdec;
     dbg<<"Corrected area = "<<area<<" square arcmin";
     area /= 3600.;
     dbg<<" = "<<area<<" square degrees\n";
 
     log._nGals = shearCat.size();
     xdbg<<"nGals = "<<log._nGals<<std::endl;
-    xdbg<<"flagslist.size = "<<shearCat.getFlagsList().size()<<std::endl;
-    int nGood = 0;
-    for(int i=0;i<int(shearCat.getFlagsList().size());++i)
-        if (shearCat.getFlagsList()[i] == 0) ++nGood;
-    xdbg<<"nGood 1 = "<<nGood<<std::endl;
 
+    //On abe, this next line is giving a weird error and then aborting.
+    //I have no idea what is going on here, so just avoid the stl count.
     //log._nGoodIn = std::count(
         //shearCat.getFlagsList().begin(),shearCat.getFlagsList().end(),0);
+    int nGood = 0;
+    for(size_t i=0;i<shearCat.getFlagsList().size();++i)
+        if (shearCat.getFlagsList()[i] == 0) ++nGood;
     log._nGoodIn = nGood;
     xdbg<<"nGood = "<<log._nGoodIn<<std::endl;
     dbg<<log._nGoodIn<<"/"<<log._nGals<<" galaxies with no input flags\n";
@@ -82,10 +83,7 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
     double calcTime=0.;
 
     long nShear = 0;
-    double sectionSize = params.get("multishear_section_size");
-    xdbg<<"sectionSize = "<<sectionSize<<std::endl;
-    sectionSize *= 60.; // arcmin -> arcsec
-    std::vector<Bounds> sectionBounds = shearCat.splitBounds(sectionSize);
+    std::vector<Bounds> sectionBounds = shearCat.splitBounds();
     for(size_t i=0;i<sectionBounds.size();++i) {
         dbg<<"Starting section "<<(i+1)<<"/"<<sectionBounds.size()<<std::endl;
         dbg<<sectionBounds[i]<<std::endl;
@@ -112,7 +110,7 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
         if (shouldOutputDots) {
             std::cerr<<std::endl;
             std::cerr<<nShear1<<" successful shear measurements ";
-            std::cerr<<"(total "<<nShear<<")\n";
+            std::cerr<<"(total so far: "<<nShear<<")\n";
         }
 
         if (isTiming) {
@@ -130,15 +128,19 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
     }
 
     if (isTiming) {
-        std::cout<<"Time: Total load time = "<<loadTime;
-        std::cout<<"Time: Total calc time = "<<calcTime;
+        std::cout<<"Time: Total load time = "<<loadTime<<std::endl;
+        std::cout<<"Time: Total calc time = "<<calcTime<<std::endl;
     }
 
     dbg<<"Done: "<<log._nsGamma<<" successful shear measurements, ";
     dbg<<(log._nGoodIn-log._nsGamma)<<" unsuccessful, ";
     dbg<<(log._nGals-log._nGoodIn)<<" with input flags\n";
-    log._nGood = std::count(
-        shearCat.getFlagsList().begin(),shearCat.getFlagsList().end(),0);
+    //log._nGood = std::count(
+        //shearCat.getFlagsList().begin(),shearCat.getFlagsList().end(),0);
+    nGood = 0;
+    for(size_t i=0;i<shearCat.getFlagsList().size();++i)
+        if (shearCat.getFlagsList()[i] == 0) ++nGood;
+    log._nGood = nGood;
     dbg<<log._nGood<<" successful measurements with no measurement flags.\n";
 
     if (shouldOutputDots) {
@@ -147,29 +149,6 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
             <<"Success rate: "<<log._nsGamma<<"/"<<log._nGoodIn
             <<"  # with no flags: "<<log._nGood
             <<std::endl;
-#ifdef USE_POOL
-        std::cerr<<"Memory used in PixelList pool = "<<
-            pool_allocator<Pixel,PIXELLIST_BLOCK>::total_memory_used()/(1024.*1024.)<<
-            " MB\n";
-        std::cerr<<"Memory used in vector<PixelList> pool = "<<
-            pool_allocator<PixelList,MULTI_BLOCK>::total_memory_used()/(1024.*1024.)<<
-            " MB\n";
-        std::cerr<<"Memory used in vector<vector<PixelList> > pool = "<<
-            pool_allocator<std::vector<PixelList>,MULTI_BLOCK>::total_memory_used()/(1024.*1024.)<<
-            " MB\n";
-        std::cerr<<"Memory used in vector<int> pool = "<<
-            pool_allocator<int,MULTI_BLOCK>::total_memory_used()/(1024.*1024.)<<
-            " MB\n";
-        std::cerr<<"Memory used in vector<vector<int> > pool = "<<
-            pool_allocator<std::vector<int>,MULTI_BLOCK>::total_memory_used()/(1024.*1024.)<<
-            " MB\n";
-        std::cerr<<"Memory used in vector<Position> pool = "<<
-            pool_allocator<Position,MULTI_BLOCK>::total_memory_used()/(1024.*1024.)<<
-            " MB\n";
-        std::cerr<<"Memory used in vector<vector<Position> > pool = "<<
-            pool_allocator<std::vector<Position>,MULTI_BLOCK>::total_memory_used()/(1024.*1024.)<<
-            " MB\n";
-#endif
     }
 
     shearCat.write();

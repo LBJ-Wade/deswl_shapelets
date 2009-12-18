@@ -35,13 +35,22 @@ MultiShearCatalog::MultiShearCatalog(
     readFileLists();
 }
 
-std::vector<Bounds> MultiShearCatalog::splitBounds(double side)
+std::vector<Bounds> MultiShearCatalog::splitBounds()
 {
+    const double ARCSEC_PER_RAD = 206264.806247;
+
+    double sectionSize = _params.get("multishear_section_size");
+    xdbg<<"sectionSize = "<<sectionSize<<std::endl;
+    sectionSize *= 60.; // arcmin -> arcsec
+
     double xRange = _skyBounds.getXMax() - _skyBounds.getXMin();
     double yRange = _skyBounds.getYMax() - _skyBounds.getYMin();
+    double dec = _skyBounds.getCenter().getY();
+    double cosdec = cos(dec / ARCSEC_PER_RAD);
+    xRange *= cosdec;
 
-    int nx = int(floor(xRange/side))+1;
-    int ny = int(floor(yRange/side))+1;
+    int nx = int(floor(xRange/sectionSize))+1;
+    int ny = int(floor(yRange/sectionSize))+1;
     return _skyBounds.divide(nx,ny);
 }
 
@@ -62,37 +71,51 @@ int MultiShearCatalog::getPixels(const Bounds& bounds)
         _seSizeList[i].clear();
     }
 
-    dbg<<"Start GetPixels for b = "<<bounds<<std::endl;
-    // Loop over the files and read pixel lists for each object.
-    // The Transformation and FittedPSF constructors get the name
-    // information from the parameter file, so we use that to set the 
-    // names of each component image here.
-    const int nFiles = _imageFileList.size();
-    for (int iFile=0; iFile<nFiles; ++iFile) {
+    bool shouldOutputDesQa = _params.read("des_qa",false); 
+
+    try {
+        dbg<<"Start GetPixels for b = "<<bounds<<std::endl;
+        // Loop over the files and read pixel lists for each object.
+        // The Transformation and FittedPSF constructors get the name
+        // information from the parameter file, so we use that to set the 
+        // names of each component image here.
+        const int nFiles = _imageFileList.size();
+        for (int iFile=0; iFile<nFiles; ++iFile) {
 #ifdef ONLY_N_IMAGES
-        if (iFile >= ONLY_N_IMAGES) break;
+            if (iFile >= ONLY_N_IMAGES) break;
 #endif
 
-        // Get the file names
-        std::string imageFile = _imageFileList[iFile];
-        std::string shearFile = _shearFileList[iFile];
-        std::string fitPsfFile = _fitPsfFileList[iFile];
+            // Get the file names
+            std::string imageFile = _imageFileList[iFile];
+            std::string shearFile = _shearFileList[iFile];
+            std::string fitPsfFile = _fitPsfFileList[iFile];
 
-        dbg<<"Reading image file: "<<imageFile<<"\n";
-        // Set the appropriate parameters
-        _params["image_file"] = imageFile;
-        setRoot(_params,imageFile);
-        _params["shear_file"] = shearFile;
-        _params["fitpsf_file"] = fitPsfFile;
+            dbg<<"Reading image file: "<<imageFile<<"\n";
+            // Set the appropriate parameters
+            _params["image_file"] = imageFile;
+            setRoot(_params,imageFile);
+            _params["shear_file"] = shearFile;
+            _params["fitpsf_file"] = fitPsfFile;
 
-        if (_skyMapFileList.size() > 0) {
-            std::string skyMapFile = _skyMapFileList[iFile];
-            _params["skymap_file"] = skyMapFile;
+            if (_skyMapFileList.size() > 0) {
+                std::string skyMapFile = _skyMapFileList[iFile];
+                _params["skymap_file"] = skyMapFile;
+            }
+
+            // Load the pixels
+            getImagePixelLists(iFile,bounds);
+            dbg<<"\n";
         }
-
-        // Load the pixels
-        getImagePixelLists(iFile,bounds);
-        dbg<<"\n";
+    } catch (std::bad_alloc) {
+        if (shouldOutputDesQa) std::cerr<<"STATUS5BEG ";
+        std::cerr
+            << "Memory exhausted in MultShearCatalog.\n"
+            << "Memory Usage in MultiShearCatalog = "
+            << calculateMemoryFootprint()<<" MB \n"
+            << "Lower the parameter \"multishear_section_size\".  "
+            << "(Current value = "<<_params["multishear_section_size"]<<")";
+        if (shouldOutputDesQa) std::cerr<<" STATUS5END";
+        std::cerr<<std::endl;
     }
 
     _params["maxmem"] = calculateMemoryFootprint(true);
@@ -345,6 +368,7 @@ double MultiShearCatalog::calculateMemoryFootprint(bool shouldGetMax) const
 
 void MultiShearCatalog::write() const
 {
+    xdbg<<"Start MultiShearCatalog.write\n";
     std::vector<std::string> fileList = makeMultiName(_params, "multishear");
 
     const int nFiles = fileList.size();
@@ -392,8 +416,10 @@ void MultiShearCatalog::write() const
 
 void MultiShearCatalog::writeFits(std::string file) const
 {
+    xdbg<<"Start MultiShearCatalog.writeFits "<<file<<std::endl;
     // ! means overwrite existing file
     CCfits::FITS fits("!"+file, CCfits::Write);
+    xdbg<<"Opened file\n";
 
     std::vector<string> colNames;
     std::vector<string> colFmts;
@@ -471,9 +497,10 @@ void MultiShearCatalog::writeFits(std::string file) const
     // We don't output units yet, just make it same size as others
     std::vector<string> colunits(colFmts.size());
 
-    dbg<<"Before Create table"<<std::endl;
+    xdbg<<"Before Create table"<<std::endl;
     CCfits::Table* table;
     table = fits.addTable("coadd_shearcat",size(),colNames,colFmts,colunits);
+    xdbg<<"Made table"<<std::endl;
 
     // Header keywords
     std::string tmvvers = tmv::TMV_Version();
@@ -646,7 +673,7 @@ void MultiShearCatalog::readFits(std::string file)
 {
     int hdu = getHdu(_params,"multishear",file,2);
 
-    dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
+    dbg<<"Opening MultiShearCatalog file "<<file<<" at hdu "<<hdu<<std::endl;
     CCfits::FITS fits(file, CCfits::Read);
     if (hdu > 1) fits.read(hdu-1);
 

@@ -33,7 +33,7 @@ std::ostream* dbgout = 0;
 bool XDEBUG = true;
 //bool XDEBUG = false;
 
-#if 0
+#if 1
 #define TEST1
 #define TEST2
 #define TEST3

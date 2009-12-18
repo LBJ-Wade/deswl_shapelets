@@ -31,8 +31,8 @@ public :
     void readFileLists();
 
     // Get a set of bounds with a maximum linear extent in either direction
-    // of side arcminutes on a side.
-    std::vector<Bounds> splitBounds(double side);
+    // of params["multishear_section_size"] arcminutes on a side.
+    std::vector<Bounds> splitBounds();
 
     // Get pixel lists for the component images/catalogs
     int getPixels(const Bounds& b);

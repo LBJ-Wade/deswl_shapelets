@@ -270,7 +270,7 @@ void InputCatalog::readFits(std::string file)
 
     int hdu = getHdu(_params,"cat",file,1);
 
-    dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
+    dbg<<"Opening InputCatalog file "<<file<<" at hdu "<<hdu<<std::endl;
     CCfits::FITS fits(file, CCfits::Read);
     if (hdu > 1) fits.read(hdu-1);
 

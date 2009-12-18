@@ -171,8 +171,12 @@ int PsfCatalog::measurePsf(
                 log += log1;
             }
 #ifdef _OPENMP
-        } catch (...) {
+        } catch (std::exception& e) {
             // This isn't supposed to happen.
+            std::cerr<<"Caught "<<e.what()<<std::endl;
+            std::cerr<<"STATUS5BEG Caught some error in parallel region STATUS5END\n";
+            exit(1);
+        } catch (...) {
             std::cerr<<"STATUS5BEG Caught some error in parallel region STATUS5END\n";
             exit(1); 
         }

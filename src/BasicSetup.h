@@ -86,9 +86,11 @@ inline int basicSetup(
                 std::stringstream ss;
                 ss << threadNum;
                 std::string debugFile2 = debugFile + "_" + ss.str();
-                if (threadNum > 0)
+                if (threadNum > 0) {
                     // This is a memory leak, but a tiny one.
                     dbgout = new std::ofstream(debugFile2.c_str());
+                    dbgout->setf(std::ios_base::unitbuf);
+                }
             }
 #endif
         }

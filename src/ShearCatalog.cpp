@@ -386,7 +386,7 @@ void ShearCatalog::readFits(std::string file)
 {
     int hdu = getHdu(_params,"shear",file,2);
 
-    dbg<<"Opening FITS file "<<file<<" at hdu "<<hdu<<std::endl;
+    dbg<<"Opening ShearCatalog file "<<file<<" at hdu "<<hdu<<std::endl;
     CCfits::FITS fits(file, CCfits::Read);
     if (hdu > 1) fits.read(hdu-1);
 
@@ -448,6 +448,12 @@ void ShearCatalog::readFits(std::string file)
     std::vector<double> dec;
     table.column(raCol).read(ra, start, end);
     table.column(decCol).read(dec, start, end);
+    if (_params.read("shear_old_input_format",false)) {
+        for(long i=0;i<nRows;++i) {
+            ra[i] /= 3600.;
+            dec[i] /= 3600.;
+        }
+    }
     for(long i=0;i<nRows;++i) {
         _skyPos[i] = Position(ra[i]*3600.,dec[i]*3600.);
     }
@@ -523,6 +529,10 @@ void ShearCatalog::readAscii(std::string file, std::string delim)
             _sky.push_back(sky1);
             _noise.push_back(noise1);
             _flags.push_back(flag);
+            if (_params.read("shear_old_input_format",false)) {
+                ra /= 3600.;
+                dec /= 3600.;
+            }
             _skyPos.push_back(Position(ra*3600.,dec*3600.));
             _shear.push_back(std::complex<double>(s1,s2));
             _nu.push_back(nu1);
@@ -556,6 +566,10 @@ void ShearCatalog::readAscii(std::string file, std::string delim)
             getline(fin,temp,d); _flags.push_back(temp);
             getline(fin,temp,d); ra = temp;
             getline(fin,temp,d); dec = temp;
+            if (_params.read("shear_old_input_format",false)) {
+                ra /= 3600.;
+                dec /= 3600.;
+            }
             _skyPos.push_back(Position(ra*3600.,dec*3600.));
             getline(fin,temp,d); s1 = temp;
             getline(fin,temp,d); s2 = temp;
