@@ -198,7 +198,7 @@ public:
     virtual void operator+=(const Function2D<T>& rhs);
 
     virtual void setFunction(
-        int xOrder, int yOrder, const tmv::Vector<T>& fVect)
+        int /*xOrder*/, int /*yOrder*/, const tmv::Vector<T>& fVect)
     { 
         Assert(_xOrder == 0);
         Assert(_yOrder == 0);

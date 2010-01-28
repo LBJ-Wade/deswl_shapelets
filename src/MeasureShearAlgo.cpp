@@ -9,6 +9,7 @@
 #include "FittedPsf.h"
 #include "Log.h"
 #include "Params.h"
+#include "MeasureShearAlgo.h"
 
 void measureSingleShear1(
     Position cen, const Image<double>& im, double sky,
@@ -246,8 +247,8 @@ void measureSingleShear(
     }
 
     // Calculate the psf from the fitted-psf formula:
-    std::vector<BVec> psf(1,
-                          BVec(fitpsf.getPsfOrder(), fitpsf.getSigma()));
+    std::vector<BVec> psf(
+	1, BVec(fitpsf.getPsfOrder(), fitpsf.getSigma()));
     try {
         dbg<<"for fittedpsf cen = "<<cen<<std::endl;
         psf[0] = fitpsf(cen);

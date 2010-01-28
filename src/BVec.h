@@ -26,6 +26,7 @@ public:
     virtual void AssignTo(BVec& bvec) const = 0;
     virtual int getOrder() const = 0;
     virtual double getSigma() const = 0;
+    virtual ~AssignableToBVec() {}
 };
 
 class BVec : public AssignableToBVec

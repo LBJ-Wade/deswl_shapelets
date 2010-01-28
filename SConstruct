@@ -219,6 +219,7 @@ def AddOpenMPFlag(env):
         flag = ['-openmp']
         ldflag = ['-openmp']
         xlib = ['pthread']
+        env.Append(CPPDEFINES=['OPENMP_LINK'])
     elif compiler == 'pgCC':
         if version < openmp_minpgcc_vers:
             print 'No OpenMP support for pgCC versions before ',openmp_minpgcc_vers

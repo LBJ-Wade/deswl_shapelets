@@ -34,7 +34,7 @@ static void calculateSigma1(
     try {
         getPixList(im, pix[0], pos, sky, noise, gain, weightIm, trans, psfAp, 
                    flag1);
-    } catch (RangeException& e) {
+    } catch (RangeException) {
         flag1 |= TRANSFORM_EXCEPTION;
     }
     if (flag1) {

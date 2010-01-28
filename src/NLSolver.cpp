@@ -139,12 +139,10 @@ void NLSolver::calculateNumericH(
             x2(i) = x(i) + dx;
             x2(j) = x(j) + dx;
             this->calculateF(x2,f2);
-            double q2a = 0.5*NormSq(f2);
 
             x2(i) = x(i) + dx;
             x2(j) = x(j) - dx;
             this->calculateF(x2,f2);
-            double q2b = 0.5*NormSq(f2);
 
             x2(i) = x(i) - dx;
             x2(j) = x(j) + dx;

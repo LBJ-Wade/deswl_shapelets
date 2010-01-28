@@ -91,8 +91,9 @@ void measureSinglePsf(
     }
 
     try {
-        measureSinglePsf1(cen,im,sky,trans,noise,gain,weightIm,
-                          sigmaP,psfAp,psfOrder,log,psf,nu,flag);
+        measureSinglePsf1(
+	    cen,im,sky,trans,noise,gain,weightIm,
+	    sigmaP,psfAp,psfOrder,log,psf,nu,flag);
     } catch (tmv::Error& e) {
         dbg<<"TMV Error thrown in MeasureSinglePSF\n";
         dbg<<e<<std::endl;

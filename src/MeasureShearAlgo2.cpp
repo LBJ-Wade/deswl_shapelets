@@ -9,6 +9,7 @@
 #include "FittedPsf.h"
 #include "Log.h"
 #include "TimeVars.h"
+#include "MeasureShearAlgo.h"
 
 // TODO: This function is almost completely degenerage with the one in
 //       MeasureShearAlgo.cpp.  I'm pretty sure these can be combined into
