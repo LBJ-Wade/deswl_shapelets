@@ -68,7 +68,7 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
     }
 
     const int psfSize = (_psfOrder+1)*(_psfOrder+2)/2;
-    const double nSigmaClip = _params["fitpsf_nsigma_outlier"];
+    const double nSigmaClip = _params.read("fitpsf_nsigma_outlier",3);
 
     // This is an empirical fit to the chisq level that corresponds to 
     // a 3-sigma outlier for more than 1 dimension.
@@ -92,7 +92,7 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
         // Calculate the average psf vector
         _avePsf.reset(new DVector(psfSize));
         Assert(psfSize == int(_avePsf->size()));
-        _avePsf->Zero();
+        _avePsf->setZero();
         int nGoodPsf = 0;
         for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
             Assert(psfCat.getPsf(n).getSigma() == _sigma);
@@ -124,13 +124,13 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
 
         int nPcaTot = std::min(nGoodPsf,psfSize);
         tmv::DiagMatrix<double> mS(nPcaTot);
-        tmv::MatrixView<double> mU = mM.Cols(0,nPcaTot);
+        tmv::MatrixView<double> mU = mM.colRange(0,nPcaTot);
         _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(nPcaTot,psfSize));
         if (nGoodPsf > psfSize) {
-            SV_Decompose(mU.View(),mS.View(),_mV->View(),true);
+            SV_Decompose(mU.view(),mS.view(),_mV->view(),true);
         } else {
             *_mV = mM;
-            SV_Decompose(_mV->Transpose(),mS.View(),mU.Transpose());
+            SV_Decompose(_mV->transpose(),mS.view(),mU.transpose());
         }
         xdbg<<"In FittedPSF: SVD S = "<<mS.diag()<<std::endl;
         if (_params.keyExists("fitpsf_npca")) {
@@ -140,14 +140,14 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
             double thresh = mS(0);
             if (_params.keyExists("fitpsf_pca_thresh")) 
                 thresh *= double(_params["fitpsf_pca_thresh"]);
-            else thresh *= tmv::Epsilon<double>();
+            else thresh *= tmv::TMV_Epsilon<double>();
             xdbg<<"thresh = "<<thresh<<std::endl;
             for(_nPca=1;_nPca<int(mM.rowsize());++_nPca) {
                 if (mS(_nPca) < thresh) break;
             }
             xdbg<<"npca = "<<_nPca<<std::endl;
         }
-        mU.Cols(0,_nPca) *= mS.SubDiagMatrix(0,_nPca);
+        mU.colRange(0,_nPca) *= mS.subDiagMatrix(0,_nPca);
         // U S = M(orig) * Vt
 
         while (nGoodPsf <= _fitSize && _fitSize > 1) {
@@ -165,7 +165,7 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
         Assert(i == nGoodPsf);
         mP = inverseSigma * mP;
 
-        _f.reset(new tmv::Matrix<double>(mU.Cols(0,_nPca)/mP));
+        _f.reset(new tmv::Matrix<double>(mU.colRange(0,_nPca)/mP));
         xdbg<<"Done making FittedPSF\n";
 
         //
@@ -179,7 +179,7 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
         for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
             const BVec& data = psfCat.getPsf(n);
             DVector fit(psfSize);
-            interpolateVector(psfCat.getPos(n),fit.View());
+            interpolateVector(psfCat.getPos(n),fit.view());
             tmv::Vector<double> diff = data.vec() - fit;
             cov += diff ^ diff;
         }
@@ -187,19 +187,19 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
             // only <= if both == 1, so basically always true
             cov /= double(nGoodPsf-_fitSize);
         }
-        cov.DivideUsing(tmv::SV);
-        cov.SaveDiv();
-        cov.SetDiv();
-        xdbg<<"cov S = "<<cov.SVD().GetS().diag()<<std::endl;
+        cov.divideUsing(tmv::SV);
+        cov.saveDiv();
+        cov.setDiv();
+        xdbg<<"cov S = "<<cov.svd().getS().diag()<<std::endl;
 
         // Clip out 3 sigma outliers:
         nOutliers = 0;
         for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
             const BVec& data = psfCat.getPsf(n);
             DVector fit(psfSize);
-            interpolateVector(psfCat.getPos(n),fit.View());
+            interpolateVector(psfCat.getPos(n),fit.view());
             tmv::Vector<double> diff = data.vec() - fit;
-            double dev = diff * cov.Inverse() * diff;
+            double dev = diff * cov.inverse() * diff;
             if (dev > outlierThresh) {
                 xdbg<<"n = "<<n<<" is an outlier.\n";
                 xdbg<<"data = "<<data.vec()<<std::endl;
@@ -239,7 +239,7 @@ void FittedPsf::writeAscii(std::string file) const
     fout << _fitOrder <<"  "<< _nPca << std::endl;
     fout << _bounds << std::endl;
     fout << *_avePsf << std::endl;
-    fout << _mV->Rows(0,_nPca) <<std::endl;
+    fout << _mV->rowRange(0,_nPca) <<std::endl;
     fout << *_f << std::endl;
 }
 
@@ -585,7 +585,7 @@ void FittedPsf::readFits(std::string file)
 
     int nRotMatrix = _nPca*nShapeletCoeff;
     _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(_nPca,_avePsf->size()));
-    Assert(int(_mV->LinearView().size()) == nRotMatrix);
+    Assert(int(_mV->linearView().size()) == nRotMatrix);
 
     dVec.resize(0);
     table.column(rotMatrixCol).read(dVec, 1);
@@ -601,7 +601,7 @@ void FittedPsf::readFits(std::string file)
     xdbg<<"fitsize = "<<_fitSize<<std::endl;
     int nInterpMatrix = _nPca*_fitSize;
     _f.reset(new tmv::Matrix<double>(_fitSize,_nPca));
-    Assert(int(_f->LinearView().size()) == nInterpMatrix);
+    Assert(int(_f->linearView().size()) == nInterpMatrix);
 
     dVec.resize(0);
     table.column(interpMatrixCol).read(dVec, 1);
@@ -616,9 +616,9 @@ void FittedPsf::interpolateVector(
     Position pos, const tmv::VectorView<double>& b) const
 {
     tmv::Vector<double> P(_fitSize);
-    setPRow(_fitOrder,pos,_bounds,P.View());
+    setPRow(_fitOrder,pos,_bounds,P.view());
     tmv::Vector<double> b1 = P * (*_f);
-    b = b1 * _mV->Rows(0,_nPca);
+    b = b1 * _mV->rowRange(0,_nPca);
     b += *_avePsf;
 }
 

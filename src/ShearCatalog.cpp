@@ -87,12 +87,12 @@ ShearCatalog::ShearCatalog(
     _nu.resize(nGals,DEFVALNEG);
 
     tmv::SmallMatrix<double,2,2> covDefault;
-    covDefault = tmv::ListInit, DEFVALPOS, 0, 0, DEFVALPOS;
+    covDefault << DEFVALPOS, 0, 0, DEFVALPOS;
     _cov.resize(nGals,covDefault);
 
     int galOrder = _params.read<int>("shear_gal_order");
     BVec shapeDefault(galOrder,1.);
-    shapeDefault.vec().SetAllTo(DEFVALNEG);
+    shapeDefault.vec().setAllTo(DEFVALNEG);
     _shape.resize(nGals,shapeDefault);
 
     Assert(_id.size() == size());
@@ -480,7 +480,7 @@ void ShearCatalog::readFits(std::string file)
     table.column(cov01Col).read(cov01, start, end);
     table.column(cov11Col).read(cov11, start, end);
     for(long i=0;i<nRows;++i) {
-        _cov[i] = tmv::ListInit, cov00[i], cov01[i], cov01[i], cov11[i];
+        _cov[i] << cov00[i], cov01[i], cov01[i], cov11[i];
     }
 
     dbg<<"  "<<sigmaCol<<"  "<<orderCol<<std::endl;
@@ -537,7 +537,7 @@ void ShearCatalog::readAscii(std::string file, std::string delim)
             _shear.push_back(std::complex<double>(s1,s2));
             _nu.push_back(nu1);
             _cov.push_back(tmv::SmallMatrix<double,2,2>());
-            _cov.back() = tmv::ListInit, c00, c01, c01, c11;
+            _cov.back() << c00, c01, c01, c11;
             _shape.push_back(BVec(bOrder,bSigma));
             const int nCoeff = _shape.back().size();
             for(int j=0; j<nCoeff; ++j)
@@ -579,7 +579,7 @@ void ShearCatalog::readAscii(std::string file, std::string delim)
             getline(fin,temp,d); c01 = temp;
             getline(fin,temp,d); c11 = temp;
             _cov.push_back(tmv::SmallMatrix<double,2,2>());
-            _cov.back() = tmv::ListInit, c00, c01, c01, c11;
+            _cov.back() << c00, c01, c01, c11;
             getline(fin,temp,d); bOrder = temp;
             getline(fin,temp,d); bSigma = temp;
             _shape.push_back(BVec(bOrder,bSigma));

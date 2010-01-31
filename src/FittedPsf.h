@@ -53,7 +53,7 @@ public :
         Assert(b.getOrder() == _psfOrder);
         Assert(b.size() == _avePsf->size());
         b.setSigma(_sigma);
-        interpolateVector(pos,b.vec().View());
+        interpolateVector(pos,b.vec().view());
     }
 
     // This next construct with FittedPsfAtXY allows you to write:

@@ -201,8 +201,8 @@ void measureSingleShear1(
         xdbg<<"Measured gamma = "<<ell.getGamma()<<std::endl;
         shear = ell.getGamma();
         tmv::SmallMatrix<double,2,2,tmv::RowMajor> cov1 = 
-            cov.SubMatrix(2,4,2,4);
-        if (!(cov1.Det() > 0.)) flag |= SHEAR_BAD_COVAR;
+            cov.subMatrix(2,4,2,4);
+        if (!(cov1.det() > 0.)) flag |= SHEAR_BAD_COVAR;
         else shearcov = cov1;
     } else {
         if (times) times->failGamma(ell.getTimes());
@@ -211,8 +211,8 @@ void measureSingleShear1(
         flag |= SHEAR_FAILED;
         shear = ell.getGamma();
         tmv::SmallMatrix<double,2,2,tmv::RowMajor> cov1 = 
-            cov.SubMatrix(2,4,2,4);
-        if (!(cov1.Det() > 0.)) flag |= SHEAR_BAD_COVAR;
+            cov.subMatrix(2,4,2,4);
+        if (!(cov1.det() > 0.)) flag |= SHEAR_BAD_COVAR;
         else shearcov = cov1;
         return;
     }

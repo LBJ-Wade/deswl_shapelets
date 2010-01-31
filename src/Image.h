@@ -24,29 +24,29 @@ public:
         _fileName(""), _hdu(0),
         _xMin(0),_xMax(xSize),_yMin(0),_yMax(ySize),
         _source(new tmv::Matrix<T,tmv::ColMajor>(xSize,ySize,0.)),
-        _m(new tmv::MatrixView<T>(_source->View())) {}
+        _m(new tmv::MatrixView<T>(_source->view())) {}
 
     // New copy of image
     Image(const Image& rhs) : 
         _fileName(""), _hdu(0),
         _xMin(rhs._xMin), _xMax(rhs._xMax), _yMin(rhs._yMin), _yMax(rhs._yMax),
         _source(new tmv::Matrix<T,tmv::ColMajor>(*rhs._m)),
-        _m(new tmv::MatrixView<T>(_source->View())) {}
+        _m(new tmv::MatrixView<T>(_source->view())) {}
 
-    // Subimage (with new storage)
+    // subImage (with new storage)
     Image(const Image& rhs, int x1, int x2, int y1, int y2) :
         _fileName(""), _hdu(0),
         _xMin(x1), _xMax(x2), _yMin(y1), _yMax(y2),
         _source(new tmv::Matrix<T,tmv::ColMajor>(
-                rhs._m->SubMatrix(x1,x2,y1,y2))),
-        _m(new tmv::MatrixView<T>(_source->View())) {}
+                rhs._m->subMatrix(x1,x2,y1,y2))),
+        _m(new tmv::MatrixView<T>(_source->view())) {}
     Image(const Image& rhs, const Bounds& b) :
         _fileName(""), _hdu(0),
         _xMin(int(floor(b.getXMin()))), _xMax(int(ceil(b.getXMax()))), 
         _yMin(int(floor(b.getYMin()))), _yMax(int(ceil(b.getYMax()))),
         _source(new tmv::Matrix<T,tmv::ColMajor>(
-                rhs._m->SubMatrix(_xMin,_xMax,_yMin,_yMax))),
-        _m(new tmv::MatrixView<T>(_source->View())) {}
+                rhs._m->subMatrix(_xMin,_xMax,_yMin,_yMax))),
+        _m(new tmv::MatrixView<T>(_source->view())) {}
 
     // Read image given configuration parameters
     Image(const ConfigFile& params);
@@ -67,7 +67,7 @@ public:
 
     // Copy rhs to a subimage of this
     void copy(const Image& rhs, int x1, int x2, int y1, int y2)
-    { _m->SubMatrix(x1,x2,y1,y2) = *rhs._m; }
+    { _m->subMatrix(x1,x2,y1,y2) = *rhs._m; }
 
     // Write back to existing file
     void flush() const;
@@ -93,16 +93,16 @@ public:
     void operator+=(const Image& rhs) { *_m += *rhs._m; }
 
     // Erase all values
-    void clear() { _m->Zero(); }
+    void clear() { _m->setZero(); }
 
-    bool isSquare() { return _m->IsSquare(); }
+    bool isSquare() { return _m->isSquare(); }
 
     Bounds getBounds() const 
     { return Bounds(_xMin,_xMax,_yMin,_yMax); }
 
-    // SubImage refers to the same storage as this.
+    // subImage refers to the same storage as this.
     Image subImage(int x1, int x2, int y1, int y2)
-    { return Image(_m->SubMatrix(x1,x2,y1,y2),x1,x2,y1,y2); }
+    { return Image(_m->subMatrix(x1,x2,y1,y2),x1,x2,y1,y2); }
 
     // Split into nx x ny subimages
     std::vector<Image*> divide(int nx, int ny) const; 

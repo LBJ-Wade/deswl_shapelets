@@ -117,8 +117,7 @@ static size_t calculateSumSize(const std::vector<PixelList>& v)
     size_t sum = 0;
     dbg<<"nPix = ";
     for(size_t i=0;i<v.size();++i) {
-        if (i==0) dbg<<v.size();
-        else dbg<<" + "<<v.size();
+        dbg<< (i==0 ? "" : " + ") << v.size();
         sum += v[i].size();
     }
     dbg<<" = "<<sum<<std::endl;
@@ -134,7 +133,7 @@ EllipseSolver::ESImpl::ESImpl(
     pix(_pix), psf(0), f_psf(1.), sigma_obs(pix.size(),_sigma),
     I(calculateSumSize(pix)), Z(I.size()), Z1(I.size()), W(I.size()), 
     psi(I.size(),nsize,0.), A_aux(I.size(),np2size,0.), AC(0,0),
-    A(A_aux.Cols(0,nsize)),
+    A(A_aux.colRange(0,nsize)),
     fixcen(_fixcen), fixgam(_fixgam), fixmu(_fixmu), useflux(_useflux),
     numeric_j(false), U((fixcen?0:2)+(fixgam?0:2)+(fixmu?0:1),5,0.), 
     xinit(5,0.), xx(5), ff(6), jj(6,5),
@@ -157,8 +156,8 @@ EllipseSolver::ESImpl::ESImpl(
     }
     Assert(n == I.size());
 
-    A.DivideUsing(tmv::QR);
-    A.SaveDiv();
+    A.divideUsing(tmv::QR);
+    A.saveDiv();
     Assert(A.colsize() >= A.rowsize());
     // Otherwise there are too few pixels to constrain model.
 
@@ -203,7 +202,7 @@ EllipseSolver::ESImpl::ESImpl(
     pix(_pix), psf(&_psf), f_psf(_fp), sigma_obs(pix.size()),
     I(calculateSumSize(pix)), Z(I.size()), Z1(I.size()), W(I.size()), 
     psi(I.size(),nsize,0.), A_aux(I.size(),np2size), AC(I.size(),nsize),
-    A(A_aux.Cols(0,nsize)), 
+    A(A_aux.colRange(0,nsize)), 
     fixcen(_fixcen), fixgam(_fixgam), fixmu(_fixmu), useflux(_useflux),
     numeric_j(false), U((fixcen?0:2)+(fixgam?0:2)+(fixmu?0:1),5,0.),
     xinit(5,0.), xx(5), ff(6), jj(6,5),
@@ -239,8 +238,8 @@ EllipseSolver::ESImpl::ESImpl(
         sigma_obs[k] = sqrt(pow(b.getSigma(),2)+f_psf*pow((*psf)[k].getSigma(),2));
     }
 
-    AC.DivideUsing(tmv::QR);
-    AC.SaveDiv();
+    AC.divideUsing(tmv::QR);
+    AC.saveDiv();
     dbg<<"AC.colsize = nPixels = "<<I.size()<<" = "<<AC.colsize()<<std::endl;
     dbg<<"AC.rowsize = nModel("<<order<<") = "<<nsize<<" = "<<AC.rowsize()<<std::endl;
     Assert(AC.colsize() >= AC.rowsize());
@@ -291,7 +290,7 @@ void EllipseSolver::ESImpl::doF(
     // lead to nans and/or inf's in the resulting f.
     // Use 2 x the previous value;
     if (NormInf(x-xinit) > 4.) {
-        f = b.vec().SubVector(0,6);
+        f = b.vec().subVector(0,6);
         if (flux == 0.) flux = b(0);
         f /= flux;
         if (useflux) f(0) -= 1.;
@@ -306,7 +305,7 @@ void EllipseSolver::ESImpl::doF(
     // Also guard against gsq > 1, since it leads to nan's with the sqrt(1-gsq)
     // factor below.
     if (gsq > 0.99 || (mu < -3. && Norm(x-xinit) > 0.3)) {
-        f = b.vec().SubVector(0,6);
+        f = b.vec().subVector(0,6);
         if (flux == 0.) flux = b(0);
         f /= flux;
         if (useflux) f(0) -= 1.;
@@ -318,11 +317,11 @@ void EllipseSolver::ESImpl::doF(
     // z' = m*(z-zc) - m*g*conj(z-zc)
     //    = m*z - m*g*conj(z) - m*zc + m*g*conj(zc);
     Z1 = m0*Z;
-    Z1 -= m0*g*Z.Conjugate();
-    Z1.AddToAll(m0*(g*std::conj(zc)-zc));
+    Z1 -= m0*g*Z.conjugate();
+    Z1.addToAll(m0*(g*std::conj(zc)-zc));
     for(size_t k=0,n=0,nx;k<pix.size();++k,n=nx) {
         nx = n+pix[k].size();
-        Z1.SubVector(n,nx) /= sigma_obs[k];
+        Z1.subVector(n,nx) /= sigma_obs[k];
     }
     makePsi(A,Z1,b.getOrder(),&W);
 
@@ -331,17 +330,17 @@ void EllipseSolver::ESImpl::doF(
             nx = n+pix[k].size();
             BVec newpsf = (*psf)[k];
             const int psfsize = newpsf.size();
-            tmv::MatrixView<double> S1 = S[k].Cols(0,psfsize);
+            tmv::MatrixView<double> S1 = S[k].colRange(0,psfsize);
             calculateGTransform(g,newpsf.getOrder(),S1);
             newpsf.vec() = S1 * (*psf)[k].vec();
-            tmv::MatrixView<double> D1 = D[k].Rows(0,psfsize);
+            tmv::MatrixView<double> D1 = D[k].rowRange(0,psfsize);
             calculateMuTransform(mu,newpsf.getOrder(),D1);
             newpsf.vec() = D1 * newpsf.vec();
             calculatePsfConvolve(newpsf,b.getOrder(),b.getSigma(),C[k]);
-            AC.Rows(n,nx) = A.Rows(n,nx) * C[k];
+            AC.rowRange(n,nx) = A.rowRange(n,nx) * C[k];
         }
-        AC.ReSetDiv();
-        if (AC.Singular()) {
+        AC.resetDiv();
+        if (AC.isSingular()) {
             // I used to keep going and just give an error. But these never 
             // eventually work, so just bail on the whole calculation.
             dbg<<"Found singular AC.  Bail.\n";
@@ -349,15 +348,15 @@ void EllipseSolver::ESImpl::doF(
         }
         b.vec() = I/AC;
     } else {
-        A.ReSetDiv();
-        if (A.Singular()) {
+        A.resetDiv();
+        if (A.isSingular()) {
             dbg<<"Found singular A.  Bail.\n";
             throw tmv::Singular();
         }
         b.vec() = I/A;
     }
 
-    f = b.vec().SubVector(0,6);
+    f = b.vec().subVector(0,6);
     if (flux == 0.) flux = b(0);
     f /= flux;
     if (useflux) f(0) -= 1.;
@@ -380,9 +379,9 @@ void EllipseSolver::ESImpl::calculateF(
 
     if (useflux) {
         f(0) = ff(0);
-        f.SubVector(1,f.size()) = U*ff.SubVector(1,6);
+        f.subVector(1,f.size()) = U*ff.subVector(1,6);
     } else {
-        f = U*ff.SubVector(1,6);
+        f = U*ff.subVector(1,6);
     }
 }
 
@@ -466,19 +465,19 @@ void EllipseSolver::ESImpl::doJ(
 
 #ifdef JTEST
     tmv::Matrix<double> A_aux2(Z1.size(),np2size);
-    makePsi(A_aux2.View(),Z1,b.getOrder()+2,&W);
+    makePsi(A_aux2.view(),Z1,b.getOrder()+2,&W);
     test(Norm(A_aux2-A_aux) < 1.e-8*Norm(A_aux),"A_aux");
 #endif
 
     double g1 = std::real(g);
     double g2 = std::imag(g);
 
-    tmv::ConstMatrixView<double> Gx = _Gx.SubMatrix(0,np2size,0,nsize);
-    tmv::ConstMatrixView<double> Gy = _Gy.SubMatrix(0,np2size,0,nsize);
-    tmv::ConstMatrixView<double> Gg1 = _Gg1.SubMatrix(0,np2size,0,nsize);
-    tmv::ConstMatrixView<double> Gg2 = _Gg2.SubMatrix(0,np2size,0,nsize);
-    tmv::ConstMatrixView<double> Gmu = _Gmu.SubMatrix(0,np2size,0,nsize);
-    tmv::ConstMatrixView<double> Gth = _Gth.SubMatrix(0,np2size,0,nsize);
+    tmv::ConstMatrixView<double> Gx = _Gx.subMatrix(0,np2size,0,nsize);
+    tmv::ConstMatrixView<double> Gy = _Gy.subMatrix(0,np2size,0,nsize);
+    tmv::ConstMatrixView<double> Gg1 = _Gg1.subMatrix(0,np2size,0,nsize);
+    tmv::ConstMatrixView<double> Gg2 = _Gg2.subMatrix(0,np2size,0,nsize);
+    tmv::ConstMatrixView<double> Gmu = _Gmu.subMatrix(0,np2size,0,nsize);
+    tmv::ConstMatrixView<double> Gth = _Gth.subMatrix(0,np2size,0,nsize);
 
 #ifdef JTEST
     // This section was only used for debugging purposes, but
@@ -531,42 +530,42 @@ void EllipseSolver::ESImpl::doJ(
         for(size_t k=0,n=0,nx;k<pix.size();++k,n=nx) {
             nx = n+pix[k].size();
             double m = m0/sigma_obs[k];
-            z0.SubVector(n,nx) = m*Z.SubVector(n,nx);
-            z0.SubVector(n,nx) -= m*g*Z.Conjugate().SubVector(n,nx);
-            z0.SubVector(n,nx).AddToAll(m*(g*std::conj(zc)-zc));
+            z0.subVector(n,nx) = m*Z.subVector(n,nx);
+            z0.subVector(n,nx) -= m*g*Z.conjugate().subVector(n,nx);
+            z0.subVector(n,nx).addToAll(m*(g*std::conj(zc)-zc));
             double m_1 = exp(-mu_1)/sigma_obs[k]/sqrt(1.-std::norm(g_1));
-            z1.SubVector(n,nx) = m_1*Z.SubVector(n,nx);
-            z1.SubVector(n,nx) -= m_1*g_1*Z.Conjugate().SubVector(n,nx);
-            z1.SubVector(n,nx).AddToAll(m_1*(g_1*std::conj(zc_1)-zc_1));
+            z1.subVector(n,nx) = m_1*Z.subVector(n,nx);
+            z1.subVector(n,nx) -= m_1*g_1*Z.conjugate().subVector(n,nx);
+            z1.subVector(n,nx).addToAll(m_1*(g_1*std::conj(zc_1)-zc_1));
             double m_2 = exp(-mu_2)/sigma_obs[k]/sqrt(1.-std::norm(g_2));
-            z2.SubVector(n,nx) = m_2*Z.SubVector(n,nx);
-            z2.SubVector(n,nx) -= m_2*g_2*Z.Conjugate().SubVector(n,nx);
-            z2.SubVector(n,nx).AddToAll(m_2*(g_2*std::conj(zc_2)-zc_2));
+            z2.subVector(n,nx) = m_2*Z.subVector(n,nx);
+            z2.subVector(n,nx) -= m_2*g_2*Z.conjugate().subVector(n,nx);
+            z2.subVector(n,nx).addToAll(m_2*(g_2*std::conj(zc_2)-zc_2));
         }
-        makePsi(A0.View(),z0,b.getOrder(),&W);
-        makePsi(A1.View(),z1,b.getOrder(),&W);
-        makePsi(A2.View(),z2,b.getOrder(),&W);
+        makePsi(A0.view(),z0,b.getOrder(),&W);
+        makePsi(A1.view(),z1,b.getOrder(),&W);
+        makePsi(A2.view(),z2,b.getOrder(),&W);
         tmv::Matrix<double> dAdE_num = (A2-A1)/(2.*dE);
         tmv::Matrix<double> d2A_num = (A2+A1-2.*A0)/(dE*dE);
 
         if (psf) {
             for(size_t k=0,n=0,nx;k<pix.size();++k,n=nx) {
                 nx = n+pix[k].size();
-                A0.Rows(n,nx) *= C[k];
+                A0.rowRange(n,nx) *= C[k];
 
                 tmv::Matrix<double> C1(nsize,nsize);
                 BVec newpsf1 = (*psf)[k];
                 ApplyG(g_1,newpsf1);
                 ApplyMu(mu_1,newpsf1);
                 calculatePsfConvolve(newpsf1,b.getOrder(),b.getSigma(),C1);
-                A1.Rows(n,nx) *= C1;
+                A1.rowRange(n,nx) *= C1;
 
                 tmv::Matrix<double> C2(nsize,nsize);
                 BVec newpsf2 = (*psf)[k].vec();
                 ApplyG(g_2,newpsf2);
                 ApplyMu(mu_2,newpsf2);
                 calculatePsfConvolve(newpsf2,b.getOrder(),b.getSigma(),C2);
-                A2.Rows(n,nx) *= C2;
+                A2.rowRange(n,nx) *= C2;
             }
         }
 
@@ -612,15 +611,15 @@ void EllipseSolver::ESImpl::doJ(
             // dA/dmu = -(u dA/du + v dA/dv)
             GG[4] = -Gmu;
 
-            dAdE.Rows(n,nx) = A_aux.Rows(n,nx)*GG[j];
+            dAdE.rowRange(n,nx) = A_aux.rowRange(n,nx)*GG[j];
             if (n == 0) {
-                dbg<<"A_aux = "<<A_aux.Rows(0,5)<<std::endl;
+                dbg<<"A_aux = "<<A_aux.rowRange(0,5)<<std::endl;
                 dbg<<"GG["<<j<<"] = "<<GG[j]<<std::endl;
-                dbg<<"dAdE = "<<dAdE.Rows(0,5)<<std::endl;
+                dbg<<"dAdE = "<<dAdE.rowRange(0,5)<<std::endl;
                 dbg<<"j = "<<j<<std::endl;
             }
             if (psf) {
-                dACdE.Rows(n,nx) = dAdE.Rows(n,nx)*C[k];
+                dACdE.rowRange(n,nx) = dAdE.rowRange(n,nx)*C[k];
 
                 if (j>1) {
                     tmv::Matrix<double> C1(nsize,nsize);
@@ -672,49 +671,49 @@ void EllipseSolver::ESImpl::doJ(
                             _Gth.rowsize()<<std::endl;
                         dbg<<"n1 = "<<n1<<", n2 = "<<n2<<std::endl;
                         tmv::Matrix<double> dSdE = 
-                            (fact * Sx.Rows(0,n1) * 
-                             _Gg1.SubMatrix(0,n2,0,n1)) +
-                            (fact * g2 * Sx.Rows(0,n1) * 
-                             _Gth.SubMatrix(0,n2,0,n1));
+                            (fact * Sx.rowRange(0,n1) * 
+                             _Gg1.subMatrix(0,n2,0,n1)) +
+                            (fact * g2 * Sx.rowRange(0,n1) * 
+                             _Gth.subMatrix(0,n2,0,n1));
                         dbg<<"Norm(dS/dE - numeric dS/dE) = "<<
                             Norm(dSdE-dSdE_num)<<std::endl;
                         test(Norm(dSdE-dSdE_num) < 10.*dE*Norm(d2S_num),"dSdE");
                         dTdE = 
-                            (fact * D[k].Rows(0,n1) * Sx.Rows(0,n1) * 
-                             _Gg1.SubMatrix(0,n2,0,n1)) +
-                            (fact * g2 * D[k].Rows(0,n1) * Sx.Rows(0,n1) * 
-                             _Gth.SubMatrix(0,n2,0,n1));
+                            (fact * D[k].rowRange(0,n1) * Sx.rowRange(0,n1) * 
+                             _Gg1.subMatrix(0,n2,0,n1)) +
+                            (fact * g2 * D[k].rowRange(0,n1) * Sx.rowRange(0,n1) * 
+                             _Gth.subMatrix(0,n2,0,n1));
                     } else if (j==3) {
                         tmv::Matrix<double> Sx(n2,n2);
                         calculateGTransform(g,(*psf)[k].getOrder()+2,Sx);
                         tmv::Matrix<double> dSdE_num = (S2-S1)/(2.*dE);
                         tmv::Matrix<double> d2S_num = (S2+S1-2.*S0)/(dE*dE);
                         tmv::Matrix<double> dSdE = 
-                            (fact * Sx.Rows(0,n1) * 
-                             _Gg2.SubMatrix(0,n2,0,n1)) -
-                            (fact * g1 * Sx.Rows(0,n1) * 
-                             _Gth.SubMatrix(0,n2,0,n1));
+                            (fact * Sx.rowRange(0,n1) * 
+                             _Gg2.subMatrix(0,n2,0,n1)) -
+                            (fact * g1 * Sx.rowRange(0,n1) * 
+                             _Gth.subMatrix(0,n2,0,n1));
                         dbg<<"Norm(dS/dE - numeric dS/dE) = "<<
                             Norm(dSdE-dSdE_num)<<std::endl;
                         test(Norm(dSdE-dSdE_num) < 10.*dE*Norm(d2S_num),"dSdE");
                         dTdE = 
-                            (fact * D[k].Rows(0,n1) * Sx.Rows(0,n1) * 
-                             Gg2.SubMatrix(0,n2,0,n1)) -
-                            (fact * g1 * D[k].Rows(0,n1) * Sx.Rows(0,n1) * 
-                             Gth.SubMatrix(0,n2,0,n1));
+                            (fact * D[k].rowRange(0,n1) * Sx.rowRange(0,n1) * 
+                             Gg2.subMatrix(0,n2,0,n1)) -
+                            (fact * g1 * D[k].rowRange(0,n1) * Sx.rowRange(0,n1) * 
+                             Gth.subMatrix(0,n2,0,n1));
                     } else if (j==4) {
                         tmv::Matrix<double> Dx(n2,n2);
                         calculateMuTransform(mu,(*psf)[k].getOrder()+2,Dx);
                         tmv::Matrix<double> dDdE_num = (D2-D1)/(2.*dE);
                         tmv::Matrix<double> d2D_num = (D2+D1-2.*D0)/(dE*dE);
                         tmv::Matrix<double> dDdE = 
-                            _Gmu.SubMatrix(0,n1,0,n2)*Dx.Cols(0,n1);
+                            _Gmu.subMatrix(0,n1,0,n2)*Dx.colRange(0,n1);
                         dbg<<"Norm(dD/dE - numeric dD/dE) = "<<
                             Norm(dDdE-dDdE_num)<<std::endl;
                         test(Norm(dDdE-dDdE_num) < 10.*dE*Norm(d2D_num),"dDdE");
                         dTdE = 
-                            (_Gmu.SubMatrix(0,n1,0,n2) *
-                             Dx.Cols(0,n1) * S[k].Cols(0,n1));
+                            (_Gmu.subMatrix(0,n1,0,n2) *
+                             Dx.colRange(0,n1) * S[k].colRange(0,n1));
                     }
                     dbg<<"Norm(dT/dE - numeric dT/dE) = "<<
                         Norm(dTdE-dTdE_num)<<std::endl;
@@ -727,7 +726,7 @@ void EllipseSolver::ESImpl::doJ(
                     dbg<<"Norm(dC/dE - numeric dC/dE) = "<<
                         Norm(dCdE-dCdE_num)<<"\n";
                     test(Norm(dCdE-dCdE_num) < 10.*dE*Norm(d2C_num),"dCdE");
-                    dACdE.Rows(n,nx) += A.Rows(n,nx)*dCdE;
+                    dACdE.rowRange(n,nx) += A.rowRange(n,nx)*dCdE;
                 }
             }
         }
@@ -735,9 +734,9 @@ void EllipseSolver::ESImpl::doJ(
         dbg<<"Norm(dA/dE) = "<<Norm(dAdE)<<std::endl;
         dbg<<"Norm(d2A/dE2) = "<<Norm(d2A_num)<<std::endl;
         if (Norm(dAdE-dAdE_num) > 10.*dE*Norm(d2A_num)) {
-            dbg<<"dAdE = "<<dAdE.Rows(0,5)<<std::endl;
-            dbg<<"dAdE_num = "<<dAdE_num.Rows(0,5)<<std::endl;
-            dbg<<"diff = "<<(dAdE-dAdE_num).Rows(0,5)<<std::endl;
+            dbg<<"dAdE = "<<dAdE.rowRange(0,5)<<std::endl;
+            dbg<<"dAdE_num = "<<dAdE_num.rowRange(0,5)<<std::endl;
+            dbg<<"diff = "<<(dAdE-dAdE_num).rowRange(0,5)<<std::endl;
         }
         test(Norm(dAdE-dAdE_num) < 10.*dE*Norm(d2A_num),"dAdE");
 
@@ -756,27 +755,27 @@ void EllipseSolver::ESImpl::doJ(
         }
 
         dAdEb_num.col(j) = dAdE * b.vec();
-        dAdEtI_num.col(j) = dAdE.Transpose() * Iresid;
+        dAdEtI_num.col(j) = dAdE.transpose() * Iresid;
 
         // (At A) db/dE = (dA/dE)t (I - A b) - At (dA/dE) b
-        tmv::Vector<double> dbdE_calc = dAdE.Transpose() * Iresid;
+        tmv::Vector<double> dbdE_calc = dAdE.transpose() * Iresid;
         dbg<<"dAdEt I = "<<dbdE_calc<<std::endl;
         double kappa;
         if (psf) {
-            dbdE_calc -= AC.Transpose() * dAdE * b.vec();
-            dbg<<"(ACt) dAdE b = "<<AC.Transpose()*dAdE*b.vec()<<std::endl;
+            dbdE_calc -= AC.transpose() * dAdE * b.vec();
+            dbg<<"(ACt) dAdE b = "<<AC.transpose()*dAdE*b.vec()<<std::endl;
             dbg<<"dbdE_calc => "<<dbdE_calc<<std::endl;
-            dbg<<"R.diag() = "<<AC.QRD().GetR().diag()<<std::endl;
-            dbdE_calc /= AC.QRD().GetR().Transpose();
+            dbg<<"R.diag() = "<<AC.qrd().getR().diag()<<std::endl;
+            dbdE_calc /= AC.qrd().getR().transpose();
             dbg<<"(/= Rt) dbdE_calc => "<<dbdE_calc<<std::endl;
-            dbdE_calc /= AC.QRD().GetR();
+            dbdE_calc /= AC.qrd().getR();
             dbg<<"(/= R) dbdE_calc => "<<dbdE_calc<<std::endl;
-            kappa = AC.QRD().GetR().DoCondition();
+            kappa = AC.qrd().getR().DoCondition();
         } else {
-            dbdE_calc -= A.Transpose() * dAdE * b.vec();
-            dbdE_calc /= A.QRD().GetR().Transpose();
-            dbdE_calc /= A.QRD().GetR();
-            kappa = A.QRD().GetR().DoCondition();
+            dbdE_calc -= A.transpose() * dAdE * b.vec();
+            dbdE_calc /= A.qrd().getR().transpose();
+            dbdE_calc /= A.qrd().getR();
+            kappa = A.qrd().getR().DoCondition();
         }
         tmv::Vector<double> b0 = I/A0;
         tmv::Vector<double> b1 = I/A1;
@@ -798,7 +797,7 @@ void EllipseSolver::ESImpl::doJ(
         dbg<<"Norm(d2b) = "<<Norm(d2b_num)<<std::endl;
         test(Norm(dbdE_calc-dbdE_num) < 10.*dE*kappa*kappa*Norm(d2b_num),
              "dbdE_calc");
-        J.col(j) = dbdE_calc.SubVector(0,6);
+        J.col(j) = dbdE_calc.subVector(0,6);
     }
     dbg<<"Semi-empirical: "<<J<<std::endl;
     dbg<<"Norm(diff) = "<<Norm(J-J_num)<<std::endl;
@@ -817,7 +816,7 @@ void EllipseSolver::ESImpl::doJ(
     // section are what we want.
     // Gb.col(i) = GG[i] * b
 
-    dbdE.Zero();
+    dbdE.setZero();
 
     for(size_t k=0,n=0,nx;k<pix.size();++k,n=nx) {
         nx = n + pix[k].size();
@@ -844,7 +843,7 @@ void EllipseSolver::ESImpl::doJ(
             // GG[4] = -Gmu;
             Gb.col(4) = -Gmu * Cb;
 
-            dAdEb.Rows(n,nx) = A_aux.Rows(n,nx) * Gb;
+            dAdEb.rowRange(n,nx) = A_aux.rowRange(n,nx) * Gb;
         } else {
             // GG[0] = -m*((1.-g1)*Gx - g2*Gy);
             Gb.col(0) = -m * (1.-g1) * Gx * b.vec();
@@ -865,26 +864,26 @@ void EllipseSolver::ESImpl::doJ(
             // GG[4] = -Gmu;
             Gb.col(4) = -Gmu * b.vec();
 
-            dAdEb.Rows(n,nx) = A_aux.Rows(n,nx) * Gb;
+            dAdEb.rowRange(n,nx) = A_aux.rowRange(n,nx) * Gb;
         }
 
-        AtI = A_aux.Rows(n,nx).Transpose()*Iresid.SubVector(n,nx);
+        AtI = A_aux.rowRange(n,nx).transpose()*Iresid.subVector(n,nx);
 
         // Here, temp = (dAdE)t * I = GtAtI
-        // GtAtI.col(i) = GG[i].Transpose() * A_aux.Transpose() * Iresid
-        temp.col(0) = -m*(1.-g1) * Gx.Transpose() * AtI;
-        temp.col(0) += m*g2 * Gy.Transpose() * AtI;
+        // GtAtI.col(i) = GG[i].transpose() * A_aux.transpose() * Iresid
+        temp.col(0) = -m*(1.-g1) * Gx.transpose() * AtI;
+        temp.col(0) += m*g2 * Gy.transpose() * AtI;
 
-        temp.col(1) = -m*(1.+g1) * Gy.Transpose() * AtI;
-        temp.col(1) += m*g2 * Gx.Transpose() * AtI;
+        temp.col(1) = -m*(1.+g1) * Gy.transpose() * AtI;
+        temp.col(1) += m*g2 * Gx.transpose() * AtI;
 
-        temp.col(2) = -fact * Gg1.Transpose() * AtI;
-        temp.col(2) += fact*g2 * Gth.Transpose() * AtI;
+        temp.col(2) = -fact * Gg1.transpose() * AtI;
+        temp.col(2) += fact*g2 * Gth.transpose() * AtI;
 
-        temp.col(3) = -fact * Gg2.Transpose() * AtI;
-        temp.col(3) -= fact*g1 * Gth.Transpose() * AtI;
+        temp.col(3) = -fact * Gg2.transpose() * AtI;
+        temp.col(3) -= fact*g1 * Gth.transpose() * AtI;
 
-        temp.col(4) = -Gmu.Transpose() * AtI;
+        temp.col(4) = -Gmu.transpose() * AtI;
 
         if (psf) {
             // with a psf, dAdE = AGC + A(dC/dE)
@@ -892,58 +891,58 @@ void EllipseSolver::ESImpl::doJ(
             // for (dAdE)t, CtGtAtI is effected by the following line:
             size_t psfsize = (*psf)[k].size();
 
-            temp = C[k].Transpose() * temp;
+            temp = C[k].transpose() * temp;
 
             // The rest of this section does the A(dC/dE) terms, which
             // only exist for E = {g1,g2,mu}.  ie. not E = {x,y}.
 
             int n2 = ((*psf)[k].getOrder()+3)*((*psf)[k].getOrder()+4)/2;
-            tmv::MatrixView<double> dTdE = _dTdE.SubMatrix(0,psfsize,0,psfsize);
-            tmv::ConstMatrixView<double> D1 = D[k].Rows(0,psfsize);
-            tmv::ConstMatrixView<double> S1 = S[k].Cols(0,psfsize);
+            tmv::MatrixView<double> dTdE = _dTdE.subMatrix(0,psfsize,0,psfsize);
+            tmv::ConstMatrixView<double> D1 = D[k].rowRange(0,psfsize);
+            tmv::ConstMatrixView<double> S1 = S[k].colRange(0,psfsize);
 
-            augmentGTransformCols(g,(*psf)[k].getOrder(),S[k].View());
-            augmentMuTransformRows(mu,(*psf)[k].getOrder(),D[k].View());
+            augmentGTransformCols(g,(*psf)[k].getOrder(),S[k].view());
+            augmentMuTransformRows(mu,(*psf)[k].getOrder(),D[k].view());
 
 #ifdef JTEST
             tmv::Matrix<double> S2(n2,n2);
-            calculateGTransform(g,(*psf)[k].getOrder()+2,S2.View());
+            calculateGTransform(g,(*psf)[k].getOrder()+2,S2.view());
             dbg<<"S[k] = "<<S[k]<<std::endl;
-            dbg<<"S2 = "<<S2.Rows(0,psfsize)<<std::endl;
-            dbg<<"diff = "<<S[k]-S2.Rows(0,psfsize)<<std::endl;
-            dbg<<"Norm(S[k]-S2) = "<<Norm(S[k]-S2.Rows(0,psfsize))<<std::endl;
+            dbg<<"S2 = "<<S2.rowRange(0,psfsize)<<std::endl;
+            dbg<<"diff = "<<S[k]-S2.rowRange(0,psfsize)<<std::endl;
+            dbg<<"Norm(S[k]-S2) = "<<Norm(S[k]-S2.rowRange(0,psfsize))<<std::endl;
             dbg<<"Norm(S2) = "<<Norm(S2)<<std::endl;
-            test(Norm(S[k]-S2.Rows(0,psfsize)) < 1.e-8*Norm(S2),"AugmentG");
+            test(Norm(S[k]-S2.rowRange(0,psfsize)) < 1.e-8*Norm(S2),"AugmentG");
             tmv::Matrix<double> D2(n2,n2);
-            calculateMuTransform(mu,(*psf)[k].getOrder()+2,D2.View());
-            dbg<<"Norm(diff) = "<<Norm(D[k]-D2.Cols(0,psfsize))<<std::endl;
+            calculateMuTransform(mu,(*psf)[k].getOrder()+2,D2.view());
+            dbg<<"Norm(diff) = "<<Norm(D[k]-D2.colRange(0,psfsize))<<std::endl;
             dbg<<"Norm(D2) = "<<Norm(D2)<<std::endl;
-            test(Norm(D[k]-D2.Cols(0,psfsize)) < 1.e-8*Norm(D2),"AugmentMu");
+            test(Norm(D[k]-D2.colRange(0,psfsize)) < 1.e-8*Norm(D2),"AugmentMu");
 #endif
 
             // E = g1
-            dTdE = fact*D1*S[k]*_Gg1.SubMatrix(0,n2,0,psfsize);
-            dTdE += fact*g2*D1*S[k]*_Gth.SubMatrix(0,n2,0,psfsize);
+            dTdE = fact*D1*S[k]*_Gg1.subMatrix(0,n2,0,psfsize);
+            dTdE += fact*g2*D1*S[k]*_Gth.subMatrix(0,n2,0,psfsize);
             BVec dbpsfdE((*psf)[k].getOrder(),(*psf)[k].getSigma());
             dbpsfdE.vec() = dTdE*(*psf)[k].vec();
             calculatePsfConvolve(dbpsfdE,b.getOrder(),b.getSigma(),dCdE);
-            dAdEb.col(2,n,nx) += A.Rows(n,nx)*(dCdE*b.vec());
-            temp.col(2) += dCdE.Transpose() * AtI.SubVector(0,nsize);
+            dAdEb.col(2,n,nx) += A.rowRange(n,nx)*(dCdE*b.vec());
+            temp.col(2) += dCdE.transpose() * AtI.subVector(0,nsize);
 
             // E = g2
-            dTdE = fact*D1*S[k]*_Gg2.SubMatrix(0,n2,0,psfsize);
-            dTdE -= fact*g1*D1*S[k]*_Gth.SubMatrix(0,n2,0,psfsize);
+            dTdE = fact*D1*S[k]*_Gg2.subMatrix(0,n2,0,psfsize);
+            dTdE -= fact*g1*D1*S[k]*_Gth.subMatrix(0,n2,0,psfsize);
             dbpsfdE.vec() = dTdE*(*psf)[k].vec();
             calculatePsfConvolve(dbpsfdE,b.getOrder(),b.getSigma(),dCdE);
-            dAdEb.col(3,n,nx) += A.Rows(n,nx)*(dCdE*b.vec());
-            temp.col(3) += dCdE.Transpose() * AtI.SubVector(0,nsize);
+            dAdEb.col(3,n,nx) += A.rowRange(n,nx)*(dCdE*b.vec());
+            temp.col(3) += dCdE.transpose() * AtI.subVector(0,nsize);
 
             // E = mu
-            dTdE = _Gmu.SubMatrix(0,psfsize,0,n2)*D[k]*S1;
+            dTdE = _Gmu.subMatrix(0,psfsize,0,n2)*D[k]*S1;
             dbpsfdE.vec() = dTdE*(*psf)[k].vec();
             calculatePsfConvolve(dbpsfdE,b.getOrder(),b.getSigma(),dCdE);
-            dAdEb.col(4,n,nx) += A.Rows(n,nx)*(dCdE*b.vec());
-            temp.col(4) += dCdE.Transpose() * AtI.SubVector(0,nsize);
+            dAdEb.col(4,n,nx) += A.rowRange(n,nx)*(dCdE*b.vec());
+            temp.col(4) += dCdE.transpose() * AtI.subVector(0,nsize);
         }
         dbdE += temp;
     }
@@ -955,19 +954,19 @@ void EllipseSolver::ESImpl::doJ(
     // db/dE = R^-1 (Rt^-1 dAdEt (I-Ab) - Qt dAdE b)
     // So far dbdE is just dAdEt (I-Ab)
     if (psf) {
-        dbdE /= AC.QRD().GetR().Transpose();
-        //dbdE -= AC.QRD().GetQ().Transpose() * dAdEb;
-        temp = dAdEb / AC.QRD().GetQ();
+        dbdE /= AC.qrd().getR().transpose();
+        //dbdE -= AC.qrd().getQ().transpose() * dAdEb;
+        temp = dAdEb / AC.qrd().getQ();
         dbdE -= temp;
-        dbdE /= AC.QRD().GetR();
+        dbdE /= AC.qrd().getR();
     } else {
-        dbdE /= A.QRD().GetR().Transpose();
-        //dbdE -= A.QRD().GetQ().Transpose() * dAdEb;
-        temp = dAdEb / A.QRD().GetQ();
+        dbdE /= A.qrd().getR().transpose();
+        //dbdE -= A.qrd().getQ().transpose() * dAdEb;
+        temp = dAdEb / A.qrd().getQ();
         dbdE -= temp;
-        dbdE /= A.QRD().GetR();
+        dbdE /= A.qrd().getR();
     }
-    J = dbdE.Rows(0,6);
+    J = dbdE.rowRange(0,6);
     J /= flux;
 
 #ifdef JTEST
@@ -995,10 +994,10 @@ void EllipseSolver::ESImpl::calculateJ(
 
     doJ(xx,f,jj);
     if (useflux) {
-        J.row(0) = jj.row(0)*U.Transpose();
-        J.Rows(1,J.colsize()) = U*jj.Rows(1,6)*U.Transpose();
+        J.row(0) = jj.row(0)*U.transpose();
+        J.rowRange(1,J.colsize()) = U*jj.rowRange(1,6)*U.transpose();
     } else {
-        J = U*jj.Rows(1,6)*U.Transpose();
+        J = U*jj.rowRange(1,6)*U.transpose();
     }
 }
 
@@ -1020,16 +1019,16 @@ void EllipseSolver::getBCov(tmv::Matrix<double>& bcov) const
     //        = C^-1 (At A)^-1 Ct^-1
     //        = (Ct At A C)^-1
     //        = ((AC)t (AC))^-1
-    // This is what AC.InverseATA returns.
-    if (_pimpl->psf) _pimpl->AC.InverseATA(bcov);
-    else _pimpl->A.InverseATA(bcov);
+    // This is what AC.makeInverseATA returns.
+    if (_pimpl->psf) _pimpl->AC.makeInverseATA(bcov);
+    else _pimpl->A.makeInverseATA(bcov);
 }
 
 void EllipseSolver::getCovariance(tmv::Matrix<double>& cov) const 
 {
     tmv::Matrix<double> cov1(_pimpl->x_short.size(),_pimpl->x_short.size());
     NLSolver::getCovariance(cov1);
-    cov = _pimpl->U.Transpose()*cov1*_pimpl->U;
+    cov = _pimpl->U.transpose()*cov1*_pimpl->U;
     dbg<<"getCovariance:\n";
     dbg<<"cov1 = "<<cov1<<std::endl;
     dbg<<"full cov = "<<cov<<std::endl;
@@ -1039,7 +1038,7 @@ void EllipseSolver::getInverseCovariance(tmv::Matrix<double>& invcov) const
 {
     tmv::Matrix<double> invcov1(_pimpl->x_short.size(),_pimpl->x_short.size());
     NLSolver::getInverseCovariance(invcov1);
-    invcov = _pimpl->U.Transpose()*invcov1*_pimpl->U;
+    invcov = _pimpl->U.transpose()*invcov1*_pimpl->U;
     dbg<<"getCovariance:\n";
     dbg<<"invcov1 = "<<invcov1<<std::endl;
     dbg<<"full invcov = "<<invcov<<std::endl;
@@ -1062,7 +1061,7 @@ void EllipseSolver::callF(
     calculateF(_pimpl->x_short,_pimpl->f_short);
 
     if (_pimpl->useflux) 
-        f = _pimpl->f_short.SubVector(1,_pimpl->f_short.size()) * _pimpl->U;
+        f = _pimpl->f_short.subVector(1,_pimpl->f_short.size()) * _pimpl->U;
     else f = _pimpl->f_short*_pimpl->U;
 }
 
@@ -1090,7 +1089,7 @@ bool EllipseSolver::solve(tmv::Vector<double>& x, tmv::Vector<double>& f) const
     if (_pimpl->fixgam) { x[2] = _pimpl->fixg1; x[3] = _pimpl->fixg2; }
     if (_pimpl->fixmu) { x[4] = _pimpl->fixm; }
     if (_pimpl->useflux) 
-        f = _pimpl->f_short.SubVector(1,_pimpl->f_short.size()) * _pimpl->U;
+        f = _pimpl->f_short.subVector(1,_pimpl->f_short.size()) * _pimpl->U;
     else f = _pimpl->f_short*_pimpl->U;
 
     return ret;
@@ -1116,7 +1115,7 @@ void EllipseSolver::calculateNumericH(
     NLSolver::calculateNumericH(_pimpl->x_short,_pimpl->f_short,h_short);
 
     h = tmv::SymMatrix<double>(tmv::Matrix<double>(
-            _pimpl->U.Transpose() * h_short * _pimpl->U));
+            _pimpl->U.transpose() * h_short * _pimpl->U));
     if (_pimpl->fixcen) { h(0,0) = h(1,1) = 1.0; }
     if (_pimpl->fixgam) { h(2,2) = h(3,3) = 1.0; }
     if (_pimpl->fixmu) { h(4,4) = 1.0; }

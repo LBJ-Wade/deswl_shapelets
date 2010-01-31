@@ -72,7 +72,7 @@ bool NLSolver::testJ(
         if (err >= relErr) {
             tmv::Matrix<double> diff = J-Jn;
             *os << "J-J_num = "<<diff;
-            double maxel = diff.MaxAbsElement();
+            double maxel = diff.maxAbsElement();
             *os << "Max element = "<<maxel<<std::endl;
             for(size_t i=0;i<diff.colsize();++i) {
                 for(size_t j=0;j<diff.rowsize();++j) {
@@ -224,10 +224,10 @@ bool NLSolver::solveNewton(
     double Q = 0.5*NormSq(f);
     xdbg<<"Q = "<<Q<<std::endl;
     this->calculateJ(x,f,J);
-    if (_shouldUseSvd) J.DivideUsing(tmv::SV);
-    J.SaveDiv();
+    if (_shouldUseSvd) J.divideUsing(tmv::SV);
+    J.saveDiv();
     xdbg<<"J = "<<J<<std::endl;
-    g = J.Transpose() * f;
+    g = J.transpose() * f;
     xdbg<<"g = "<<g<<std::endl;
     CHECKG(NormInf(g));
     double alpha = Q/NormSq(g);
@@ -271,8 +271,8 @@ bool NLSolver::solveNewton(
                 dbg<<"This can happen when there is a singularity (or close to it)\n";
                 dbg<<"along the gradient direction:\n";
                 if (_shouldUseSvd) {
-                    dbg<<"J Singular values = \n"<<J.SVD().GetS().diag()<<std::endl;
-                    dbg<<"V = \n"<<J.SVD().GetV()<<std::endl;
+                    dbg<<"J Singular values = \n"<<J.svd().getS().diag()<<std::endl;
+                    dbg<<"V = \n"<<J.svd().getV()<<std::endl;
                 }
                 SHOWFAILFG; 
                 return false;
@@ -298,9 +298,9 @@ bool NLSolver::solveNewton(
                 continue;
             }
             this->calculateJ(xNew,fNew,J);
-            J.UnSetDiv();
+            J.unsetDiv();
             xdbg<<"Jnew = "<<J<<std::endl;
-            gNew = J.Transpose() * fNew;
+            gNew = J.transpose() * fNew;
             xdbg<<"gnew = "<<gNew<<std::endl;
 
             // Check that alpha is not too small
@@ -345,22 +345,22 @@ bool NLSolver::solveLM(
     double Q = 0.5*NormSq(f);
     xdbg<<"Q = "<<Q<<std::endl;
     this->calculateJ(x,f,J);
-    if (_shouldUseSvd) J.DivideUsing(tmv::SV);
-    J.SaveDiv();
+    if (_shouldUseSvd) J.divideUsing(tmv::SV);
+    J.saveDiv();
     xdbg<<"J = "<<J<<std::endl;
-    tmv::Vector<double> g = J.Transpose() * f;
+    tmv::Vector<double> g = J.transpose() * f;
     xdbg<<"g = "<<g<<std::endl;
     CHECKG(NormInf(g));
 
-    tmv::SymMatrix<double> A = J.Transpose() * J;
+    tmv::SymMatrix<double> A = J.transpose() * J;
     xdbg<<"JT J = "<<A<<std::endl;
-    if (_shouldUseSvd) A.DivideUsing(tmv::SV);
-    else if (_shouldUseCh) A.DivideUsing(tmv::CH);
-    else A.DivideUsing(tmv::LU);
+    if (_shouldUseSvd) A.divideUsing(tmv::SV);
+    else if (_shouldUseCh) A.divideUsing(tmv::CH);
+    else A.divideUsing(tmv::LU);
     double mu = _tau * NormInf(A.diag());
     xdbg<<"initial mu = "<<_tau<<" * "<<NormInf(A.diag())<<" = "<<mu<<std::endl;
     A += mu;
-    A.SaveDiv();
+    A.saveDiv();
     double nu = 2.;
 
     dbg<<"iter   |f|inf   Q   |g|inf   mu\n";
@@ -377,7 +377,7 @@ bool NLSolver::solveLM(
         } catch (tmv::NonPosDef) {
             xdbg<<"NonPosDef caught - switching division to LU method.\n";
             // Once the Cholesky decomp fails, just use LU from that point on.
-            A.DivideUsing(tmv::LU);
+            A.divideUsing(tmv::LU);
             h = -g/A;
         }
 #endif
@@ -397,9 +397,9 @@ bool NLSolver::solveLM(
             CHECKF(NormInf(f));
 
             this->calculateJ(x,f,J);
-            J.UnSetDiv();
-            A = J.Transpose() * J;
-            gNew = J.Transpose() * f;
+            J.unsetDiv();
+            A = J.transpose() * J;
+            gNew = J.transpose() * f;
             xdbg<<"gnew = "<<gNew<<std::endl;
             CHECKG(NormInf(gNew));
 
@@ -410,12 +410,12 @@ bool NLSolver::solveLM(
             mu *= std::max(1./3.,1.-std::pow(2.*rho-1.,3)); nu = 2.;
             xdbg<<"mu *= "<<std::max(1./3.,1.-std::pow(2.*rho-1.,3))<<" = "<<mu<<std::endl;
             A += mu;
-            A.UnSetDiv();
+            A.unsetDiv();
             Q = QNew; g = gNew;
         } else {
             xdbg<<"not improved\n";
             A += mu*(nu-1.); mu *= nu; nu *= 2.;
-            A.UnSetDiv();
+            A.unsetDiv();
             xdbg<<"mu *= (nu = "<<nu<<") = "<<mu<<std::endl;
         }
     }
@@ -443,12 +443,12 @@ bool NLSolver::solveDogleg(
     double Q = 0.5*NormSq(f);
     xdbg<<"Q = "<<Q<<std::endl;
     this->calculateJ(x,f,J);
-    if (_shouldUseSvd) J.DivideUsing(tmv::SV);
-    J.SaveDiv();
+    if (_shouldUseSvd) J.divideUsing(tmv::SV);
+    J.saveDiv();
     xdbg<<"J = "<<J<<std::endl;
-    xdbg<<"J.svd = "<<J.SVD().GetS().diag()<<std::endl;
+    xdbg<<"J.svd = "<<J.svd().getS().diag()<<std::endl;
 
-    tmv::Vector<double> g = J.Transpose() * f;
+    tmv::Vector<double> g = J.transpose() * f;
     xdbg<<"g = "<<g<<std::endl;
     CHECKG(NormInf(g));
 
@@ -459,10 +459,10 @@ bool NLSolver::solveDogleg(
     dbg<<"iter   |f|inf   Q   |g|inf   delta\n";
     for(int k=0;k<_maxIter;++k) {
         dbg<<k<<"   "<<NormInf(f)<<"   "<<Q<<"   "<<NormInf(g)<<"   "<<delta<<std::endl;
-        if (_shouldUseSvd && nsing == maxnsing && J.Singular() && nsing > 1) {
+        if (_shouldUseSvd && nsing == maxnsing && J.isSingular() && nsing > 1) {
             dbg<<"Singular J, so try lowering number of singular values.\n";
-            nsing = J.SVD().GetKMax();
-            dbg<<"J Singular values = \n"<<J.SVD().GetS().diag()<<std::endl;
+            nsing = J.svd().getKMax();
+            dbg<<"J Singular values = \n"<<J.svd().getS().diag()<<std::endl;
             dbg<<"nsing -> "<<nsing<<std::endl;
         }
         h = -f/J;
@@ -526,8 +526,8 @@ bool NLSolver::solveDogleg(
             x = xNew; f = fNew; Q = QNew;
             CHECKF(NormInf(f));
             this->calculateJ(x,f,J);
-            J.UnSetDiv();
-            g = J.Transpose() * f;
+            J.unsetDiv();
+            g = J.transpose() * f;
             xdbg<<"g = "<<g<<std::endl;
             CHECKG(NormInf(g));
             if (rho > 0.75) {
@@ -547,8 +547,8 @@ bool NLSolver::solveDogleg(
                     " * normsqh, so try lowering number of singular values.\n";
                 --nsing;
                 dbg<<"nsing -> "<<nsing<<std::endl;
-                dbg<<"J Singular values = \n"<<J.SVD().GetS().diag()<<std::endl;
-                J.SVD().Top(nsing);
+                dbg<<"J Singular values = \n"<<J.svd().getS().diag()<<std::endl;
+                J.svd().top(nsing);
             } else {
                 delta /= 2.;
                 double min_delta = _minStep * (Norm(x)+_minStep);
@@ -592,21 +592,21 @@ bool NLSolver::solveHybrid(
     double Q = 0.5*NormSq(f);
     xdbg<<"Q = "<<Q<<std::endl;
     this->calculateJ(x,f,J);
-    if (_shouldUseSvd) J.DivideUsing(tmv::SV);
-    J.SaveDiv();
+    if (_shouldUseSvd) J.divideUsing(tmv::SV);
+    J.saveDiv();
     xdbg<<"J = "<<J<<std::endl;
 
-    tmv::SymMatrix<double> A = J.Transpose()*J;
+    tmv::SymMatrix<double> A = J.transpose()*J;
     xdbg<<"A = "<<A<<std::endl;
-    if (_shouldUseSvd) A.DivideUsing(tmv::SV);
-    else if (_shouldUseCh) A.DivideUsing(tmv::CH);
-    else A.DivideUsing(tmv::LU);
-    A.SaveDiv();
+    if (_shouldUseSvd) A.divideUsing(tmv::SV);
+    else if (_shouldUseCh) A.divideUsing(tmv::CH);
+    else A.divideUsing(tmv::LU);
+    A.saveDiv();
     tmv::SymMatrix<double> H(x.size());
-    if (_shouldUseSvd) H.DivideUsing(tmv::SV);
-    else if (_shouldUseCh) H.DivideUsing(tmv::CH);
-    else H.DivideUsing(tmv::LU);
-    H.SaveDiv();
+    if (_shouldUseSvd) H.divideUsing(tmv::SV);
+    else if (_shouldUseCh) H.divideUsing(tmv::CH);
+    else H.divideUsing(tmv::LU);
+    H.saveDiv();
     bool shouldUseDirectH = _hasDirectH;
     xdbg<<"shouldUseDirectH = "<<shouldUseDirectH<<std::endl;
     if (shouldUseDirectH) {
@@ -619,16 +619,16 @@ bool NLSolver::solveHybrid(
         } catch(NoDefinedH) {
             dbg<<"No direct H calculation - calculate on the fly\n";
             shouldUseDirectH = false;
-            H.SetToIdentity();
+            H.setToIdentity();
         }
 #endif
     } else {
-        xdbg<<"SetToIdent\n";
-        H.SetToIdentity();
+        xdbg<<"setToIdent\n";
+        H.setToIdentity();
     }
     xdbg<<"After calculate H = "<<H<<std::endl;
 
-    tmv::Vector<double> g = J.Transpose() * f;
+    tmv::Vector<double> g = J.transpose() * f;
     xdbg<<"g = "<<g<<std::endl;
     double normInfG = NormInf(g);
     CHECKG(normInfG);
@@ -661,7 +661,7 @@ bool NLSolver::solveHybrid(
 #ifndef NOTHROW
             } catch (tmv::NonPosDef) {
                 xdbg<<"NonPosDef caught - switching division to LU method for H\n";
-                H.DivideUsing(tmv::LU); 
+                H.divideUsing(tmv::LU); 
                 h = -g/H;
             }
 #endif
@@ -673,7 +673,7 @@ bool NLSolver::solveHybrid(
 #ifndef NOTHROW
             } catch (tmv::NonPosDef) {
                 xdbg<<"NonPosDef caught - switching division to LU method for A\n";
-                A.DivideUsing(tmv::LU);
+                A.divideUsing(tmv::LU);
                 h = -g/A; 
             }
 #endif
@@ -696,7 +696,7 @@ bool NLSolver::solveHybrid(
             xdbg<<"Jnew = "<<JNew<<std::endl;
         }
         if (shouldUseQuasiNewton || QNew < Q) {
-            gNew = JNew.Transpose() * fNew;
+            gNew = JNew.transpose() * fNew;
             xdbg<<"gnew = "<<gNew<<std::endl;
         }
         double normInfGNew = NormInf(gNew);
@@ -752,7 +752,7 @@ bool NLSolver::solveHybrid(
                     count = 0;
                 }
                 if (count != 3) {
-                    A = JNew.Transpose() * JNew;
+                    A = JNew.transpose() * JNew;
                     A += mu;
                 }
             } else {
@@ -761,14 +761,14 @@ bool NLSolver::solveHybrid(
                 // MJ: try this?
                 shouldSwitchMethod = (nu >= 32.);
             }
-            A.UnSetDiv();
+            A.unsetDiv();
             xdbg<<"better = "<<isBetter<<std::endl;
             xdbg<<"switchmethod = "<<shouldSwitchMethod<<std::endl;
             xdbg<<"count = "<<count<<std::endl;
         }
 
         if (!shouldUseDirectH) {
-            y = JNew.Transpose()*(JNew*h) + (JNew-J).Transpose()*fNew;
+            y = JNew.transpose()*(JNew*h) + (JNew-J).transpose()*fNew;
             double hy = h*y;
             xdbg<<"hy = "<<hy<<std::endl;
             if (hy > 0.) {
@@ -779,7 +779,7 @@ bool NLSolver::solveHybrid(
                 H -= (1./(h*v)) * (v^v);
                 xdbg<<"H -> "<<H<<std::endl;
                 H += (1./hy) * (y^y);
-                H.UnSetDiv();
+                H.unsetDiv();
                 xdbg<<"H -> "<<H<<std::endl;
             }
         }
@@ -787,7 +787,7 @@ bool NLSolver::solveHybrid(
         if (isBetter) {
             xdbg<<"better"<<std::endl;
             x = xNew; f = fNew; Q = QNew; J = JNew; g = gNew; 
-            J.UnSetDiv();
+            J.unsetDiv();
             normInfF = NormInf(f); normInfG = normInfGNew;
             if (shouldUseDirectH && shouldUseQuasiNewton && !shouldSwitchMethod)
                 this->calculateH(x,f,J,H);
@@ -797,10 +797,10 @@ bool NLSolver::solveHybrid(
         if (shouldSwitchMethod) {
             if (shouldUseQuasiNewton) {
                 xdbg<<"switch to LM\n";
-                A = J.Transpose() * J;
+                A = J.transpose() * J;
                 //mu = _tau * NormInf(A.diag());
                 A += mu;
-                A.UnSetDiv();
+                A.unsetDiv();
                 shouldUseQuasiNewton = false;
                 count = 0;
             } else {
@@ -808,7 +808,7 @@ bool NLSolver::solveHybrid(
                 delta = std::max(1.5*_minStep*(Norm(x)+_minStep),0.2*normH);
                 if (shouldUseDirectH) {
                     this->calculateH(x,f,J,H);
-                    H.UnSetDiv();
+                    H.unsetDiv();
                 }
                 shouldUseQuasiNewton = true;
             }
@@ -838,13 +838,13 @@ bool NLSolver::solveSecantLM(
     double Q = 0.5*NormSq(f);
     xdbg<<"Q = "<<Q<<std::endl;
     this->calculateJ(x,f,J);
-    if (_shouldUseSvd) J.DivideUsing(tmv::SV);
+    if (_shouldUseSvd) J.divideUsing(tmv::SV);
     xdbg<<"J = "<<J<<std::endl;
-    tmv::SymMatrix<double> A = J.Transpose() * J;
-    if (_shouldUseSvd) A.DivideUsing(tmv::SV);
-    else if (_shouldUseCh) A.DivideUsing(tmv::CH);
-    else A.DivideUsing(tmv::LU);
-    tmv::Vector<double> g = J.Transpose() * f;
+    tmv::SymMatrix<double> A = J.transpose() * J;
+    if (_shouldUseSvd) A.divideUsing(tmv::SV);
+    else if (_shouldUseCh) A.divideUsing(tmv::CH);
+    else A.divideUsing(tmv::LU);
+    tmv::Vector<double> g = J.transpose() * f;
     xdbg<<"g = "<<g<<std::endl;
     CHECKG(NormInf(g));
 
@@ -866,7 +866,7 @@ bool NLSolver::solveSecantLM(
 #ifndef NOTHROW
         } catch (tmv::NonPosDef) {
             xdbg<<"NonPosDef caught - switching division to LU method.\n";
-            A.DivideUsing(tmv::LU);
+            A.divideUsing(tmv::LU);
             h = -g/A;
         }
 #endif
@@ -898,8 +898,8 @@ bool NLSolver::solveSecantLM(
             x = xNew; f = fNew; 
             CHECKF(NormInf(f));
 
-            A = J.Transpose() * J;
-            gNew = J.Transpose() * f;
+            A = J.transpose() * J;
+            gNew = J.transpose() * f;
             CHECKG(NormInf(g));
 
             g -= mu*h;
@@ -941,10 +941,10 @@ bool NLSolver::solveSecantDogleg(
     double Q = 0.5*NormSq(f);
     xdbg<<"Q = "<<Q<<std::endl;
     this->calculateJ(x,f,J);
-    if (_shouldUseSvd) J.DivideUsing(tmv::SV);
-    tmv::Matrix<double> D = J.Inverse();
+    if (_shouldUseSvd) J.divideUsing(tmv::SV);
+    tmv::Matrix<double> D = J.inverse();
 
-    tmv::Vector<double> g = J.Transpose() * f;
+    tmv::Vector<double> g = J.transpose() * f;
     xdbg<<"g = "<<g<<std::endl;
     CHECKG(NormInf(g));
     double delta = _delta0;
@@ -1021,7 +1021,7 @@ bool NLSolver::solveSecantDogleg(
         J += (1./NormSq(h)) * ((fNew - f - J*h) ^ h);
         double hDy = h*D*y;
         if (resetd || hDy < sqrtEps*Norm(h)) {
-            D = J.Inverse();
+            D = J.inverse();
         } else {
             D += 1./(hDy) * ((h-D*y) ^ (h*D));
         }
@@ -1031,7 +1031,7 @@ bool NLSolver::solveSecantDogleg(
             xdbg<<"rho = "<<Q-QNew<<" / "<<rhoDenom<<" = "<<rho<<std::endl;
             x = xNew; f = fNew; Q = QNew;
             CHECKF(NormInf(f));
-            g = J.Transpose() * f;
+            g = J.transpose() * f;
             xdbg<<"g = "<<g<<std::endl;
             CHECKG(NormInf(g));
             if (rho > 0.75) {
@@ -1110,10 +1110,10 @@ void NLSolver::getCovariance(tmv::Matrix<double>& cov) const
     // This might have changed between solve and getCovariance:
     // And we need to set the threshold to sqrt(eps) rather than eps
     if (_shouldUseSvd) {
-        J.DivideUsing(tmv::SV);
-        J.SVD().Thresh(sqrtEps); 
+        J.divideUsing(tmv::SV);
+        J.svd().thresh(sqrtEps); 
     }
-    J.InverseATA(cov);
+    J.makeInverseATA(cov);
 }
 
 void NLSolver::getInverseCovariance(tmv::Matrix<double>& invCov) const
@@ -1123,5 +1123,5 @@ void NLSolver::getInverseCovariance(tmv::Matrix<double>& invCov) const
             "J not set before calling getInverseCovariance");
     }
     tmv::Matrix<double>& J = *_pJ;
-    invCov = J.Transpose() * J;
+    invCov = J.transpose() * J;
 }

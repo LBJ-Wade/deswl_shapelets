@@ -17,10 +17,10 @@ root=decam--24--37-i-14_06
 config=../example_config/wl.config
 #input=/home/mjarvis/des/wl/testdata/data
 #output=/home/mjarvis/des/wl/testdata/output2
-#input=/Users/Mike/Astro/des/devel/wl/testdata/data
-#output=/Users/Mike/Astro/des/devel/wl/testdata/output2
-input=/u/ac/jarvis/wl/testdata/data
-output=/u/ac/jarvis/wl/testdata/output
+input=/Users/Mike/Astro/des/devel/wl/testdata/data
+output=/Users/Mike/Astro/des/devel/wl/testdata/output2
+#input=/u/ac/jarvis/wl/testdata/data
+#output=/u/ac/jarvis/wl/testdata/output
 #dc4=
 #dc4='shear_dc4_input_format=true'
 dc4='+dc4.config'

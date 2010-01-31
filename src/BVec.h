@@ -94,13 +94,13 @@ void calculateZTransform(
     std::complex<double> z, int order, const DMatrixView& T);
 inline void calculateZTransform(
     std::complex<double> z, int order, DMatrix& T)
-{ calculateZTransform(z,order,T.View()); }
+{ calculateZTransform(z,order,T.view()); }
 void applyZ(std::complex<double> z, BVec& b);
 
 void calculateMuTransform(double mu, int order, const DMatrixView& D);
 void augmentMuTransformRows(double mu, int order, const DMatrixView& D);
 inline void calculateMuTransform(double mu, int order, DMatrix& D)
-{ calculateMuTransform(mu,order,D.View()); }
+{ calculateMuTransform(mu,order,D.view()); }
 void applyMu(double mu, BVec& b);
 
 void calculateGTransform(
@@ -108,14 +108,14 @@ void calculateGTransform(
 void augmentGTransformCols(
     std::complex<double> g, int order, const DMatrixView& S);
 inline void calculateGTransform(std::complex<double> g, int order, DMatrix& S)
-{ calculateGTransform(g,order,S.View()); }
+{ calculateGTransform(g,order,S.view()); }
 void applyG(std::complex<double> g, BVec& b);
 
 void calculatePsfConvolve(
     const BVec& bpsf, int order, double sigma, const DMatrixView& C);
 inline void calculatePsfConvolve(
     const BVec& bpsf, int order, double sigma, DMatrix& C)
-{ calculatePsfConvolve(bpsf,order,sigma,C.View()); }
+{ calculatePsfConvolve(bpsf,order,sigma,C.view()); }
 void applyPsf(const BVec& bpsf, BVec& b);
 
 #endif

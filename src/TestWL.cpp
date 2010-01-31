@@ -81,7 +81,7 @@ inline void getFakePixList(
     const size_t border = b.getOrder();
     Assert(border <= 8); // This is as high as I have implemented.
 
-    double det = std::abs(D.Det());
+    double det = std::abs(D.det());
     //double pixScale = sqrt(det); // arcsec/pixel
 
     // xap,yap are the maximum deviation from the center in x,y
@@ -379,7 +379,7 @@ inline void DirectConvolveB(const BVec& rbi, const BVec& rbp, BVec& rb)
     double rp = sigmaPsf/sigma_i; rp *= rp;
     double rp2 = rp*rp;
 
-    b.Zero();
+    b.setZero();
 
     b[K00] += bi[K00] * bp[K00];
     b[K10] += bi[K00] * bp[K10];
@@ -759,13 +759,11 @@ int main(int argc, char **argv) try
 
     tmv::SmallMatrix<double,2,2,tmv::RowMajor> D;
 #if 1
-    D = tmv::ListInit,
-      0.08, -0.02,
-      -0.015, 0.11;
-    double pixScale = sqrt(D.Det());
+    D << 0.08, -0.02, -0.015, 0.11;
+    double pixScale = sqrt(D.det());
 #else
     double pixScale = 0.1;
-    D.SetToIdentity(pixScale);
+    D.setToIdentity(pixScale);
 #endif
     dbg<<"pixscale = "<<pixScale<<std::endl;
 
@@ -898,10 +896,10 @@ int main(int argc, char **argv) try
                 BVec b0 = s->getB();
                 dbg<<"measured b = "<<b0.vec()<<std::endl;
                 BVec b0save = b0;
-                test(Norm(b0.vec().SubVector(0,15)-bin.vec()) < 
+                test(Norm(b0.vec().subVector(0,15)-bin.vec()) < 
                      EPS*Norm(bin.vec()),
                      "Basic B Measurement");
-                test(Norm(b0.vec().SubVector(15,b0.size())) < 
+                test(Norm(b0.vec().subVector(15,b0.size())) < 
                      EPS*Norm(bin.vec()),
                      "Basic B Measurement 2");
 #ifdef TESTJ
@@ -956,11 +954,11 @@ int main(int argc, char **argv) try
                 test(Norm(b1.vec()-b0.vec()) < 100.*EPS*Norm(b0.vec()),
                      "ApplyMu 1");
 #else
-                test(Norm(b1.vec().SubVector(0,15)-b0.vec().SubVector(0,15)) <
+                test(Norm(b1.vec().subVector(0,15)-b0.vec().subVector(0,15)) <
                      EPS*Norm(b0.vec()),
                      "ApplyMu 1");
-                test(Norm(b1.vec().SubVector(15,b1.size()) -
-                          b0.vec().SubVector(15,b1.size())) < 
+                test(Norm(b1.vec().subVector(15,b1.size()) -
+                          b0.vec().subVector(15,b1.size())) < 
                      10.*b1.size()*EPS*Norm(b0.vec()),
                      "ApplyMu 2");
 #endif
@@ -975,11 +973,11 @@ int main(int argc, char **argv) try
                 test(Norm(b1.vec()-b0.vec()) < 100.*EPS*Norm(b0.vec()),
                      "ApplyMu 2");
 #else
-                test(Norm(b1.vec().SubVector(0,15)-b0.vec().SubVector(0,15)) < 
+                test(Norm(b1.vec().subVector(0,15)-b0.vec().subVector(0,15)) < 
                      EPS*Norm(b0.vec()),
                      "ApplyMu 3");
-                test(Norm(b1.vec().SubVector(15,b1.size()) -
-                          b0.vec().SubVector(15,b1.size())) < 
+                test(Norm(b1.vec().subVector(15,b1.size()) -
+                          b0.vec().subVector(15,b1.size())) < 
                      10.*b1.size()*EPS*Norm(b0.vec()),
                      "ApplyMu 4");
 #endif
@@ -1003,11 +1001,11 @@ int main(int argc, char **argv) try
                 test(Norm(b1.vec()-b0.vec()) < 10.*EPS*Norm(b0.vec()),
                      "ApplyG 1");
 #else
-                test(Norm(b1.vec().SubVector(0,15)-b0.vec().SubVector(0,15)) < 
+                test(Norm(b1.vec().subVector(0,15)-b0.vec().subVector(0,15)) < 
                      EPS*Norm(b0.vec()),
                      "ApplyG 1");
-                test(Norm(b1.vec().SubVector(15,b1.size()) -
-                          b0.vec().SubVector(15,b1.size())) < 
+                test(Norm(b1.vec().subVector(15,b1.size()) -
+                          b0.vec().subVector(15,b1.size())) < 
                      b1.size()*EPS*Norm(b0.vec()),
                      "ApplyG 2");
 #endif
@@ -1024,11 +1022,11 @@ int main(int argc, char **argv) try
                 test(Norm(b1.vec()-b0.vec()) < 10.*EPS*Norm(b0.vec()),
                      "ApplyG 2");
 #else
-                test(Norm(b1.vec().SubVector(0,15)-b0.vec().SubVector(0,15)) < 
+                test(Norm(b1.vec().subVector(0,15)-b0.vec().subVector(0,15)) < 
                      EPS*Norm(b0.vec()),
                      "ApplyG 3");
-                test(Norm(b1.vec().SubVector(15,b1.size()) -
-                          b0.vec().SubVector(15,b1.size())) < 
+                test(Norm(b1.vec().subVector(15,b1.size()) -
+                          b0.vec().subVector(15,b1.size())) < 
                      b1.size()*EPS*Norm(b0.vec()),
                      "ApplyG 4");
 #endif
@@ -1052,10 +1050,10 @@ int main(int argc, char **argv) try
                     BVec b = s->getB();
                     dbg<<"blong = "<<blong.vec()<<std::endl;
                     dbg<<"b = "<<b.vec()<<std::endl;
-                    test(Norm(b.vec().SubVector(0,45)-blong.vec()) < 
+                    test(Norm(b.vec().subVector(0,45)-blong.vec()) < 
                          EPS*Norm(blong.vec()),
                          "Basic Long B Measurement");
-                    test(Norm(b.vec().SubVector(45,b.size())) < 
+                    test(Norm(b.vec().subVector(45,b.size())) < 
                          EPS*Norm(blong.vec()),
                          "Basic Long B Measurement (2)");
 #ifdef TESTJ
@@ -1073,10 +1071,10 @@ int main(int argc, char **argv) try
                     BVec bx = s->getB();
                     dbg<<"blong = "<<blong.vec()<<std::endl;
                     dbg<<"bx = "<<bx.vec()<<std::endl;
-                    test(Norm(bx.vec().SubVector(0,45)-blong.vec()) < 
+                    test(Norm(bx.vec().subVector(0,45)-blong.vec()) < 
                          EPS*Norm(blong.vec()),
                          "Basic Long B Measurement");
-                    test(Norm(bx.vec().SubVector(45,bx.size())) < 
+                    test(Norm(bx.vec().subVector(45,bx.size())) < 
                          EPS*Norm(blong.vec()),
                          "Basic Long B Measurement (2)");
 #ifdef TESTJ
@@ -1128,7 +1126,7 @@ int main(int argc, char **argv) try
                     tmv::Matrix<double> C(45,45);
                     calculatePsfConvolve(bpsf,8,sigma_i,C);
                     BVec c0(8,sigma_o);
-                    c0.vec() = C.Cols(0,15) * b0.vec();
+                    c0.vec() = C.colRange(0,15) * b0.vec();
                     xdbg<<"c0 = "<<c0.vec()<<std::endl;
 
                     // c0x is another estimate of the same thing based on a 
@@ -1172,12 +1170,12 @@ int main(int argc, char **argv) try
                     // because of the finite order of the intermediate 
                     // transformations.
                     // But through 4th order, the match should be quite good.
-                    test(Norm(bex.vec().SubVector(0,15) - 
-                              be.vec().SubVector(0,15)) <
+                    test(Norm(bex.vec().subVector(0,15) - 
+                              be.vec().subVector(0,15)) <
                          3.e-5*(Norm(be.vec())+Norm(b0.vec())),
                          "View B in ell frame");
-                    test(Norm(bex.vec().SubVector(0,45) - 
-                              be.vec().SubVector(0,45)) <
+                    test(Norm(bex.vec().subVector(0,45) - 
+                              be.vec().subVector(0,45)) <
                          1.e-3*(Norm(be.vec())+Norm(b0.vec())),
                          "View B in ell frame");
                     test(Norm(bex.vec()-be.vec()) <
@@ -1204,12 +1202,12 @@ int main(int argc, char **argv) try
                     applyZ(z0,cex);
                     applyG(g0,cex);
                     applyMu(m0,cex);
-                    test(Norm(cex.vec().SubVector(0,15) - 
-                              ce.vec().SubVector(0,15)) <
+                    test(Norm(cex.vec().subVector(0,15) - 
+                              ce.vec().subVector(0,15)) <
                          3.e-5*(Norm(ce.vec())+Norm(b0.vec())),
                          "Convolved B in ell frame");
-                    test(Norm(cex.vec().SubVector(0,45) - 
-                              ce.vec().SubVector(0,45)) <
+                    test(Norm(cex.vec().subVector(0,45) - 
+                              ce.vec().subVector(0,45)) <
                          1.e-3*(Norm(ce.vec())+Norm(b0.vec())),
                          "Convolved B in ell frame");
                     test(Norm(cex.vec()-ce.vec()) <
@@ -1271,14 +1269,14 @@ int main(int argc, char **argv) try
                     xdbg<<"bes = "<<bes.vec()<<std::endl;
                     xdbg<<"b0 = "<<b0.vec()<<std::endl;
                     xdbg<<"Norm(bes-b0) = "<<
-                        Norm(bes.vec().SubVector(0,15)-b0.vec())<<std::endl;
+                        Norm(bes.vec().subVector(0,15)-b0.vec())<<std::endl;
                     xdbg<<"Norm(bes(15:)) = "<<
-                        Norm(bes.vec().SubVector(15,bes.size()))<<std::endl;
+                        Norm(bes.vec().subVector(15,bes.size()))<<std::endl;
                     xdbg<<"cf "<<EPS<<" * "<<Norm(b0.vec())+Norm(c0.vec())<<std::endl;
-                    test(Norm(bes.vec().SubVector(0,15)-b0.vec()) < 
+                    test(Norm(bes.vec().subVector(0,15)-b0.vec()) < 
                          EPS*(Norm(b0.vec())+Norm(c0.vec())),
                          "Deconvolving solver BE Measurement");
-                    test(Norm(bes.vec().SubVector(15,bes.size())) <
+                    test(Norm(bes.vec().subVector(15,bes.size())) <
                          3.*EPS*(Norm(b0.vec())+Norm(c0.vec())),
                          "Deconvolving solver BE Measurement");
 #ifdef TESTJ
@@ -1312,13 +1310,13 @@ int main(int argc, char **argv) try
                     besx.vec() *= b0(0)/besx(0);
                     xdbg<<"besx => "<<besx.vec()<<std::endl;
                     xdbg<<"Norm(besx-b0) = "<<
-                        Norm(besx.vec().SubVector(0,15)-b0.vec())<<std::endl;
+                        Norm(besx.vec().subVector(0,15)-b0.vec())<<std::endl;
                     xdbg<<"Norm(bes(15:)) = "<<
-                        Norm(besx.vec().SubVector(15,besx.size()))<<std::endl;
-                    test(Norm(besx.vec().SubVector(0,15)-b0.vec()) < 
+                        Norm(besx.vec().subVector(15,besx.size()))<<std::endl;
+                    test(Norm(besx.vec().subVector(0,15)-b0.vec()) < 
                          EPS*(Norm(b0.vec())+Norm(c0.vec())),
                          "Deconvolving solver BE Measurement #2");
-                    test(Norm(besx.vec().SubVector(15,besx.size())) <
+                    test(Norm(besx.vec().subVector(15,besx.size())) <
                          3.*EPS*(Norm(b0.vec())+Norm(c0.vec())),
                          "Deconvolving solver BE Measurement #2");
 #ifdef TESTJ
@@ -1346,7 +1344,7 @@ int main(int argc, char **argv) try
             double m0 = ell.getMu();
 
             BVec bin(4,sigma_i);
-            bin.vec().Zero();
+            bin.vec().setZero();
             bin(0) = 1.;
             dbg<<"bin = "<<bin.vec()<<std::endl;
             int order = 8;
@@ -1401,7 +1399,7 @@ int main(int argc, char **argv) try
                 tmv::Matrix<double> C(45,45);
                 calculatePsfConvolve(bpsf,8,sigma_i,C);
                 BVec c0(8,sigma_o);
-                c0.vec() = C.Cols(0,15) * b0.vec();
+                c0.vec() = C.colRange(0,15) * b0.vec();
                 xdbg<<"c0 = "<<c0.vec()<<std::endl;
                 allpix.resize(1);
                 allpix[0].clear();
@@ -1416,13 +1414,13 @@ int main(int argc, char **argv) try
                 s->calculateF(xe,f);
                 BVec be = s->getB();
                 xdbg<<"be = "<<be.vec()<<std::endl;
-                test(Norm(be.vec().SubVector(0,15)-bin.vec()) < 
+                test(Norm(be.vec().subVector(0,15)-bin.vec()) < 
                      EPS*Norm(bin.vec()),
                      "B Measurement for Single Image w/ PSF");
-                test(Norm(be.vec().SubVector(15,be.size())) < 
+                test(Norm(be.vec().subVector(15,be.size())) < 
                      3.*EPS*Norm(bin.vec()),
                      "B Measurement 2 for Single Image w/ PSF");
-                x.Zero();
+                x.setZero();
                 if (XDEBUG) s->setOutput(*dbgout);
                 s->useDogleg();
                 s->setDelta0(0.1);
@@ -1451,13 +1449,13 @@ int main(int argc, char **argv) try
                 s->calculateF(xe,f);
                 BVec bex = s->getB();
                 xdbg<<"bex = "<<bex.vec()<<std::endl;
-                test(Norm(bex.vec().SubVector(0,15)-bin.vec()) < 
+                test(Norm(bex.vec().subVector(0,15)-bin.vec()) < 
                      EPS*Norm(bin.vec()),
                      "B Measurement for Single Image w/ PSF");
-                test(Norm(bex.vec().SubVector(15,bex.size())) < 
+                test(Norm(bex.vec().subVector(15,bex.size())) < 
                      3.*EPS*Norm(bin.vec()),
                      "B Measurement 2 for Single Image w/ PSF");
-                x.Zero();
+                x.setZero();
                 if (XDEBUG) s->setOutput(*dbgout);
                 s->useDogleg();
                 s->setDelta0(0.1);
@@ -1485,7 +1483,7 @@ int main(int argc, char **argv) try
             double m0 = ell.getMu();
 
             BVec bin(4,sigma_i);
-            bin.vec().Zero();
+            bin.vec().setZero();
             bin(0) = 1.;
             dbg<<"bin = "<<bin.vec()<<std::endl;
             int order = 8;
@@ -1513,13 +1511,13 @@ int main(int argc, char **argv) try
                 BVec be = s->getB();
                 xdbg<<"be = "<<be.vec()<<std::endl;
                 xdbg<<"Norm(be(0:15)-bin) = "<<
-                    Norm(be.vec().SubVector(0,15)-bin.vec())<<std::endl;
+                    Norm(be.vec().subVector(0,15)-bin.vec())<<std::endl;
                 xdbg<<"Norm(be(15:)) = "<<
-                    Norm(be.vec().SubVector(15,be.size()))<<std::endl;
-                test(Norm(be.vec().SubVector(0,15)-bin.vec()) < 
+                    Norm(be.vec().subVector(15,be.size()))<<std::endl;
+                test(Norm(be.vec().subVector(0,15)-bin.vec()) < 
                      EPS*Norm(bin.vec()),
                      "B Measurement for Multi Image");
-                test(Norm(be.vec().SubVector(15,be.size())) < 
+                test(Norm(be.vec().subVector(15,be.size())) < 
                      3.*EPS*Norm(bin.vec()),
                      "B Measurement 2 for Multi Image");
 
@@ -1572,7 +1570,7 @@ int main(int argc, char **argv) try
                     tmv::Matrix<double> C(45,45);
                     calculatePsfConvolve(allpsf[k],8,sigma_i,C);
                     BVec c0(8,sigma_o);
-                    c0.vec() = C.Cols(0,15) * b0.vec();
+                    c0.vec() = C.colRange(0,15) * b0.vec();
                     xdbg<<"c0 = "<<c0.vec()<<std::endl;
 
                     allpix[k].clear();
@@ -1592,17 +1590,17 @@ int main(int argc, char **argv) try
                 BVec be = s->getB();
                 xdbg<<"be = "<<be.vec()<<std::endl;
                 xdbg<<"Norm(be(0:15)-bin) = "<<
-                    Norm(be.vec().SubVector(0,15)-bin.vec())<<std::endl;
+                    Norm(be.vec().subVector(0,15)-bin.vec())<<std::endl;
                 xdbg<<"Norm(be(15:)) = "<<
-                    Norm(be.vec().SubVector(15,be.size()))<<std::endl;
-                test(Norm(be.vec().SubVector(0,15)-bin.vec()) < 
+                    Norm(be.vec().subVector(15,be.size()))<<std::endl;
+                test(Norm(be.vec().subVector(0,15)-bin.vec()) < 
                      EPS*Norm(bin.vec()),
                      "B Measurement for Multi Image w/ PSF");
-                test(Norm(be.vec().SubVector(15,be.size())) < 
+                test(Norm(be.vec().subVector(15,be.size())) < 
                      3.*EPS*Norm(bin.vec()),
                      "B Measurement 2 for Multi Image w/ PSF");
 
-                x.Zero();
+                x.setZero();
                 if (XDEBUG) s->setOutput(*dbgout);
                 s->useDogleg();
                 s->setDelta0(0.1);
@@ -1637,17 +1635,17 @@ int main(int argc, char **argv) try
                 BVec bex = s->getB();
                 xdbg<<"bex = "<<bex.vec()<<std::endl;
                 xdbg<<"Norm(bex(0:15)-bin.vec()) = "<<
-                    Norm(bex.vec().SubVector(0,15)-bin.vec())<<std::endl;
+                    Norm(bex.vec().subVector(0,15)-bin.vec())<<std::endl;
                 xdbg<<"Norm(bex(15:)) = "<<
-                    Norm(bex.vec().SubVector(15,bex.size()))<<std::endl;
-                test(Norm(bex.vec().SubVector(0,15)-bin.vec()) < 
+                    Norm(bex.vec().subVector(15,bex.size()))<<std::endl;
+                test(Norm(bex.vec().subVector(0,15)-bin.vec()) < 
                      EPS*Norm(bin.vec()),
                      "B Measurement for Multi Image w/ PSF");
-                test(Norm(bex.vec().SubVector(15,bex.size())) < 
+                test(Norm(bex.vec().subVector(15,bex.size())) < 
                      3.*EPS*Norm(bin.vec()),
                      "B Measurement 2 for Multi Image w/ PSF");
 
-                x.Zero();
+                x.setZero();
                 if (XDEBUG) s->setOutput(*dbgout);
                 s->useDogleg();
                 s->setDelta0(0.1);
@@ -1686,7 +1684,7 @@ int main(int argc, char **argv) try
 
         // First do the test without the PSFs
         BVec bin(4,sigma_i);
-        bin.vec().Zero();
+        bin.vec().setZero();
         bin(0) = 1.;
         xdbg<<"bin = "<<bin.vec()<<std::endl;
         int order = 6;
@@ -1735,9 +1733,9 @@ int main(int argc, char **argv) try
              "Measure for Multi Image w/ PSF - gam");
         test(std::abs(e_1.getMu()-ell.getMu()) < 1.e-5,
              "Measure for Multi Image w/ PSF - mu");
-        test(Norm(b_1.vec().SubVector(0,15)-bin.vec()) < 1.e-5*Norm(bin.vec()),
+        test(Norm(b_1.vec().subVector(0,15)-bin.vec()) < 1.e-5*Norm(bin.vec()),
              "Measure for Multi Image w/ PSF - b");
-        test(Norm(b_1.vec().SubVector(15,b_1.size())) < 1.e-5*Norm(bin.vec()),
+        test(Norm(b_1.vec().subVector(15,b_1.size())) < 1.e-5*Norm(bin.vec()),
              "Measure 2 for Multi Image w/ PSF - b");
 
 
@@ -1769,7 +1767,7 @@ int main(int argc, char **argv) try
             tmv::Matrix<double> C(45,45);
             calculatePsfConvolve(allpsf[k],8,sigma_i,C);
             BVec c0(8,sigma_o);
-            c0.vec() = C.Cols(0,15) * b0.vec();
+            c0.vec() = C.colRange(0,15) * b0.vec();
             xdbg<<"c0 = "<<c0.vec()<<std::endl;
 
             allpix[k].clear();
@@ -1790,9 +1788,9 @@ int main(int argc, char **argv) try
              "Measure for Multi Image w/ PSF - gam");
         test(std::abs(e_2.getMu()-ell.getMu()) < 1.e-5,
              "Measure for Multi Image w/ PSF - mu");
-        test(Norm(b_2.vec().SubVector(0,15)-bin.vec()) < 1.e-5*Norm(bin.vec()),
+        test(Norm(b_2.vec().subVector(0,15)-bin.vec()) < 1.e-5*Norm(bin.vec()),
              "Measure for Multi Image w/ PSF - b");
-        test(Norm(b_2.vec().SubVector(15,b_2.size())) < 1.e-5*Norm(bin.vec()),
+        test(Norm(b_2.vec().subVector(15,b_2.size())) < 1.e-5*Norm(bin.vec()),
              "Measure 2 for Multi Image w/ PSF - b");
 
 #if 0
@@ -1811,9 +1809,9 @@ int main(int argc, char **argv) try
              "Measure for Multi Image #2 w/ PSF - gam");
         test(std::abs(e_3.getMu()-ell.getMu()) < 1.e-5,
              "Measure for Multi Image #2 w/ PSF - mu");
-        test(Norm(b_3.vec().SubVector(0,15)-bin.vec()) < 1.e-5*Norm(bin.vec()),
+        test(Norm(b_3.vec().subVector(0,15)-bin.vec()) < 1.e-5*Norm(bin.vec()),
              "Measure for Multi Image #2 w/ PSF - b");
-        test(Norm(b_3.vec().SubVector(15,b_3.size())) < 1.e-5*Norm(bin.vec()),
+        test(Norm(b_3.vec().subVector(15,b_3.size())) < 1.e-5*Norm(bin.vec()),
              "Measure 2 for Multi Image #2 w/ PSF - b");
 #endif
     }

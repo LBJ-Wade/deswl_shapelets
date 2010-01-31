@@ -154,8 +154,8 @@ void makePsi(
     if (coeff) psi.col(0) *= *coeff;
     //dbg<<"psi.col(0) => "<<psi.col(0)<<std::endl;
 
-    tmv::Vector<double> zr = z.Real();
-    tmv::Vector<double> zi = z.Imag();
+    tmv::Vector<double> zr = z.realPart();
+    tmv::Vector<double> zi = z.imagPart();
     if (order >= 1) {
         // Set psi_10
         // All m > 0 elements are intrinsically complex.
@@ -188,8 +188,8 @@ void makePsi(
         // Set psi_pq with q>0
         // The rsq part of this calculation can be done in batch, which 
         // speeds things up a bit.
-        psi.Cols(k,k+N-1) = DiagMatrixViewOf(rsq) * psi.Cols(k-2*N-1,k-N-2);
-        psi.Cols(k,k+N-1) -= (N-1.) * psi.Cols(k-2*N-1,k-N-2);
+        psi.colRange(k,k+N-1) = DiagMatrixViewOf(rsq) * psi.colRange(k-2*N-1,k-N-2);
+        psi.colRange(k,k+N-1) -= (N-1.) * psi.colRange(k-2*N-1,k-N-2);
         // The other calculation steps are different for each component:
         for(int m=N-2,p=N-1,q=1;m>=0;--p,++q,m-=2) {
             double pq = p*q;
@@ -198,9 +198,9 @@ void makePsi(
                 if (q > 1) psi.col(k) -= sqrt(1.-(N-1.)/pq)*psi.col(k+2-4*N);
                 ++k;
             } else {
-                psi.Cols(k,k+2) /= sqrt(pq);
+                psi.colRange(k,k+2) /= sqrt(pq);
                 if (q > 1)
-                    psi.Cols(k,k+2) -= sqrt(1.-(N-1.)/pq)*psi.Cols(k+2-4*N,k+4-4*N);
+                    psi.colRange(k,k+2) -= sqrt(1.-(N-1.)/pq)*psi.colRange(k+2-4*N,k+4-4*N);
                 k+=2;
             }
         }
@@ -224,8 +224,8 @@ void augmentPsi(
         rsqit[i] = std::norm(zit[i]);
     }
 
-    tmv::Vector<double> zr = z.Real();
-    tmv::Vector<double> zi = z.Imag();
+    tmv::Vector<double> zr = z.realPart();
+    tmv::Vector<double> zi = z.imagPart();
     for(int N=order+1,k=N*(N+1)/2;N<=order+2;++N) {
         psi.col(k) = sqrt(1./N) * DiagMatrixViewOf(zr) * psi.col(k-N);
         psi.col(k) += sqrt(1./N) * DiagMatrixViewOf(zi) * psi.col(k-N+1);
@@ -233,8 +233,8 @@ void augmentPsi(
         psi.col(k+1) += sqrt(1./N) * DiagMatrixViewOf(zr) * psi.col(k-N+1);
         k+=2;
 
-        psi.Cols(k,k+N-1) = DiagMatrixViewOf(rsq) * psi.Cols(k-2*N-1,k-N-2);
-        psi.Cols(k,k+N-1) -= (N-1.) * psi.Cols(k-2*N-1,k-N-2);
+        psi.colRange(k,k+N-1) = DiagMatrixViewOf(rsq) * psi.colRange(k-2*N-1,k-N-2);
+        psi.colRange(k,k+N-1) -= (N-1.) * psi.colRange(k-2*N-1,k-N-2);
         for(int m=N-2,p=N-1,q=1;m>=0;--p,++q,m-=2) {
             double pq = p*q;
             if (m==0) {
@@ -242,9 +242,9 @@ void augmentPsi(
                 if (q > 1) psi.col(k) -= sqrt(1.-(N-1.)/pq)*psi.col(k+2-4*N);
                 ++k;
             } else {
-                psi.Cols(k,k+2) /= sqrt(pq);
+                psi.colRange(k,k+2) /= sqrt(pq);
                 if (q > 1)
-                    psi.Cols(k,k+2) -= sqrt(1.-(N-1.)/pq)*psi.Cols(k+2-4*N,k+4-4*N);
+                    psi.colRange(k,k+2) -= sqrt(1.-(N-1.)/pq)*psi.colRange(k+2-4*N,k+4-4*N);
                 k+=2;
             }
         }
@@ -256,7 +256,7 @@ void setupGx(tmv::Matrix<double>& Gx, int order1, int order2)
     Assert(int(Gx.colsize()) == (order1+1)*(order1+2)/2);
     Assert(int(Gx.rowsize()) == (order2+1)*(order2+2)/2);
 
-    Gx.Zero();
+    Gx.setZero();
     for(int n=0,k=0;n<=order2;++n) for(int p=n,q=0;p>=q;--p,++q,++k) {
         double dp = p;
         double dq = q;
@@ -295,7 +295,7 @@ void setupGy(tmv::Matrix<double>& Gy, int order1, int order2)
     Assert(int(Gy.colsize()) == (order1+1)*(order1+2)/2);
     Assert(int(Gy.rowsize()) == (order2+1)*(order2+2)/2);
 
-    Gy.Zero();
+    Gy.setZero();
     for(int n=0,k=0;n<=order2;++n) for(int p=n,q=0;p>=q;--p,++q,++k) {
         double dp = p;
         double dq = q;
@@ -335,7 +335,7 @@ void setupGg1(tmv::Matrix<double>& Gg1, int order1, int order2)
     Assert(int(Gg1.colsize()) == (order1+1)*(order1+2)/2);
     Assert(int(Gg1.rowsize()) == (order2+1)*(order2+2)/2);
 
-    Gg1.Zero();
+    Gg1.setZero();
     for(int n=0,k=0;n<=order2;++n) for(int p=n,q=0;p>=q;--p,++q,++k) {
         double dp = p;
         double dq = q;
@@ -386,7 +386,7 @@ void setupGg2(tmv::Matrix<double>& Gg2, int order1, int order2)
     Assert(int(Gg2.colsize()) == (order1+1)*(order1+2)/2);
     Assert(int(Gg2.rowsize()) == (order2+1)*(order2+2)/2);
 
-    Gg2.Zero();
+    Gg2.setZero();
     for(int n=0,k=0;n<=order2;++n) for(int p=n,q=0;p>=q;--p,++q,++k) {
         double dp = p;
         double dq = q;
@@ -437,7 +437,7 @@ void setupGmu(tmv::Matrix<double>& Gmu, int order1, int order2)
     Assert(int(Gmu.colsize()) == (order1+1)*(order1+2)/2);
     Assert(int(Gmu.rowsize()) == (order2+1)*(order2+2)/2);
 
-    Gmu.Zero();
+    Gmu.setZero();
     for(int n=0,k=0;n<=order2;++n) for(int p=n,q=0;p>=q;--p,++q,++k) {
         double dp = p;
         double dq = q;
@@ -465,7 +465,7 @@ void setupGth(tmv::Matrix<double>& Gth, int order1, int order2)
     Assert(int(Gth.colsize()) == (order1+1)*(order1+2)/2);
     Assert(int(Gth.rowsize()) == (order2+1)*(order2+2)/2);
 
-    Gth.Zero();
+    Gth.setZero();
     for(int n=0,k=0;n<=order2;++n) for(int p=n,q=0;p>=q;--p,++q,++k) {
         double dp = p;
         double dq = q;

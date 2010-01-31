@@ -20,7 +20,7 @@ void getPixList(
     tmv::SmallMatrix<double,2,2> localD;
     trans.getDistortion(cen,localD);
 
-    double det = std::abs(localD.Det());
+    double det = std::abs(localD.det());
     double pixScale = sqrt(det); // arcsec/pixel
     xdbg<<"pixscale = "<<pixScale<<std::endl;
 
@@ -142,7 +142,7 @@ double getLocalSky(
     tmv::SmallMatrix<double,2,2> localD;
     trans.getDistortion(cen,localD);
 
-    double det = std::abs(localD.Det());
+    double det = std::abs(localD.det());
     double pixScale = sqrt(det); // arcsec/pixel
     xdbg<<"pixscale = "<<pixScale<<std::endl;
 

@@ -142,7 +142,7 @@ void Transformation::distort(
     S(0,0) = ixx; S(0,1) = ixy;
     S(1,0) = ixy; S(1,1) = iyy;
     tmv::SmallMatrix<double,2,2> S2 = D * S;
-    S2 *= D.Transpose();
+    S2 *= D.transpose();
     ixx = S2(0,0);
     ixy = S2(0,1);
     iyy = S2(1,1);
@@ -493,7 +493,7 @@ static void readTANFits(
         Assert(pvnum < int(pv.size()));
         Assert(pv[pvnum].colsize() >= 4);
         Assert(pv[pvnum].rowsize() >= 4);
-        pv[pvnum].Zero();
+        pv[pvnum].setZero();
 
         pvstr[2]='1'+pvnum;
         pvstr[5] = '\0';
@@ -520,7 +520,7 @@ static void readTANFits(
         }
         if (status) break;
     }
-    pv[1].TransposeSelf(); // The x,y terms are opposite for pv[1]
+    pv[1].transposeSelf(); // The x,y terms are opposite for pv[1]
 
     if (fits_close_file(fitsptr,&status))
         dbg<<"fits close file: "<<status<<std::endl;

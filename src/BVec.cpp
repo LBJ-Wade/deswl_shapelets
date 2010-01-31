@@ -27,15 +27,15 @@ void BVec::AssignTo(BVec& rhs) const
 void BVec::setValues(const DVector& v)
 {
     Assert(_b.size() >= v.size());
-    _b.SubVector(0,v.size()) = v;
-    _b.SubVector(v.size(),_b.size()).Zero();
+    _b.subVector(0,v.size()) = v;
+    _b.subVector(v.size(),_b.size()).setZero();
 }
 
 void calculateZTransform(
     std::complex<double> z, int order, const DMatrixView& T)
 {
     if (z == 0.0) { 
-        T.SetToIdentity();
+        T.setToIdentity();
         return; 
     }
 
@@ -122,7 +122,7 @@ void calculateMuTransform(
     double mu, int order, const DMatrixView& D)
 {
     if (mu == 0.0) { 
-        D.SetToIdentity(); 
+        D.setToIdentity(); 
         return; 
     }
 
@@ -150,7 +150,7 @@ void calculateMuTransform(
     std::vector<double> isqrt(order+1);
     for(int i=0;i<=order;++i) isqrt[i] = sqrt(double(i));
 
-    D.Zero();
+    D.setZero();
     double Dqq = exp(mu)*smu;
     // Dqq = exp(mu) sech(mu) (-tanh(mu))^q
     // This variable keeps the latest Dqq value:
@@ -198,7 +198,7 @@ void augmentMuTransformRows(
     const int size1 = D.rowsize();
     const int size2 = D.colsize();
 
-    D.Rows(size1,size2).Zero();
+    D.rowRange(size1,size2).setZero();
     if (mu == 0.0) return;
 
     // The easiest recursion for the D_mu matrix is not actually
@@ -265,7 +265,7 @@ void calculateGTransform(
     std::complex<double> g, int order, const DMatrixView& S)
 {
     if (g == 0.0) { 
-        S.SetToIdentity();
+        S.setToIdentity();
         return; 
     }
 
@@ -322,7 +322,7 @@ void calculateGTransform(
         fcolsp1 += f.stepj();
     }
 
-    S.Zero();
+    S.setZero();
     for(int n=0,pq=0;n<=order;++n) {
         for(int p=n,q=0;p>=q;--p,++q,++pq) {
             double* Spq = S.col(pq).ptr();
@@ -374,7 +374,7 @@ void augmentGTransformCols(
     const int size1 = S.colsize();
     const int size2 = S.rowsize();
 
-    S.Cols(size1,size2).Zero();
+    S.colRange(size1,size2).setZero();
     if (g == 0.0) { return; }
 
     double absg = std::abs(g);
@@ -541,7 +541,7 @@ void calculatePsfConvolve(
         }
     }
 
-    C.Zero();
+    C.setZero();
     int pq = 0;
     for(int n=0;n<=order;++n) {
         for(int p=n,q=0;p>=q;(p==q?++pq:pq+=2),--p,++q) {
@@ -694,6 +694,6 @@ void calculatePsfConvolve(
 void applyPsf(const BVec& bpsf, BVec& b)
 {
     DMatrix C(b.size(),b.size());
-    calculatePsfConvolve(bpsf,b.getOrder(),b.getSigma(),C.View());
+    calculatePsfConvolve(bpsf,b.getOrder(),b.getSigma(),C.view());
     b.vec() = C * b.vec();
 }

@@ -126,7 +126,7 @@ void Image<T>::readFits()
     if (fitsErr != 0) fits_report_error(stderr,fitsErr);
     Assert(fitsErr==0);
 
-    _m.reset(new tmv::MatrixView<T>(_source->View()));
+    _m.reset(new tmv::MatrixView<T>(_source->view()));
     xdbg<<"Done make matrixview"<<std::endl;
 
     fits_close_file(fPtr, &fitsErr);
@@ -315,7 +315,7 @@ void Image<T>::readFits(
     if (fitsErr != 0) fits_report_error(stderr,fitsErr);
     Assert(fitsErr==0);
 
-    _m.reset(new tmv::MatrixView<T>(_source->View()));
+    _m.reset(new tmv::MatrixView<T>(_source->view()));
     xdbg<<"Done make matrixview"<<std::endl;
 
     fits_close_file(fPtr, &fitsErr);
@@ -409,7 +409,7 @@ std::vector<Image<T>*> Image<T>::divide(int nX, int nY) const
     blockImages.reserve(nX*nY);
     for(int i=0;i<nX;++i) for(int j=0;j<nY;++j) {
         blockImages.push_back(
-            new Image(_m->SubMatrix(x[i],x[i+1],y[j],y[j+1]),
+            new Image(_m->subMatrix(x[i],x[i+1],y[j],y[j+1]),
                       x[i],x[i+1],y[j],y[j+1]));
     }
     return blockImages;

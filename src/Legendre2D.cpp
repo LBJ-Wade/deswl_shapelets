@@ -105,8 +105,8 @@ void Legendre2D<T>::operator+=(const Function2D<T>& rhs)
         int newYOrder = std::max(_yOrder,lrhs->_yOrder);
         std::auto_ptr<tmv::Matrix<T> > newc(
             new tmv::Matrix<T>(newXOrder+1,newYOrder+1,0.));
-        newc->SubMatrix(0,_xOrder+1,0,_yOrder+1) = *_coeffs;
-        newc->SubMatrix(0,lrhs->_xOrder+1,0,lrhs->_yOrder+1) += *lrhs->_coeffs;
+        newc->subMatrix(0,_xOrder+1,0,_yOrder+1) = *_coeffs;
+        newc->subMatrix(0,lrhs->_xOrder+1,0,lrhs->_yOrder+1) += *lrhs->_coeffs;
         _coeffs = newc;
         _xOrder = newXOrder;
         _yOrder = newYOrder;

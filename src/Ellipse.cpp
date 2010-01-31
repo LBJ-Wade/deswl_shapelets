@@ -80,7 +80,7 @@ void Ellipse::doMeasureShapelet(
 
     const int bSize = b.size();
     tmv::Matrix<double> A(nTot,bSize);
-    makePsi(A.View(),Z,order,&W);
+    makePsi(A.view(),Z,order,&W);
 
     if (psf) {
         for(int k=0,n=0,nx;k<nExp;++k,n=nx) {
@@ -96,26 +96,28 @@ void Ellipse::doMeasureShapelet(
             calculatePsfConvolve(newPsf,b.getOrder(),b.getSigma(),C);
             const int nPix = pix[k].size();
             nx = n+nPix;
-            A.Rows(n,nx) *= C;
+            A.rowRange(n,nx) *= C;
         }
     }
-    A.DivideUsing(tmv::SV);
-    A.SaveDiv();
+    A.divideUsing(tmv::SV);
+    A.saveDiv();
     const double sqrtEps = sqrt(std::numeric_limits<double>::epsilon());
-    A.SVD().Thresh(sqrtEps);
-    dbg<<"For MeasureShapelet: svd = "<<A.SVD().GetS().diag()<<std::endl;
-    dbg<<"Omitting last "<<A.rowsize()-A.SVD().GetKMax()<<" singular values\n";
+    A.svd().thresh(sqrtEps);
+    dbg<<"For MeasureShapelet: svd = "<<A.svd().getS().diag()<<std::endl;
+    dbg<<"Omitting last "<<A.rowsize()-A.svd().getKMax()<<" singular values\n";
     b.vec() = I/A;
     if (bCov) {
-        A.InverseATA(*bCov);
+        A.makeInverseATA(*bCov);
     }
 }
 
-void Ellipse::measureShapelet(const std::vector<PixelList>& pix,
-                              const std::vector<BVec>& psf, BVec& b, tmv::Matrix<double>* bCov) const
+void Ellipse::measureShapelet(
+    const std::vector<PixelList>& pix,
+    const std::vector<BVec>& psf, BVec& b, tmv::Matrix<double>* bCov) const
 { doMeasureShapelet(pix,&psf,b,bCov); }
 
-void Ellipse::measureShapelet(const std::vector<PixelList>& pix,
-                              BVec& b, tmv::Matrix<double>* bCov) const
+void Ellipse::measureShapelet(
+    const std::vector<PixelList>& pix,
+    BVec& b, tmv::Matrix<double>* bCov) const
 { doMeasureShapelet(pix,0,b,bCov); }
 

@@ -92,8 +92,8 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                     _shear[i], _cov[i], _shape[i], _nu[i], flag1);
 #else
                 _shear[i] = std::complex<double>(0.1,0.2);
-                _cov[i] = tmv::ListInit , 1., 0., 0., 1.;
-                _shape[i].vec().Zero();
+                _cov[i] << 1., 0., 0., 1.;
+                _shape[i].vec().setZero();
                 _nu[i] = 10.;
 #endif
 
@@ -388,7 +388,7 @@ void MultiShearCatalog::getImagePixelLists(
         // Grow bounds by maxAperture
         tmv::SmallMatrix<double,2,2> D;
         trans.getDistortion(subBounds.getCenter(),D);
-        double det = std::abs(D.Det());
+        double det = std::abs(D.det());
         double pixScale = sqrt(det); // arcsec/pixel
         subBounds.addBorder(maxAperture / pixScale);
 

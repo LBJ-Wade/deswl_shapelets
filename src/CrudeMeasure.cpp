@@ -53,14 +53,14 @@ void CrudeSolver::calculateF(
     Assert(x.size() == 4);
     Assert(f.size() == _Z.size());
 
-    if (NormInf((x-_xInit).SubVector(0,3)) > 2.) {
+    if (NormInf((x-_xInit).subVector(0,3)) > 2.) {
         f = 2.e10*_f1;
-        f.AddToAll(1.);
+        f.addToAll(1.);
         return; 
     }
     if (x(3) < 0.) { 
         f = 2.e10*_f1;
-        f.AddToAll(1.);
+        f.addToAll(1.);
         return; 
     }
 
@@ -74,7 +74,7 @@ void CrudeSolver::calculateF(
     // x' = m x - m xc
     // y' = m y - m yc
     _Z1 = m0*_Z;
-    _Z1.AddToAll(-m0*zc);
+    _Z1.addToAll(-m0*zc);
 
     xdbg<<"m0 = "<<m0<<std::endl;
     const int nPix = _Z.size();
@@ -118,10 +118,10 @@ void CrudeSolver::calculateJ(
     // dx1/dmu = -x1		dy1/dmu = -y1
     //
 
-    df.col(0) = -m0 * _Z1.Real();
-    df.col(1) = -m0 * _Z1.Imag();
+    df.col(0) = -m0 * _Z1.realPart();
+    df.col(1) = -m0 * _Z1.imagPart();
     df.col(2) = -_Rsq;
-    df.Cols(0,3) = I0 * DiagMatrixViewOf(_E) * df.Cols(0,3);
+    df.colRange(0,3) = I0 * DiagMatrixViewOf(_E) * df.colRange(0,3);
     df.col(3) = -_I1 * _E;
     df = _W * df;
 

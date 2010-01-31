@@ -48,8 +48,8 @@ void Polynomial2D<T>::setFunction(int xo, int yo, const tmv::Vector<T>& fVect)
     for(int m=0;m<=maxOrder;++m) {
         int i0 = std::min(xo,m);
         int len = std::min(yo,i0)+1;
-        tmv::VectorView<T> coeffDiag = _coeffs->SubVector(i0,m-i0,-1,1,len);
-        tmv::ConstVectorView<T> subf = fVect.SubVector(k,k+len);
+        tmv::VectorView<T> coeffDiag = _coeffs->subVector(i0,m-i0,-1,1,len);
+        tmv::ConstVectorView<T> subf = fVect.subVector(k,k+len);
         coeffDiag = subf;
         k += len;
     }
@@ -79,7 +79,7 @@ Polynomial2D<T>::Polynomial2D(std::istream& fin) :
     for(int m=0;m<=maxOrder;++m) {
         int i0 = std::min(xo,m);
         int len = std::min(yo,i0)+1;
-        tmv::VectorView<T> coeffDiag = _coeffs->SubVector(i0,m-i0,-1,1,len);
+        tmv::VectorView<T> coeffDiag = _coeffs->subVector(i0,m-i0,-1,1,len);
         for(int i=0;i<len;++i) fin >> coeffDiag(i);
     }
     if (!fin) throw std::runtime_error("reading (polynomial)");
@@ -99,7 +99,7 @@ void Polynomial2D<T>::write(std::ostream& fout) const
         for(int m=0;m<=maxOrder;++m) {
             int i0 = std::min(_xOrder,m);
             int len = std::min(_yOrder,i0)+1;
-            tmv::VectorView<T> coeffDiag = _coeffs->SubVector(i0,m-i0,-1,1,len);
+            tmv::VectorView<T> coeffDiag = _coeffs->subVector(i0,m-i0,-1,1,len);
             for(int i=0;i<len;++i) fout << coeffDiag(i) << ' ';
         }
     }
@@ -185,8 +185,8 @@ void Polynomial2D<T>::operator+=(const Function2D<T>& rhs)
         int newYOrder = std::max(_yOrder,prhs->_yOrder);
         std::auto_ptr<tmv::Matrix<T> > newCoeffs(
             new tmv::Matrix<T>(newXOrder+1,newYOrder+1,0.));
-        newCoeffs->SubMatrix(0,_xOrder+1,0,_yOrder+1) = *_coeffs;
-        newCoeffs->SubMatrix(0,prhs->_xOrder+1,0,prhs->_yOrder+1) += 
+        newCoeffs->subMatrix(0,_xOrder+1,0,_yOrder+1) = *_coeffs;
+        newCoeffs->subMatrix(0,prhs->_xOrder+1,0,prhs->_yOrder+1) += 
             *prhs->_coeffs;
         _coeffs = newCoeffs;
         _xOrder = newXOrder;
@@ -210,7 +210,7 @@ void Polynomial2D<T>::makeProductOf(
         _yOrder = newYOrder;
         _coeffs.reset(new tmv::Matrix<T>(_xOrder+1,_yOrder+1));
     }
-    _coeffs->Zero();
+    _coeffs->setZero();
     for(int i=0;i<=f.getXOrder();++i) for(int j=0;j<=f.getYOrder();++j) {
         for(int m=0;m<=g.getXOrder();++m) for(int n=0;n<=g.getYOrder();++n) {
             Assert (i+m <= _xOrder && j+n <= _yOrder);
@@ -280,7 +280,7 @@ template <typename T>
 std::auto_ptr<Function2D<T> > Function2D<T>::conj() const
 {
     std::auto_ptr<Function2D<T> > temp = copy();
-    temp->_coeffs->ConjugateSelf();
+    temp->_coeffs->conjugateSelf();
     return temp;
 }
 
@@ -357,7 +357,7 @@ void Function2D<T>::linearTransform(
         _xOrder = f.getXOrder();
         _yOrder = f.getYOrder();
         _coeffs.reset(new tmv::Matrix<T>(_xOrder+1,_yOrder+1,0.));
-    } else _coeffs->Zero();
+    } else _coeffs->setZero();
     for(int i=0;i<=_xOrder;++i) for(int j=0;j<=_yOrder;++j) {
         (*_coeffs)(i,j) = a + b*f.getCoeffs()(i,j) + c*g.getCoeffs()(i,j);
     }
@@ -449,8 +449,8 @@ void Function2D<T>::doSimpleFit(
 
     xdbg<<"Done make V,P\n";
     xdbg<<"V = "<<V<<std::endl;
-    P.DivideUsing(tmv::QR);
-    P.SaveDiv();
+    P.divideUsing(tmv::QR);
+    P.saveDiv();
     *f = V/P;
     xdbg<<"*f = "<<*f<<std::endl;
 
@@ -470,7 +470,7 @@ void Function2D<T>::doSimpleFit(
         if (*dof < 0) *dof = 0;
     }
     if (cov) {
-        P.InverseATA(*cov);
+        P.makeInverseATA(*cov);
     }
     xdbg<<"Done simple fit\n";
 }

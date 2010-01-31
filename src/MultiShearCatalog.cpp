@@ -219,7 +219,7 @@ void MultiShearCatalog::resize(int n)
 
     int galOrder = _params.get("shear_gal_order");
     BVec shapeDefault(galOrder,1.);
-    shapeDefault.vec().SetAllTo(DEFVALNEG);
+    shapeDefault.vec().setAllTo(DEFVALNEG);
     _shape.resize(n,shapeDefault);
 
 }
@@ -746,7 +746,7 @@ void MultiShearCatalog::readFits(std::string file)
     table.column(cov01Col).read(cov01, start, end);
     table.column(cov11Col).read(cov11, start, end);
     for(long i=0;i<nRows;++i) {
-        _cov[i] = tmv::ListInit, cov00[i], cov01[i], cov01[i], cov11[i];
+        _cov[i] << cov00[i], cov01[i], cov01[i], cov11[i];
     }
 
     dbg<<"  "<<sigmaCol<<"  "<<orderCol<<std::endl;
@@ -808,7 +808,7 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
             _shear.push_back(std::complex<double>(s1,s2));
             _nu.push_back(nu1);
             _cov.push_back(tmv::SmallMatrix<double,2,2>());
-            _cov.back() = tmv::ListInit, c00, c01, c01, c11;
+            _cov.back() << c00, c01, c01, c11;
             _nImagesFound.push_back(nfound);
             _nImagesGotPix.push_back(ngotpix);
             _inputFlags.push_back(inflag);
@@ -844,7 +844,7 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
             getline(fin,temp,d); c01 = temp;
             getline(fin,temp,d); c11 = temp;
             _cov.push_back(tmv::SmallMatrix<double,2,2>());
-            _cov.back() = tmv::ListInit, c00, c01, c01, c11;
+            _cov.back() << c00, c01, c01, c11;
             getline(fin,temp,d); _nImagesFound.push_back(temp);
             getline(fin,temp,d); _nImagesGotPix.push_back(temp);
             getline(fin,temp,d); _inputFlags.push_back(temp);

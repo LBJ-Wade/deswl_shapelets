@@ -149,7 +149,7 @@ EllipseSolver2::ESImpl2::ESImpl2(
             Z(n) = pix[k][i].getPos();
         }
         A_aux.push_back(tmv::Matrix<double>(pix[k].size(),np2size));
-        A.push_back(A_aux[k].Cols(0,nsize));
+        A.push_back(A_aux[k].colRange(0,nsize));
     }
 
     int j=0;
@@ -225,16 +225,16 @@ EllipseSolver2::ESImpl2::ESImpl2(
         int psfsize2 = ((*psf)[k].getOrder()+3)*((*psf)[k].getOrder()+4)/2;
         A_aux.push_back(
             tmv::Matrix<double,tmv::ColMajor>(pix[k].size(),np2size));
-        A.push_back(A_aux[k].Cols(0,nsize));
+        A.push_back(A_aux[k].colRange(0,nsize));
         C.push_back(tmv::Matrix<double>(nsize,nsize));
         S.push_back(tmv::Matrix<double>(psfsize,psfsize2));
         D.push_back(tmv::Matrix<double>(psfsize2,psfsize));
         if ((*psf)[k].getOrder() > maxpsforder)
             maxpsforder = (*psf)[k].getOrder();
         sigma_obs[k] = sqrt(pow(_sigma,2)+f_psf*pow((*psf)[k].getSigma(),2));
-        C[k].SaveDiv();
+        C[k].saveDiv();
 
-        I.SubVector(n,nx) *= pow(_sigma,2) / pow(sigma_obs[k],2);
+        I.subVector(n,nx) *= pow(_sigma,2) / pow(sigma_obs[k],2);
     }
 
     int j=0;
@@ -288,9 +288,9 @@ void EllipseSolver2::ESImpl2::calculateF(
         if (flux == 0.) flux = b(0);
         if (shouldUseFlux) {
             f(0) = 2.*(b(0)/flux-1.);
-            f.SubVector(1,f.size()) = 2.*U*b.vec().SubVector(1,6)/flux; 
+            f.subVector(1,f.size()) = 2.*U*b.vec().subVector(1,6)/flux; 
         }
-        else f = 2.*U*b.vec().SubVector(1,6)/flux;
+        else f = 2.*U*b.vec().subVector(1,6)/flux;
         return; 
     }
 
@@ -304,44 +304,44 @@ void EllipseSolver2::ESImpl2::calculateF(
         if (flux == 0.) flux = 1.;
         if (shouldUseFlux) {
             f(0) = 2.*(b(0)/flux-1.);
-            f.SubVector(1,f.size()) = 2.*U*b.vec().SubVector(1,6)/flux; 
+            f.subVector(1,f.size()) = 2.*U*b.vec().subVector(1,6)/flux; 
         } else {
-            f = 2.*U*b.vec().SubVector(1,6)/flux; 
+            f = 2.*U*b.vec().subVector(1,6)/flux; 
         }
         return; 
     }
 
 
     double m0 = exp(-mu)/sqrt(1.-std::norm(g));
-    b.vec().Zero();
+    b.vec().setZero();
 
     // z' = m*(z-zc) - m*g*conj(z-zc)
     //    = m*z - m*g*conj(z) - m*zc + m*g*conj(zc);
     Z1 = m0*Z;
-    Z1 -= m0*g*Z.Conjugate();
-    Z1.AddToAll(m0*(g*std::conj(zc)-zc));
+    Z1 -= m0*g*Z.conjugate();
+    Z1.addToAll(m0*(g*std::conj(zc)-zc));
     for(size_t k=0,n=0,nx;k<pix.size();++k,n=nx) {
         nx = n+pix[k].size();
 
-        Z1.SubVector(n,nx) /= sigma_obs[k];
+        Z1.subVector(n,nx) /= sigma_obs[k];
 
-        makePsi(A[k],Z1.SubVector(n,nx),b.getOrder());
+        makePsi(A[k],Z1.subVector(n,nx),b.getOrder());
         // b = C^-1 normD AT I
-        b1 = A[k].Transpose() * I.SubVector(n,nx);
+        b1 = A[k].transpose() * I.subVector(n,nx);
         b1 = normD * b1;
 
         if (psf) {
             int psfsize = (*psf)[k].size();
 
             BVec newpsf((*psf)[k].getOrder(),(*psf)[k].getSigma());
-            tmv::MatrixView<double> S1 = S[k].Cols(0,psfsize);
+            tmv::MatrixView<double> S1 = S[k].colRange(0,psfsize);
             calculateGTransform(g,(*psf)[k].getOrder(),S1);
             newpsf.vec() = S1 * (*psf)[k].vec();
-            tmv::MatrixView<double> D1 = D[k].Rows(0,psfsize);
+            tmv::MatrixView<double> D1 = D[k].rowRange(0,psfsize);
             calculateMuTransform(mu,(*psf)[k].getOrder(),D1);
             newpsf.vec() = D1 * newpsf.vec();
             calculatePsfConvolve(newpsf,b.getOrder(),b.getSigma(),C[k]);
-            C[k].ReSetDiv();
+            C[k].resetDiv();
             b1 /= C[k];
         }
         b.vec() += b1;
@@ -353,9 +353,9 @@ void EllipseSolver2::ESImpl2::calculateF(
     }
     if (shouldUseFlux) {
         f(0) = b(0)/flux-1.;
-        f.SubVector(1,U.colsize()+1) = U*b.vec().SubVector(1,6)/flux;
+        f.subVector(1,U.colsize()+1) = U*b.vec().subVector(1,6)/flux;
     } else {
-        f = U*b.vec().SubVector(1,6)/flux;
+        f = U*b.vec().subVector(1,6)/flux;
     }
     // Leave this out of f, but get it right in case getB is called.
     b.vec() *= exp(-2.*mu);
@@ -391,35 +391,35 @@ void EllipseSolver2::ESImpl2::calculateJ(
     double g1 = std::real(g);
     double g2 = std::imag(g);
 
-    tmv::ConstMatrixView<double> Gx = _Gx.SubMatrix(0,np2size,0,nsize);
-    tmv::ConstMatrixView<double> Gy = _Gy.SubMatrix(0,np2size,0,nsize);
-    tmv::ConstMatrixView<double> Gg1 = _Gg1.SubMatrix(0,np2size,0,nsize);
-    tmv::ConstMatrixView<double> Gg2 = _Gg2.SubMatrix(0,np2size,0,nsize);
-    tmv::ConstMatrixView<double> Gmu = _Gmu.SubMatrix(0,np2size,0,nsize);
-    tmv::ConstMatrixView<double> Gth = _Gth.SubMatrix(0,np2size,0,nsize);
+    tmv::ConstMatrixView<double> Gx = _Gx.subMatrix(0,np2size,0,nsize);
+    tmv::ConstMatrixView<double> Gy = _Gy.subMatrix(0,np2size,0,nsize);
+    tmv::ConstMatrixView<double> Gg1 = _Gg1.subMatrix(0,np2size,0,nsize);
+    tmv::ConstMatrixView<double> Gg2 = _Gg2.subMatrix(0,np2size,0,nsize);
+    tmv::ConstMatrixView<double> Gmu = _Gmu.subMatrix(0,np2size,0,nsize);
+    tmv::ConstMatrixView<double> Gth = _Gth.subMatrix(0,np2size,0,nsize);
 
-    dbdE.Zero();
+    dbdE.setZero();
     for(size_t k=0,n=0,nx;k<pix.size();++k,n=nx) {
         nx = n+pix[k].size();
         double m = m0/sigma_obs[k];
 
-        augmentPsi(A_aux[k],Z1.SubVector(n,nx),b.getOrder());
+        augmentPsi(A_aux[k],Z1.subVector(n,nx),b.getOrder());
 
-        AtI = A_aux[k].Transpose() * I.SubVector(n,nx);
+        AtI = A_aux[k].transpose() * I.subVector(n,nx);
 
-        dbdE1.col(0) = -m*(1.-g1) * Gx.Transpose() * AtI;
-        dbdE1.col(0) += m*g2 * Gy.Transpose() * AtI;
+        dbdE1.col(0) = -m*(1.-g1) * Gx.transpose() * AtI;
+        dbdE1.col(0) += m*g2 * Gy.transpose() * AtI;
 
-        dbdE1.col(1) = -m*(1.+g1) * Gy.Transpose() * AtI;
-        dbdE1.col(1) += m*g2 * Gx.Transpose() * AtI;
+        dbdE1.col(1) = -m*(1.+g1) * Gy.transpose() * AtI;
+        dbdE1.col(1) += m*g2 * Gx.transpose() * AtI;
 
-        dbdE1.col(2) = -fact * Gg1.Transpose() * AtI;
-        dbdE1.col(2) += fact*g2 * Gth.Transpose() * AtI;
+        dbdE1.col(2) = -fact * Gg1.transpose() * AtI;
+        dbdE1.col(2) += fact*g2 * Gth.transpose() * AtI;
 
-        dbdE1.col(3) = -fact * Gg2.Transpose() * AtI;
-        dbdE1.col(3) -= fact*g1 * Gth.Transpose() * AtI;
+        dbdE1.col(3) = -fact * Gg2.transpose() * AtI;
+        dbdE1.col(3) -= fact*g1 * Gth.transpose() * AtI;
 
-        dbdE1.col(4) = -Gmu.Transpose() * AtI;
+        dbdE1.col(4) = -Gmu.transpose() * AtI;
 
         dbdE1 = normD * dbdE1;
 
@@ -431,39 +431,39 @@ void EllipseSolver2::ESImpl2::calculateJ(
             int n2 = ((*psf)[k].getOrder()+3)*((*psf)[k].getOrder()+4)/2;
             size_t psfsize = (*psf)[k].size();
 
-            Assert(C[k].DivIsSet());
-            b1 = normD * AtI.SubVector(0,nsize);
+            Assert(C[k].divIsSet());
+            b1 = normD * AtI.subVector(0,nsize);
             b1 /= C[k];
 
-            tmv::MatrixView<double> dTdE = _dTdE.SubMatrix(0,psfsize,0,psfsize);
-            tmv::ConstMatrixView<double> D1 = D[k].Rows(0,psfsize);
-            tmv::ConstMatrixView<double> S1 = S[k].Cols(0,psfsize);
+            tmv::MatrixView<double> dTdE = _dTdE.subMatrix(0,psfsize,0,psfsize);
+            tmv::ConstMatrixView<double> D1 = D[k].rowRange(0,psfsize);
+            tmv::ConstMatrixView<double> S1 = S[k].colRange(0,psfsize);
 
-            augmentGTransformCols(g,(*psf)[k].getOrder(),S[k].View());
-            augmentMuTransformRows(mu,(*psf)[k].getOrder(),D[k].View());
+            augmentGTransformCols(g,(*psf)[k].getOrder(),S[k].view());
+            augmentMuTransformRows(mu,(*psf)[k].getOrder(),D[k].view());
 
             // E = g1
-            dTdE = fact*D1*S[k]*_Gg1.SubMatrix(0,n2,0,psfsize);
-            dTdE += fact*g2*D1*S[k]*_Gth.SubMatrix(0,n2,0,psfsize);
+            dTdE = fact*D1*S[k]*_Gg1.subMatrix(0,n2,0,psfsize);
+            dTdE += fact*g2*D1*S[k]*_Gth.subMatrix(0,n2,0,psfsize);
             BVec dbpsfdE((*psf)[k].getOrder(),(*psf)[k].getSigma());
             dbpsfdE.vec() = dTdE*(*psf)[k].vec();
             calculatePsfConvolve(dbpsfdE,b.getOrder(),b.getSigma(),dCdE);
             dbdE1.col(2) -= dCdE*b1;
 
             // E = g2
-            dTdE = fact*D1*S[k]*_Gg2.SubMatrix(0,n2,0,psfsize);
-            dTdE -= fact*g1*D1*S[k]*_Gth.SubMatrix(0,n2,0,psfsize);
+            dTdE = fact*D1*S[k]*_Gg2.subMatrix(0,n2,0,psfsize);
+            dTdE -= fact*g1*D1*S[k]*_Gth.subMatrix(0,n2,0,psfsize);
             dbpsfdE.vec() = dTdE*(*psf)[k].vec();
             calculatePsfConvolve(dbpsfdE,b.getOrder(),b.getSigma(),dCdE);
             dbdE1.col(3) -= dCdE*b1;
 
             // E = mu
-            dTdE = _Gmu.SubMatrix(0,psfsize,0,n2)*D[k]*S1;
+            dTdE = _Gmu.subMatrix(0,psfsize,0,n2)*D[k]*S1;
             dbpsfdE.vec() = dTdE*(*psf)[k].vec();
             calculatePsfConvolve(dbpsfdE,b.getOrder(),b.getSigma(),dCdE);
             dbdE1.col(4) -= dCdE*b1;
 
-            Assert(C[k].DivIsSet());
+            Assert(C[k].divIsSet());
             dbdE1 /= C[k];
             // db/dE = C^-1 normD (dA/dE)T I
             //         - C^-1 (dC/dE) C^-1 normD AT I
@@ -473,10 +473,10 @@ void EllipseSolver2::ESImpl2::calculateJ(
     }
 
     if (shouldUseFlux) {
-        J.row(0) = dbdE.row(0)*U.Transpose();
-        J.Rows(1,U.colsize()+1) = U*dbdE.Rows(1,6)*U.Transpose();
+        J.row(0) = dbdE.row(0)*U.transpose();
+        J.rowRange(1,U.colsize()+1) = U*dbdE.rowRange(1,6)*U.transpose();
     } else {
-        J = U*dbdE.Rows(1,6)*U.Transpose();
+        J = U*dbdE.rowRange(1,6)*U.transpose();
     }
     J /= flux;
 }
@@ -497,7 +497,7 @@ void EllipseSolver2::callF(
     calculateF(_pimpl->x_short,_pimpl->f_short);
 
     if (_pimpl->shouldUseFlux) 
-        f = _pimpl->f_short.SubVector(1,_pimpl->f_short.size()) * _pimpl->U;
+        f = _pimpl->f_short.subVector(1,_pimpl->f_short.size()) * _pimpl->U;
     else f = _pimpl->f_short*_pimpl->U;
 }
 
@@ -520,7 +520,7 @@ bool EllipseSolver2::solve(tmv::Vector<double>& x, tmv::Vector<double>& f) const
     if (_pimpl->isFixedGamma) { x[2] = _pimpl->fixg1; x[3] = _pimpl->fixg2; }
     if (_pimpl->isFixedMu) { x[4] = _pimpl->fixm; }
     if (_pimpl->shouldUseFlux) 
-        f = _pimpl->f_short.SubVector(1,_pimpl->f_short.size()) * _pimpl->U;
+        f = _pimpl->f_short.subVector(1,_pimpl->f_short.size()) * _pimpl->U;
     else f = _pimpl->f_short*_pimpl->U;
 
     return ret;

@@ -35,10 +35,10 @@ public :
             if (i>0 && 2*i<N) A(i,2*i) = -3.-i;
             if (i>0 && 2*i<N) A(i,2*i-1) = -12.+3*i;
         }
-        A.col(0).AddToAll(2.);
-        A.row(0).AddToAll(3.);
+        A.col(0).addToAll(2.);
+        A.row(0).addToAll(3.);
         b = A*x;
-        //b.AddToAll(100.);
+        //b.addToAll(100.);
     }
 
     void calculateF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
@@ -62,7 +62,7 @@ public :
     NonLinear(double sigma) : b(MM), t(MM), _sigma(sigma)
     {
         tmv::Vector<double> x(4);
-        x = tmv::ListInit, 0.5, 3.5, 1.3, 1.7;
+        x << 0.5, 3.5, 1.3, 1.7;
 
         for(int i=0;i<MM;++i) {
             t(i) = (2.0*(i+0.5)-1.0*MM)/MM;
@@ -114,7 +114,7 @@ public :
             b(i) = yy[0]*exp(xx[0]*t(i)) + yy[1]*sin(xx[1]*t(i)) +
                 _sigma*(2.*double(rand())/RAND_MAX - 1.);
         }
-        A.SaveDiv();
+        A.saveDiv();
     }
 
     double func(double t, const tmv::Vector<double>& x, 
@@ -129,7 +129,7 @@ public :
             A(i,0) = exp(x(0)*t(i));
             A(i,1) = sin(x(1)*t(i));
         }
-        A.ReSetDiv();
+        A.resetDiv();
         y = b/A;
         f = A*y-b;
         f /= _sigma;
@@ -147,28 +147,28 @@ public :
         // dy = R^-1 Rt^-1 (-dAt f - At dA y)
         // df = A dy + dA y
         //    = A R^-1 Rt^-1 (-dAt f - At dA y) + dA y
-        tmv::ConstUpperTriMatrixView<double> R = A.QRD().GetR();
+        tmv::ConstUpperTriMatrixView<double> R = A.qrd().getR();
 
         tmv::Vector<double> dA = DiagMatrixViewOf(t)*A.col(0);
-        tmv::Vector<double> dy = -A.Transpose()*dA*y(0);
+        tmv::Vector<double> dy = -A.transpose()*dA*y(0);
         dy(0) -= dA*f*_sigma;
-        dy /= R.Transpose();
+        dy /= R.transpose();
         dy /= R;
         j.col(0) = A*dy + dA*y(0);
 
         for(int i=0;i<MM;++i) {
             dA(i) = t(i)*cos(x(1)*t(i));
         }
-        dy = -A.Transpose()*dA*y(1);
+        dy = -A.transpose()*dA*y(1);
         dy(1) -= dA*f*_sigma;
-        dy /= R.Transpose();
+        dy /= R.transpose();
         dy /= R;
         j.col(1) = A*dy + dA*y(1);
 
         j /= _sigma;
     }
 
-    const tmv::Vector<double>& GetY() const { return y; }
+    const tmv::Vector<double>& getY() const { return y; }
 
 protected:
 
@@ -202,7 +202,7 @@ public :
            const tmv::Matrix<double>& j, tmv::SymMatrix<double>& h) const
     {
         // H = JT J + Sum_k f(k) d^2f/(dxi dxj)
-        h = j.Transpose() * j;
+        h = j.transpose() * j;
         h(0,0) += -2.0*std::pow(0.1+x(0),-3)*f(0);
         h(1,1) += 4.0*f(1);
     }
@@ -236,7 +236,7 @@ public :
            const tmv::Matrix<double>& j, tmv::SymMatrix<double>& h) const
     {
         // H = JT J + Sum_k f(k) d^2f/(dxi dxj)
-        h = j.Transpose() * j;
+        h = j.transpose() * j;
         h(0,0) += -20.*f(0);
     }
 
@@ -283,7 +283,7 @@ int main() try
         // Check the covariance matrix:
         std::cout<<"Covariance matrix = \n"<<cov1<<std::endl;
         lin.calculateNumericH(x,f,h);
-        tmv::SymMatrix<double> cov2 = h.Inverse();
+        tmv::SymMatrix<double> cov2 = h.inverse();
         if (!(Norm(cov1-cov2) <= 1.e-6*(1.+Norm(cov1)))) {
             std::cout<<"cov1 = "<<cov1<<std::endl;
             std::cout<<"cov2 = "<<cov2<<std::endl;
@@ -305,7 +305,7 @@ int main() try
 #endif
         nlin.setMinStep(1.e-15);
         tmv::Vector<double> x(4);
-        x = tmv::ListInit, 1., 1., 1., 1.;
+        x << 1., 1., 1., 1.;
         tmv::Vector<double> f(MM);
         tmv::Matrix<double> cov1(4,4);
         tmv::SymMatrix<double> h(4);
@@ -330,7 +330,7 @@ int main() try
         // Check the inverse covariance matrix:
         std::cout<<"Covariance matrix = \n"<<cov1<<std::endl;
         nlin.calculateNumericH(x,f,h);
-        tmv::SymMatrix<double> cov2 = h.Inverse();
+        tmv::SymMatrix<double> cov2 = h.inverse();
         if (!(Norm(cov1-cov2) <= 1.e-6*(1.+Norm(cov1)))) {
             std::cout<<"cov1 = "<<cov1<<std::endl;
             std::cout<<"cov2 = "<<cov2<<std::endl;
@@ -349,7 +349,7 @@ int main() try
 #endif
         nlin.setMinStep(1.e-15);
         tmv::Vector<double> x(2);
-        x = tmv::ListInit, 1., 1.;
+        x << 1., 1.;
         tmv::Vector<double> f(MM);
         tmv::Matrix<double> cov1(2,2);
         tmv::SymMatrix<double> h(2);
@@ -362,8 +362,8 @@ int main() try
         nlin.getCovariance(cov1);
         //if (!(nlin.testJ(x,f,&std::cout))) return 1;
         tmv::Vector<double> xtot(4);
-        xtot.SubVector(0,2) = x;
-        xtot.SubVector(2,4) = nlin.GetY();
+        xtot.subVector(0,2) = x;
+        xtot.subVector(2,4) = nlin.getY();
         std::cout<<"xfinal = "<<xtot<<std::endl;
         // This one is looking for a local minimum, not an exact answer.
         // The minimum should have Norm(f) ~= 4.
@@ -377,7 +377,7 @@ int main() try
         // Check the inverse covariance matrix:
         std::cout<<"Covariance matrix = \n"<<cov1<<std::endl;
         nlin.calculateNumericH(x,f,h);
-        tmv::SymMatrix<double> cov2 = h.Inverse();
+        tmv::SymMatrix<double> cov2 = h.inverse();
         if (!(Norm(cov1-cov2) <= 1.e-6*(1.+Norm(cov1)))) {
             std::cout<<"cov1 = "<<cov1<<std::endl;
             std::cout<<"cov2 = "<<cov2<<std::endl;
@@ -432,8 +432,8 @@ int main() try
         tmv::Matrix<double> j(2,2);
         pow.calculateJ(x,f,j);
         pow.calculateH(x,f,j,h);
-        h.DivideUsing(tmv::SV);
-        tmv::SymMatrix<double> cov2 = h.Inverse();
+        h.divideUsing(tmv::SV);
+        tmv::SymMatrix<double> cov2 = h.inverse();
         if (!(Norm(cov1-cov2) <= 1.e-6*(1.+Norm(cov1)))) {
             std::cout<<"cov1 = "<<cov1<<std::endl;
             std::cout<<"cov2 = "<<cov2<<std::endl;
@@ -493,7 +493,7 @@ int main() try
             tmv::Matrix<double> j(3,2);
             ros.calculateJ(x,f,j);
             ros.calculateH(x,f,j,h);
-            tmv::SymMatrix<double> cov2 = h.Inverse();
+            tmv::SymMatrix<double> cov2 = h.inverse();
             if (!(Norm(cov1-cov2) <= 1.e-6*(1.+Norm(cov1)))) {
                 std::cout<<"cov1 = "<<cov1<<std::endl;
                 std::cout<<"cov2 = "<<cov2<<std::endl;
