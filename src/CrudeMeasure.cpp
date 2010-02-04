@@ -3,36 +3,35 @@
 #include "dbg.h"
 #include "NLSolver.h"
 #include <vector>
-#include "TMV.h"
 
 class CrudeSolver : public NLSolver 
 {
 public :
     CrudeSolver(
         const PixelList& pix, double sigma, double I1,
-        tmv::Vector<double>& xinit);
+        DVector& xinit);
 
-    void calculateF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const;
+    void calculateF(const DVector& x, DVector& f) const;
     void calculateJ(
-        const tmv::Vector<double>& x, const tmv::Vector<double>& f,
-        tmv::Matrix<double>& df) const;
+        const DVector& x, const DVector& f,
+        DMatrix& df) const;
 
 private : 
     double _sigma;
-    tmv::Vector<double> _I;
-    tmv::Vector<std::complex<double> > _Z;
-    tmv::DiagMatrix<double> _W;
-    mutable tmv::Vector<std::complex<double> > _Z1;
-    mutable tmv::Vector<double> _E;
-    mutable tmv::Vector<double> _Rsq;
-    mutable tmv::Vector<double> _f1;
+    DVector _I;
+    CDVector _Z;
+    DDiagMatrix _W;
+    mutable CDVector _Z1;
+    mutable DVector _E;
+    mutable DVector _Rsq;
+    mutable DVector _f1;
     double _I1;
-    tmv::Vector<double>& _xInit;
+    DVector& _xInit;
 };
 
 CrudeSolver::CrudeSolver(
     const PixelList& pix,
-    double sigma, double I1, tmv::Vector<double>& xInit) :
+    double sigma, double I1, DVector& xInit) :
     _sigma(sigma), _I(pix.size()), _Z(pix.size()), _W(pix.size()), 
     _Z1(pix.size()), _E(pix.size()), _Rsq(pix.size()), _f1(pix.size()), 
     _I1(I1), _xInit(xInit)
@@ -46,21 +45,19 @@ CrudeSolver::CrudeSolver(
     }
 }
 
-void CrudeSolver::calculateF(
-    const tmv::Vector<double>& x, tmv::Vector<double>& f) const
+void CrudeSolver::calculateF(const DVector& x, DVector& f) const
 {
-    xdbg<<"Start F\n";
     Assert(x.size() == 4);
     Assert(f.size() == _Z.size());
 
-    if (NormInf((x-_xInit).subVector(0,3)) > 2.) {
+    if ((x-_xInit).TMV_subVector(0,3).TMV_normInf() > 2.) {
         f = 2.e10*_f1;
-        f.addToAll(1.);
+        f.TMV_addToAll(1.);
         return; 
     }
     if (x(3) < 0.) { 
         f = 2.e10*_f1;
-        f.addToAll(1.);
+        f.TMV_addToAll(1.);
         return; 
     }
 
@@ -74,35 +71,31 @@ void CrudeSolver::calculateF(
     // x' = m x - m xc
     // y' = m y - m yc
     _Z1 = m0*_Z;
-    _Z1.addToAll(-m0*zc);
+    _Z1.TMV_addToAll(-m0*zc);
 
-    xdbg<<"m0 = "<<m0<<std::endl;
     const int nPix = _Z.size();
     for(int i=0;i<nPix;++i) {
         double rsq = std::norm(_Z1[i]);
         _Rsq[i] = rsq;
         _E[i] = exp(-rsq/2.);
     }
-    xdbg<<"After Set elements\n";
     _f1 = _I - I0*_E;
-    xdbg<<"After f1 = I-I0*E\n";
+#ifdef USE_TMV
     _f1 = _W * _f1;
-    xdbg<<"After ElementProd\n";
+#else
+    _f1 = _W.cwise() * _f1;
+#endif
     f = _f1;
-
-    xdbg<<"Done F\n";
-    xdbg<<"norm(f) = "<<Norm(f)<<std::endl;
 }
 
 void CrudeSolver::calculateJ(
-    const tmv::Vector<double>& x, const tmv::Vector<double>& f,
-    tmv::Matrix<double>& df) const
+    const DVector& x, const DVector& f, DMatrix& df) const
 {
-    xdbg<<"Start J\n";
+    //xdbg<<"Start J\n";
     Assert(x.size() == 4);
     Assert(f.size() == _Z.size());
-    Assert(df.colsize() == _Z.size());
-    Assert(df.rowsize() == 4);
+    Assert(df.TMV_colsize() == _Z.size());
+    Assert(df.TMV_rowsize() == 4);
 
     double mu = x[2];
     double I0 = _I1 * x[3];
@@ -118,14 +111,26 @@ void CrudeSolver::calculateJ(
     // dx1/dmu = -x1		dy1/dmu = -y1
     //
 
+#ifdef USE_TMV
     df.col(0) = -m0 * _Z1.realPart();
     df.col(1) = -m0 * _Z1.imagPart();
     df.col(2) = -_Rsq;
     df.colRange(0,3) = I0 * DiagMatrixViewOf(_E) * df.colRange(0,3);
     df.col(3) = -_I1 * _E;
     df = _W * df;
-
-    xdbg<<"Done J\n";
+#else
+    df.col(0) = _W.cwise() * _Z1.real();
+    df.col(0) = _E.cwise() * df.col(0);
+    df.col(0) *= -m0 * I0;
+    df.col(1) = _W.cwise() * _Z1.imag();
+    df.col(1) = _E.cwise() * df.col(1);
+    df.col(1) *= -m0 * I0;
+    df.col(2) = _W.cwise() * _Rsq;
+    df.col(2) = _E.cwise() * df.col(2);
+    df.col(2) *= -I0;
+    df.col(3) = _W.cwise() * _E;
+    df.col(3) *= -_I1;
+#endif
 }
 
 void Ellipse::crudeMeasure(const PixelList& pix, double sigma)
@@ -258,11 +263,11 @@ void Ellipse::crudeMeasure(const PixelList& pix, double sigma)
 
     //if (std::abs(zc) > 1.0) zc /= std::abs(zc);
     //if (std::abs(m) > 1.0) m /= std::abs(m);
-    tmv::Vector<double> x(4);
+    DVector x(4);
     x[0] = std::real(zc); x[1] = std::imag(zc); 
     x[2] = m; 
     x[3] = 1.;
-    tmv::Vector<double> f(nPix);
+    DVector f(nPix);
     CrudeSolver s(pix,sigma,I0,x);
 
     s.useHybrid();
@@ -274,12 +279,12 @@ void Ellipse::crudeMeasure(const PixelList& pix, double sigma)
     s.noUseCholesky();
 #endif
     if (XDEBUG) s.setOutput(*dbgout);
-    xdbg<<"Before CrudeSolver: x = "<<x<<std::endl;
+    xdbg<<"Before CrudeSolver: x = "<<EIGEN_Transpose(x)<<std::endl;
     s.solve(x,f);
-    xdbg<<"After CrudeSolver: x = "<<x<<std::endl;
+    xdbg<<"After CrudeSolver: x = "<<EIGEN_Transpose(x)<<std::endl;
     s.setFTol(1.e-4 * (1.e-4 + std::abs(x[3])));
     s.solve(x,f);
-    xdbg<<"After 2nd CrudeSolver: x = "<<x<<std::endl;
+    xdbg<<"After 2nd CrudeSolver: x = "<<EIGEN_Transpose(x)<<std::endl;
 
     std::complex<double> cenNew(x[0],x[1]);
     double muNew = x[2];

@@ -1,6 +1,5 @@
 
 #include <valarray>
-#include "TMV.h"
 #include <CCfits/CCfits>
 
 #include "CoaddCatalog.h"
@@ -219,7 +218,7 @@ void MultiShearCatalog::resize(int n)
 
     int galOrder = _params.get("shear_gal_order");
     BVec shapeDefault(galOrder,1.);
-    shapeDefault.vec().setAllTo(DEFVALNEG);
+    shapeDefault.vec().TMV_setAllTo(DEFVALNEG);
     _shape.resize(n,shapeDefault);
 
 }
@@ -271,7 +270,7 @@ inline long long getMemoryFootprint(const PixelList& x)
 }
 
 template <typename T>
-inline long long getMemoryFootprint(const tmv::Vector<T>& x)
+inline long long getMemoryFootprint(const TVector(T)& x)
 {
     long long res=sizeof(x);
     res += x.size() * sizeof(T);
@@ -286,7 +285,7 @@ inline long long getMemoryFootprint(const BVec& x)
 }
 
 template <typename T>
-inline long long getMemoryFootprint(const tmv::Matrix<T>& x)
+inline long long getMemoryFootprint(const TMatrix(T)& x)
 {
     long long res=sizeof(x);
     res += x.colsize() * x.rowsize() * sizeof(T);
@@ -503,11 +502,15 @@ void MultiShearCatalog::writeFits(std::string file) const
     xdbg<<"Made table"<<std::endl;
 
     // Header keywords
-    std::string tmvvers = tmv::TMV_Version();
-    std::string wlvers = getWlVersion();
+#ifdef USE_TMV
+    std::string tmvVers = tmv::TMV_Version();
+#else
+    std::string tmvVers = "Eigen";
+#endif
+    std::string wlVers = getWlVersion();
 
-    table->addKey("tmvvers", tmvvers, "version of TMV code");
-    table->addKey("wlvers", wlvers, "version of weak lensing code");
+    table->addKey("tmvvers", tmvVers, "version of TMV code");
+    table->addKey("wlvers", wlVers, "version of weak lensing code");
 
     std::string str;
     double dbl;
@@ -572,7 +575,7 @@ void MultiShearCatalog::writeFits(std::string file) const
 
         table->column(colNames[orderColNum]).write(&bOrder,1,row);
         table->column(colNames[sigmaColNum]).write(&bSigma,1,row);
-        double* cptr = (double *) _shape[i].vec().cptr();
+        double* cptr = (double *) TMV_cptr(_shape[i].vec());
         table->column(colNames[coeffsColNum]).write(cptr, nCoeff, 1, row);
 
     }
@@ -766,7 +769,7 @@ void MultiShearCatalog::readFits(std::string file)
         std::valarray<double> coeffs;
         table.column(coeffsCol).read(coeffs, row);
 
-        double* ptri = (double* ) _shape[i].vec().cptr();
+        double* ptri = (double* ) TMV_cptr(_shape[i].vec());
         for (int j=0; j<nCoeff; ++j) {
             ptri[i] = coeffs[i];
         }
@@ -807,7 +810,7 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
             _flags.push_back(flag);
             _shear.push_back(std::complex<double>(s1,s2));
             _nu.push_back(nu1);
-            _cov.push_back(tmv::SmallMatrix<double,2,2>());
+            _cov.push_back(DSmallMatrix22());
             _cov.back() << c00, c01, c01, c11;
             _nImagesFound.push_back(nfound);
             _nImagesGotPix.push_back(ngotpix);
@@ -843,7 +846,7 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
             getline(fin,temp,d); c00 = temp;
             getline(fin,temp,d); c01 = temp;
             getline(fin,temp,d); c11 = temp;
-            _cov.push_back(tmv::SmallMatrix<double,2,2>());
+            _cov.push_back(DSmallMatrix22());
             _cov.back() << c00, c01, c01, c11;
             getline(fin,temp,d); _nImagesFound.push_back(temp);
             getline(fin,temp,d); _nImagesGotPix.push_back(temp);

@@ -1,6 +1,6 @@
 
 #include "PsiHelper.h"
-#include "TMV.h"
+#include <vector>
 #include "dbg.h"
 
 const double PI = 3.14159265359;
@@ -15,102 +15,12 @@ const double sqrtpi = sqrt(PI);
 // m 0  1   2  0  3   1    4     2    0   5     3     1     6     4     2    0
 //
 
+#ifdef USE_TMV
+// The Eigen version required pretty significant rewriting before it was
+// remotely efficient, so I separate this out with an ifdef, rather than
+// use the TMV and EIGEN macros.
 
-void makePsi1(
-    const tmv::VectorView<double>& psi, std::complex<double> z, int order)
-{
-    Assert(int(psi.size()) == (order+1)*(order+2)/2);
-    const double invsqrtpi = 1./sqrtpi;
-
-    // coeff(p,q) = sqrt( 1/ (pi p! q!) )
-    tmv::DiagMatrix<double> coeff(psi.size());
-    std::vector<double> sqrtfact(order+1);
-    sqrtfact[0] = 1.;
-    if (order > 0) sqrtfact[1] = 1.;
-    for(int n=0,k=0;n<=order;++n) {
-        if (n > 1) sqrtfact[n] = sqrtfact[n-1] * sqrt(double(n));
-        for(int p=n,q=0;p>=q;--p,++q,++k) {
-            double temp = invsqrtpi / sqrtfact[p] / sqrtfact[q];
-            coeff(k) = temp;
-            if (p!=q) coeff(++k) = temp;
-        }
-    }
-
-    double rsq = std::norm(z);
-    // psi(p,q) = coeff(p,q) z^m exp(-r^2/2) [(-)^q q! Lqm(r^2)]
-    // We'll multiply everything by exp(-r^2/2) at the end.
-    // We do coeff, z^m, and the [] here:
-    // Define the [] factor as Kqm = (-)^q q! Lqm(r^2)
-    //
-    // The recursion relation for the Kqm is: 
-    // Kqm = (x-(2q+m-1)) K(q-1)m - (q+m-1)*(q-1) K(q-2)m
-    // K0m = 1
-    // K1m = x-m-1
-
-    // First m=0:
-    psi[0] = 1.;
-    if (order >= 2) {
-        double Kqm = rsq-1.;
-        double Kq1m = 1.;
-        psi[5] = Kqm;
-        double c1 = 1.; // = 2*q+m-1
-        double c2 = 0.; // = (q+m-1)*(q-1)
-        int k = 5;
-        for(int q=2;q<=order/2;++q) {
-            c2 += c1;
-            c1 += 2.;
-            double K = (rsq-c1) * Kqm - c2 * Kq1m;
-            Kq1m = Kqm; Kqm = K;
-            k += 4*q+1;
-            psi[k] = Kqm;
-        }
-    }
-
-    // Next m > 0:
-    // All m > 0 elements are intrinsically complex.
-    // However, we are fitting to a real intensity pattern
-    // with complex coefficients of the complex shapelets.
-    // e.g. b_20 psi_20
-    // Since psi_02 = psi_20* (* = complex conjugate),
-    // we know that b_02 must be b_20*
-    // b_20 psi_20 + b_20* psi_20*
-    // = 2 b_20r psi_20r - 2 b_20i psi_20i
-    // So the values we want for the real fitter are
-    // really 2 real(psi_pq) and -2 imag(psi_pq)
-    std::complex<double> zm = z;
-    for(int m=1;m<=order;++m) {
-        if (m>1) zm *= z;
-        int k = m*(m+1)/2;
-        psi[k] = 2.*std::real(zm);
-        psi[k+1] = -2.*std::imag(zm);
-        if (order >= m+2) {
-            double c1 = m+1.;  // = 2*q+m-1
-            double c2 = 0.;    // = (q+m-1)*(q-1)
-            double Kqm = rsq-c1;
-            double Kq1m = 1.;
-            k += 2*m+5;
-            psi[k] = 2.*Kqm * std::real(zm);
-            psi[k+1] = -2.*Kqm * std::imag(zm);
-            for(int q=2;2*q+m<=order;++q) {
-                c2 += c1;
-                c1 += 2.;
-                double K = (rsq-c1) * Kqm - c2 * Kq1m;
-                Kq1m = Kqm; Kqm = K;
-                k += 2*m+4*q+1;
-                psi[k] = 2.*Kqm * std::real(zm);
-                psi[k+1] = -2.*Kqm * std::imag(zm);
-            }
-        }
-    }
-
-    // Now put in the exp(-r^2/2) factor and all the 1/sqrt(pi p! q!) coeffs:
-    psi *= exp(-rsq/2.) * coeff;
-}
-
-void makePsi(
-    const tmv::MatrixView<double>& psi, 
-    const tmv::Vector<std::complex<double> >& z, int order,
-    const tmv::DiagMatrix<double>* coeff)
+void makePsi(DMatrix& psi, CDVectorView z, int order, const DVector* coeff)
 {
     // For p>=q:
     //
@@ -129,7 +39,7 @@ void makePsi(
     // 
     // psi_00 = 1/sqrt(pi) exp(-r^2/2)
 
-    Assert(int(psi.rowsize()) == (order+1)*(order+2)/2);
+    Assert(int(psi.rowsize()) >= (order+1)*(order+2)/2);
     Assert(psi.colsize() == z.size());
     if (coeff) Assert(psi.colsize() == coeff->size());
     Assert(psi.iscm());
@@ -138,24 +48,19 @@ void makePsi(
     const double invsqrtpi = 1./sqrtpi;
 
     // Setup rsq, z vectors and set psi_00
-    tmv::Vector<double> rsq(z.size());
+    DVector rsq(z.size());
     double* rsqit = rsq.ptr();
     double* psi00it = psi.ptr();
     const std::complex<double>* zit = z.cptr();
-    //dbg<<"Before loop1"<<std::endl;
-    //dbg<<"psi.col(0) = "<<psi.col(0)<<std::endl;
-    for(size_t i=0;i<z.size();++i) {
-        //dbg<<"i = "<<i<<std::endl;
+    const int zsize = z.size();
+    for(int i=0;i<zsize;++i) {
         rsqit[i] = std::norm(zit[i]);
-        //dbg<<"rsq = "<<rsqit[i]<<std::endl;
         psi00it[i] = invsqrtpi * exp(-(rsqit[i])/2.);
-        //dbg<<"psi_i0 = "<<psi00it[i]<<std::endl;
     }
-    if (coeff) psi.col(0) *= *coeff;
-    //dbg<<"psi.col(0) => "<<psi.col(0)<<std::endl;
+    if (coeff) psi.col(0) *= DiagMatrixViewOf(*coeff);
 
-    tmv::Vector<double> zr = z.realPart();
-    tmv::Vector<double> zi = z.imagPart();
+    DVector zr = z.realPart();
+    DVector zi = z.imagPart();
     if (order >= 1) {
         // Set psi_10
         // All m > 0 elements are intrinsically complex.
@@ -171,9 +76,7 @@ void makePsi(
         psi.col(1) = 2. * DiagMatrixViewOf(zr) * psi.col(0);
         psi.col(2) = -2. * DiagMatrixViewOf(zi) * psi.col(0);
     }
-    //dbg<<"Before loop2"<<std::endl;
     for(int N=2,k=3;N<=order;++N) {
-        //dbg<<"N = "<<N<<", k = "<<k<<std::endl;
         // Set psi_N0
         // The signs of these are not what you naively think due to 
         // the +2, -2 discussed above.  You just have to follow through
@@ -188,7 +91,8 @@ void makePsi(
         // Set psi_pq with q>0
         // The rsq part of this calculation can be done in batch, which 
         // speeds things up a bit.
-        psi.colRange(k,k+N-1) = DiagMatrixViewOf(rsq) * psi.colRange(k-2*N-1,k-N-2);
+        psi.colRange(k,k+N-1) =
+            DiagMatrixViewOf(rsq) * psi.colRange(k-2*N-1,k-N-2);
         psi.colRange(k,k+N-1) -= (N-1.) * psi.colRange(k-2*N-1,k-N-2);
         // The other calculation steps are different for each component:
         for(int m=N-2,p=N-1,q=1;m>=0;--p,++q,m-=2) {
@@ -200,32 +104,32 @@ void makePsi(
             } else {
                 psi.colRange(k,k+2) /= sqrt(pq);
                 if (q > 1)
-                    psi.colRange(k,k+2) -= sqrt(1.-(N-1.)/pq)*psi.colRange(k+2-4*N,k+4-4*N);
+                    psi.colRange(k,k+2) -= 
+                        sqrt(1.-(N-1.)/pq)*psi.colRange(k+2-4*N,k+4-4*N);
                 k+=2;
             }
         }
     }
 }
 
-void augmentPsi(
-    tmv::Matrix<double>& psi,
-    const tmv::Vector<std::complex<double> >& z, int order)
+void augmentPsi(DMatrix& psi, CDVectorView z, int order)
 {
-    Assert(int(psi.rowsize()) == (order+3)*(order+4)/2);
+    Assert(int(psi.rowsize()) >= (order+3)*(order+4)/2);
     Assert(psi.colsize() == z.size());
     Assert(order >= 1);
-    Assert(psi.iscm());
-    Assert(!psi.isconj());
+    //Assert(psi.iscm());
+    //Assert(!psi.isconj());
 
-    tmv::Vector<double> rsq(z.size());
+    DVector rsq(z.size());
     double* rsqit = rsq.ptr();
     const std::complex<double>* zit = z.cptr();
-    for(size_t i=0;i<z.size();++i) {
+    const int zsize = z.size();
+    for(int i=0;i<zsize;++i) {
         rsqit[i] = std::norm(zit[i]);
     }
 
-    tmv::Vector<double> zr = z.realPart();
-    tmv::Vector<double> zi = z.imagPart();
+    DVector zr = z.realPart();
+    DVector zi = z.imagPart();
     for(int N=order+1,k=N*(N+1)/2;N<=order+2;++N) {
         psi.col(k) = sqrt(1./N) * DiagMatrixViewOf(zr) * psi.col(k-N);
         psi.col(k) += sqrt(1./N) * DiagMatrixViewOf(zi) * psi.col(k-N+1);
@@ -233,7 +137,8 @@ void augmentPsi(
         psi.col(k+1) += sqrt(1./N) * DiagMatrixViewOf(zr) * psi.col(k-N+1);
         k+=2;
 
-        psi.colRange(k,k+N-1) = DiagMatrixViewOf(rsq) * psi.colRange(k-2*N-1,k-N-2);
+        psi.colRange(k,k+N-1) =
+            DiagMatrixViewOf(rsq) * psi.colRange(k-2*N-1,k-N-2);
         psi.colRange(k,k+N-1) -= (N-1.) * psi.colRange(k-2*N-1,k-N-2);
         for(int m=N-2,p=N-1,q=1;m>=0;--p,++q,m-=2) {
             double pq = p*q;
@@ -244,17 +149,168 @@ void augmentPsi(
             } else {
                 psi.colRange(k,k+2) /= sqrt(pq);
                 if (q > 1)
-                    psi.colRange(k,k+2) -= sqrt(1.-(N-1.)/pq)*psi.colRange(k+2-4*N,k+4-4*N);
+                    psi.colRange(k,k+2) -= 
+                        sqrt(1.-(N-1.)/pq)*psi.colRange(k+2-4*N,k+4-4*N);
                 k+=2;
             }
         }
     }
 }
 
-void setupGx(tmv::Matrix<double>& Gx, int order1, int order2)
+#else
+
+void makePsi(DMatrix& psi, CDVectorView z, int order, const DVector* coeff)
 {
-    Assert(int(Gx.colsize()) == (order1+1)*(order1+2)/2);
-    Assert(int(Gx.rowsize()) == (order2+1)*(order2+2)/2);
+    // For p>=q:
+    //
+    // psi_pq = (pi p! q!)^-1/2 z^m exp(-r^2/2) K_pq(r^2)
+    //
+    // where K_pq(r^2) satisfies the recursion relation:
+    // K_pq = (r^2 - (N-1)) K_p-1,q-1 - (p-1)(q-1) K_p-2,q-2
+    // with K_p0 = 1
+    //
+    // The recursion for psi_pq can then be derived as:
+    //
+    // psi_pq = (pq)^-1/2 (r^2-(N-1)) psi_p-1,q-1
+    //          - sqrt( (p-1)(q-1)/(pq) ) psi_p-2,q-2
+    //
+    // psi_p0 = (z/sqrt(p)) psi_p-1,0
+    // 
+    // psi_00 = 1/sqrt(pi) exp(-r^2/2)
+
+    Assert(int(psi.TMV_rowsize()) >= (order+1)*(order+2)/2);
+    Assert(psi.TMV_colsize() == z.size());
+    if (coeff) Assert(psi.TMV_colsize() == coeff->size());
+    //Assert(psi.iscm());
+    //Assert(!psi.isconj());
+
+    const double invsqrtpi = 1./sqrtpi;
+
+    // Setup rsq, z vectors and set psi_00
+    DVector rsq(z.size());
+    double* rsqit = TMV_ptr(rsq);
+    double* psi00it = TMV_ptr(psi);
+    const std::complex<double>* zit = TMV_cptr(z);
+    const int zsize = z.size();
+    for(int i=0;i<zsize;++i) {
+        rsqit[i] = std::norm(zit[i]);
+        psi00it[i] = invsqrtpi * exp(-(rsqit[i])/2.);
+    }
+    if (coeff) psi.col(0) = coeff->cwise() * psi.col(0);
+
+    DVector zr = z.TMV_realPart();
+    DVector zi = z.TMV_imagPart();
+    if (order >= 1) {
+        // Set psi_10
+        // All m > 0 elements are intrinsically complex.
+        // However, we are fitting to a real intensity pattern
+        // with complex coefficients of the complex shapelets.
+        // Since psi_pq = psi_qp* (* = complex conjugate),
+        // we know that b_pq must be b_qp*
+        // b_pq psi_pq + b_pq* psi_pq* = 2 b_pqr psi_pqr - 2 b_pqi psi_pqi
+        // So the values we want for the real fitter are
+        // really 2 real(psi_pq) and -2 imag(psi_pq)
+        // Putting the 2's here carries through to the rest of the 
+        // elements via the recursion.
+        psi.col(1) = zr.cwise() * psi.col(0);
+        psi.col(2) = (-zi).cwise() * psi.col(0);
+        psi.col(1) *= 2.;
+        psi.col(2) *= 2.;
+    }
+    for(int N=2,k=3;N<=order;++N) {
+        // Set psi_N0
+        // The signs of these are not what you naively think due to 
+        // the +2, -2 discussed above.  You just have to follow through
+        // what the complex psi_N0 is, and what value is stored in the
+        // psi_N-1,0 location, and what needs to get stored here.
+        psi.col(k) = zr.cwise() * psi.col(k-N);
+        psi.col(k) += zi.cwise() * psi.col(k-N+1);
+        psi.col(k+1) = zr.cwise() * psi.col(k-N+1);
+        psi.col(k+1) -= zi.cwise() * psi.col(k-N);
+        double sqrt_1_N = sqrt(1./N);
+        psi.col(k) *= sqrt_1_N;
+        psi.col(k+1) *= sqrt_1_N;
+        k+=2;
+
+        // Set psi_pq with q>0
+        // The rsq part of this calculation can be done in batch, which 
+        // speeds things up a bit.
+        TMV_colRange(psi,k,k+N-1) = 
+            (rsq.asDiagonal() * TMV_colRange(psi,k-2*N-1,k-N-2)).lazy();
+        TMV_colRange(psi,k,k+N-1) -= (N-1.) * TMV_colRange(psi,k-2*N-1,k-N-2);
+        // The other calculation steps are different for each component:
+        for(int m=N-2,p=N-1,q=1;m>=0;--p,++q,m-=2) {
+            double pq = p*q;
+            if (m==0) {
+                psi.col(k) /= sqrt(pq);
+                if (q > 1) psi.col(k) -= sqrt(1.-(N-1.)/pq)*psi.col(k+2-4*N);
+                ++k;
+            } else {
+                TMV_colRange(psi,k,k+2) /= sqrt(pq);
+                if (q > 1)
+                    TMV_colRange(psi,k,k+2) -= 
+                        sqrt(1.-(N-1.)/pq)*TMV_colRange(psi,k+2-4*N,k+4-4*N);
+                k+=2;
+            }
+        }
+    }
+}
+
+void augmentPsi(DMatrix& psi, CDVectorView z, int order)
+{
+    Assert(int(psi.TMV_rowsize()) >= (order+3)*(order+4)/2);
+    Assert(psi.TMV_colsize() == z.size());
+    Assert(order >= 1);
+    //Assert(psi.iscm());
+    //Assert(!psi.isconj());
+
+    DVector rsq(z.size());
+    double* rsqit = TMV_ptr(rsq);
+    const std::complex<double>* zit = TMV_cptr(z);
+    const int zsize = z.size();
+    for(int i=0;i<zsize;++i) {
+        rsqit[i] = std::norm(zit[i]);
+    }
+
+    DVector zr = z.TMV_realPart();
+    DVector zi = z.TMV_imagPart();
+    for(int N=order+1,k=N*(N+1)/2;N<=order+2;++N) {
+        psi.col(k) = zr.cwise() * psi.col(k-N);
+        psi.col(k) += zi.cwise() * psi.col(k-N+1);
+        psi.col(k+1) = zr.cwise() * psi.col(k-N+1);
+        psi.col(k+1) -= zi.cwise() * psi.col(k-N);
+        double sqrt_1_N = sqrt(1./N);
+        psi.col(k) *= sqrt_1_N;
+        psi.col(k+1) *= sqrt_1_N;
+        k+=2;
+
+        TMV_colRange(psi,k,k+N-1) =
+            (rsq.asDiagonal() * TMV_colRange(psi,k-2*N-1,k-N-2)).lazy();
+        TMV_colRange(psi,k,k+N-1) -=
+            (N-1.) * TMV_colRange(psi,k-2*N-1,k-N-2);
+        for(int m=N-2,p=N-1,q=1;m>=0;--p,++q,m-=2) {
+            double pq = p*q;
+            if (m==0) {
+                psi.col(k) /= sqrt(pq);
+                if (q > 1) psi.col(k) -= sqrt(1.-(N-1.)/pq)*psi.col(k+2-4*N);
+                ++k;
+            } else {
+                TMV_colRange(psi,k,k+2) /= sqrt(pq);
+                if (q > 1)
+                    TMV_colRange(psi,k,k+2) -= 
+                        sqrt(1.-(N-1.)/pq)*TMV_colRange(psi,k+2-4*N,k+4-4*N);
+                k+=2;
+            }
+        }
+    }
+}
+
+#endif
+
+void setupGx(DMatrix& Gx, int order1, int order2)
+{
+    Assert(int(Gx.TMV_colsize()) == (order1+1)*(order1+2)/2);
+    Assert(int(Gx.TMV_rowsize()) == (order2+1)*(order2+2)/2);
 
     Gx.setZero();
     for(int n=0,k=0;n<=order2;++n) for(int p=n,q=0;p>=q;--p,++q,++k) {
@@ -290,10 +346,10 @@ void setupGx(tmv::Matrix<double>& Gx, int order1, int order2)
     }
 }
 
-void setupGy(tmv::Matrix<double>& Gy, int order1, int order2)
+void setupGy(DMatrix& Gy, int order1, int order2)
 {
-    Assert(int(Gy.colsize()) == (order1+1)*(order1+2)/2);
-    Assert(int(Gy.rowsize()) == (order2+1)*(order2+2)/2);
+    Assert(int(Gy.TMV_colsize()) == (order1+1)*(order1+2)/2);
+    Assert(int(Gy.TMV_rowsize()) == (order2+1)*(order2+2)/2);
 
     Gy.setZero();
     for(int n=0,k=0;n<=order2;++n) for(int p=n,q=0;p>=q;--p,++q,++k) {
@@ -330,10 +386,10 @@ void setupGy(tmv::Matrix<double>& Gy, int order1, int order2)
     }
 }
 
-void setupGg1(tmv::Matrix<double>& Gg1, int order1, int order2)
+void setupGg1(DMatrix& Gg1, int order1, int order2)
 {
-    Assert(int(Gg1.colsize()) == (order1+1)*(order1+2)/2);
-    Assert(int(Gg1.rowsize()) == (order2+1)*(order2+2)/2);
+    Assert(int(Gg1.TMV_colsize()) == (order1+1)*(order1+2)/2);
+    Assert(int(Gg1.TMV_rowsize()) == (order2+1)*(order2+2)/2);
 
     Gg1.setZero();
     for(int n=0,k=0;n<=order2;++n) for(int p=n,q=0;p>=q;--p,++q,++k) {
@@ -381,10 +437,10 @@ void setupGg1(tmv::Matrix<double>& Gg1, int order1, int order2)
     }
 }
 
-void setupGg2(tmv::Matrix<double>& Gg2, int order1, int order2)
+void setupGg2(DMatrix& Gg2, int order1, int order2)
 {
-    Assert(int(Gg2.colsize()) == (order1+1)*(order1+2)/2);
-    Assert(int(Gg2.rowsize()) == (order2+1)*(order2+2)/2);
+    Assert(int(Gg2.TMV_colsize()) == (order1+1)*(order1+2)/2);
+    Assert(int(Gg2.TMV_rowsize()) == (order2+1)*(order2+2)/2);
 
     Gg2.setZero();
     for(int n=0,k=0;n<=order2;++n) for(int p=n,q=0;p>=q;--p,++q,++k) {
@@ -432,10 +488,10 @@ void setupGg2(tmv::Matrix<double>& Gg2, int order1, int order2)
     }
 }
 
-void setupGmu(tmv::Matrix<double>& Gmu, int order1, int order2)
+void setupGmu(DMatrix& Gmu, int order1, int order2)
 {
-    Assert(int(Gmu.colsize()) == (order1+1)*(order1+2)/2);
-    Assert(int(Gmu.rowsize()) == (order2+1)*(order2+2)/2);
+    Assert(int(Gmu.TMV_colsize()) == (order1+1)*(order1+2)/2);
+    Assert(int(Gmu.TMV_rowsize()) == (order2+1)*(order2+2)/2);
 
     Gmu.setZero();
     for(int n=0,k=0;n<=order2;++n) for(int p=n,q=0;p>=q;--p,++q,++k) {
@@ -460,10 +516,10 @@ void setupGmu(tmv::Matrix<double>& Gmu, int order1, int order2)
     }
 }
 
-void setupGth(tmv::Matrix<double>& Gth, int order1, int order2)
+void setupGth(DMatrix& Gth, int order1, int order2)
 {
-    Assert(int(Gth.colsize()) == (order1+1)*(order1+2)/2);
-    Assert(int(Gth.rowsize()) == (order2+1)*(order2+2)/2);
+    Assert(int(Gth.TMV_colsize()) == (order1+1)*(order1+2)/2);
+    Assert(int(Gth.TMV_rowsize()) == (order2+1)*(order2+2)/2);
 
     Gth.setZero();
     for(int n=0,k=0;n<=order2;++n) for(int p=n,q=0;p>=q;--p,++q,++k) {

@@ -1,7 +1,7 @@
 #ifndef PSIHELPER_H
 #define PSIHELPER_H
 
-#include "TMV.h"
+#include "MyMatrix.h"
 
 // Here is the order of p,q along the indices of psi:
 //
@@ -11,24 +11,20 @@
 // n 0  1   2  2  3   3    4     4    4   5     5     5     6     6     6    6
 // m 0  1   2  0  3   1    4     2    0   5     3     1     6     4     2    0
 
-void makePsi1(
-    const tmv::VectorView<double>& psi, 
-    std::complex<double> z, int order);
+#if 0
+void makePsi1(DVectorView psi, std::complex<double> z, int order);
+#endif
 
 void makePsi(
-    const tmv::MatrixView<double>& psi, 
-    const tmv::Vector<std::complex<double> >& z, int order,
-    const tmv::DiagMatrix<double>* coeff=0);
+    DMatrix& psi, CDVectorView z, int order, const DVector* coeff=0);
 
-void augmentPsi(
-    tmv::Matrix<double>& psi,
-    const tmv::Vector<std::complex<double> >& z, int order);
+void augmentPsi(DMatrix& psi, CDVectorView z, int order);
 
-void setupGx(tmv::Matrix<double>& Gx, int order1, int order2);
-void setupGy(tmv::Matrix<double>& Gy, int order1, int order2);
-void setupGg1(tmv::Matrix<double>& Gg1, int order1, int order2);
-void setupGg2(tmv::Matrix<double>& Gg2, int order1, int order2);
-void setupGmu(tmv::Matrix<double>& Gmu, int order1, int order2);
-void setupGth(tmv::Matrix<double>& Gth, int order1, int order2);
+void setupGx(DMatrix& Gx, int order1, int order2);
+void setupGy(DMatrix& Gy, int order1, int order2);
+void setupGg1(DMatrix& Gg1, int order1, int order2);
+void setupGg2(DMatrix& Gg2, int order1, int order2);
+void setupGmu(DMatrix& Gmu, int order1, int order2);
+void setupGth(DMatrix& Gth, int order1, int order2);
 
 #endif

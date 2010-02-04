@@ -1,7 +1,6 @@
 
 #include <valarray>
 #include <fstream>
-#include "TMV.h"
 #include <CCfits/CCfits>
 
 #include "FittedPsf.h"
@@ -10,13 +9,12 @@
 #include "Legendre2D.h"
 #include "Name.h"
 #include "WlVersion.h"
-#include "TMV.h"
 #include "WriteParam.h"
 
-static tmv::Vector<double> definePXY(
+static DVector definePXY(
     int order, double x, double xMin, double xMax)
 {
-    tmv::Vector<double> temp(order+1);
+    DVector temp(order+1);
     double newX = (2.*x-xMin-xMax)/(xMax-xMin);
     temp[0] = 1.;
     if(order>0) temp[1] = newX;
@@ -26,14 +24,18 @@ static tmv::Vector<double> definePXY(
     return temp;
 }
 
+#ifdef USE_TMV
 static void setPRow(
-    int fitOrder, Position pos, const Bounds& bounds, 
-    const tmv::VectorView<double>& pRow)
+    int fitOrder, Position pos, const Bounds& bounds, DVectorView pRow)
+#else
+static void setPRow(
+    int fitOrder, Position pos, const Bounds& bounds, DVector& pRow)
+#endif
 {
     Assert(int(pRow.size()) == (fitOrder+1)*(fitOrder+2)/2);
-    tmv::Vector<double> px = 
+    DVector px = 
         definePXY(fitOrder,pos.getX(),bounds.getXMin(),bounds.getXMax());
-    tmv::Vector<double> py = 
+    DVector py = 
         definePXY(fitOrder,pos.getY(),bounds.getYMin(),bounds.getYMax());
     int pq = 0;
     for(int n=0;n<=fitOrder;++n) {
@@ -107,8 +109,8 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
 
         // Rotate the vectors into their eigen directions.
         // The matrix V is stored to let us get back to the original basis.
-        tmv::Matrix<double> mM(nGoodPsf,psfSize);
-        tmv::DiagMatrix<double> inverseSigma(nGoodPsf);
+        DMatrix mM(nGoodPsf,psfSize);
+        DDiagMatrix inverseSigma(nGoodPsf);
         int i=0;
         for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
             Assert(int(psfCat.getPsf(n).size()) == psfSize);
@@ -120,11 +122,12 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
         }
         Assert(i == nGoodPsf);
         xdbg<<"bounds = "<<_bounds<<std::endl;
-        mM = inverseSigma * mM;
+        mM = inverseSigma EIGEN_asDiag() * mM;
 
         int nPcaTot = std::min(nGoodPsf,psfSize);
-        tmv::DiagMatrix<double> mS(nPcaTot);
-        tmv::MatrixView<double> mU = mM.colRange(0,nPcaTot);
+        DDiagMatrix mS(nPcaTot);
+#ifdef USE_TMV
+        DMatrixView mU = mM.colRange(0,nPcaTot);
         _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(nPcaTot,psfSize));
         if (nGoodPsf > psfSize) {
             SV_Decompose(mU.view(),mS.view(),_mV->view(),true);
@@ -133,6 +136,22 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
             SV_Decompose(_mV->transpose(),mS.view(),mU.transpose());
         }
         xdbg<<"In FittedPSF: SVD S = "<<mS.diag()<<std::endl;
+#else
+        DMatrix mU(mM.TMV_colsize(),nPcaTot);
+        _mV_transpose.reset(new DMatrix(psfSize,nPcaTot));
+        if (nGoodPsf > psfSize) {
+            Eigen::SVD<DMatrix> svd = TMV_colRange(mM,0,nPcaTot).svd();
+            mU = svd.matrixU();
+            mS = svd.singularValues();
+            *_mV_transpose = svd.matrixV();
+        } else {
+            Eigen::SVD<Eigen::Transpose<DMatrix>::PlainMatrixType > svd = mM.transpose().svd();
+            mU = svd.matrixV();
+            mS = svd.singularValues();
+            *_mV_transpose = svd.matrixU();
+        }
+        xdbg<<"In FittedPSF: SVD S = "<<EIGEN_Transpose(mS)<<std::endl;
+#endif
         if (_params.keyExists("fitpsf_npca")) {
             _nPca = _params["fitpsf_npca"];
             xdbg<<"npca = "<<_nPca<<" from parameter file\n";
@@ -140,14 +159,19 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
             double thresh = mS(0);
             if (_params.keyExists("fitpsf_pca_thresh")) 
                 thresh *= double(_params["fitpsf_pca_thresh"]);
-            else thresh *= tmv::TMV_Epsilon<double>();
+            else thresh *= std::numeric_limits<double>::epsilon();
             xdbg<<"thresh = "<<thresh<<std::endl;
-            for(_nPca=1;_nPca<int(mM.rowsize());++_nPca) {
+            for(_nPca=1;_nPca<int(mM.TMV_rowsize());++_nPca) {
                 if (mS(_nPca) < thresh) break;
             }
             xdbg<<"npca = "<<_nPca<<std::endl;
         }
+#ifdef USE_TMV
         mU.colRange(0,_nPca) *= mS.subDiagMatrix(0,_nPca);
+#else
+        TMV_colRange(mU,0,_nPca) *= mS.TMV_subVector(0,_nPca).asDiagonal();
+#endif
+        xdbg<<"After U *= S\n";
         // U S = M(orig) * Vt
 
         while (nGoodPsf <= _fitSize && _fitSize > 1) {
@@ -156,16 +180,30 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
             dbg<<"Too few good stars... reducing order of fit to "<<
                 _fitOrder<<std::endl;
         }
-        tmv::Matrix<double> mP(nGoodPsf,_fitSize,0.);
+        DMatrix mP(nGoodPsf,_fitSize);
+        mP.setZero();
         i=0;
         for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
+            xdbg<<"n = "<<n<<" / "<<nStars<<std::endl;
+#ifdef USE_TMV
             setPRow(_fitOrder,psfCat.getPos(n),_bounds,mP.row(i));
+#else
+            DVector mProwi(mP.TMV_rowsize());
+            setPRow(_fitOrder,psfCat.getPos(n),_bounds,mProwi);
+            mP.row(i) = mProwi.transpose();
+#endif
             ++i;
         }
         Assert(i == nGoodPsf);
-        mP = inverseSigma * mP;
+        mP = inverseSigma EIGEN_asDiag() * mP;
+        xdbg<<"after mP = sigma * mP\n";
 
-        _f.reset(new tmv::Matrix<double>(mU.colRange(0,_nPca)/mP));
+#ifdef USE_TMV
+        _f.reset(new DMatrix(TMV_colRange(mU,0,_nPca)/mP));
+#else
+        _f.reset(new DMatrix(_fitSize,_nPca));
+        mP.qr().solve(TMV_colRange(mU,0,_nPca),&(*_f));
+#endif
         xdbg<<"Done making FittedPSF\n";
 
         //
@@ -175,37 +213,58 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
         xdbg<<"Checking for outliers:\n";
 
         // Calculate the covariance matrix
-        tmv::Matrix<double> cov(psfSize,psfSize,0.);
+        DMatrix cov(psfSize,psfSize);
+        cov.setZero();
         for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
             const BVec& data = psfCat.getPsf(n);
             DVector fit(psfSize);
-            interpolateVector(psfCat.getPos(n),fit.view());
-            tmv::Vector<double> diff = data.vec() - fit;
+            interpolateVector(psfCat.getPos(n),TMV_vview(fit));
+            DVector diff = data.vec() - fit;
+#ifdef USE_TMV
             cov += diff ^ diff;
+#else
+            cov += diff * diff.transpose();
+#endif
         }
         if (nGoodPsf > _fitSize) { 
             // only <= if both == 1, so basically always true
             cov /= double(nGoodPsf-_fitSize);
         }
+#ifdef USE_TMV
         cov.divideUsing(tmv::SV);
         cov.saveDiv();
         cov.setDiv();
         xdbg<<"cov S = "<<cov.svd().getS().diag()<<std::endl;
+#else
+        Eigen::SVD<DMatrix> cov_svd = cov.svd();
+        xdbg<<"cov S = "<<EIGEN_Transpose(cov_svd.singularValues())<<std::endl;
+
+#endif
 
         // Clip out 3 sigma outliers:
         nOutliers = 0;
         for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
             const BVec& data = psfCat.getPsf(n);
             DVector fit(psfSize);
-            interpolateVector(psfCat.getPos(n),fit.view());
-            tmv::Vector<double> diff = data.vec() - fit;
+            interpolateVector(psfCat.getPos(n),TMV_vview(fit));
+            DVector diff = data.vec() - fit;
+#ifdef USE_TMV
             double dev = diff * cov.inverse() * diff;
+#else
+            DVector temp(psfSize);
+            cov_svd.solve(diff,&temp);
+            double dev = (diff.transpose() * temp)(0,0);
+#endif
             if (dev > outlierThresh) {
                 xdbg<<"n = "<<n<<" is an outlier.\n";
                 xdbg<<"data = "<<data.vec()<<std::endl;
                 xdbg<<"fit = "<<fit<<std::endl;
                 xdbg<<"diff = "<<diff<<std::endl;
+#ifdef USE_TMV
                 xdbg<<"diff/cov = "<<diff/cov<<std::endl;
+#else
+                xdbg<<"diff/cov = "<<temp<<std::endl;
+#endif
                 xdbg<<"dev = "<<dev<<std::endl;
                 ++nOutliers;
                 psfCat.setFlag(n, PSF_INTERP_OUTLIER);
@@ -239,7 +298,11 @@ void FittedPsf::writeAscii(std::string file) const
     fout << _fitOrder <<"  "<< _nPca << std::endl;
     fout << _bounds << std::endl;
     fout << *_avePsf << std::endl;
+#ifdef USE_TMV
     fout << _mV->rowRange(0,_nPca) <<std::endl;
+#else
+    fout << TMV_colRange(*_mV_transpose,0,_nPca).transpose() <<std::endl;
+#endif
     fout << *_f << std::endl;
 }
 
@@ -258,11 +321,20 @@ void FittedPsf::readAscii(std::string file)
     _fitSize = (_fitOrder+1)*(_fitOrder+2)/2;
     const int psfSize = (_psfOrder+1)*(_psfOrder+2)/2;
     _avePsf.reset(new DVector(psfSize));
+    _f.reset(new DMatrix(_fitSize,_nPca));
+#ifdef USE_TMV
     fin >> *_avePsf;
-    _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(_nPca,_avePsf->size()));
+    _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(_nPca,psfSize));
     fin >> *_mV;
-    _f.reset(new tmv::Matrix<double>(_fitSize,_nPca));
     fin >> *_f;
+#else
+    for(int i=0;i<_avePsf->size();++i) fin >> (*_avePsf)(i);
+    _mV_transpose.reset(new DMatrix(psfSize,_nPca));
+    for(int i=0;i<_nPca;++i) for(int j=0;j<psfSize;++j)
+        fin >> (*_mV_transpose)(i,j);
+    for(int i=0;i<_fitSize;++i) for(int j=0;j<_nPca;++j)
+        fin >> (*_f)(i,j);
+#endif
     if (!fin) {
         throw ReadException("Error reading fitpsf file"+file);
     }
@@ -434,7 +506,11 @@ void FittedPsf::writeFits(std::string file) const
     table->addKey("TDIM11",tdim11.str(),"dimensions of interp_matrix");
 
 
+#ifdef USE_TMV
     std::string tmvVersion = tmv::TMV_Version();
+#else
+    std::string tmvVersion = "Eigen";
+#endif
     std::string wlVersion = getWlVersion();
 
     table->addKey("tmvvers", tmvVersion, "version of TMV code");
@@ -486,11 +562,15 @@ void FittedPsf::writeFits(std::string file) const
 
     double* cptr;
 
-    cptr = (double *) _avePsf->cptr();
+    cptr = (double *) TMV_cptr(*_avePsf);
     table->column(colNames[8]).write(cptr, nShapeletCoeff, nRows, startRow);
+#ifdef USE_TMV
     cptr = (double *) _mV->cptr();
+#else
+    cptr = (double *) TMV_cptr(*_mV_transpose);
+#endif
     table->column(colNames[9]).write(cptr, nRotMatrix, nRows, startRow);
-    cptr = (double *) _f->cptr();
+    cptr = (double *) TMV_cptr(*_f);
     table->column(colNames[10]).write(cptr, nInterpMatrix, nRows, startRow);
 }
 
@@ -575,8 +655,9 @@ void FittedPsf::readFits(std::string file)
 
     dVec.resize(0);
     table.column(avePsfCol).read(dVec, 1);
-    dptr=(double*) _avePsf->cptr();
+    dptr=(double*) TMV_cptr(*_avePsf);
     int dSize = dVec.size();
+    Assert(dSize == nShapeletCoeff);
     for (int j=0; j<dSize; ++j) {
         dptr[j] = dVec[j];
     }
@@ -584,13 +665,18 @@ void FittedPsf::readFits(std::string file)
 
 
     int nRotMatrix = _nPca*nShapeletCoeff;
-    _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(_nPca,_avePsf->size()));
-    Assert(int(_mV->linearView().size()) == nRotMatrix);
-
     dVec.resize(0);
     table.column(rotMatrixCol).read(dVec, 1);
-    dptr=(double*) _mV->cptr();
+#ifdef USE_TMV
+    _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(_nPca,_avePsf->size()));
+    Assert(int(_mV->linearView().size()) == nRotMatrix);
+    dptr=(double*) TMV_cptr(*_mV);
+#else
+    _mV_transpose.reset(new DMatrix(_avePsf->size(),_nPca));
+    dptr=(double*) TMV_cptr(*_mV_transpose);
+#endif
     dSize = dVec.size();
+    Assert(dSize == nRotMatrix);
     for (int j=0; j<dSize; ++j) {
         dptr[j] = dVec[j];
     }
@@ -600,25 +686,33 @@ void FittedPsf::readFits(std::string file)
     _fitSize = (_fitOrder+1)*(_fitOrder+2)/2;
     xdbg<<"fitsize = "<<_fitSize<<std::endl;
     int nInterpMatrix = _nPca*_fitSize;
-    _f.reset(new tmv::Matrix<double>(_fitSize,_nPca));
+    _f.reset(new DMatrix(_fitSize,_nPca));
+#ifdef USE_TMV
     Assert(int(_f->linearView().size()) == nInterpMatrix);
+#endif
 
     dVec.resize(0);
     table.column(interpMatrixCol).read(dVec, 1);
-    dptr=(double*) _f->cptr();
+    dptr=(double*) TMV_cptr(*_f);
     dSize = dVec.size();
+    Assert(dSize == nInterpMatrix);
     for (int j=0; j<dSize; ++j) {
         dptr[j] = dVec[j];
     }
 }
 
-void FittedPsf::interpolateVector(
-    Position pos, const tmv::VectorView<double>& b) const
+void FittedPsf::interpolateVector(Position pos, DVectorView b) const
 {
-    tmv::Vector<double> P(_fitSize);
+    DVector P(_fitSize);
+#ifdef USE_TMV
     setPRow(_fitOrder,pos,_bounds,P.view());
-    tmv::Vector<double> b1 = P * (*_f);
+    DVector b1 = P * (*_f);
     b = b1 * _mV->rowRange(0,_nPca);
+#else
+    setPRow(_fitOrder,pos,_bounds,P);
+    DVector b1 = _f->transpose() * P;
+    b = TMV_colRange(*_mV_transpose,0,_nPca) * b1;
+#endif
     b += *_avePsf;
 }
 

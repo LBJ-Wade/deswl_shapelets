@@ -25,25 +25,25 @@ public :
 
     void findMinMax(
         const std::vector<PotentialStar*>& list,
-        double *min, double *max, const Function2D<double>& f);
+        double *min, double *max, const Function2D& f);
 
     void rejectOutliers(
         std::vector<PotentialStar*>& list, 
-        double nSigma, double minSigma, const Function2D<double>& f);
+        double nSigma, double minSigma, const Function2D& f);
 
     std::vector<PotentialStar*> getPeakList(
         const std::vector<PotentialStar*>& objList,
         double binSize, double minSize, double maxSize,
         int nStart, int minIter, double magStep, double maxSignifRatio,
-        bool isFirstPass, const Function2D<double>& f);
+        bool isFirstPass, const Function2D& f);
 
     void fitStellarSizes(
-        Function2D<double> *f, int order, double sigClip,
+        Function2D *f, int order, double sigClip,
         const std::vector<PotentialStar*>& starList, double *outSigma);
 
     void roughlyFitBrightStars(
         const std::vector<PotentialStar*>& objList,
-        Function2D<double> *f,double *outSigma);
+        Function2D *f,double *outSigma);
 
     void setParams(
         const ConfigFile& params, std::string keyPrefix,

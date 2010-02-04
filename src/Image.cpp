@@ -111,7 +111,7 @@ void Image<T>::readFits()
     _xMax = sizes[0];
     _yMin = 0;
     _yMax = sizes[1];
-    _source.reset(new tmv::Matrix<T,tmv::ColMajor>(_xMax,_yMax));
+    _source.reset(new TMatrix(T)(_xMax,_yMax));
     xdbg<<"done make matrix of image"<<std::endl;
 
     long fPixel[2] = {1,1};
@@ -119,14 +119,14 @@ void Image<T>::readFits()
     xdbg<<"Before read_pix\n";
     Assert(getDataType<T>());
     fits_read_pix(fPtr,getDataType<T>(),fPixel,long(_xMax*_yMax),0,
-                  _source->ptr(),&anynul,&fitsErr);
+                  TMV_ptr(*_source),&anynul,&fitsErr);
     xdbg<<"done readpix  "<<fitsErr<<std::endl;
     xdbg<<"anynul = "<<anynul<<std::endl;
     xdbg<<"fitserr = "<<fitsErr<<std::endl;
     if (fitsErr != 0) fits_report_error(stderr,fitsErr);
     Assert(fitsErr==0);
 
-    _m.reset(new tmv::MatrixView<T>(_source->view()));
+    _m.reset(new TMatrixView(T)(TMV_view(*_source)));
     xdbg<<"Done make matrixview"<<std::endl;
 
     fits_close_file(fPtr, &fitsErr);
@@ -298,7 +298,7 @@ void Image<T>::readFits(
     if (_xMax > x2) _xMax = x2; if (_xMax < _xMin+1) _xMax = _xMin+1;
     if (_yMin < y1) _yMin = y1;
     if (_yMax > y2) _yMax = y2; if (_yMax < _yMin+1) _yMax = _yMin+1;
-    _source.reset(new tmv::Matrix<T,tmv::ColMajor>(_xMax-_xMin,_yMax-_yMin));
+    _source.reset(new TMatrix(T)(_xMax-_xMin,_yMax-_yMin));
     xdbg<<"done make matrix of image"<<std::endl;
 
     long fPixel[2] = {_xMin+1,_yMin+1};
@@ -308,14 +308,14 @@ void Image<T>::readFits(
     xdbg<<"Before read_subset\n";
     Assert(getDataType<T>());
     fits_read_subset(fPtr,getDataType<T>(),fPixel,lPixel,inc,
-                     0,_source->ptr(),&anynul,&fitsErr);
+                     0,TMV_ptr(*_source),&anynul,&fitsErr);
     xdbg<<"done read_subset "<<fitsErr<<std::endl;
     xdbg<<"anynul = "<<anynul<<std::endl;
     xdbg<<"fitserr = "<<fitsErr<<std::endl;
     if (fitsErr != 0) fits_report_error(stderr,fitsErr);
     Assert(fitsErr==0);
 
-    _m.reset(new tmv::MatrixView<T>(_source->view()));
+    _m.reset(new TMatrixView(T)(TMV_view(*_source)));
     xdbg<<"Done make matrixview"<<std::endl;
 
     fits_close_file(fPtr, &fitsErr);
@@ -353,7 +353,7 @@ void Image<T>::flush() const
     long fPixel[2] = {1,1};
     Assert(getDataType<T>());
     fits_write_pix(fPtr,getDataType<T>(),fPixel,long(_xMax*_yMax),
-                   _m->ptr(),&fitsErr);
+                   TMV_ptr(*_m),&fitsErr);
     if (fitsErr != 0) fits_report_error(stderr,fitsErr);
     Assert(fitsErr==0);
 
@@ -377,7 +377,7 @@ void Image<T>::write(std::string fileName) const
     Assert(getBitPix<T>());
     int bitPix = getBitPix<T>();
     int nAxes = 2;
-    long sizes[2] = { _m->colsize(), _m->rowsize() };
+    long sizes[2] = { _m->TMV_colsize(), _m->TMV_rowsize() };
     fits_create_img(fPtr, bitPix, nAxes, sizes, &fitsErr);
     if (fitsErr != 0) fits_report_error(stderr,fitsErr);
     Assert(fitsErr==0);
@@ -385,7 +385,7 @@ void Image<T>::write(std::string fileName) const
     long fPixel[2] = {1,1};
     Assert(getDataType<T>());
     fits_write_pix(fPtr,getDataType<T>(),fPixel,long(_xMax*_yMax),
-                   _m->ptr(),&fitsErr);
+                   TMV_ptr(*_m),&fitsErr);
     if (fitsErr != 0) fits_report_error(stderr,fitsErr);
     Assert(fitsErr==0);
 
@@ -408,9 +408,16 @@ std::vector<Image<T>*> Image<T>::divide(int nX, int nY) const
     std::vector<Image*> blockImages;
     blockImages.reserve(nX*nY);
     for(int i=0;i<nX;++i) for(int j=0;j<nY;++j) {
+#ifdef USE_TMV
         blockImages.push_back(
-            new Image(_m->subMatrix(x[i],x[i+1],y[j],y[j+1]),
+            new Image(_m->TMV_subMatrix(x[i],x[i+1],y[j],y[j+1]),
                       x[i],x[i+1],y[j],y[j+1]));
+#else
+        Assert(_m->TMV_colsize() == _source->TMV_colsize());
+        Assert(_m->TMV_rowsize() == _source->TMV_rowsize());
+        TMatrixView(T) subm = _source->TMV_subMatrix(x[i],x[i+1],y[j],y[j+1]);
+        blockImages.push_back(new Image(subm,x[i],x[i+1],y[j],y[j+1]));
+#endif
     }
     return blockImages;
 }
@@ -442,7 +449,8 @@ T Image<T>::interpolate(double x, double y) const
     if (j==int(_yMax-1)) {--j; dy += 1.;}
     if (i==-1) {++i; dx -= 1.;}
     if (j==-1) {++j; dy -= 1.;}
-    Assert(i>=0 && j>=0 && i+1<int(_m->colsize()) && j+1<=int(_m->rowsize()));
+    Assert(i>=0 && j>=0 && i+1<int(_m->TMV_colsize()) && 
+           j+1<=int(_m->TMV_rowsize()));
 
     T f0 = (*_m)(i,j);
     T f1 = (*_m)(i+1,j);
@@ -463,8 +471,8 @@ T Image<T>::quadInterpolate(double x, double y) const
     double dx = x - (i+0.5);
     int j = int (floor(y));
     double dy = y - (j+0.5);
-    Assert(i<int(_m->colsize()));
-    Assert(j<int(_m->rowsize()));
+    Assert(i<int(_m->TMV_colsize()));
+    Assert(j<int(_m->TMV_rowsize()));
     Assert (std::abs(dx) <= 0.5);
     Assert (std::abs(dy) <= 0.5);
 
@@ -482,20 +490,20 @@ T Image<T>::quadInterpolate(double x, double y) const
        */
     T f0 = (*_m)(i,j);
     T f1 = (i > 0) ? (*_m)(i-1,j) : 0.;
-    T f2 = (i < int(_m->colsize())-1) ? (*_m)(i+1,j) : 0.;
+    T f2 = (i < int(_m->TMV_colsize())-1) ? (*_m)(i+1,j) : 0.;
     T f3 = (j > 0) ? (*_m)(i,j-1) : 0.;
-    T f4 = (j < int(_m->rowsize())-1) ? (*_m)(i,j+1) : 0.;
+    T f4 = (j < int(_m->TMV_rowsize())-1) ? (*_m)(i,j+1) : 0.;
     T f5 = (i > 0 && j > 0) ? (*_m)(i-1,j-1) : 0.;
-    T f6 = (i < int(_m->colsize())-1 && j > 0) ? (*_m)(i+1,j-1) : 0.;
-    T f7 = (i > 0 && j < int(_m->rowsize())-1) ? (*_m)(i-1,j+1) : 0.;
-    T f8 = (i < int(_m->colsize())-1 && j < int(_m->rowsize())-1) ?
+    T f6 = (i < int(_m->TMV_colsize())-1 && j > 0) ? (*_m)(i+1,j-1) : 0.;
+    T f7 = (i > 0 && j < int(_m->TMV_rowsize())-1) ? (*_m)(i-1,j+1) : 0.;
+    T f8 = (i < int(_m->TMV_colsize())-1 && j < int(_m->TMV_rowsize())-1) ?
         (*_m)(i+1,j+1) : 0.;
     if (i == 0) {
         f1 = 2*f0 - f2;
         f5 = 2*f3 - f6;
         f7 = 2*f4 - f8;
     }
-    if (i == int(_m->colsize())-1) {
+    if (i == int(_m->TMV_colsize())-1) {
         f2 = 2*f0 - f1;
         f6 = 2*f3 - f5;
         f8 = 2*f4 - f7;
@@ -505,7 +513,7 @@ T Image<T>::quadInterpolate(double x, double y) const
         f5 = 2*f1 - f7;
         f6 = 2*f2 - f8;
     }
-    if (j == int(_m->rowsize())-1) {
+    if (j == int(_m->TMV_rowsize())-1) {
         f4 = 2*f0 - f3;
         f7 = 2*f1 - f5;
         f8 = 2*f2 - f6;
@@ -524,8 +532,8 @@ template <typename T>
 T Image<T>::median() const
 {
     std::vector<T> pixels;
-    const int n1 = _m->colsize();
-    const int n2 = _m->rowsize();
+    const int n1 = _m->TMV_colsize();
+    const int n2 = _m->TMV_rowsize();
     pixels.reserve(n1*n2);
     for(int i=0;i<n1;++i) for(int j=0;j<n2;++j) {
         pixels.push_back((*_m)(i,j));

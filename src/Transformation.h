@@ -4,8 +4,7 @@
 #include <stdexcept>
 #include "Function2D.h"
 #include "Bounds.h"
-#include "TMV.h"
-#include "TMV_Small.h"
+#include "MyMatrix.h"
 #include "ConfigFile.h"
 
 class Transformation 
@@ -42,8 +41,8 @@ public :
     // Get the jacobian at a particular x,y
     // J = ( dudx  dudy )
     //     ( dvdx  dvdy )
-    void getDistortion(Position p, tmv::Matrix<double>& J) const;
-    void getDistortion(Position p, tmv::SmallMatrix<double,2,2>& J) const;
+    void getDistortion(Position p, DMatrix& J) const;
+    void getDistortion(Position p, DSmallMatrix22& J) const;
     void getDistortion(
         Position p, 
         double& dudx, double& dudy, double& dvdx, double& dvdy) const;
@@ -67,12 +66,12 @@ private :
 
     bool _isRaDec;
 
-    std::auto_ptr<Function2D<double> > _u;
-    std::auto_ptr<Function2D<double> > _v;
-    std::auto_ptr<Function2D<double> > _dudx;
-    std::auto_ptr<Function2D<double> > _dudy;
-    std::auto_ptr<Function2D<double> > _dvdx;
-    std::auto_ptr<Function2D<double> > _dvdy;
+    std::auto_ptr<Function2D> _u;
+    std::auto_ptr<Function2D> _v;
+    std::auto_ptr<Function2D> _dudx;
+    std::auto_ptr<Function2D> _dudy;
+    std::auto_ptr<Function2D> _dvdx;
+    std::auto_ptr<Function2D> _dvdy;
 
 
 };

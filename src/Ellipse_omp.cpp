@@ -1,7 +1,6 @@
 
 #include "Ellipse.h"
 #include "EllipseSolver.h"
-#include "TMV.h"
 #include <cmath>
 #include "dbg.h"
 #include <fstream>
@@ -39,7 +38,7 @@ bool Ellipse::doMeasure(
     const std::vector<PixelList>& pix,
     const std::vector<BVec>* psf,
     int order, double sigma, bool shouldUseInteg, long& flag, 
-    tmv::Matrix<double>* cov, BVec* bRet, tmv::Matrix<double>* bCov)
+    DMatrix* cov, BVec* bRet, DMatrix* bCov)
 {
     timeval tp;
     double t1=0.,t2=0.;
@@ -52,16 +51,18 @@ bool Ellipse::doMeasure(
 
     xdbg<<"Start DoMeasure: order = "<<order<<", psf = "<<bool(psf)<<std::endl;
     xdbg<<"fix = "<<_isFixedCen<<"  "<<_isFixedGamma<<"  "<<_isFixedMu<<std::endl;
+    xdbg<<"useInteg? "<<shouldUseInteg<<std::endl;
     for(size_t i=0;i<pix.size();++i) xdbg<<"npix["<<i<<"] = "<<pix[i].size()<<std::endl;
 
     std::auto_ptr<BaseEllipseSolver> solver;
 
-    tmv::Vector<double> x(5,0.);
+    DVector x(5);
     x(0) = std::real(_cen);  x(1) = std::imag(_cen); 
     x(2) = std::real(_gamma); x(3) = std::imag(_gamma);
     x(4) = _mu;
-    tmv::Vector<double> xinit = x;
-    tmv::Vector<double> f(5);
+    xdbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
+    DVector xinit = x;
+    DVector f(5);
 
     if (shouldUseInteg && order <= 3) {
         if (_shouldDoTimings) {
@@ -72,16 +73,17 @@ bool Ellipse::doMeasure(
         // and has uniform variance.
         // Also, we start by just fitting the centroid.
         if (!_isFixedCen && (!_isFixedGamma || !_isFixedMu)) {
+            xdbg<<"Do Integrating centroid solve\n";
             if (psf) {
                 // pixscale doesn't really matter unless we want an accurate B in
                 // the end, so just use 1 here.
-                solver.reset(new EllipseSolver2(pix,*psf,_fPsf,order,sigma,1.,
-                                                false,true,true));
+                solver.reset(new EllipseSolver2(
+                        pix,*psf,_fPsf,order,sigma,1.,false,true,true));
             } else {
-                solver.reset(new EllipseSolver2(pix,order,sigma,1.,
-                                                false,true,true));
+                solver.reset(new EllipseSolver2(
+                        pix,order,sigma,1.,false,true,true));
             }
-            xdbg<<"xinit (int fixgam) = "<<x<<std::endl;
+            xdbg<<"xinit (int fixgam) = "<<EIGEN_Transpose(x)<<std::endl;
             solver->useDogleg();
 #ifdef NOTHROW
             solver->noUseCholesky();
@@ -95,30 +97,33 @@ bool Ellipse::doMeasure(
             //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-5)) exit(1);
             bool ret = solver->solve(x,f);
             if (!ret) {
-                dbg<<"failed integrating solver, centroid - x = "<<x<<std::endl;
-                dbg<<"f = "<<f<<"  Norm(f) = "<<Norm(f)<<std::endl;
-                dbg<<"b = "<<solver->getB().vec()<<std::endl;
+                dbg<<"failed integrating solver, centroid - x = "<<EIGEN_Transpose(x)<<std::endl;
+                dbg<<"f = "<<EIGEN_Transpose(f)<<"  Norm(f) = "<<f.norm()<<std::endl;
+                dbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
                 return false;
             }
-            xdbg<<"Done: x (Integ, centroid only) = "<<x<<std::endl;
-            xdbg<<"f = "<<f<<std::endl;
-            xdbg<<"b = "<<solver->getB().vec()<<std::endl;
+            xdbg<<"Done: x (Integ, centroid only) = "<<EIGEN_Transpose(x)<<std::endl;
+            xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
+            xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
         }
 
         // Next allow the shear and/or mu to be fit as well:
 #ifdef N_FLUX_ATTEMPTS
 #if N_FLUX_ATTEMPTS > 0
+        xdbg<<"Do Integrating regular solve (fixed flux)\n";
         if (psf) {
             // pixscale doesn't really matter unless we want an accurate B in
             // the end, so just use 1 here.
             solver.reset(
-                new EllipseSolver2(pix,*psf,_fPsf,order,sigma,1.,
-                                   _isFixedCen,_isFixedGamma,_isFixedMu,true));
+                new EllipseSolver2(
+                    pix,*psf,_fPsf,order,sigma,1.,
+                    _isFixedCen,_isFixedGamma,_isFixedMu,true));
         } else {
-            solver.reset(new EllipseSolver2(pix,order,sigma,1.,
-                                            _isFixedCen,_isFixedGamma,_isFixedMu,true));
+            solver.reset(new EllipseSolver2(
+                    pix,order,sigma,1.,
+                    _isFixedCen,_isFixedGamma,_isFixedMu,true));
         }
-        xdbg<<"xinit (integ) = "<<x<<std::endl;
+        xdbg<<"xinit (integ) = "<<EIGEN_Transpose(x)<<std::endl;
         solver->useHybrid();
 #ifdef NOTHROW
         solver->noUseCholesky();
@@ -134,23 +139,26 @@ bool Ellipse::doMeasure(
             xdbg<<"Attempt #"<<iter<<std::endl;
             //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-5)) exit(1);
             solver->solve(x,f);
-            xdbg<<"x => "<<x<<std::endl;
-            xdbg<<"f => "<<f<<"  Norm(f) = "<<Norm(f)<<std::endl;
-            xdbg<<"b => "<<solver->getB().vec()<<std::endl;
-            if (Norm(f) < 1.e-2) break;
+            xdbg<<"x => "<<EIGEN_Transpose(x)<<std::endl;
+            xdbg<<"f => "<<EIGEN_Transpose(f)<<"  Norm(f) = "<<f.norm()<<std::endl;
+            xdbg<<"b => "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
+            if (f.norm() < 1.e-2) break;
         } 
 #endif
 #endif
         // Repeat, but allow flux to change.
+        xdbg<<"Do Integrating regular solve with flux\n";
         if (psf) {
             solver.reset(
-                new EllipseSolver2(pix,*psf,_fPsf,order,sigma,1.,
-                                   _isFixedCen,_isFixedGamma,_isFixedMu));
+                new EllipseSolver2(
+                    pix,*psf,_fPsf,order,sigma,1.,
+                    _isFixedCen,_isFixedGamma,_isFixedMu));
         } else {
-            solver.reset(new EllipseSolver2(pix,order,sigma,1.,
+            solver.reset(new EllipseSolver2(
+                    pix,order,sigma,1.,
                                             _isFixedCen,_isFixedGamma,_isFixedMu));
         }
-        xdbg<<"xinit (integ) = "<<x<<std::endl;
+        xdbg<<"xinit (integ) = "<<EIGEN_Transpose(x)<<std::endl;
         solver->useDogleg();
 #ifdef NOTHROW
         solver->noUseCholesky();
@@ -162,11 +170,10 @@ bool Ellipse::doMeasure(
         solver->setMaxIter(10);
         xdbg<<"Final Integrating solver:\n";
         //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-5)) exit(1);
-        //solver->verbose = true;
         solver->solve(x,f);
-        xdbg<<"Done: x (Integrating) = "<<x<<std::endl;
-        xdbg<<"f (integ) = "<<f<<std::endl;
-        xdbg<<"b = "<<solver->getB().vec()<<std::endl;
+        xdbg<<"Done: x (Integrating) = "<<EIGEN_Transpose(x)<<std::endl;
+        xdbg<<"f (integ) = "<<EIGEN_Transpose(f)<<std::endl;
+        xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
         if (_shouldDoTimings) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
@@ -183,13 +190,13 @@ bool Ellipse::doMeasure(
     }
     if (!_isFixedCen) {
         if (psf) {
-            solver.reset(new EllipseSolver(pix,*psf,_fPsf,order,sigma,
-                                           false,true,true));
+            solver.reset(new EllipseSolver(
+                    pix,*psf,_fPsf,order,sigma,false,true,true));
         } else {
-            solver.reset(new EllipseSolver(pix,order,sigma,
-                                           false,true,true));
+            solver.reset(new EllipseSolver(
+                    pix,order,sigma,false,true,true));
         }
-        xdbg<<"xinit = "<<x<<std::endl;
+        xdbg<<"xinit = "<<EIGEN_Transpose(x)<<std::endl;
         solver->useDogleg();
 #ifdef NOTHROW
         solver->noUseCholesky();
@@ -202,9 +209,9 @@ bool Ellipse::doMeasure(
         xdbg<<"ML solver centroid:\n";
         bool rete= solver->solve(x,f);
         if (!ret) {
-            dbg<<"ML solver, centroid, failed - x = "<<x<<std::endl;
-            dbg<<"f = "<<f<<std::endl;
-            dbg<<"b = "<<solver->getB().vec()<<std::endl;
+            dbg<<"ML solver, centroid, failed - x = "<<EIGEN_Transpose(x)<<std::endl;
+            dbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
+            dbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
             if (XDEBUG) solver->testJ(x,f,dbgout,1.e-5);
             if (_shouldDoTimings) {
                 gettimeofday(&tp,0);
@@ -213,9 +220,9 @@ bool Ellipse::doMeasure(
             }
             return false;
         }
-        xdbg<<"Done: x (ML centroid only) = "<<x<<std::endl;
-        xdbg<<"f = "<<f<<std::endl;
-        xdbg<<"b = "<<solver->getB().vec()<<std::endl;
+        xdbg<<"Done: x (ML centroid only) = "<<EIGEN_Transpose(x)<<std::endl;
+        xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
+        xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
     }
     if (_shouldDoTimings) {
         gettimeofday(&tp,0);
@@ -243,13 +250,13 @@ bool Ellipse::doMeasure(
         }
 
         if (psf) {
-            solver.reset(new EllipseSolver(pix,*psf,_fPsf,order,sigma,
-                                           true,false,true));
+            solver.reset(new EllipseSolver(
+                    pix,*psf,_fPsf,order,sigma,true,false,true));
         } else {
-            solver.reset(new EllipseSolver(pix,order,sigma,
-                                           true,false,true));
+            solver.reset(new EllipseSolver(
+                    pix,order,sigma,true,false,true));
         }
-        xdbg<<"xinit = "<<x<<std::endl;
+        xdbg<<"xinit = "<<EIGEN_Transpose(x)<<std::endl;
         solver->useDogleg();
 #ifdef NOTHROW
         solver->noUseCholesky();
@@ -262,9 +269,9 @@ bool Ellipse::doMeasure(
         xdbg<<"ML solver gamma:\n";
         bool ret = solver->solve(x,f);
         if (!ret) {
-            dbg<<"ML solver, gamma, failed - x = "<<x<<std::endl;
-            dbg<<"f = "<<f<<std::endl;
-            dbg<<"b = "<<solver->getB().vec()<<std::endl;
+            dbg<<"ML solver, gamma, failed - x = "<<EIGEN_Transpose(x)<<std::endl;
+            dbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
+            dbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
             //if (XDEBUG) solver->testJ(x,f,dbgout,1.e-5);
             if (_shouldDoTimings) {
                 gettimeofday(&tp,0);
@@ -273,9 +280,9 @@ bool Ellipse::doMeasure(
             }
             return false;
         }
-        xdbg<<"Done: x (ML gamma only) = "<<x<<std::endl;
-        xdbg<<"f = "<<f<<std::endl;
-        xdbg<<"b = "<<solver->getB().vec()<<std::endl;
+        xdbg<<"Done: x (ML gamma only) = "<<EIGEN_Transpose(x)<<std::endl;
+        xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
+        xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
     }
     if (_shouldDoTimings) {
         gettimeofday(&tp,0);
@@ -289,13 +296,13 @@ bool Ellipse::doMeasure(
     }
     if (!_isFixedMu) {
         if (psf) {
-            solver.reset(new EllipseSolver(pix,*psf,_fPsf,order,sigma,
-                                           true,true,false));
+            solver.reset(new EllipseSolver(
+                    pix,*psf,_fPsf,order,sigma,true,true,false));
         } else {
-            solver.reset(new EllipseSolver(pix,order,sigma,
-                                           true,true,false));
+            solver.reset(new EllipseSolver(
+                    pix,order,sigma,true,true,false));
         }
-        xdbg<<"xinit = "<<x<<std::endl;
+        xdbg<<"xinit = "<<EIGEN_Transpose(x)<<std::endl;
         solver->useDogleg();
 #ifdef NOTHROW
         solver->noUseCholesky();
@@ -308,9 +315,9 @@ bool Ellipse::doMeasure(
         xdbg<<"ML solver mu:\n";
         bool ret = solver->solve(x,f);
         if (!ret) {
-            dbg<<"ML solver, mu, failed - x = "<<x<<std::endl;
-            dbg<<"f = "<<f<<std::endl;
-            dbg<<"b = "<<solver->getB().vec()<<std::endl;
+            dbg<<"ML solver, mu, failed - x = "<<EIGEN_Transpose(x)<<std::endl;
+            dbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
+            dbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
             //if (XDEBUG) solver->testJ(x,f,dbgout,1.e-5);
             if (_shouldDoTimings) {
                 gettimeofday(&tp,0);
@@ -319,9 +326,9 @@ bool Ellipse::doMeasure(
             }
             return false;
         }
-        xdbg<<"Done: x (ML mu only) = "<<x<<std::endl;
-        xdbg<<"f = "<<f<<std::endl;
-        xdbg<<"b = "<<solver->getB().vec()<<std::endl;
+        xdbg<<"Done: x (ML mu only) = "<<EIGEN_Transpose(x)<<std::endl;
+        xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
+        xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
     }
     if (_shouldDoTimings) {
         gettimeofday(&tp,0);
@@ -333,18 +340,21 @@ bool Ellipse::doMeasure(
     // Now fit everything, but first time, try to maintain the flux level
 #ifdef N_FLUX_ATTEMPTS
 #if N_FLUX_ATTEMPTS > 0
+    xdbg<<"Do regular solve (fixed flux)\n";
     if (_shouldDoTimings) {
         gettimeofday(&tp,0);
         t1 = tp.tv_sec + tp.tv_usec/1.e6;
     }
     if (psf) {
-        solver.reset(new EllipseSolver(pix,*psf,_fPsf,order,sigma,
-                                       _isFixedCen,_isFixedGamma,_isFixedMu,true));
+        solver.reset(new EllipseSolver(
+                pix,*psf,_fPsf,order,sigma,
+                _isFixedCen,_isFixedGamma,_isFixedMu,true));
     } else {
-        solver.reset(new EllipseSolver(pix,order,sigma,
-                                       _isFixedCen,_isFixedGamma,_isFixedMu,true));
+        solver.reset(new EllipseSolver(
+                pix,order,sigma,
+                _isFixedCen,_isFixedGamma,_isFixedMu,true));
     }
-    xdbg<<"xinit = "<<x<<std::endl;
+    xdbg<<"xinit = "<<EIGEN_Transpose(x)<<std::endl;
     solver->useHybrid();
 #ifdef NOTHROW
     solver->noUseCholesky();
@@ -361,14 +371,14 @@ bool Ellipse::doMeasure(
         xdbg<<"Attempt #"<<iter<<std::endl;
         //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-5)) exit(1);
         solver->solve(x,f);
-        xdbg<<"x => "<<x<<std::endl;
-        xdbg<<"f => "<<f<<"  Norm(f) = "<<Norm(f)<<std::endl;
-        xdbg<<"b = "<<solver->getB().vec()<<std::endl;
-        if (Norm(f) < 1.e-2) break;
+        xdbg<<"x => "<<EIGEN_Transpose(x)<<std::endl;
+        xdbg<<"f => "<<EIGEN_Transpose(f)<<"  Norm(f) = "<<f.norm()<<std::endl;
+        xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
+        if (f.norm() < 1.e-2) break;
     }
-    xdbg<<"Done: x (ML fixed flux) = "<<x<<std::endl;
-    xdbg<<"f = "<<f<<std::endl;
-    xdbg<<"b = "<<solver->getB().vec()<<std::endl;
+    xdbg<<"Done: x (ML fixed flux) = "<<EIGEN_Transpose(x)<<std::endl;
+    xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
+    xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
     if (_shouldDoTimings) {
         gettimeofday(&tp,0);
         t2 = tp.tv_sec + tp.tv_usec/1.e6;
@@ -377,25 +387,30 @@ bool Ellipse::doMeasure(
 #endif
 #endif
 
+    xdbg<<"Do regular solve with flux\n";
     if (_shouldDoTimings) {
         gettimeofday(&tp,0);
         t1 = tp.tv_sec + tp.tv_usec/1.e6;
     }
     // Finally allow the flux change as needed.
     if (psf) {
-        solver.reset(new EllipseSolver(pix,*psf,_fPsf,order,sigma,
-                                       _isFixedCen,_isFixedGamma,_isFixedMu));
+        solver.reset(new EllipseSolver(
+                pix,*psf,_fPsf,order,sigma,
+                _isFixedCen,_isFixedGamma,_isFixedMu));
     } else {
-        solver.reset(new EllipseSolver(pix,order,sigma,
-                                       _isFixedCen,_isFixedGamma,_isFixedMu));
+        solver.reset(new EllipseSolver(
+                pix,order,sigma,
+                _isFixedCen,_isFixedGamma,_isFixedMu));
     }
-    xdbg<<"xinit = "<<x<<std::endl;
+    xdbg<<"xinit = "<<EIGEN_Transpose(x)<<std::endl;
     solver->useDogleg();
+    if (psf) solver->useNumericJ();
 #ifdef NOTHROW
     solver->noUseCholesky();
 #endif
     solver->setTol(1.e-8,1.e-25);
     if (XDEBUG) solver->setOutput(*dbgout);
+    solver->useVerboseOutput();
     solver->setDelta0(0.01);
     solver->setMinStep(1.e-15);
     solver->setMaxIter(50);
@@ -412,13 +427,14 @@ bool Ellipse::doMeasure(
             }
             return false;
         }
-        dbg<<"Final solver pass failed - x = "<<x<<std::endl;
-        dbg<<"b = "<<solver->getB().vec()<<std::endl;
+        dbg<<"Final solver pass failed - x = "<<EIGEN_Transpose(x)<<std::endl;
+        dbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
         //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-5)) exit(1);
 #if 1 
         // Try bumping it to get out of a local well and continue:
         BVec b1 = solver->getB();
         if (!_isFixedCen) {
+            xdbg<<"Bump z\n";
             dbg<<"Current z = "<<std::complex<double>(x[0],x[1])<<std::endl;
             std::complex<double> z1(2.*b1(1),-2.*b1(2));
             z1 /= b1(0) - b1(5);
@@ -431,6 +447,7 @@ bool Ellipse::doMeasure(
 #endif
 #if 1
         if (!_isFixedGamma) {
+            xdbg<<"Bump gamma\n";
             std::complex<double> g0(x[2],x[3]);
             dbg<<"Current gamma = "<<g0<<std::endl;
             std::complex<double> g1(std::sqrt(2.)*b1(3),-std::sqrt(2.)*b1(4));
@@ -445,6 +462,7 @@ bool Ellipse::doMeasure(
 #endif
 #if 0
         if (!_isFixedMu) {
+            xdbg<<"Bump mu\n";
             dbg<<"Current mu = "<<x[4]<<std::endl;
             double m1 = -b1(5);
             m1 /= b1[0] - (b1.getOrder() >= 4 ? 2.*b1(14) : 0.);
@@ -453,15 +471,17 @@ bool Ellipse::doMeasure(
                 dbg<<"New mu = "<<x[4]<<std::endl;
             }
         }
-        dbg<<"New x = "<<x<<std::endl;
+        dbg<<"New x = "<<EIGEN_Transpose(x)<<std::endl;
 #endif
 
         if (psf) {
-            solver.reset(new EllipseSolver(pix,*psf,_fPsf,order,sigma,
-                                           _isFixedCen,_isFixedGamma,true));
+            solver.reset(new EllipseSolver(
+                    pix,*psf,_fPsf,order,sigma,
+                    _isFixedCen,_isFixedGamma,true));
         } else {
-            solver.reset(new EllipseSolver(pix,order,sigma,
-                                           _isFixedCen,_isFixedGamma,true));
+            solver.reset(new EllipseSolver(
+                    pix,order,sigma,
+                    _isFixedCen,_isFixedGamma,true));
         }
 
         solver->useHybrid();
@@ -479,9 +499,9 @@ bool Ellipse::doMeasure(
             solver->setTol(10.*solver->getFTol(),10.*solver->getGTol());
         }
     }
-    xdbg<<"Done: Final solver pass successful: x = "<<x<<std::endl;
-    xdbg<<"f = "<<f<<std::endl;
-    xdbg<<"b = "<<solver->getB().vec()<<std::endl;
+    xdbg<<"Done: Final solver pass successful: x = "<<EIGEN_Transpose(x)<<std::endl;
+    xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
+    xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
     if (cov) {
         solver->useSVD();
         solver->getCovariance(*cov);
@@ -489,8 +509,9 @@ bool Ellipse::doMeasure(
     }
 
     // Check for flags
+    xdbg<<"Checking for possible problems\n";
     solver->callF(x,f);
-    if (Norm(f) > solver->getFTol()) {
+    if (f.norm() > solver->getFTol()) {
         xdbg<<"Local minimum\n";
         flag |= SHEAR_LOCAL_MIN;
     }
@@ -517,7 +538,7 @@ bool Ellipse::doMeasure(
     setMu(x(4));
     if (bRet) {
         *bRet = solver->getB();
-        xdbg<<"bret = "<<bRet->vec()<<std::endl;
+        xdbg<<"bret = "<<EIGEN_Transpose(bRet->vec())<<std::endl;
         if (bCov) solver->getBCov(*bCov);
     }
     return true;

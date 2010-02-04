@@ -5,17 +5,14 @@
 #include <sstream>
 
 #include "Function2D.h"
-#include "TMV.h"
 #include "dbg.h"
 
-template <typename T>
-Constant2D<T>::Constant2D(std::istream& fin) : Function2D<T>()
+Constant2D::Constant2D(std::istream& fin) : Function2D()
 {
     if(!(fin >> (*_coeffs)(0,0))) throw std::runtime_error("reading constant");
 }
 
-template <typename T>
-void Constant2D<T>::write(std::ostream& fout) const
+void Constant2D::write(std::ostream& fout) const
 {
     int oldPrec = fout.precision(6);
     std::ios_base::fmtflags oldf =
@@ -26,21 +23,20 @@ void Constant2D<T>::write(std::ostream& fout) const
     fout.flags(oldf);
 }
 
-template <typename T>
-void Constant2D<T>::operator+=(const Function2D<T>& rhs)
+void Constant2D::operator+=(const Function2D& rhs)
 {
-    const Constant2D<T>* crhs = dynamic_cast<const Constant2D<T>*>(&rhs);
+    const Constant2D* crhs = dynamic_cast<const Constant2D*>(&rhs);
     Assert(crhs);
     (*_coeffs)(0,0) += (*crhs->_coeffs)(0,0);
 }
 
 
-template <typename T>
-void Polynomial2D<T>::setFunction(int xo, int yo, const tmv::Vector<T>& fVect)
+void Polynomial2D::setFunction(int xo, int yo, const DVector& fVect)
 {
     if(_xOrder != xo || _yOrder != yo) {
         _xOrder = xo; _yOrder = yo;
-        _coeffs.reset(new tmv::Matrix<T>(xo+1,yo+1,0.));
+        _coeffs.reset(new DMatrix(xo+1,yo+1));
+        _coeffs->setZero();
     }
     int k=0;
 
@@ -48,18 +44,22 @@ void Polynomial2D<T>::setFunction(int xo, int yo, const tmv::Vector<T>& fVect)
     for(int m=0;m<=maxOrder;++m) {
         int i0 = std::min(xo,m);
         int len = std::min(yo,i0)+1;
-        tmv::VectorView<T> coeffDiag = _coeffs->subVector(i0,m-i0,-1,1,len);
-        tmv::ConstVectorView<T> subf = fVect.subVector(k,k+len);
+#ifdef USE_TMV
+        DVectorView coeffDiag = _coeffs->subVector(i0,m-i0,-1,1,len);
+        tmv::ConstVectorView<double> subf = fVect.subVector(k,k+len);
         coeffDiag = subf;
+#else
+        for(int i=0;i<len;++i)
+            (*_coeffs)(i0-i,m-i0+i) = fVect(k+i);
+#endif
         k += len;
     }
 
     Assert(k==(int)fVect.size());
 }
 
-template <typename T>
-Polynomial2D<T>::Polynomial2D(std::istream& fin) : 
-    Function2D<T>()
+Polynomial2D::Polynomial2D(std::istream& fin) : 
+    Function2D()
 {
     // Order of parameters:  (example is for xorder = 2, yorder = 3
     // xorder(2) yorder(3) a00 a10 a01 a20 a11 a02 a21 a12 a03
@@ -74,19 +74,23 @@ Polynomial2D<T>::Polynomial2D(std::istream& fin) :
         throw std::runtime_error("reading xorder,yorder,scale");
     _xOrder = xo;
     _yOrder = yo;
-    _coeffs.reset(new tmv::Matrix<T>(xo+1,yo+1,0.));
+    _coeffs.reset(new DMatrix(xo+1,yo+1));
+    _coeffs->setZero();
     int maxOrder = std::max(xo,yo);
     for(int m=0;m<=maxOrder;++m) {
         int i0 = std::min(xo,m);
         int len = std::min(yo,i0)+1;
-        tmv::VectorView<T> coeffDiag = _coeffs->subVector(i0,m-i0,-1,1,len);
+#ifdef USE_TMV
+        DVectorView coeffDiag = _coeffs->subVector(i0,m-i0,-1,1,len);
         for(int i=0;i<len;++i) fin >> coeffDiag(i);
+#else
+        for(int i=0;i<len;++i) fin >> (*_coeffs)(i0-i,m-i0+i);
+#endif
     }
     if (!fin) throw std::runtime_error("reading (polynomial)");
 }
 
-template <typename T>
-void Polynomial2D<T>::write(std::ostream& fout) const
+void Polynomial2D::write(std::ostream& fout) const
 {
     int oldPrec = fout.precision(6);
     std::ios_base::fmtflags oldf = 
@@ -99,8 +103,12 @@ void Polynomial2D<T>::write(std::ostream& fout) const
         for(int m=0;m<=maxOrder;++m) {
             int i0 = std::min(_xOrder,m);
             int len = std::min(_yOrder,i0)+1;
-            tmv::VectorView<T> coeffDiag = _coeffs->subVector(i0,m-i0,-1,1,len);
+#ifdef USE_TMV
+            DVectorView coeffDiag = _coeffs->subVector(i0,m-i0,-1,1,len);
             for(int i=0;i<len;++i) fout << coeffDiag(i) << ' ';
+#else
+            for(int i=0;i<len;++i) fout << (*_coeffs)(i0-i,m-i0+i);
+#endif
         }
     }
     fout << std::endl;
@@ -109,16 +117,15 @@ void Polynomial2D<T>::write(std::ostream& fout) const
     fout.precision(oldPrec);
 }
 
-template <typename T>
-void Polynomial2D<T>::addLinear(T a, T b, T c)
+void Polynomial2D::addLinear(double a, double b, double c)
 {
     (*_coeffs)(0,0) += a;
     (*_coeffs)(1,0) += b*_scale;
     (*_coeffs)(0,1) += c*_scale;
 }
 
-template <typename T>
-void Polynomial2D<T>::linearPreTransform(T a, T b, T c, T d, T e, T f)
+void Polynomial2D::linearPreTransform(
+    double a, double b, double c, double d, double e, double f)
 {
     // F(x,y) = Sum_i,j a(i,j) x^i y^j
     // F'(x,y) = F(a+bx+cy,d+ex+fy)
@@ -127,14 +134,14 @@ void Polynomial2D<T>::linearPreTransform(T a, T b, T c, T d, T e, T f)
     //                Sum_mn jCm mCn d^j-m (ex)^m-n (fy)^n
     int maxOrder = std::max(_xOrder,_yOrder);
     std::vector<double> scaleToThe(maxOrder+1);
-    scaleToThe[0] = 1.; scaleToThe[1] = _scale;
+    scaleToThe[0] = 1.0; scaleToThe[1] = _scale;
     for(int i=2;i<=maxOrder;++i) scaleToThe[i] = scaleToThe[i-1]*_scale;
-    std::vector<T> aToThe(maxOrder+1);
-    std::vector<T> bToThe(maxOrder+1);
-    std::vector<T> cToThe(maxOrder+1);
-    std::vector<T> dToThe(maxOrder+1);
-    std::vector<T> eToThe(maxOrder+1);
-    std::vector<T> fToThe(maxOrder+1);
+    std::vector<double> aToThe(maxOrder+1);
+    std::vector<double> bToThe(maxOrder+1);
+    std::vector<double> cToThe(maxOrder+1);
+    std::vector<double> dToThe(maxOrder+1);
+    std::vector<double> eToThe(maxOrder+1);
+    std::vector<double> fToThe(maxOrder+1);
     aToThe[0] = 1.; aToThe[1] = a;
     bToThe[0] = 1.; bToThe[1] = b;
     cToThe[0] = 1.; cToThe[1] = c;
@@ -149,16 +156,19 @@ void Polynomial2D<T>::linearPreTransform(T a, T b, T c, T d, T e, T f)
     for(int i=2;i<=maxOrder;++i) fToThe[i] = fToThe[i-1]*f;
     _xOrder = maxOrder; _yOrder = maxOrder;
 
-    tmv::LowerTriMatrix<T,tmv::UnitDiag> binom(maxOrder+1);
+    DMatrix binom(maxOrder+1,maxOrder+1);
+    binom(0,0) = 1.0;
     for(int n=1;n<=maxOrder;++n) {
-        binom(n,0) = T(1);
+        binom(n,0) = 1.0;
+        binom(n,n) = 1.0;
         for(int m=1;m<n;++m) {
             binom(n,m) = binom(n-1,m-1) + binom(n-1,m);
         }
     }
 
-    std::auto_ptr<tmv::Matrix<T> > oldCoeffs = _coeffs;
-    _coeffs.reset(new tmv::Matrix<T>(_xOrder+1,_yOrder+1,0.));
+    std::auto_ptr<DMatrix> oldCoeffs = _coeffs;
+    _coeffs.reset(new DMatrix(_xOrder+1,_yOrder+1));
+    _coeffs->setZero();
     for(int i=0;i<=_xOrder;++i) for(int j=0;j<=_yOrder&&i+j<=maxOrder;++j) {
         for(int k=0;k<=i;++k) for(int l=0;l<=k;++l) {
             for(int m=0;m<=j;++m) for(int n=0;n<=m;++n) {
@@ -172,10 +182,9 @@ void Polynomial2D<T>::linearPreTransform(T a, T b, T c, T d, T e, T f)
     }
 }
 
-template <typename T>
-void Polynomial2D<T>::operator+=(const Function2D<T>& rhs)
+void Polynomial2D::operator+=(const Function2D& rhs)
 {
-    const Polynomial2D<T>* prhs = dynamic_cast<const Polynomial2D<T>*>(&rhs);
+    const Polynomial2D* prhs = dynamic_cast<const Polynomial2D*>(&rhs);
     Assert(prhs);
     Assert(_scale == prhs->_scale);
     if (_xOrder == prhs->_xOrder && _yOrder == prhs->_yOrder) {
@@ -183,10 +192,11 @@ void Polynomial2D<T>::operator+=(const Function2D<T>& rhs)
     } else {
         int newXOrder = std::max(_xOrder,prhs->_xOrder);
         int newYOrder = std::max(_yOrder,prhs->_yOrder);
-        std::auto_ptr<tmv::Matrix<T> > newCoeffs(
-            new tmv::Matrix<T>(newXOrder+1,newYOrder+1,0.));
-        newCoeffs->subMatrix(0,_xOrder+1,0,_yOrder+1) = *_coeffs;
-        newCoeffs->subMatrix(0,prhs->_xOrder+1,0,prhs->_yOrder+1) += 
+        std::auto_ptr<DMatrix > newCoeffs(
+            new DMatrix(newXOrder+1,newYOrder+1));
+        newCoeffs->setZero();
+        newCoeffs->TMV_subMatrix(0,_xOrder+1,0,_yOrder+1) = *_coeffs;
+        newCoeffs->TMV_subMatrix(0,prhs->_xOrder+1,0,prhs->_yOrder+1) += 
             *prhs->_coeffs;
         _coeffs = newCoeffs;
         _xOrder = newXOrder;
@@ -194,9 +204,8 @@ void Polynomial2D<T>::operator+=(const Function2D<T>& rhs)
     }
 }
 
-template <typename T>
-void Polynomial2D<T>::makeProductOf(
-    const Polynomial2D<T>& f, const Polynomial2D<T>& g)
+void Polynomial2D::makeProductOf(
+    const Polynomial2D& f, const Polynomial2D& g)
 {
     // h(x,y) = f(x,y) * g(x,y)
     //        = (Sum_ij f_ij x^i y^j) (Sum_mn g_mn x^m y^n)
@@ -208,7 +217,7 @@ void Polynomial2D<T>::makeProductOf(
     if (_xOrder != newXOrder || _yOrder != newYOrder) {
         _xOrder = newXOrder;
         _yOrder = newYOrder;
-        _coeffs.reset(new tmv::Matrix<T>(_xOrder+1,_yOrder+1));
+        _coeffs.reset(new DMatrix(_xOrder+1,_yOrder+1));
     }
     _coeffs->setZero();
     for(int i=0;i<=f.getXOrder();++i) for(int j=0;j<=f.getYOrder();++j) {
@@ -219,22 +228,21 @@ void Polynomial2D<T>::makeProductOf(
     }
 }
 
-template <typename T>
-std::auto_ptr<Function2D<T> > Polynomial2D<T>::dFdX() const
+std::auto_ptr<Function2D> Polynomial2D::dFdX() const
 {
     if (_xOrder == 0) {
-        return std::auto_ptr<Function2D<T> >(new Constant2D<T>());
+        return std::auto_ptr<Function2D>(new Constant2D());
     }
     if (_xOrder == 1 && _yOrder == 0) {
-        return std::auto_ptr<Function2D<T> >(
-            new Constant2D<T>((*_coeffs)(1,0)));
+        return std::auto_ptr<Function2D>(
+            new Constant2D((*_coeffs)(1,0)));
     }
 
     int newXOrder = _xOrder-1;
     int newYOrder = _xOrder > _yOrder ? _yOrder : _yOrder-1;
 
-    std::auto_ptr<Polynomial2D<T> > temp(
-        new Polynomial2D<T>(newXOrder,newYOrder));
+    std::auto_ptr<Polynomial2D> temp(
+        new Polynomial2D(newXOrder,newYOrder));
 
     int maxOrder = std::max(newXOrder,newYOrder);
     for(int i=newXOrder;i>=0;--i) {
@@ -245,25 +253,24 @@ std::auto_ptr<Function2D<T> > Polynomial2D<T>::dFdX() const
             (*temp->_coeffs)(i,j) = (*_coeffs)(i+1,j)*(i+1.)/_scale;
         }
     }
-    return std::auto_ptr<Function2D<T> >(temp);
+    return std::auto_ptr<Function2D>(temp);
 }
 
-template <typename T>
-std::auto_ptr<Function2D<T> > Polynomial2D<T>::dFdY() const 
+std::auto_ptr<Function2D> Polynomial2D::dFdY() const 
 {
     if (_yOrder == 0) {
-        return std::auto_ptr<Function2D<T> >(new Constant2D<T>());
+        return std::auto_ptr<Function2D>(new Constant2D());
     }
     if (_yOrder == 1 && _xOrder == 0) {
-        return std::auto_ptr<Function2D<T> >(
-            new Constant2D<T>((*_coeffs)(0,1)));
+        return std::auto_ptr<Function2D>(
+            new Constant2D((*_coeffs)(0,1)));
     }
 
     int newXOrder = _yOrder > _xOrder ? _xOrder : _xOrder-1;
     int newYOrder = _yOrder-1;
 
-    std::auto_ptr<Polynomial2D<T> > temp(
-        new Polynomial2D<T>(newXOrder,newYOrder));
+    std::auto_ptr<Polynomial2D> temp(
+        new Polynomial2D(newXOrder,newYOrder));
 
     int maxOrder = std::max(newXOrder,newYOrder);
     for(int i=newXOrder;i>=0;--i) 
@@ -273,45 +280,42 @@ std::auto_ptr<Function2D<T> > Polynomial2D<T>::dFdY() const
             Assert(i+j+1<=std::max(_xOrder,_yOrder));
             (*temp->_coeffs)(i,j) = (*_coeffs)(i,j+1)*(j+1.)/_scale;
         }
-    return std::auto_ptr<Function2D<T> >(temp);
+    return std::auto_ptr<Function2D>(temp);
 }
 
-template <typename T>
-std::auto_ptr<Function2D<T> > Function2D<T>::conj() const
+std::auto_ptr<Function2D> Function2D::conj() const
 {
-    std::auto_ptr<Function2D<T> > temp = copy();
-    temp->_coeffs->conjugateSelf();
+    std::auto_ptr<Function2D> temp = copy();
+    TMV_conjugateSelf(*(temp->_coeffs));
     return temp;
 }
 
-template <typename T>
-T Function2D<T>::operator()(double x,double y) const
+double Function2D::operator()(double x,double y) const
 {
-    tmv::Vector<double> px = definePX(_xOrder,x);
-    tmv::Vector<double> py = definePY(_yOrder,y);
-    T result = px * (*_coeffs) * py;
+    DVector px = definePX(_xOrder,x);
+    DVector py = definePY(_yOrder,y);
+    double result = EIGEN_ToScalar(EIGEN_Transpose(px) * (*_coeffs) * py);
     return result;
 }
 
-template <typename T>
-std::auto_ptr<Function2D<T> > Function2D<T>::read(std::istream& fin) 
+std::auto_ptr<Function2D> Function2D::read(std::istream& fin) 
 {
     char fc,tc;
 
     fin >> fc >> tc;
     if (tc != 'D' && tc != 'C') fin.putback(tc);
-    std::auto_ptr<Function2D<T> > ret;
+    std::auto_ptr<Function2D> ret;
     switch(fc) {
-      case 'C' : ret.reset(new Constant2D<T>(fin));
+      case 'C' : ret.reset(new Constant2D(fin));
                  break;
-      case 'P' : ret.reset(new Polynomial2D<T>(fin));
+      case 'P' : ret.reset(new Polynomial2D(fin));
                  break;
 #ifdef LEGENDRE2D_H
-      case 'L' : ret.reset(new Legendre2D<T>(fin));
+      case 'L' : ret.reset(new Legendre2D(fin));
                  break;
 #endif
 #ifdef CHEBY2D_H
-      case 'X' : ret.reset(new Cheby2D<T>(fin));
+      case 'X' : ret.reset(new Cheby2D(fin));
                  break;
 #endif
       default: throw std::runtime_error("invalid type");
@@ -319,32 +323,31 @@ std::auto_ptr<Function2D<T> > Function2D<T>::read(std::istream& fin)
     return ret;
 }
 
-template <typename T>
-void Function2D<T>::linearTransform(
-    T a, T b, T c,
-    const Function2D<T>& f, const Function2D<T>& g)
+void Function2D::linearTransform(
+    double a, double b, double c,
+    const Function2D& f, const Function2D& g)
 {
-    if(dynamic_cast<Constant2D<T>*>(this)) {
-        Assert(dynamic_cast<const Constant2D<T>*>(&f));
-        Assert(dynamic_cast<const Constant2D<T>*>(&g));
+    if(dynamic_cast<Constant2D*>(this)) {
+        Assert(dynamic_cast<const Constant2D*>(&f));
+        Assert(dynamic_cast<const Constant2D*>(&g));
     }
-    if(dynamic_cast<Polynomial2D<T>*>(this)) {
-        Assert(dynamic_cast<const Polynomial2D<T>*>(&f));
-        Assert(dynamic_cast<const Polynomial2D<T>*>(&g));
+    if(dynamic_cast<Polynomial2D*>(this)) {
+        Assert(dynamic_cast<const Polynomial2D*>(&f));
+        Assert(dynamic_cast<const Polynomial2D*>(&g));
     }
 #ifdef LEGENDRE2D_H
-    if(dynamic_cast<Legendre2D<T>*>(this)) {
-        const Legendre2D<T>* lf = dynamic_cast<const Legendre2D<T>*>(&f);
-        const Legendre2D<T>* lg = dynamic_cast<const Legendre2D<T>*>(&g);
+    if(dynamic_cast<Legendre2D*>(this)) {
+        const Legendre2D* lf = dynamic_cast<const Legendre2D*>(&f);
+        const Legendre2D* lg = dynamic_cast<const Legendre2D*>(&g);
         Assert(lf);
         Assert(lg);
         Assert(lf->getBounds() == lg->getBounds());
     }
 #endif
 #ifdef CHEBY2D_H
-    if(dynamic_cast<Cheby2D<T>*>(this)) {
-        const Cheby2D<T>* cf = dynamic_cast<const Cheby2D<T>*>(&f);
-        const Cheby2D<T>* cg = dynamic_cast<const Cheby2D<T>*>(&g);
+    if(dynamic_cast<Cheby2D*>(this)) {
+        const Cheby2D* cf = dynamic_cast<const Cheby2D*>(&f);
+        const Cheby2D* cg = dynamic_cast<const Cheby2D*>(&g);
         Assert(cf);
         Assert(cg);
         Assert(cf->getBounds() == cg->getBounds());
@@ -356,7 +359,8 @@ void Function2D<T>::linearTransform(
     if (_xOrder != f.getXOrder() || _yOrder != f.getYOrder()) {
         _xOrder = f.getXOrder();
         _yOrder = f.getYOrder();
-        _coeffs.reset(new tmv::Matrix<T>(_xOrder+1,_yOrder+1,0.));
+        _coeffs.reset(new DMatrix(_xOrder+1,_yOrder+1));
+        _coeffs->setZero();
     } else _coeffs->setZero();
     for(int i=0;i<=_xOrder;++i) for(int j=0;j<=_yOrder;++j) {
         (*_coeffs)(i,j) = a + b*f.getCoeffs()(i,j) + c*g.getCoeffs()(i,j);
@@ -370,13 +374,12 @@ inline int fitSize(const int xOrder, const int yOrder)
     return (lowOrder+1)*(lowOrder+2)/2 + (lowOrder+1)*(highOrder-lowOrder);
 }
 
-template <typename T>
-void Function2D<T>::doSimpleFit(
+void Function2D::doSimpleFit(
     int xOrder, int yOrder, 
-    const std::vector<Position>& pos, const std::vector<T>& vals, 
-    const std::vector<bool>& shouldUse, tmv::Vector<T> *f,
+    const std::vector<Position>& pos, const std::vector<double>& vals, 
+    const std::vector<bool>& shouldUse, DVector *f,
     const std::vector<double>* sigList,
-    int *dof, tmv::Vector<T> *diff, tmv::Matrix<double>* cov)
+    int *dof, DVector *diff, DMatrix* cov)
 {
     // f(x,y) = Sum_pq k_pq px_p py_q
     //        = P . K (where each is a vector in pq)
@@ -410,15 +413,16 @@ void Function2D<T>::doSimpleFit(
     const int nVals = vals.size();
 
     Assert(int(f->size()) == size);
-    Assert(!diff || diff->size() == vals.size());
+    Assert(!diff || diff->size() == nVals);
     Assert(!cov || 
-           (int(cov->colsize()) == size && int(cov->rowsize()) == size));
+           (int(cov->TMV_colsize()) == size && int(cov->TMV_rowsize()) == size));
 
     int nUse = std::count(shouldUse.begin(),shouldUse.end(),true);
     xdbg<<"nuse = "<<nUse<<std::endl;
 
-    tmv::Matrix<double> P(nUse,size,0.);
-    tmv::Vector<T> V(nUse);
+    DMatrix P(nUse,size);
+    P.setZero();
+    DVector V(nUse);
 
     int ii=0;
     for(int i=0;i<nVals;++i) if (shouldUse[i]) {
@@ -429,36 +433,39 @@ void Function2D<T>::doSimpleFit(
             V(ii) = vals[i];
         }
 
-        tmv::Vector<double> px = definePX(xOrder,pos[i].getX());
-        tmv::Vector<double> py = definePY(yOrder,pos[i].getY());
+        DVector px = definePX(xOrder,pos[i].getX());
+        DVector py = definePY(yOrder,pos[i].getY());
         int pq=0;
         for(int pplusq=0;pplusq<=highOrder;++pplusq) { 
             for(int p=std::min(pplusq,xOrder),q=pplusq-p;
                 q<=std::min(pplusq,yOrder);--p,++q,++pq) {
                 Assert(p<int(px.size()));
                 Assert(q<int(py.size()));
-                Assert(pq<int(P.rowsize()));
+                Assert(pq<int(P.TMV_rowsize()));
                 P(ii,pq) = px[p]*py[q];
             }
         }
-        Assert(pq == int(P.rowsize()));
+        Assert(pq == int(P.TMV_rowsize()));
         if (sigList) P.row(ii) /= (*sigList)[i];
         ++ii;
     }
     Assert(ii==nUse);
 
     xdbg<<"Done make V,P\n";
-    xdbg<<"V = "<<V<<std::endl;
-    P.divideUsing(tmv::QR);
-    P.saveDiv();
-    *f = V/P;
-    xdbg<<"*f = "<<*f<<std::endl;
+    xdbg<<"V = "<<EIGEN_Transpose(V)<<std::endl;
+    //P.divideUsing(tmv::QR);
+    //P.saveDiv();
+    //*f = V/P;
+    TMV_QR(P);
+    TMV_QR_Solve(P,*f,V);
+    xdbg<<"*f = "<<EIGEN_Transpose(*f)<<std::endl;
 
     if (diff) {
         int k=0;
         for(int i=0;i<nVals;++i) {
             if (shouldUse[i]) {
-                (*diff)(i) = V(k) - P.row(k) * (*f);
+                (*diff)(i) = 
+                    V(k) - EIGEN_ToScalar(P.row(k) * (*f));
                 ++k;
             } else {
                 (*diff)(i) = 0.;
@@ -466,62 +473,59 @@ void Function2D<T>::doSimpleFit(
         }
     }
     if (dof) {
-        *dof = P.colsize() - P.rowsize();
+        *dof = P.TMV_colsize() - P.TMV_rowsize();
         if (*dof < 0) *dof = 0;
     }
     if (cov) {
-        P.makeInverseATA(*cov);
+        //P.makeInverseATA(*cov);
+        TMV_QR_InverseATA(P,*cov);
     }
     xdbg<<"Done simple fit\n";
 }
 
-template <typename T>
-void Function2D<T>::simpleFit(
+void Function2D::simpleFit(
     int order, const std::vector<Position>& pos, 
-    const std::vector<T>& vals, const std::vector<bool>& shouldUse, 
+    const std::vector<double>& vals, const std::vector<bool>& shouldUse, 
     const std::vector<double>* sig,
-    double *chisqOut, int *dofOut, tmv::Matrix<double>* cov) 
+    double *chisqOut, int *dofOut, DMatrix* cov) 
 {
-    tmv::Vector<T> fVect(fitSize(order,order));
+    DVector fVect(fitSize(order,order));
     if (chisqOut) {
-        tmv::Vector<T> diff(vals.size());
+        DVector diff(vals.size());
         doSimpleFit(order,order,pos,vals,shouldUse,&fVect,sig,dofOut,&diff,cov);
-        *chisqOut = NormSq(diff);
+        *chisqOut = diff.TMV_normSq();
     } else {
         doSimpleFit(order,order,pos,vals,shouldUse,&fVect,sig);
     }
     setFunction(order,order,fVect);
 }
 
-template <typename T>
-inline T absSq(const T& x) { return x*x; }
+inline double absSq(const double& x) { return x*x; }
 
-template <typename T>
-inline T absSq(const std::complex<T>& x) { return std::norm(x); }
+//inline double absSq(const std::complex<double>& x) { return std::norm(x); }
 
-template <typename T>
-void Function2D<T>::outlierFit(
+void Function2D::outlierFit(
     int order,double nSig,
-    const std::vector<Position>& pos, const std::vector<T>& vals,
+    const std::vector<Position>& pos, const std::vector<double>& vals,
     std::vector<bool> *shouldUse,
     const std::vector<double>* sig, double *chisqOut, int *dofOut, 
-    tmv::Matrix<double> *cov)
+    DMatrix *cov)
 {
     xdbg<<"start outlier fit\n";
     const int nVals = vals.size();
     bool isDone=false;
-    tmv::Vector<T> fVect(fitSize(order,order));
+    DVector fVect(fitSize(order,order));
     int dof;
     double chisq=0.;
     double nSigSq = nSig*nSig;
     while (!isDone) {
-        tmv::Vector<T> diff(nVals);
+        DVector diff(nVals);
         xdbg<<"before dosimple\n";
         doSimpleFit(order,order,pos,vals,*shouldUse,&fVect,sig,&dof,&diff,cov);
         xdbg<<"after dosimple\n";
         // Caclulate chisq, keeping the vector diffsq for later when
         // looking for outliers
-        chisq = NormSq(diff);
+        chisq = diff.TMV_normSq();
         // If sigmas are given, then chisq should be 1, since diff is
         // already normalized by sig_i.  But if not, then this effectively
         // assumes that all the given errors are off by some uniform factor.
@@ -568,30 +572,29 @@ inline bool Equivalent(double chisq1,double chisq2, int n1, int n2,
     return (prob > 1.-equivProb);
 }
 
-template <typename T>
-void Function2D<T>::orderFit(
+void Function2D::orderFit(
     int maxOrder, double equivProb,
-    const std::vector<Position>& pos,const std::vector<T>& vals,
+    const std::vector<Position>& pos,const std::vector<double>& vals,
     const std::vector<bool>& shouldUse, const std::vector<double>* sig,
-    double *chisqOut, int *dofOut, tmv::Matrix<double>* cov) 
+    double *chisqOut, int *dofOut, DMatrix* cov) 
 {
     xdbg<<"Start OrderFit\n";
-    tmv::Vector<T> fVectMax(fitSize(maxOrder,maxOrder));
-    tmv::Vector<T> diff(vals.size());
+    DVector fVectMax(fitSize(maxOrder,maxOrder));
+    DVector diff(vals.size());
     int dofmax;
     doSimpleFit(maxOrder,maxOrder,pos,vals,shouldUse,
                 &fVectMax,sig,&dofmax,&diff,cov);
-    double chisqmax = NormSq(diff);
+    double chisqmax = diff.TMV_normSq();
     xdbg<<"chisq,dof(n="<<maxOrder<<") = "<<chisqmax<<','<<dofmax<<std::endl;
     int tryOrder;
     double chisq=-1.;
     int dof=-1;
-    std::auto_ptr<tmv::Vector<T> > fVect(0);
+    std::auto_ptr<DVector > fVect(0);
     for(tryOrder=0;tryOrder<maxOrder;++tryOrder) {
-        fVect.reset(new tmv::Vector<T>(fitSize(tryOrder,tryOrder)));
+        fVect.reset(new DVector(fitSize(tryOrder,tryOrder)));
         doSimpleFit(tryOrder,tryOrder,pos,vals,shouldUse,
                     fVect.get(),sig,&dof,&diff,cov);
-        chisq = NormSq(diff);
+        chisq = diff.TMV_normSq();
         xdbg<<"chisq,dof(n="<<tryOrder<<") = "<<chisq<<','<<dof<<"....  ";
         if (Equivalent(chisqmax,chisq,dofmax,dof,equivProb)) {
             xdbg<<"equiv\n";
@@ -682,9 +685,3 @@ inline double betai(double a,double b,double x)
     else return 1.0-bt*betacf(b,a,1.0-x)/b;
 }
 
-template class Function2D<std::complex<double> >;
-template class Function2D<double>;
-template class Constant2D<std::complex<double> >;
-template class Constant2D<double>;
-template class Polynomial2D<std::complex<double> >;
-template class Polynomial2D<double>;

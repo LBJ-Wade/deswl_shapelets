@@ -5,7 +5,7 @@
 #include <omp.h>
 #endif
 
-#include "TMV.h"
+#include "MyMatrix.h"
 #include "ConfigFile.h"
 #include "dbg.h"
 #include "Name.h"
@@ -98,7 +98,7 @@ inline int basicSetup(
         dbgout->setf(std::ios_base::unitbuf);
     }
 
-#ifndef USE_EIGEN
+#ifdef USE_TMV
     // Send TMV warnings to the debug output
     tmv::WriteWarningsTo(dbgout);
 #endif
@@ -112,9 +112,7 @@ inline int basicSetup(
     return 0;
 }
 
-#ifdef USE_EIGEN
-#define CATCHTMV
-#else
+#ifdef USE_TMV
 #define CATCHTMV \
     catch (tmv::Error& e) { \
         dbg<<"Caught \n"<<e<<std::endl; \
@@ -124,6 +122,8 @@ inline int basicSetup(
         } \
         return EXIT_FAILURE; \
     }
+#else
+#define CATCHTMV
 #endif
 
 #define CATCHALL \

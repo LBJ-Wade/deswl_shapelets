@@ -1,6 +1,5 @@
-#include "TMV.h"
-#include "TMV_Sym.h"
-#include <stdexcept>
+#ifndef NLSolver_H
+#define NLSolver_H
 
 // The class NLSolver is designed as a base class.  Therefore, you should
 // define a class with your particular function as a derived class of
@@ -177,6 +176,22 @@
 // in that case, it may be worth calling useSVD() _after_ solve is done,
 // but before calling getCovariance.  
 
+#include <stdexcept>
+#include <memory>
+
+// There are too many changes required for this class, so here
+// and in NLSolver.cpp, I do a full separate definition for Eigen.
+// In part, this is because I didn't want to bother going through and
+// making the changes for all of the methods, so I dropped down to 
+// just Hybrid and Dogleg, the ones I use most often.
+// And second, Eigen isn't as flexible about its division method, so 
+// I removed the options of using SVD or Choleskey, and only use LU.
+
+#ifdef USE_TMV
+
+#include "TMV.h"
+#include "TMV_Sym.h"
+
 class NLSolver 
 {
 public :
@@ -241,8 +256,9 @@ public :
     // = 1.56e-7 is used.  This is the default.
     //
     // Parameters are x, f, os, relerr.
-    virtual bool testJ(const tmv::Vector<double>& , tmv::Vector<double>& ,
-                       std::ostream* os=0, double relerr=0.) const;
+    virtual bool testJ(
+        const tmv::Vector<double>& , tmv::Vector<double>& ,
+        std::ostream* os=0, double relerr=0.) const;
 
     // H(i,j) = d^2 Q / dx_i dx_j
     // where Q = 1/2 Sum_k |f_k|^2
@@ -319,3 +335,98 @@ private :
 
 };
 
+#else
+
+#include "MyMatrix.h"
+
+class NLSolver 
+{
+public :
+
+    NLSolver();
+    virtual ~NLSolver() {}
+
+    // This is the basic function that needs to be overridden.
+    virtual void calculateF(const DVector& x, DVector& f) const =0;
+
+    // J(i,j) = df_i/dx_j
+    // If you don't overload the J function, then a finite
+    // difference calculation will be performed.
+    virtual void calculateJ(
+        const DVector& x, const DVector& f, DMatrix& j) const;
+
+    // Try to solve for F(x) = 0.
+    // Returns whether it succeeded.
+    // On exit, x is the best solution found.
+    // Also, f is returned as the value of F(x) for the best x,
+    // regardless of whether the fit succeeded or not.
+    virtual bool solve(DVector& x, DVector& f) const;
+
+    // Get the covariance matrix of the solution.
+    // This only works if solve() returns true.
+    // So it should be called after a successful solution is returned.
+    virtual void getCovariance(DMatrix& cov) const;
+
+    // You can also get the inverse covariance matrix if you prefer.
+    virtual void getInverseCovariance(DMatrix& invcov) const;
+
+    virtual bool testJ(const DVector& , DVector& ,
+                       std::ostream* os=0, double relerr=0.) const;
+
+    virtual void useHybrid() { _method = HYBRID; }
+    virtual void useDogleg() { _method = DOGLEG; }
+
+    virtual void setFTol(double fTol) { _fTol = fTol; }
+    virtual void setGTol(double gTol) { _gTol = gTol; }
+    virtual void setTol(double fTol, double gTol) 
+    { _fTol = fTol; _gTol = gTol; }
+
+    virtual void setMinStep(double minStep) { _minStep = minStep; }
+    virtual void setMaxIter(int maxIter) { _maxIter = maxIter; }
+    virtual void setTau(double tau) { _tau = tau; }
+    virtual void setDelta0(double delta0) { _delta0 = delta0; }
+
+    virtual double getFTol() { return _fTol; }
+    virtual double getGTol() { return _gTol; }
+    virtual double getMinStep() { return _minStep; }
+    virtual int getMaxIter() { return _maxIter; }
+    virtual double getTau() { return _tau; }
+    virtual double getDelta0() { return _delta0; }
+
+    virtual void setOutput(std::ostream& os) { _nlOut = &os; }
+    virtual void useVerboseOutput() { _isVerbose = true; }
+
+    virtual void useDirectH() {}
+    virtual void useSVD() {}
+    virtual void useCholesky() {}
+    virtual void noUseDirectH() {}
+    virtual void noUseSVD() {}
+    virtual void noUseCholesky() {}
+
+private :
+
+    enum Method { HYBRID, DOGLEG };
+
+    Method _method;
+    double _fTol;
+    double _gTol;
+    double _minStep;
+    int _maxIter;
+    double _tau;
+    double _delta0;
+    std::ostream* _nlOut;
+    bool _isVerbose;
+    bool _hasDirectH;
+    bool _shouldUseCh;
+    bool _shouldUseSvd;
+
+    bool solveDogleg(DVector& x, DVector& f) const;
+    bool solveHybrid(DVector& x, DVector& f) const;
+
+    mutable std::auto_ptr<DMatrix> _pJ;
+
+};
+
+#endif
+
+#endif

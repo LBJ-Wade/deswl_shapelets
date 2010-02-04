@@ -2,7 +2,6 @@
 #include <fstream>
 #include <iostream>
 #include <valarray>
-#include "TMV.h"
 #include <CCfits/CCfits>
 
 #include "ShearCatalog.h"
@@ -86,13 +85,13 @@ ShearCatalog::ShearCatalog(
     _shear.resize(nGals,std::complex<double>(DEFVALPOS,DEFVALPOS));
     _nu.resize(nGals,DEFVALNEG);
 
-    tmv::SmallMatrix<double,2,2> covDefault;
+    DSmallMatrix22 covDefault;
     covDefault << DEFVALPOS, 0, 0, DEFVALPOS;
     _cov.resize(nGals,covDefault);
 
     int galOrder = _params.read<int>("shear_gal_order");
     BVec shapeDefault(galOrder,1.);
-    shapeDefault.vec().setAllTo(DEFVALNEG);
+    shapeDefault.vec().TMV_setAllTo(DEFVALNEG);
     _shape.resize(nGals,shapeDefault);
 
     Assert(_id.size() == size());
@@ -207,7 +206,11 @@ void ShearCatalog::writeFits(std::string file) const
     table = fits.addTable("shearcat",nGals,colNames,colFmts,colUnits);
 
     // Header keywords
+#ifdef USE_TMV
     std::string tmvVers = tmv::TMV_Version();
+#else
+    std::string tmvVers = "Eigen";
+#endif
     std::string wlVers = getWlVersion();
 
     table->addKey("tmvvers", tmvVers, "version of TMV code");
@@ -282,7 +285,7 @@ void ShearCatalog::writeFits(std::string file) const
 
         table->column(colNames[14]).write(&bOrder,1,row);
         table->column(colNames[15]).write(&bSigma,1,row);
-        double* cptr = (double *) _shape[i].vec().cptr();
+        double* cptr = (double *) TMV_cptr(_shape[i].vec());
         table->column(colNames[16]).write(cptr, nCoeff, 1, row);
     }
 }
@@ -536,7 +539,7 @@ void ShearCatalog::readAscii(std::string file, std::string delim)
             _skyPos.push_back(Position(ra*3600.,dec*3600.));
             _shear.push_back(std::complex<double>(s1,s2));
             _nu.push_back(nu1);
-            _cov.push_back(tmv::SmallMatrix<double,2,2>());
+            _cov.push_back(DSmallMatrix22());
             _cov.back() << c00, c01, c01, c11;
             _shape.push_back(BVec(bOrder,bSigma));
             const int nCoeff = _shape.back().size();
@@ -578,7 +581,7 @@ void ShearCatalog::readAscii(std::string file, std::string delim)
             getline(fin,temp,d); c00 = temp;
             getline(fin,temp,d); c01 = temp;
             getline(fin,temp,d); c11 = temp;
-            _cov.push_back(tmv::SmallMatrix<double,2,2>());
+            _cov.push_back(DSmallMatrix22());
             _cov.back() << c00, c01, c01, c11;
             getline(fin,temp,d); bOrder = temp;
             getline(fin,temp,d); bSigma = temp;

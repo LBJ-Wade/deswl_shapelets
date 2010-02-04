@@ -17,10 +17,10 @@ void getPixList(
         xdbg<<"gain = "<<gain<<std::endl;
     }
 
-    tmv::SmallMatrix<double,2,2> localD;
+    DSmallMatrix22 localD;
     trans.getDistortion(cen,localD);
 
-    double det = std::abs(localD.det());
+    double det = std::abs(localD.TMV_det());
     double pixScale = sqrt(det); // arcsec/pixel
     xdbg<<"pixscale = "<<pixScale<<std::endl;
 
@@ -139,10 +139,10 @@ double getLocalSky(
 
     xdbg<<"Start GetLocalSky\n";
 
-    tmv::SmallMatrix<double,2,2> localD;
+    DSmallMatrix22 localD;
     trans.getDistortion(cen,localD);
 
-    double det = std::abs(localD.det());
+    double det = std::abs(localD.TMV_det());
     double pixScale = sqrt(det); // arcsec/pixel
     xdbg<<"pixscale = "<<pixScale<<std::endl;
 

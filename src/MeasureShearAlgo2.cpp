@@ -1,5 +1,4 @@
 
-#include "TMV.h"
 #include "Ellipse.h"
 #include "dbg.h"
 #include "Params.h"
@@ -27,7 +26,7 @@ void measureMultiShear(
     double fPsf, double min_gal_size, 
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
-    tmv::SmallMatrix<double,2,2>& shearcov, BVec& shapelet,
+    DSmallMatrix22& shearcov, BVec& shapelet,
     double& nu, long& flag)
 {
     //TODO: This function is too long.  It should really be broken 
@@ -190,13 +189,13 @@ void measureMultiShear(
         }
         shapelet.setSigma(sigma);
         std::complex<double> gale = 0.;
-        ell.measureShapelet(pix,psf,shapelet);
+        ell.measureShapelet(pix,psf,shapelet,go);
         xdbg<<"Measured b_gal = "<<shapelet.vec()<<std::endl;
 
         // Also measure the isotropic significance
         BVec flux(0,sigma);
-        tmv::Matrix<double> fluxCov(1,1);
-        ell.measureShapelet(pix,psf,flux,&fluxCov);
+        DMatrix fluxCov(1,1);
+        ell.measureShapelet(pix,psf,flux,0,&fluxCov);
         nu = flux(0) / sqrt(fluxCov(0,0));
         dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<nu<<std::endl;
 
@@ -232,16 +231,15 @@ void measureMultiShear(
             dbg<<"Reduced gal_order to "<<go<<" gal_size = "<<gal_size<<std::endl;
         }
         if (times) ell.resetTimes();
-        tmv::Matrix<double> cov(5,5);
+        DMatrix cov(5,5);
         if (ell.measure(pix,psf,go,sigma,false,flag,&cov)) {
             if (times) times->successGamma(ell.getTimes());
             ++log._nsGamma;
             dbg<<"Successful Gamma fit\n";
             dbg<<"Measured gamma = "<<ell.getGamma()<<std::endl;
             shear = ell.getGamma();
-            tmv::SmallMatrix<double,2,2,tmv::RowMajor> cov1 = 
-                cov.subMatrix(2,4,2,4);
-            if (!(cov1.det() > 0.)) flag |= SHEAR_BAD_COVAR;
+            DSmallMatrix22 cov1 = cov.TMV_subMatrix(2,4,2,4);
+            if (!(cov1.TMV_det() > 0.)) flag |= SHEAR_BAD_COVAR;
             else shearcov = cov1;
         } else {
             if (times) times->failGamma(ell.getTimes());
@@ -249,17 +247,18 @@ void measureMultiShear(
             dbg<<"Gamma measurement failed\n";
             flag |= SHEAR_FAILED;
             shear = ell.getGamma();
-            tmv::SmallMatrix<double,2,2,tmv::RowMajor> cov1 = 
-                cov.subMatrix(2,4,2,4);
-            if (!(cov1.det() > 0.)) flag |= SHEAR_BAD_COVAR;
+            DSmallMatrix22 cov1 = cov.TMV_subMatrix(2,4,2,4);
+            if (!(cov1.TMV_det() > 0.)) flag |= SHEAR_BAD_COVAR;
             else shearcov = cov1;
             return;
         }
+#ifdef USE_TMV
     } catch (tmv::Error& e) {
         dbg<<"TMV Error thrown in MeasureSingleShear\n";
         dbg<<e<<std::endl;
         ++log._nfTmvError;
         flag |= TMV_EXCEPTION;
+#endif
     } catch (std::exception& e) {
         dbg<<"std::exception thrown in MeasureSingleShear\n";
         dbg<<e.what()<<std::endl;

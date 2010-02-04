@@ -7,8 +7,6 @@
 #include "BVec.h"
 #include "Ellipse.h"
 #include "EllipseSolver.h"
-#include "TMV.h"
-#include "TMV_Small.h"
 #include "dbg.h"
 #include "TestHelper.h"
 #include "Log.h"
@@ -75,13 +73,13 @@ bool XDEBUG = true;
 inline void getFakePixList(
     PixelList& pix,
     double xcen, double ycen,
-    const tmv::SmallMatrix<double,2,2>& D,
+    const DSmallMatrix22& D,
     double aperture, const BVec& b, const Ellipse& ell)
 {
     const size_t border = b.getOrder();
     Assert(border <= 8); // This is as high as I have implemented.
 
-    double det = std::abs(D.det());
+    double det = std::abs(D.TMV_det());
     //double pixScale = sqrt(det); // arcsec/pixel
 
     // xap,yap are the maximum deviation from the center in x,y
@@ -142,7 +140,12 @@ inline void getFakePixList(
             //         = 2 * Re(b(p,q) psi(p,q))
             //         = 2 * Re(b(p,q)) Re(psi(p,q)) - 2 * Im(b(p,q)) Im(psi(p,q))
 
-            tmv::Vector<double>::const_iterator bi = b.vec().begin();
+#ifdef USE_TMV
+            DVector::const_iterator bi = b.vec().begin();
+#else
+            const double* bi = b.vec().data();
+#endif
+
             // 00
             double I = *bi;
             do {
@@ -294,7 +297,7 @@ inline void getFakePixList(
     }
 }
 
-inline void RtoC(const BVec& b, tmv::Vector<std::complex<double> >& bc)
+inline void RtoC(const BVec& b, CDVector& bc)
 {
     const size_t border = b.getOrder();
     Assert(bc.size() == (border+2)*(border+2)/4);
@@ -313,7 +316,7 @@ inline void RtoC(const BVec& b, tmv::Vector<std::complex<double> >& bc)
     Assert(kc == bc.size());
 }
 
-inline void CtoR(const tmv::Vector<std::complex<double> >& bc, BVec& b)
+inline void CtoR(const CDVector& bc, BVec& b)
 {
     const size_t border = b.getOrder();
     Assert(bc.size() == (border+2)*(border+2)/4);
@@ -340,9 +343,9 @@ inline void DirectConvolveB(const BVec& rbi, const BVec& rbp, BVec& rb)
     Assert(rbp.getOrder() == 4);
     Assert(rb.getOrder() == 8);
 
-    tmv::Vector<std::complex<double> > bi(9);
-    tmv::Vector<std::complex<double> > bp(9);
-    tmv::Vector<std::complex<double> > b(25);
+    CDVector bi(9);
+    CDVector bp(9);
+    CDVector b(25);
     RtoC(rbi,bi);
     RtoC(rbp,bp);
 
@@ -749,7 +752,9 @@ int main(int argc, char **argv) try
     dbgout = &std::cout;
 #endif
 
+#ifdef USE_TMV
     tmv::WriteWarningsTo(dbgout);
+#endif
 
     // First check that the functions work very well in the limit of
     // well sampled (pixScale = 0.1), large aperture (aperture = 15.)
@@ -757,10 +762,10 @@ int main(int argc, char **argv) try
     // Read data will of course fail to work this well, but the answers
     // will nonetheless be as accurate as possible give the data available.
 
-    tmv::SmallMatrix<double,2,2,tmv::RowMajor> D;
+    DSmallMatrix22 D;
 #if 1
     D << 0.08, -0.02, -0.015, 0.11;
-    double pixScale = sqrt(D.det());
+    double pixScale = sqrt(D.TMV_det());
 #else
     double pixScale = 0.1;
     D.setToIdentity(pixScale);
@@ -880,9 +885,14 @@ int main(int argc, char **argv) try
                 int order = 8;
                 double xcen = 0.709;
                 double ycen = 0.243;
-                tmv::Vector<double> x0(5,ell_vecs[ie]);
-                tmv::Vector<double> xe(5,ell_vecs[ie]);
-                tmv::Vector<double> f(5);
+#ifdef USE_TMV
+                DVector xe(5,ell_vecs[ie]);
+#else
+                DVector xe(5);
+                for(int i=0;i<5;++i) xe(i) = ell_vecs[ie][i];
+#endif
+                DVector x0 = xe;
+                DVector f(5);
 
                 allpix.resize(1);
                 allpix[0].clear();
@@ -896,18 +906,18 @@ int main(int argc, char **argv) try
                 BVec b0 = s->getB();
                 dbg<<"measured b = "<<b0.vec()<<std::endl;
                 BVec b0save = b0;
-                test(Norm(b0.vec().subVector(0,15)-bin.vec()) < 
-                     EPS*Norm(bin.vec()),
+                test((b0.vec().TMV_subVector(0,15)-bin.vec()).norm() < 
+                     EPS*bin.vec().norm(),
                      "Basic B Measurement");
-                test(Norm(b0.vec().subVector(15,b0.size())) < 
-                     EPS*Norm(bin.vec()),
+                test((b0.vec().TMV_subVector(15,b0.size())).norm() < 
+                     EPS*bin.vec().norm(),
                      "Basic B Measurement 2");
 #ifdef TESTJ
                 test(s->testJ(x0,f,xdbgout,1.e-6),"TestJ - Basic");
 #endif
 
                 std::complex<double> z1(0.2,0.3);
-                tmv::Vector<double> x1 = x0;
+                DVector x1 = x0;
                 //x1[0] += std::real(z1);
                 //x1[1] += std::imag(z1);
                 // The above is right if ell = (0,0,0,0,0)
@@ -924,8 +934,8 @@ int main(int argc, char **argv) try
                 applyZ(z1,b0);
                 xdbg<<"b(predicted) = "<<b0.vec()<<std::endl;
                 dbg<<"diff for z = "<<z1<<" = "<<
-                    Norm(b0.vec()-b1.vec())<<std::endl;
-                test(Norm(b1.vec()-b0.vec()) < EPS*Norm(b0.vec()),"ApplyZ 1");
+                    (b0.vec()-b1.vec()).norm()<<std::endl;
+                test((b1.vec()-b0.vec()).norm() < EPS*b0.vec().norm(),"ApplyZ 1");
                 x1 = x0;
                 x1[0] -= std::real(
                     z1 + g0*std::conj(z1))*exp(m0)/sqrt(1.-normg0);
@@ -935,8 +945,8 @@ int main(int argc, char **argv) try
                 b1 = s->getB();
                 applyZ(-z1,b0=b0save);
                 dbg<<"diff for z = "<<-z1<<" = "<<
-                    Norm(b0.vec()-b1.vec())<<std::endl;
-                test(Norm(b1.vec()-b0.vec()) < EPS*Norm(b0.vec()),"ApplyZ 2");
+                    (b0.vec()-b1.vec()).norm()<<std::endl;
+                test((b1.vec()-b0.vec()).norm() < EPS*b0.vec().norm(),"ApplyZ 2");
 
                 double m1(0.2);
                 x1 = x0;
@@ -948,18 +958,18 @@ int main(int argc, char **argv) try
                 xdbg<<"b(predicted) = "<<b0.vec()<<std::endl;
                 xdbg<<"diff = "<<b1.vec()-b0.vec()<<std::endl;
                 dbg<<"diff for mu = "<<m1<<" = "<<
-                    Norm(b0.vec()-b1.vec())<<std::endl;
-                dbg<<"Norm(b0) = "<<Norm(b0.vec())<<std::endl;
+                    (b0.vec()-b1.vec()).norm()<<std::endl;
+                dbg<<"Norm(b0) = "<<b0.vec().norm()<<std::endl;
 #if 1
-                test(Norm(b1.vec()-b0.vec()) < 100.*EPS*Norm(b0.vec()),
+                test((b1.vec()-b0.vec()).norm() < 100.*EPS*b0.vec().norm(),
                      "ApplyMu 1");
 #else
-                test(Norm(b1.vec().subVector(0,15)-b0.vec().subVector(0,15)) <
-                     EPS*Norm(b0.vec()),
+                test((b1.vec().TMV_subVector(0,15)-b0.vec().TMV_subVector(0,15)).norm() <
+                     EPS*b0.vec().norm(),
                      "ApplyMu 1");
-                test(Norm(b1.vec().subVector(15,b1.size()) -
-                          b0.vec().subVector(15,b1.size())) < 
-                     10.*b1.size()*EPS*Norm(b0.vec()),
+                test((b1.vec().TMV_subVector(15,b1.size()) -
+                      b0.vec().TMV_subVector(15,b1.size())).norm() < 
+                     10.*b1.size()*EPS*b0.vec().norm(),
                      "ApplyMu 2");
 #endif
                 x1 = x0;
@@ -968,17 +978,17 @@ int main(int argc, char **argv) try
                 b1 = s->getB();
                 applyMu(-m1,b0=b0save);
                 dbg<<"diff for mu = "<<-m1<<" = "<<
-                    Norm(b0.vec()-b1.vec())<<std::endl;
+                    (b0.vec()-b1.vec()).norm()<<std::endl;
 #if 1
-                test(Norm(b1.vec()-b0.vec()) < 100.*EPS*Norm(b0.vec()),
+                test((b1.vec()-b0.vec()).norm() < 100.*EPS*b0.vec().norm(),
                      "ApplyMu 2");
 #else
-                test(Norm(b1.vec().subVector(0,15)-b0.vec().subVector(0,15)) < 
-                     EPS*Norm(b0.vec()),
+                test((b1.vec().TMV_subVector(0,15)-b0.vec().TMV_subVector(0,15)).norm() < 
+                     EPS*b0.vec().norm(),
                      "ApplyMu 3");
-                test(Norm(b1.vec().subVector(15,b1.size()) -
-                          b0.vec().subVector(15,b1.size())) < 
-                     10.*b1.size()*EPS*Norm(b0.vec()),
+                test((b1.vec().TMV_subVector(15,b1.size()) -
+                      b0.vec().TMV_subVector(15,b1.size())).norm() < 
+                     10.*b1.size()*EPS*b0.vec().norm(),
                      "ApplyMu 4");
 #endif
 
@@ -996,17 +1006,17 @@ int main(int argc, char **argv) try
                 applyG(g1*argg0,b0=b0save);
                 xdbg<<"b(predicted) = "<<b0.vec()<<std::endl;
                 dbg<<"diff for gamma = "<<g1<<" = "<<
-                    Norm(b0.vec()-b1.vec())<<std::endl;
+                    (b0.vec()-b1.vec()).norm()<<std::endl;
 #if 1
-                test(Norm(b1.vec()-b0.vec()) < 10.*EPS*Norm(b0.vec()),
+                test((b1.vec()-b0.vec()).norm() < 10.*EPS*b0.vec().norm(),
                      "ApplyG 1");
 #else
-                test(Norm(b1.vec().subVector(0,15)-b0.vec().subVector(0,15)) < 
-                     EPS*Norm(b0.vec()),
+                test((b1.vec().TMV_subVector(0,15)-b0.vec().TMV_subVector(0,15)).norm() < 
+                     EPS*b0.vec().norm(),
                      "ApplyG 1");
-                test(Norm(b1.vec().subVector(15,b1.size()) -
-                          b0.vec().subVector(15,b1.size())) < 
-                     b1.size()*EPS*Norm(b0.vec()),
+                test((b1.vec().TMV_subVector(15,b1.size()) -
+                      b0.vec().TMV_subVector(15,b1.size())).norm() < 
+                     b1.size()*EPS*b0.vec().norm(),
                      "ApplyG 2");
 #endif
                 x1 = x0;
@@ -1017,17 +1027,17 @@ int main(int argc, char **argv) try
                 b1 = s->getB();
                 applyG(-g1*argg0,b0=b0save);
                 dbg<<"diff for gamma = "<<-g1<<" = "<<
-                    Norm(b0.vec()-b1.vec())<<std::endl;
+                    (b0.vec()-b1.vec()).norm()<<std::endl;
 #if 1
-                test(Norm(b1.vec()-b0.vec()) < 10.*EPS*Norm(b0.vec()),
+                test((b1.vec()-b0.vec()).norm() < 10.*EPS*b0.vec().norm(),
                      "ApplyG 2");
 #else
-                test(Norm(b1.vec().subVector(0,15)-b0.vec().subVector(0,15)) < 
-                     EPS*Norm(b0.vec()),
+                test((b1.vec().TMV_subVector(0,15)-b0.vec().TMV_subVector(0,15)).norm() < 
+                     EPS*b0.vec().norm(),
                      "ApplyG 3");
-                test(Norm(b1.vec().subVector(15,b1.size()) -
-                          b0.vec().subVector(15,b1.size())) < 
-                     b1.size()*EPS*Norm(b0.vec()),
+                test((b1.vec().TMV_subVector(15,b1.size()) -
+                      b0.vec().TMV_subVector(15,b1.size())).norm() < 
+                     b1.size()*EPS*b0.vec().norm(),
                      "ApplyG 4");
 #endif
 
@@ -1045,16 +1055,21 @@ int main(int argc, char **argv) try
                         new EllipseSolver(allpix,order,sigma_i));
                     else s.reset(
                         new EllipseSolver2(allpix,order,sigma_i,pixScale));
-                    tmv::Vector<double> x2(5,ell_vecs[ie]);
+#ifdef USE_TMV
+                    DVector x2(5,ell_vecs[ie]);
+#else
+                    DVector x2(5);
+                    for(int i=0;i<5;++i) x2(i) = ell_vecs[ie][i];
+#endif
                     s->calculateF(x2,f);
                     BVec b = s->getB();
                     dbg<<"blong = "<<blong.vec()<<std::endl;
                     dbg<<"b = "<<b.vec()<<std::endl;
-                    test(Norm(b.vec().subVector(0,45)-blong.vec()) < 
-                         EPS*Norm(blong.vec()),
+                    test((b.vec().TMV_subVector(0,45)-blong.vec()).norm() < 
+                         EPS*blong.vec().norm(),
                          "Basic Long B Measurement");
-                    test(Norm(b.vec().subVector(45,b.size())) < 
-                         EPS*Norm(blong.vec()),
+                    test((b.vec().TMV_subVector(45,b.size())).norm() < 
+                         EPS*blong.vec().norm(),
                          "Basic Long B Measurement (2)");
 #ifdef TESTJ
                     test(s->testJ(x2,f,xdbgout,1.e-6),"TestJ - Long 1");
@@ -1071,11 +1086,11 @@ int main(int argc, char **argv) try
                     BVec bx = s->getB();
                     dbg<<"blong = "<<blong.vec()<<std::endl;
                     dbg<<"bx = "<<bx.vec()<<std::endl;
-                    test(Norm(bx.vec().subVector(0,45)-blong.vec()) < 
-                         EPS*Norm(blong.vec()),
+                    test((bx.vec().TMV_subVector(0,45)-blong.vec()).norm() < 
+                         EPS*blong.vec().norm(),
                          "Basic Long B Measurement");
-                    test(Norm(bx.vec().subVector(45,bx.size())) < 
-                         EPS*Norm(blong.vec()),
+                    test((bx.vec().TMV_subVector(45,bx.size())).norm() < 
+                         EPS*blong.vec().norm(),
                          "Basic Long B Measurement (2)");
 #ifdef TESTJ
                     test(s->testJ(x2,f,xdbgout,1.e-6),"TestJ - Long 2");
@@ -1105,8 +1120,13 @@ int main(int argc, char **argv) try
                 int order = 8;
                 double xcen = 0.709;
                 double ycen = 0.243;
-                tmv::Vector<double> xe(5,ell_vecs[ie]);
-                tmv::Vector<double> f(5);
+#ifdef USE_TMV
+                DVector xe(5,ell_vecs[ie]);
+#else
+                DVector xe(5);
+                for(int i=0;i<5;++i) xe(i) = ell_vecs[ie][i];
+#endif
+                DVector f(5);
 
                 for(int ip = 0; ip < NPSF; ++ip) {
                     dbg<<"Start ip = "<<ip<<std::endl;
@@ -1123,10 +1143,10 @@ int main(int argc, char **argv) try
                     // This is one estimate of the observed galaxy in the e0
                     // frame.
                     double sigma_o = sqrt(pow(sigma_i,2)+pow(sigmaPsf,2));
-                    tmv::Matrix<double> C(45,45);
+                    DMatrix C(45,45);
                     calculatePsfConvolve(bpsf,8,sigma_i,C);
                     BVec c0(8,sigma_o);
-                    c0.vec() = C.colRange(0,15) * b0.vec();
+                    c0.vec() = TMV_colRange(C,0,15) * b0.vec();
                     xdbg<<"c0 = "<<c0.vec()<<std::endl;
 
                     // c0x is another estimate of the same thing based on a 
@@ -1134,7 +1154,7 @@ int main(int argc, char **argv) try
                     // the BJ02 recursion formulae.
                     BVec c0x(8,sigma_o);
                     DirectConvolveB(b0,bpsf,c0x);
-                    test(Norm(c0.vec()-c0x.vec()) < EPS*Norm(c0.vec()),
+                    test((c0.vec()-c0x.vec()).norm() < EPS*c0.vec().norm(),
                          "PSFConvolve");
 
                     // be is the galaxy in ell fram:
@@ -1170,16 +1190,16 @@ int main(int argc, char **argv) try
                     // because of the finite order of the intermediate 
                     // transformations.
                     // But through 4th order, the match should be quite good.
-                    test(Norm(bex.vec().subVector(0,15) - 
-                              be.vec().subVector(0,15)) <
-                         3.e-5*(Norm(be.vec())+Norm(b0.vec())),
+                    test((bex.vec().TMV_subVector(0,15) - 
+                          be.vec().TMV_subVector(0,15)).norm() <
+                         3.e-5*(be.vec().norm()+b0.vec().norm()),
                          "View B in ell frame");
-                    test(Norm(bex.vec().subVector(0,45) - 
-                              be.vec().subVector(0,45)) <
-                         1.e-3*(Norm(be.vec())+Norm(b0.vec())),
+                    test((bex.vec().TMV_subVector(0,45) - 
+                          be.vec().TMV_subVector(0,45)).norm() <
+                         1.e-3*(be.vec().norm()+b0.vec().norm()),
                          "View B in ell frame");
-                    test(Norm(bex.vec()-be.vec()) <
-                         3.e-2*(Norm(be.vec())+Norm(b0.vec())),
+                    test((bex.vec()-be.vec()).norm() <
+                         3.e-2*(be.vec().norm()+b0.vec().norm()),
                          "View B in ell frame");
 
                     // ce is the convolved galaxy in the ell frame:
@@ -1202,21 +1222,21 @@ int main(int argc, char **argv) try
                     applyZ(z0,cex);
                     applyG(g0,cex);
                     applyMu(m0,cex);
-                    test(Norm(cex.vec().subVector(0,15) - 
-                              ce.vec().subVector(0,15)) <
-                         3.e-5*(Norm(ce.vec())+Norm(b0.vec())),
+                    test((cex.vec().TMV_subVector(0,15) - 
+                          ce.vec().TMV_subVector(0,15)).norm() <
+                         3.e-5*(ce.vec().norm()+b0.vec().norm()),
                          "Convolved B in ell frame");
-                    test(Norm(cex.vec().subVector(0,45) - 
-                              ce.vec().subVector(0,45)) <
-                         1.e-3*(Norm(ce.vec())+Norm(b0.vec())),
+                    test((cex.vec().TMV_subVector(0,45) - 
+                          ce.vec().TMV_subVector(0,45)).norm() <
+                         1.e-3*(ce.vec().norm()+b0.vec().norm()),
                          "Convolved B in ell frame");
-                    test(Norm(cex.vec()-ce.vec()) <
-                         3.e-2*(Norm(ce.vec())+Norm(c0.vec())),
+                    test((cex.vec()-ce.vec()).norm() <
+                         3.e-2*(ce.vec().norm()+c0.vec().norm()),
                          "Convolved B in ell frame");
 
                     // cey is yet another estimate of the same: convolve be
                     BVec cey(order,sigma_o);
-                    tmv::Matrix<double> Ce(cey.size(),cey.size());
+                    DMatrix Ce(cey.size(),cey.size());
                     BVec bpsfe(order,sigmaPsf);
                     bpsfe = bpsf;
                     //applyZ(z0,bpsfe);
@@ -1225,8 +1245,8 @@ int main(int argc, char **argv) try
                     calculatePsfConvolve(bpsfe,order,sigma_i,Ce);
                     cey.vec() = Ce * be.vec();
                     cey.vec() *= exp(2.*m0);
-                    test(Norm(cey.vec()-ce.vec()) <
-                         3.e-2*(Norm(ce.vec())+Norm(c0.vec())),
+                    test((cey.vec()-ce.vec()).norm() <
+                         3.e-2*(ce.vec().norm()+c0.vec().norm()),
                          "Convolved B in ell frame");
 
                     // Next we test the deconovolving shape estimator.
@@ -1237,19 +1257,24 @@ int main(int argc, char **argv) try
                     BVec bpsf2(order,sigmaPsf);
                     bpsf2 = bpsf;
 #if 1
-                    tmv::Matrix<double> S1(bpsf2.size(),bpsf2.size());
+                    DMatrix S1(bpsf2.size(),bpsf2.size());
                     calculateGTransform(g0,bpsf2.getOrder(),S1);
-                    tmv::Matrix<double> D1(bpsf2.size(),bpsf2.size());
+                    DMatrix D1(bpsf2.size(),bpsf2.size());
                     calculateMuTransform(m0,bpsf2.getOrder(),D1);
+#ifdef USE_TMV
                     bpsf2.vec() /= D1;
                     bpsf2.vec() /= S1;
+#else
+                    D1.lu().solve(bpsf2.vec(),&bpsf2.vec());
+                    S1.lu().solve(bpsf2.vec(),&bpsf2.vec());
+#endif
 #else
                     // With this version, the numerical errors mean that
                     // the EPS in the two Test statements below need to 
                     // be changed to around 1.e-2.
-                    tmv::Matrix<double> S1(bpsf2.size(),bpsf2.size());
+                    DMatrix S1(bpsf2.size(),bpsf2.size());
                     calculateGTransform(-g0,bpsf2.getOrder(),S1);
-                    tmv::Matrix<double> D1(bpsf2.size(),bpsf2.size());
+                    DMatrix D1(bpsf2.size(),bpsf2.size());
                     calculateMuTransform(-m0,bpsf2.getOrder(),D1);
                     bpsf2 = D1*bpsf2;
                     bpsf2 = S1*bpsf2;
@@ -1269,15 +1294,15 @@ int main(int argc, char **argv) try
                     xdbg<<"bes = "<<bes.vec()<<std::endl;
                     xdbg<<"b0 = "<<b0.vec()<<std::endl;
                     xdbg<<"Norm(bes-b0) = "<<
-                        Norm(bes.vec().subVector(0,15)-b0.vec())<<std::endl;
+                        (bes.vec().TMV_subVector(0,15)-b0.vec()).norm()<<std::endl;
                     xdbg<<"Norm(bes(15:)) = "<<
-                        Norm(bes.vec().subVector(15,bes.size()))<<std::endl;
-                    xdbg<<"cf "<<EPS<<" * "<<Norm(b0.vec())+Norm(c0.vec())<<std::endl;
-                    test(Norm(bes.vec().subVector(0,15)-b0.vec()) < 
-                         EPS*(Norm(b0.vec())+Norm(c0.vec())),
+                        bes.vec().TMV_subVector(15,bes.size()).norm()<<std::endl;
+                    xdbg<<"cf "<<EPS<<" * "<<b0.vec().norm()+c0.vec().norm()<<std::endl;
+                    test((bes.vec().TMV_subVector(0,15)-b0.vec()).norm() < 
+                         EPS*(b0.vec().norm()+c0.vec().norm()),
                          "Deconvolving solver BE Measurement");
-                    test(Norm(bes.vec().subVector(15,bes.size())) <
-                         3.*EPS*(Norm(b0.vec())+Norm(c0.vec())),
+                    test(bes.vec().TMV_subVector(15,bes.size()).norm() <
+                         3.*EPS*(b0.vec().norm()+c0.vec().norm()),
                          "Deconvolving solver BE Measurement");
 #ifdef TESTJ
                     test(s->testJ(xe,f,xdbgout,1.e-6),
@@ -1310,14 +1335,14 @@ int main(int argc, char **argv) try
                     besx.vec() *= b0(0)/besx(0);
                     xdbg<<"besx => "<<besx.vec()<<std::endl;
                     xdbg<<"Norm(besx-b0) = "<<
-                        Norm(besx.vec().subVector(0,15)-b0.vec())<<std::endl;
+                        (besx.vec().TMV_subVector(0,15)-b0.vec()).norm()<<std::endl;
                     xdbg<<"Norm(bes(15:)) = "<<
-                        Norm(besx.vec().subVector(15,besx.size()))<<std::endl;
-                    test(Norm(besx.vec().subVector(0,15)-b0.vec()) < 
-                         EPS*(Norm(b0.vec())+Norm(c0.vec())),
+                        (besx.vec().TMV_subVector(15,besx.size())).norm()<<std::endl;
+                    test((besx.vec().TMV_subVector(0,15)-b0.vec()).norm() < 
+                         EPS*(b0.vec().norm()+c0.vec().norm()),
                          "Deconvolving solver BE Measurement #2");
-                    test(Norm(besx.vec().subVector(15,besx.size())) <
-                         3.*EPS*(Norm(b0.vec())+Norm(c0.vec())),
+                    test(besx.vec().TMV_subVector(15,besx.size()).norm() <
+                         3.*EPS*(b0.vec().norm()+c0.vec().norm()),
                          "Deconvolving solver BE Measurement #2");
 #ifdef TESTJ
                     test(s->testJ(xe,f,xdbgout,1.e-6),
@@ -1350,7 +1375,12 @@ int main(int argc, char **argv) try
             int order = 8;
             double xcen = 0.709;
             double ycen = 0.243;
-            tmv::Vector<double> xe(5,ell_vecs[ie]);
+#ifdef USE_TMV
+            DVector xe(5,ell_vecs[ie]);
+#else
+            DVector xe(5);
+            for(int i=0;i<5;++i) xe(i) = ell_vecs[ie][i];
+#endif
 
             // b0 is the galaxy shape in the ell frame.
             BVec b0 = bin;
@@ -1361,8 +1391,9 @@ int main(int argc, char **argv) try
                 new EllipseSolver(allpix,order,sigma_i));
             else s.reset(
                 new EllipseSolver2(allpix,order,sigma_i,pixScale));
-            tmv::Vector<double> x(5,0.);
-            tmv::Vector<double> f(5);
+            DVector x(5);
+            x.setZero();
+            DVector f(5);
             if (XDEBUG) s->setOutput(*dbgout);
             s->useDogleg();
             s->setDelta0(0.1);
@@ -1373,7 +1404,7 @@ int main(int argc, char **argv) try
 #endif
             bool success = s->solve(x,f);
             test(success,"No PSF Solve - success");
-            test(Norm(x-xe) < 1.e-5,"No PSF Solve - x == xe");
+            test((x-xe).norm() < 1.e-5,"No PSF Solve - x == xe");
 
             for(int ip = 0; ip < NPSF; ++ip) {
                 dbg<<"Start ip = "<<ip<<std::endl;
@@ -1387,19 +1418,24 @@ int main(int argc, char **argv) try
                 // bpsf2 is the psf in the e0 frame.
                 BVec bpsf2(order+4,sigmaPsf);
                 bpsf2 = bpsf;
-                tmv::Matrix<double> S1(bpsf2.size(),bpsf2.size());
+                DMatrix S1(bpsf2.size(),bpsf2.size());
                 calculateGTransform(g0,bpsf2.getOrder(),S1);
-                tmv::Matrix<double> D1(bpsf2.size(),bpsf2.size());
+                DMatrix D1(bpsf2.size(),bpsf2.size());
                 calculateMuTransform(m0,bpsf2.getOrder(),D1);
+#ifdef USE_TMV
                 bpsf2.vec() /= D1;
                 bpsf2.vec() /= S1;
+#else
+                D1.lu().solve(bpsf2.vec(),&bpsf2.vec());
+                S1.lu().solve(bpsf2.vec(),&bpsf2.vec());
+#endif
 
                 // c0 is the convolved galaxy shape in the ell frame.
                 double sigma_o = sqrt(pow(sigma_i,2)+pow(sigmaPsf,2));
-                tmv::Matrix<double> C(45,45);
+                DMatrix C(45,45);
                 calculatePsfConvolve(bpsf,8,sigma_i,C);
                 BVec c0(8,sigma_o);
-                c0.vec() = C.colRange(0,15) * b0.vec();
+                c0.vec() = TMV_colRange(C,0,15) * b0.vec();
                 xdbg<<"c0 = "<<c0.vec()<<std::endl;
                 allpix.resize(1);
                 allpix[0].clear();
@@ -1414,11 +1450,11 @@ int main(int argc, char **argv) try
                 s->calculateF(xe,f);
                 BVec be = s->getB();
                 xdbg<<"be = "<<be.vec()<<std::endl;
-                test(Norm(be.vec().subVector(0,15)-bin.vec()) < 
-                     EPS*Norm(bin.vec()),
+                test((be.vec().TMV_subVector(0,15)-bin.vec()).norm() < 
+                     EPS*bin.vec().norm(),
                      "B Measurement for Single Image w/ PSF");
-                test(Norm(be.vec().subVector(15,be.size())) < 
-                     3.*EPS*Norm(bin.vec()),
+                test((be.vec().TMV_subVector(15,be.size())).norm() < 
+                     3.*EPS*bin.vec().norm(),
                      "B Measurement 2 for Single Image w/ PSF");
                 x.setZero();
                 if (XDEBUG) s->setOutput(*dbgout);
@@ -1435,7 +1471,7 @@ int main(int argc, char **argv) try
                      "TestJ - Single Image w/ PSF");
 #endif
                 test(success,"PSF Solve - success");
-                test(Norm(x-xe) < 1.e-5,"PSF Solve - x == xe");
+                test((x-xe).norm() < 1.e-5,"PSF Solve - x == xe");
 
 #if 0
                 double dmu = 0.1;
@@ -1449,11 +1485,11 @@ int main(int argc, char **argv) try
                 s->calculateF(xe,f);
                 BVec bex = s->getB();
                 xdbg<<"bex = "<<bex.vec()<<std::endl;
-                test(Norm(bex.vec().subVector(0,15)-bin.vec()) < 
-                     EPS*Norm(bin.vec()),
-                     "B Measurement for Single Image w/ PSF");
-                test(Norm(bex.vec().subVector(15,bex.size())) < 
-                     3.*EPS*Norm(bin.vec()),
+                test((bex.vec().TMV_subVector(0,15)-bin.vec()).norm() < 
+                     EPS*bin.vec()),
+                    "B Measurement for Single Image w/ PSF");
+                test(bex.vec().TMV_subVector(15,bex.size()).norm() < 
+                     3.*EPS*bin.vec().norm(),
                      "B Measurement 2 for Single Image w/ PSF");
                 x.setZero();
                 if (XDEBUG) s->setOutput(*dbgout);
@@ -1462,7 +1498,7 @@ int main(int argc, char **argv) try
                 s->setFTol(1.e-6);
                 success = s->solve(x,f);
                 test(success,"PSF Solve - success");
-                test(Norm(x-xe) < 1.e-5,"PSF Solve - x == xe");
+                test((x-xe).norm() < 1.e-5,"PSF Solve - x == xe");
                 xe[4] += dmu;
 #endif
             }
@@ -1487,7 +1523,12 @@ int main(int argc, char **argv) try
             bin(0) = 1.;
             dbg<<"bin = "<<bin.vec()<<std::endl;
             int order = 8;
-            tmv::Vector<double> xe(5,ell_vecs[ie]);
+#ifdef USE_TMV
+            DVector xe(5,ell_vecs[ie]);
+#else
+            DVector xe(5);
+            for(int i=0;i<5;++i) xe(i) = ell_vecs[ie][i];
+#endif
 
             // b0 is the galaxy shape in the ell frame.
             BVec b0 = bin;
@@ -1505,20 +1546,21 @@ int main(int argc, char **argv) try
                     new EllipseSolver(allpix,order,sigma_i));
                 else s.reset(
                     new EllipseSolver2(allpix,order,sigma_i,pixScale));
-                tmv::Vector<double> x(5,0.);
-                tmv::Vector<double> f(5);
+                DVector x(5);
+                x.setZero();
+                DVector f(5);
                 s->calculateF(xe,f);
                 BVec be = s->getB();
                 xdbg<<"be = "<<be.vec()<<std::endl;
                 xdbg<<"Norm(be(0:15)-bin) = "<<
-                    Norm(be.vec().subVector(0,15)-bin.vec())<<std::endl;
+                    (be.vec().TMV_subVector(0,15)-bin.vec()).norm()<<std::endl;
                 xdbg<<"Norm(be(15:)) = "<<
-                    Norm(be.vec().subVector(15,be.size()))<<std::endl;
-                test(Norm(be.vec().subVector(0,15)-bin.vec()) < 
-                     EPS*Norm(bin.vec()),
+                    be.vec().TMV_subVector(15,be.size()).norm()<<std::endl;
+                test((be.vec().TMV_subVector(0,15)-bin.vec()).norm() < 
+                     EPS*bin.vec().norm(),
                      "B Measurement for Multi Image");
-                test(Norm(be.vec().subVector(15,be.size())) < 
-                     3.*EPS*Norm(bin.vec()),
+                test(be.vec().TMV_subVector(15,be.size()).norm() < 
+                     3.*EPS*bin.vec().norm(),
                      "B Measurement 2 for Multi Image");
 
                 if (XDEBUG) s->setOutput(*dbgout);
@@ -1535,7 +1577,7 @@ int main(int argc, char **argv) try
                 xdbg<<"f = "<<f<<std::endl;
                 xdbg<<"success = "<<success<<std::endl;
                 test(success,"No PSF Solve - success");
-                test(Norm(x-xe) < 1.e-5,"No PSF Solve - x == xe");
+                test((x-xe).norm() < 1.e-5,"No PSF Solve - x == xe");
 #ifdef TESTJ
                 test(s->testJ(x,f,xdbgout,1.e-6),
                      "TestJ - Multi Image no PSF 2");
@@ -1557,20 +1599,25 @@ int main(int argc, char **argv) try
                     // allpsf2 is the psf in the e0 frame.
                     allpsf2.push_back(BVec(order+4,sigmaPsfx[k]));
                     allpsf2[k] = allpsf[k];
-                    tmv::Matrix<double> S1(allpsf2[k].size(),allpsf2[k].size());
+                    DMatrix S1(allpsf2[k].size(),allpsf2[k].size());
                     calculateGTransform(g0,allpsf2[k].getOrder(),S1);
-                    tmv::Matrix<double> D1(allpsf2[k].size(),allpsf2[k].size());
+                    DMatrix D1(allpsf2[k].size(),allpsf2[k].size());
                     calculateMuTransform(m0,allpsf2[k].getOrder(),D1);
+#ifdef USE_TMV
                     allpsf2[k].vec() /= D1;
                     allpsf2[k].vec() /= S1;
+#else
+                    D1.lu().solve(allpsf2[k].vec(),&allpsf2[k].vec());
+                    S1.lu().solve(allpsf2[k].vec(),&allpsf2[k].vec());
+#endif
                     xdbg<<"allpsf2[k] = "<<allpsf2[k].vec()<<std::endl;
 
                     // c0 is the convolved galaxy shape in the ell frame.
                     double sigma_o = sqrt(pow(sigma_i,2)+pow(sigmaPsfx[k],2));
-                    tmv::Matrix<double> C(45,45);
+                    DMatrix C(45,45);
                     calculatePsfConvolve(allpsf[k],8,sigma_i,C);
                     BVec c0(8,sigma_o);
-                    c0.vec() = C.colRange(0,15) * b0.vec();
+                    c0.vec() = TMV_colRange(C,0,15) * b0.vec();
                     xdbg<<"c0 = "<<c0.vec()<<std::endl;
 
                     allpix[k].clear();
@@ -1584,20 +1631,21 @@ int main(int argc, char **argv) try
                     new EllipseSolver2(allpix,allpsf2,f_psf,order,sigma_i,
                                        pixScale));
 
-                tmv::Vector<double> x(5,0.);
-                tmv::Vector<double> f(5);
+                DVector x(5);
+                x.setZero();
+                DVector f(5);
                 s->calculateF(xe,f);
                 BVec be = s->getB();
                 xdbg<<"be = "<<be.vec()<<std::endl;
                 xdbg<<"Norm(be(0:15)-bin) = "<<
-                    Norm(be.vec().subVector(0,15)-bin.vec())<<std::endl;
+                    (be.vec().TMV_subVector(0,15)-bin.vec()).norm()<<std::endl;
                 xdbg<<"Norm(be(15:)) = "<<
-                    Norm(be.vec().subVector(15,be.size()))<<std::endl;
-                test(Norm(be.vec().subVector(0,15)-bin.vec()) < 
-                     EPS*Norm(bin.vec()),
+                    be.vec().TMV_subVector(15,be.size()).norm()<<std::endl;
+                test((be.vec().TMV_subVector(0,15)-bin.vec()).norm() < 
+                     EPS*bin.vec().norm(),
                      "B Measurement for Multi Image w/ PSF");
-                test(Norm(be.vec().subVector(15,be.size())) < 
-                     3.*EPS*Norm(bin.vec()),
+                test(be.vec().TMV_subVector(15,be.size()).norm() < 
+                     3.*EPS*bin.vec().norm(),
                      "B Measurement 2 for Multi Image w/ PSF");
 
                 x.setZero();
@@ -1619,7 +1667,7 @@ int main(int argc, char **argv) try
                      "TestJ - Multi Image w/ PSF 2");
 #endif
                 test(success,"PSF Solve - success");
-                test(Norm(x-xe) < 1.e-5,"PSF Solve - x == xe");
+                test((x-xe).norm() < 1.e-5,"PSF Solve - x == xe");
 
 #if 0
                 double dmu = 0.1;
@@ -1635,14 +1683,14 @@ int main(int argc, char **argv) try
                 BVec bex = s->getB();
                 xdbg<<"bex = "<<bex.vec()<<std::endl;
                 xdbg<<"Norm(bex(0:15)-bin.vec()) = "<<
-                    Norm(bex.vec().subVector(0,15)-bin.vec())<<std::endl;
+                    (bex.vec().TMV_subVector(0,15)-bin.vec()).norm()<<std::endl;
                 xdbg<<"Norm(bex(15:)) = "<<
-                    Norm(bex.vec().subVector(15,bex.size()))<<std::endl;
-                test(Norm(bex.vec().subVector(0,15)-bin.vec()) < 
-                     EPS*Norm(bin.vec()),
+                    bex.vec().TMV_subVector(15,bex.size()).norm()<<std::endl;
+                test((bex.vec().TMV_subVector(0,15)-bin.vec()).norm() < 
+                     EPS*bin.vec().norm(),
                      "B Measurement for Multi Image w/ PSF");
-                test(Norm(bex.vec().subVector(15,bex.size())) < 
-                     3.*EPS*Norm(bin.vec()),
+                test(bex.vec().TMV_subVector(15,bex.size()).norm() < 
+                     3.*EPS*bin.vec().norm(),
                      "B Measurement 2 for Multi Image w/ PSF");
 
                 x.setZero();
@@ -1660,7 +1708,7 @@ int main(int argc, char **argv) try
                 xdbg<<"f = "<<f<<std::endl;
                 xdbg<<"success = "<<success<<std::endl;
                 test(success,"PSF Solve - success");
-                test(Norm(x-xe) < 1.e-5,"PSF Solve - x == xe");
+                test((x-xe).norm() < 1.e-5,"PSF Solve - x == xe");
 #ifdef TESTJ
                 test(s->testJ(x,f,xdbgout,1.e-6),
                      "TestJ - Multi Image w/ PSF 2");
@@ -1688,7 +1736,12 @@ int main(int argc, char **argv) try
         bin(0) = 1.;
         xdbg<<"bin = "<<bin.vec()<<std::endl;
         int order = 6;
-        tmv::Vector<double> xe(5,ell_vecs[ie]);
+#ifdef USE_TMV
+        DVector xe(5,ell_vecs[ie]);
+#else
+        DVector xe(5);
+        for(int i=0;i<5;++i) xe(i) = ell_vecs[ie][i];
+#endif
 
         // b0 is the galaxy shape in the ell frame.
         BVec b0 = bin;
@@ -1733,9 +1786,9 @@ int main(int argc, char **argv) try
              "Measure for Multi Image w/ PSF - gam");
         test(std::abs(e_1.getMu()-ell.getMu()) < 1.e-5,
              "Measure for Multi Image w/ PSF - mu");
-        test(Norm(b_1.vec().subVector(0,15)-bin.vec()) < 1.e-5*Norm(bin.vec()),
+        test((b_1.vec().TMV_subVector(0,15)-bin.vec()).norm() < 1.e-5*bin.vec().norm(),
              "Measure for Multi Image w/ PSF - b");
-        test(Norm(b_1.vec().subVector(15,b_1.size())) < 1.e-5*Norm(bin.vec()),
+        test(b_1.vec().TMV_subVector(15,b_1.size()).norm() < 1.e-5*bin.vec().norm(),
              "Measure 2 for Multi Image w/ PSF - b");
 
 
@@ -1754,20 +1807,25 @@ int main(int argc, char **argv) try
             // allpsf2 is the psf in the e0 frame.
             allpsf2.push_back(BVec(order+4,sigmaPsfx[k]));
             allpsf2[k] = allpsf[k];
-            tmv::Matrix<double> S1(allpsf2[k].size(),allpsf2[k].size());
+            DMatrix S1(allpsf2[k].size(),allpsf2[k].size());
             calculateGTransform(g0,allpsf2[k].getOrder(),S1);
-            tmv::Matrix<double> D1(allpsf2[k].size(),allpsf2[k].size());
+            DMatrix D1(allpsf2[k].size(),allpsf2[k].size());
             calculateMuTransform(m0,allpsf2[k].getOrder(),D1);
+#ifdef USE_TMV
             allpsf2[k].vec() /= D1;
             allpsf2[k].vec() /= S1;
+#else
+            D1.lu().solve(allpsf2[k].vec(),&allpsf2[k].vec());
+            S1.lu().solve(allpsf2[k].vec(),&allpsf2[k].vec());
+#endif
             xdbg<<"allpsf2[k] = "<<allpsf2[k].vec()<<std::endl;
 
             // c0 is the convolved galaxy shape in the ell frame.
             double sigma_o = sqrt(pow(sigma_i,2)+pow(sigmaPsfx[k],2));
-            tmv::Matrix<double> C(45,45);
+            DMatrix C(45,45);
             calculatePsfConvolve(allpsf[k],8,sigma_i,C);
             BVec c0(8,sigma_o);
-            c0.vec() = C.colRange(0,15) * b0.vec();
+            c0.vec() = TMV_colRange(C,0,15) * b0.vec();
             xdbg<<"c0 = "<<c0.vec()<<std::endl;
 
             allpix[k].clear();
@@ -1788,9 +1846,9 @@ int main(int argc, char **argv) try
              "Measure for Multi Image w/ PSF - gam");
         test(std::abs(e_2.getMu()-ell.getMu()) < 1.e-5,
              "Measure for Multi Image w/ PSF - mu");
-        test(Norm(b_2.vec().subVector(0,15)-bin.vec()) < 1.e-5*Norm(bin.vec()),
+        test((b_2.vec().TMV_subVector(0,15)-bin.vec()).norm() < 1.e-5*bin.vec().norm(),
              "Measure for Multi Image w/ PSF - b");
-        test(Norm(b_2.vec().subVector(15,b_2.size())) < 1.e-5*Norm(bin.vec()),
+        test(b_2.vec().TMV_subVector(15,b_2.size()).norm() < 1.e-5*bin.vec().norm(),
              "Measure 2 for Multi Image w/ PSF - b");
 
 #if 0
@@ -1809,9 +1867,9 @@ int main(int argc, char **argv) try
              "Measure for Multi Image #2 w/ PSF - gam");
         test(std::abs(e_3.getMu()-ell.getMu()) < 1.e-5,
              "Measure for Multi Image #2 w/ PSF - mu");
-        test(Norm(b_3.vec().subVector(0,15)-bin.vec()) < 1.e-5*Norm(bin.vec()),
+        test((b_3.vec().TMV_subVector(0,15)-bin.vec()).norm() < 1.e-5*bin.vec().norm(),
              "Measure for Multi Image #2 w/ PSF - b");
-        test(Norm(b_3.vec().subVector(15,b_3.size())) < 1.e-5*Norm(bin.vec()),
+        test(b_3.vec().TMV_subVector(15,b_3.size()).norm() < 1.e-5*bin.vec().norm(),
              "Measure 2 for Multi Image #2 w/ PSF - b");
 #endif
     }
@@ -1906,8 +1964,8 @@ int main(int argc, char **argv) try
             test(std::abs(psfcat.getPsf(i).getSigma() -
                           psfcat2.getPsf(i).getSigma()) 
                  <= 0.01, "psfcat psf.getSigma I/O");
-            test(Norm(psfcat.getPsf(i).vec() - psfcat2.getPsf(i).vec()) <= 
-                 1.e-4*Norm(psfcat.getPsf(i).vec()), "psfcat psf vector I/O");
+            test((psfcat.getPsf(i).vec() - psfcat2.getPsf(i).vec()).norm() <= 
+                 1.e-4*psfcat.getPsf(i).vec().norm(), "psfcat psf vector I/O");
         }
     }
     params["psf_ext"] = all_ext;
@@ -1919,7 +1977,7 @@ int main(int argc, char **argv) try
     for(int i=0;i<nstars;++i) if (!psfcat.getFlags(i)) {
         BVec checkpsf(fitpsf.getPsfOrder(),fitpsf.getSigma());
         checkpsf = fitpsf(starCat.getPos(i));
-        double normsqdiff = NormSq(psfcat.getPsf(i).vec()-checkpsf.vec());
+        double normsqdiff = (psfcat.getPsf(i).vec()-checkpsf.vec()).TMV_normSq();
         rms += normsqdiff;
         ++count;
     }
@@ -1948,7 +2006,7 @@ int main(int argc, char **argv) try
             checkpsf = fitpsf(starCat.getPos(i));
             BVec checkpsf2(fitpsf2.getPsfOrder(),fitpsf2.getSigma());
             checkpsf2 = fitpsf2(starCat.getPos(i));
-            double normsqdiff = NormSq(checkpsf2.vec()-checkpsf.vec());
+            double normsqdiff = (checkpsf2.vec()-checkpsf.vec()).TMV_normSq();
             rms += normsqdiff;
             ++count;
         }
@@ -1997,17 +2055,22 @@ int main(int argc, char **argv) try
                  "shearcat shear I/O");
             test(std::abs(shearcat.getNu(i) - shearcat2.getNu(i)) <= 0.01,
                  "shearcat nu I/O");
-            test(Norm(tmv::Matrix<double>(shearcat.getCov(i) - 
-                                          shearcat2.getCov(i)))
-                 <= 1.e-4*Norm(shearcat.getCov(i)),
+#ifdef USE_TMV
+            test(Norm(DMatrix((shearcat.getCov(i) - shearcat2.getCov(i))))
+                 <= 1.e-4*shearcat.getCov(i).norm(),
                  "shearcat cov I/O");
+#else
+            test((shearcat.getCov(i) - shearcat2.getCov(i)).norm()
+                 <= 1.e-4*shearcat.getCov(i).norm(),
+                 "shearcat cov I/O");
+#endif
             test(shearcat.getShape(i).size() == shearcat2.getShape(i).size(),
                  "shearcat shape.size I/O");
             test(std::abs(shearcat.getShape(i).getSigma() -
                           shearcat2.getShape(i).getSigma()) <= 0.01,
                  "shearcat shape.getSigma I/O");
-            test(Norm(shearcat.getShape(i).vec() - shearcat2.getShape(i).vec()) 
-                 <= 1.e-4*Norm(shearcat.getShape(i).vec()),
+            test((shearcat.getShape(i).vec() - shearcat2.getShape(i).vec()).norm() 
+                 <= 1.e-4*shearcat.getShape(i).vec().norm(),
                  "shearcat shape vector I/O");
         }
     }
@@ -2023,17 +2086,16 @@ int main(int argc, char **argv) try
 // Change to 1 to let gdb see where the program bombed out.
 catch(int) {}
 #else
-catch (tmv::Error& e)
-{
+#ifdef USE_TMV
+catch (tmv::Error& e) {
     std::cerr<<"Caught "<<e<<std::endl;
     return 1;
 }
-catch (std::exception& e)
-{
+#endif
+catch (std::exception& e) {
     std::cerr<<"Caught std::exception: "<<e.what()<<std::endl;
 }
-catch (...)
-{
+catch (...) {
     std::cerr<<"Caught Unknown error\n";
 }
 #endif

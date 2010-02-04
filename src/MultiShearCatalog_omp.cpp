@@ -386,9 +386,9 @@ void MultiShearCatalog::getImagePixelLists(
         subBounds += invTrans(intersect.get11());
 
         // Grow bounds by maxAperture
-        tmv::SmallMatrix<double,2,2> D;
+        DSmallMatrix22 D;
         trans.getDistortion(subBounds.getCenter(),D);
-        double det = std::abs(D.det());
+        double det = std::abs(D.TMV_det());
         double pixScale = sqrt(det); // arcsec/pixel
         subBounds.addBorder(maxAperture / pixScale);
 

@@ -4,7 +4,6 @@
 #include <vector>
 #include <string>
 #include <valarray>
-#include "TMV.h"
 #include <CCfits/CCfits>
 
 #include "StarCatalog.h"
@@ -81,10 +80,12 @@ void calculateSigma(
             trans, psfAp, flag, shouldUseShapeletSigma);
         dbg<<"objsize: "<<sigma<<std::endl;
         dbg<<"flags: "<<flag<<std::endl;
+#ifdef USE_TMV
     } catch (tmv::Error& e) {
         dbg<<"Caught: "<<e<<std::endl;
         sigma = DEFVALNEG;
         flag |= TMV_EXCEPTION;
+#endif
     } catch (std::exception& e) {
         dbg<<"Caught: "<<e.what()<<std::endl;
         sigma = DEFVALNEG;
@@ -263,7 +264,11 @@ void StarCatalog::writeFits(std::string file) const
     table = fits.addTable("findstars",nTot,colNames,colFmts,colUnits);
 
     // Header Keywords
+#ifdef USE_TMV
     std::string tmvVers = tmv::TMV_Version();
+#else
+    std::string tmvVers = "Eigen";
+#endif
     std::string wlVers = getWlVersion();
 
     table->addKey("tmvvers", tmvVers, "version of TMV code");

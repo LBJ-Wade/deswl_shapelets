@@ -3,7 +3,7 @@
 
 #include <vector>
 #include <string>
-#include "TMV.h"
+#include "MyMatrix.h"
 
 #include "CoaddCatalog.h"
 #include "Bounds.h"
@@ -61,7 +61,7 @@ public :
     const std::vector<std::complex<double> > getShearList() const 
     { return _shear; }
     const std::vector<double> getNuList() const { return _nu; }
-    const std::vector<tmv::SmallMatrix<double,2,2> >& getCovList() const 
+    const std::vector<DSmallMatrix22 >& getCovList() const 
     { return _cov; }
     const std::vector<BVec>& getShapeList() const { return _shape; }
 
@@ -70,7 +70,7 @@ public :
     long getFlags(int i) const { return _flags[i]; }
     std::complex<double> getShear(int i) const { return _shear[i]; }
     double getNu(int i) const { return _nu[i]; }
-    const tmv::SmallMatrix<double,2,2>& getCov(int i) const { return _cov[i]; }
+    const DSmallMatrix22& getCov(int i) const { return _cov[i]; }
     const BVec& getShape(int i) const { return _shape[i]; }
 
     const Bounds& getSkyBounds() const { return _skyBounds; }
@@ -91,8 +91,8 @@ private :
     std::vector<long> _flags;
     std::vector<std::complex<double> > _shear;
     std::vector<double> _nu;
-    std::vector<tmv::SmallMatrix<double,2,2> > _cov;
-    std::vector<BVec> _shape;
+    std::vector<DSmallMatrix22> _cov;
+    EIGEN_mutable std::vector<BVec> _shape;
 
     // There is no non-sky bounds of course, but to be consistent with 
     // the skybounds name in other catalogs, we keep that prefix here.

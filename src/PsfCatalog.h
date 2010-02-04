@@ -70,7 +70,7 @@ private :
     std::vector<double> _noise;
     std::vector<long> _flags;
     std::vector<double> _nu;
-    std::vector<BVec> _psf;
+    EIGEN_mutable std::vector<BVec> _psf;
 
 };
 

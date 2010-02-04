@@ -1,6 +1,5 @@
 
 #include <valarray>
-#include "TMV.h"
 #include <fitsio.h>
 #include "Transformation.h"
 #include "dbg.h"
@@ -8,8 +7,6 @@
 #include "NLSolver.h"
 #include "Name.h"
 #include "Params.h"
-#include "TMV.h"
-#include "TMV_Small.h"
 
 const double PI = 4.*atan(1.);
 
@@ -61,30 +58,32 @@ Transformation::Transformation(const ConfigFile& params) :
 
 void Transformation::setToScale(double pixel_scale)
 {
-    tmv::Matrix<double> m(2,2,0.); 
+    DMatrix m(2,2); 
+    m(0,0) = m(1,1) = 0.;
     m(1,0) = pixel_scale; m(0,1) = 0.;
-    _u.reset(new Polynomial2D<double>(m));
+    _u.reset(new Polynomial2D(m));
     m(1,0) = 0.; m(0,1) = pixel_scale;
-    _v.reset(new Polynomial2D<double>(m));
-    _dudx.reset(new Constant2D<double>(pixel_scale));
-    _dudy.reset(new Constant2D<double>(0.));
-    _dvdx.reset(new Constant2D<double>(0.));
-    _dvdy.reset(new Constant2D<double>(pixel_scale));
+    _v.reset(new Polynomial2D(m));
+    _dudx.reset(new Constant2D(pixel_scale));
+    _dudy.reset(new Constant2D(0.));
+    _dvdx.reset(new Constant2D(0.));
+    _dvdy.reset(new Constant2D(pixel_scale));
     _isRaDec = false;
 }
 
 void Transformation::setToJacobian(
     double dudx, double dudy, double dvdx, double dvdy) 
 {
-    tmv::Matrix<double> m(2,2,0.); 
+    DMatrix m(2,2); 
+    m(0,0) = m(1,1) = 0.;
     m(1,0) = dudx; m(0,1) = dudy;
-    _u.reset(new Polynomial2D<double>(m));
+    _u.reset(new Polynomial2D(m));
     m(1,0) = dvdx; m(0,1) = dvdy;
-    _v.reset(new Polynomial2D<double>(m));
-    _dudx.reset(new Constant2D<double>(dudx));
-    _dudy.reset(new Constant2D<double>(dudy));
-    _dvdx.reset(new Constant2D<double>(dvdx));
-    _dvdy.reset(new Constant2D<double>(dvdy));
+    _v.reset(new Polynomial2D(m));
+    _dudx.reset(new Constant2D(dudx));
+    _dudy.reset(new Constant2D(dudy));
+    _dvdx.reset(new Constant2D(dvdx));
+    _dvdy.reset(new Constant2D(dvdy));
     _isRaDec = false;
 }
 
@@ -136,12 +135,12 @@ void Transformation::transform(Position pxy, Position& puv) const
 void Transformation::distort(
     Position pos, double& ixx, double& ixy, double& iyy) const
 {
-    tmv::SmallMatrix<double,2,2> D;
+    DSmallMatrix22 D;
     getDistortion(pos,D);
-    tmv::SmallMatrix<double,2,2> S;
+    DSmallMatrix22 S;
     S(0,0) = ixx; S(0,1) = ixy;
     S(1,0) = ixy; S(1,1) = iyy;
-    tmv::SmallMatrix<double,2,2> S2 = D * S;
+    DSmallMatrix22 S2 = D * S;
     S2 *= D.transpose();
     ixx = S2(0,0);
     ixy = S2(0,1);
@@ -177,11 +176,11 @@ void Transformation::getDistortion(
 }
 
 void Transformation::getDistortion(
-    Position pos, tmv::SmallMatrix<double,2,2>& J) const
+    Position pos, DSmallMatrix22& J) const
 { getDistortion(pos,J(0,0),J(0,1),J(1,0),J(1,1)); }
 
-void Transformation::getDistortion(Position pos,
-                                   tmv::Matrix<double>& J) const
+void Transformation::getDistortion(
+    Position pos, DMatrix& J) const
 { getDistortion(pos,J(0,0),J(0,1),J(1,0),J(1,1)); }
 
 
@@ -196,7 +195,7 @@ public :
     InverseSolver(const Transformation& _t, const Position& _target) :
         t(_t), target(_target) {}
 
-    void calculateF(const tmv::Vector<double>& x, tmv::Vector<double>& f) const
+    void calculateF(const DVector& x, DVector& f) const
     {
         Assert(x.size() == 2);
         Assert(f.size() == 2);
@@ -208,12 +207,11 @@ public :
         f(1) = imag(diff);
     }
 
-    void calculateJ(const tmv::Vector<double>& x, const tmv::Vector<double>& ,
-           tmv::Matrix<double>& j) const
+    void calculateJ(const DVector& x, const DVector& , DMatrix& j) const
     {
         Assert(x.size() == 2);
-        Assert(j.colsize() == 2);
-        Assert(j.rowsize() == 2);
+        Assert(j.TMV_colsize() == 2);
+        Assert(j.TMV_rowsize() == 2);
         Position pxy(x[0],x[1]);
         t.getDistortion(pxy,j);
     }
@@ -227,10 +225,10 @@ private :
 bool Transformation::inverseTransform(Position puv, Position& pxy) const
 {
     InverseSolver solver(*this, puv);
-    tmv::Vector<double> x(2);
+    DVector x(2);
     x[0] = pxy.getX();
     x[1] = pxy.getY();
-    tmv::Vector<double> f(2);
+    DVector f(2);
 
     solver.useDogleg();
     solver.setTol(1.e-8,0.);
@@ -281,9 +279,9 @@ Bounds Transformation::makeInverseOf(
     xdbg<<"newbounds = "<<newbounds<<std::endl;
     newbounds.addBorder(10.);
     xdbg<<"newbounds (add border of 10 pixels) => "<<newbounds<<std::endl;
-    _u.reset(new Legendre2D<double>(newbounds));
+    _u.reset(new Legendre2D(newbounds));
     _u->simpleFit(order,v_pos,v_x,use);
-    _v.reset(new Legendre2D<double>(newbounds));
+    _v.reset(new Legendre2D(newbounds));
     _v->simpleFit(order,v_pos,v_y,use);
 
     _dudx = _u->dFdX();
@@ -306,14 +304,12 @@ enum TNXCROSS { TNX_XNONE , TNX_XFULL , TNX_XHALF};
 
 static void readWCSFits(
     const std::string& filename, int hdu,
-    WCSType& wcstype,
-    tmv::Matrix<double>& cd, tmv::Vector<double>& crpix, 
-    tmv::Vector<double>& crval)
+    WCSType& wcstype, DMatrix& cd, DVector& crpix, DVector& crval)
 {
     Assert(crpix.size() == 2);
     Assert(crval.size() == 2);
-    Assert(cd.rowsize() == 2);
-    Assert(cd.colsize() == 2);
+    Assert(cd.TMV_rowsize() == 2);
+    Assert(cd.TMV_colsize() == 2);
 
     xdbg<<"starting read wcs from fits "<<filename<<"\n";
 
@@ -390,8 +386,7 @@ static void readWCSFits(
 }
 
 static void recenterDistortion(
-    tmv::Matrix<double>& a, 
-    const tmv::Matrix<double>& cd, const tmv::Vector<double>& crpix)
+    DMatrix& a, const DMatrix& cd, const DVector& crpix)
 {
     // The function here is actually a function of 
     // z' = [CD](z-z0), 
@@ -405,11 +400,12 @@ static void recenterDistortion(
     //     (pCi)(p-iCm)(qCj)(q-jCn) c00^i c01^m c10^j c11^n
     //     xc^(p-i-m) yc^(q-j-n) x^(i+j) y^(m+n)
 
-    int xorder = a.colsize();
-    int yorder = a.rowsize();
+    int xorder = a.TMV_colsize();
+    int yorder = a.TMV_rowsize();
     int maxorder = std::max(xorder,yorder);
 
-    tmv::Matrix<double> newar(xorder,yorder,0.);
+    DMatrix newar(xorder,yorder);
+    newar.setZero();
 
     double xconst = -cd(0,0)*crpix[0] - cd(0,1)*crpix[1];
     double yconst = -cd(1,0)*crpix[0] - cd(1,1)*crpix[1];
@@ -429,7 +425,7 @@ static void recenterDistortion(
         yctothe[i] = yctothe[i-1]*yconst;
     }
 
-    tmv::LowerTriMatrix<double,tmv::NonUnitDiag> binom(maxorder+1);
+    DMatrix binom(maxorder+1,maxorder+1);
     binom(0,0) = 1.;
     for(int n=1;n<=maxorder;++n) {
         binom(n,0) = 1.; binom(n,n) = 1.;
@@ -457,7 +453,7 @@ static void recenterDistortion(
 
 static void readTANFits(
     const std::string& filename, int hdu,
-    std::vector<tmv::Matrix<double> >& pv)
+    std::vector<DMatrix >& pv)
 {
     xdbg<<"Start read TAN specific wcs parameters."<<std::endl;
     int status=0;
@@ -491,8 +487,8 @@ static void readTANFits(
     char pvstr[10] = "PV1_1";
     for(int pvnum=0; pvnum<=1; ++pvnum) {
         Assert(pvnum < int(pv.size()));
-        Assert(pv[pvnum].colsize() >= 4);
-        Assert(pv[pvnum].rowsize() >= 4);
+        Assert(pv[pvnum].TMV_colsize() >= 4);
+        Assert(pv[pvnum].TMV_rowsize() >= 4);
         pv[pvnum].setZero();
 
         pvstr[2]='1'+pvnum;
@@ -520,7 +516,7 @@ static void readTANFits(
         }
         if (status) break;
     }
-    pv[1].transposeSelf(); // The x,y terms are opposite for pv[1]
+    pv[1].TMV_transposeSelf(); // The x,y terms are opposite for pv[1]
 
     if (fits_close_file(fitsptr,&status))
         dbg<<"fits close file: "<<status<<std::endl;
@@ -596,9 +592,8 @@ static void readTNXFits(
     }
 }
 
-static Function2D<double>* convertTNX(
-    const std::string& wcsstr,
-    const tmv::Matrix<double>& cd, const tmv::Vector<double>& crpix)
+static Function2D* convertTNX(
+    const std::string& wcsstr, const DMatrix& cd, const DVector& crpix)
 {
     std::istringstream wcsin(wcsstr);
     wcsin.ignore(80,'\"');
@@ -621,13 +616,14 @@ static Function2D<double>* convertTNX(
     wcsin >> xmin >> xmax >> ymin >> ymax;
     Bounds b(xmin,xmax,ymin,ymax);
 
-    tmv::Matrix<double> a(xorder,yorder,0.);
+    DMatrix a(xorder,yorder);
+    a.setZero();
     int xorder1 = xorder;
     int maxorder = std::max(xorder,yorder);
 
     for(int j=0;j<yorder;++j) {
         for(int i=0;i<xorder1;++i) {
-            wcsin >> a[i][j];
+            wcsin >> a(i,j);
         }
         if (crossterms == TNX_XNONE) {
             xorder1 = 1;
@@ -645,16 +641,16 @@ static Function2D<double>* convertTNX(
 
     recenterDistortion(a,cd,crpix);
 
-    Function2D<double>* f=0;
+    Function2D* f=0;
 
     switch(functype) {
       case TNX_CHEBYSHEV:
            throw ReadException("Error TNX_CHEBYSHEV not implemented yet.");
       case TNX_LEGENDRE:
-           f = new Legendre2D<double>(b,a);
+           f = new Legendre2D(b,a);
            break;
       case TNX_POLYNOMIAL:
-           f = new Polynomial2D<double>(a);
+           f = new Polynomial2D(a);
            break;
       default:
            throw ReadException( "Unknown TNX surface type");
@@ -665,8 +661,8 @@ static Function2D<double>* convertTNX(
 
 void Transformation::readWCS(std::string fitsfile, int hdu)
 {
-    tmv::Matrix<double> cd(2,2);
-    tmv::Vector<double> crpix(2), crval(2);
+    DMatrix cd(2,2);
+    DVector crpix(2), crval(2);
     WCSType wcstype;
 
     readWCSFits(fitsfile,hdu,wcstype,cd,crpix,crval);
@@ -676,7 +672,8 @@ void Transformation::readWCS(std::string fitsfile, int hdu)
     xdbg<<"crval = "<<crval<<std::endl;
 
     if (wcstype == TAN) {
-        std::vector<tmv::Matrix<double> > pv(2,tmv::Matrix<double>(4,4,0.));
+        std::vector<DMatrix > pv(2,DMatrix(4,4));
+        pv[0].setZero(); pv[1].setZero();
         readTANFits(fitsfile,hdu,pv);
 
 #if 0
@@ -687,7 +684,7 @@ void Transformation::readWCS(std::string fitsfile, int hdu)
             double ra = 334.1531982;
             double dec = -10.3365593;
 
-            tmv::Vector<double> xy(2); xy(0) = x; xy(1) = y;
+            DVector xy(2); xy(0) = x; xy(1) = y;
             xdbg.precision(10);
             xdbg<<"xy0 = "<<xy<<std::endl;
             xdbg<<"xy1 = "<<xy-crpix<<std::endl;
@@ -696,8 +693,8 @@ void Transformation::readWCS(std::string fitsfile, int hdu)
             double x2 = xy(0);
             double y2 = xy(1);
             xdbg<<"xy2 = "<<x2<<','<<y2<<std::endl;
-            tmv::Vector<double> xv(4);
-            tmv::Vector<double> yv(4);
+            DVector xv(4);
+            DVector yv(4);
             xv(0) = 1.; xv(1) = x2; xv(2) = xv(1)*x2; xv(3) = xv(2)*x2;
             yv(0) = 1.; yv(1) = y2; yv(2) = yv(1)*y2; yv(3) = yv(2)*y2;
             double x3 = xv * pv[0] * yv;
@@ -723,8 +720,8 @@ void Transformation::readWCS(std::string fitsfile, int hdu)
 
         recenterDistortion(pv[0],cd,crpix);
         recenterDistortion(pv[1],cd,crpix);
-        _u.reset(new Polynomial2D<double>(pv[0]));
-        _v.reset(new Polynomial2D<double>(pv[1]));
+        _u.reset(new Polynomial2D(pv[0]));
+        _v.reset(new Polynomial2D(pv[1]));
     } else if (wcstype == TNX) {
         std::string lngstr,latstr;
         readTNXFits(fitsfile,hdu,lngstr,latstr);
@@ -761,20 +758,20 @@ void Transformation::readWCS(std::string fitsfile, int hdu)
     // (I think 3rd order is sufficient, but this takes essentially no time
     //  so might as well go slightly overkill with 4th order.)
 
-    Polynomial2D<double> uv(6,6);
-    Polynomial2D<double> u2(6,6);
-    Polynomial2D<double> v2(6,6);
-    Polynomial2D<double> u3(9,9);
-    Polynomial2D<double> u2v(9,9);
-    Polynomial2D<double> uv2(9,9);
-    Polynomial2D<double> v3(9,9);
-    Polynomial2D<double> u4(12,12);
-    Polynomial2D<double> u3v(12,12);
-    Polynomial2D<double> u2v2(12,12);
-    Polynomial2D<double> uv3(12,12);
+    Polynomial2D uv(6,6);
+    Polynomial2D u2(6,6);
+    Polynomial2D v2(6,6);
+    Polynomial2D u3(9,9);
+    Polynomial2D u2v(9,9);
+    Polynomial2D uv2(9,9);
+    Polynomial2D v3(9,9);
+    Polynomial2D u4(12,12);
+    Polynomial2D u3v(12,12);
+    Polynomial2D u2v2(12,12);
+    Polynomial2D uv3(12,12);
 
-    const Polynomial2D<double>& ux = static_cast<const Polynomial2D<double>&>(*_u);
-    const Polynomial2D<double>& vx = static_cast<const Polynomial2D<double>&>(*_v);
+    const Polynomial2D& ux = static_cast<const Polynomial2D&>(*_u);
+    const Polynomial2D& vx = static_cast<const Polynomial2D&>(*_v);
 
     u2.makeProductOf(ux,ux);
     uv.makeProductOf(ux,vx);

@@ -7,6 +7,7 @@
 #include "Pixel.h"
 #include "BVec.h"
 #include "TimeVars.h"
+#include "MyMatrix.h"
 
 class Ellipse 
 {
@@ -31,12 +32,12 @@ public :
     bool measure(const std::vector<PixelList>& pix, 
                  const std::vector<BVec>& psf,
                  int order, double sigma, bool shouldUseInteg, long& flag, 
-                 tmv::Matrix<double>* cov=0, 
-                 BVec* bret=0, tmv::Matrix<double>* bcov=0);
+                 DMatrix* cov=0, 
+                 BVec* bret=0, DMatrix* bcov=0);
     bool measure(const std::vector<PixelList>& pix, 
                  int order, double sigma, bool shouldUseInteg, long& flag, 
-                 tmv::Matrix<double>* cov=0, 
-                 BVec* bret=0, tmv::Matrix<double>* bcov=0);
+                 DMatrix* cov=0, 
+                 BVec* bret=0, DMatrix* bcov=0);
 
     void crudeMeasure(const PixelList& pix, double sigma);
     void crudeMeasure(
@@ -44,11 +45,13 @@ public :
 
     void peakCentroid(const PixelList& pix, double maxr);
 
-    void measureShapelet(const std::vector<PixelList>& pix, 
-                         const std::vector<BVec>& psf, BVec& bret,
-                         tmv::Matrix<double>* bcov=0) const;
-    void measureShapelet(const std::vector<PixelList>& pix, 
-                         BVec& bret, tmv::Matrix<double>* bcov=0) const;
+    void measureShapelet(
+        const std::vector<PixelList>& pix, 
+        const std::vector<BVec>& psf, BVec& bret, int order,
+        DMatrix* bcov=0) const;
+    void measureShapelet(
+        const std::vector<PixelList>& pix, 
+        BVec& bret, int order, DMatrix* bcov=0) const;
 
     void write(std::ostream& os) const
     { os << _cen<<" "<<_gamma<<" "<<_mu; }
@@ -86,13 +89,15 @@ public :
 
 private :
 
-    bool doMeasure(const std::vector<PixelList>& pix, 
-                   const std::vector<BVec>* psf, int order, double sigma,
-                   bool shouldUseInteg, long& flag, tmv::Matrix<double>* cov=0, 
-                   BVec* bret=0, tmv::Matrix<double>* bcov=0);
-    void doMeasureShapelet(const std::vector<PixelList>& pix, 
-                           const std::vector<BVec>* psf, BVec& bret,
-                           tmv::Matrix<double>* bcov=0) const;
+    bool doMeasure(
+        const std::vector<PixelList>& pix, 
+        const std::vector<BVec>* psf, int order, double sigma,
+        bool shouldUseInteg, long& flag, DMatrix* cov=0, 
+        BVec* bret=0, DMatrix* bcov=0);
+    void doMeasureShapelet(
+        const std::vector<PixelList>& pix, 
+        const std::vector<BVec>* psf, BVec& bret, int order,
+        DMatrix* bcov=0) const;
 
     std::complex<double> _cen;
     std::complex<double> _gamma;

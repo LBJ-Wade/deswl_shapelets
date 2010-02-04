@@ -27,7 +27,7 @@ dc4='+dc4.config'
 BINDIR=.
 #BINDIR=/home/mjarvis/bin
 #BINDIR=/Users/Mike/bin
-vl=2
+vl=1
 
 echo $BINDIR/findstars $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fs.debug verbose=$vl output_dots=1 $dc4
 time $BINDIR/findstars $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fs.debug verbose=$vl output_dots=1 $dc4

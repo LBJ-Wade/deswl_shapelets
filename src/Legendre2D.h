@@ -4,8 +4,7 @@
 #include <iostream>
 #include "Function2D.h"
 
-template <typename T>
-class Legendre2D : public Function2D<T> 
+class Legendre2D : public Function2D
 {
 
 public:
@@ -13,18 +12,18 @@ public:
     Legendre2D() {}
 
     Legendre2D(double xMin,double xMax,double yMin,double yMax) :
-        Function2D<T>(), _bounds(xMin,xMax,yMin,yMax) {}
+        Function2D(), _bounds(xMin,xMax,yMin,yMax) {}
 
-    Legendre2D(const Bounds& b) : Function2D<T>(), _bounds(b) {}
+    Legendre2D(const Bounds& b) : Function2D(), _bounds(b) {}
 
-    Legendre2D(const Legendre2D<T>& rhs) :
-        Function2D<T>(rhs), _bounds(rhs._bounds) {}
+    Legendre2D(const Legendre2D& rhs) :
+        Function2D(rhs), _bounds(rhs._bounds) {}
 
-    Legendre2D(const Bounds& b, const tmv::Matrix<T>& a) : 
-        Function2D<T>(a.colsize()-1,a.rowsize()-1,a), _bounds(b) {}
+    Legendre2D(const Bounds& b, const DMatrix& a) : 
+        Function2D(a.TMV_colsize()-1,a.TMV_rowsize()-1,a), _bounds(b) {}
 
     Legendre2D(int xo, int yo, const Bounds& b) :
-        Function2D<T>(xo,yo,tmv::Matrix<T>(xo+1,yo+1,0.)), _bounds(b) {}
+        Function2D(xo,yo), _bounds(b) {}
 
     Legendre2D(std::istream& fin);
 
@@ -32,18 +31,19 @@ public:
 
     virtual void write(std::ostream& fout) const;
 
-    virtual std::auto_ptr<Function2D<T> > dFdX() const;
+    virtual std::auto_ptr<Function2D> dFdX() const;
 
-    virtual std::auto_ptr<Function2D<T> > dFdY() const;
+    virtual std::auto_ptr<Function2D> dFdY() const;
 
-    virtual std::auto_ptr<Function2D<T> > copy() const
-    { return std::auto_ptr<Function2D<T> >(new Legendre2D<T>(*this)); }
+    virtual std::auto_ptr<Function2D> copy() const
+    { return std::auto_ptr<Function2D>(new Legendre2D(*this)); }
 
-    virtual void addLinear(T a, T b, T c);
+    virtual void addLinear(double a, double b, double c);
 
-    virtual void linearPreTransform(T a, T b, T c, T d, T e, T f);
+    virtual void linearPreTransform(
+        double a, double b, double c, double d, double e, double f);
 
-    virtual void operator+=(const Function2D<T>& rhs);
+    virtual void operator+=(const Function2D& rhs);
 
     double getXMin() const {return _bounds.getXMin();}
 
@@ -56,25 +56,22 @@ public:
     const Bounds& getBounds() const {return _bounds;}
 
     virtual void setFunction(
-        int xorder, int yorder, const tmv::Vector<T>& fvect);
+        int xorder, int yorder, const DVector& fvect);
 
 private:
 
     Bounds _bounds;
-    using Function2D<T>::_xOrder;
-    using Function2D<T>::_yOrder;
-    using Function2D<T>::_coeffs;
+    using Function2D::_xOrder;
+    using Function2D::_yOrder;
+    using Function2D::_coeffs;
 
-    tmv::Vector<double> definePXY(
+    DVector definePXY(
         int order,double xy,double min,double max) const;
 
-    virtual tmv::Vector<double> definePX(int order, double x) const;
+    virtual DVector definePX(int order, double x) const;
 
-    virtual tmv::Vector<double> definePY(int order, double y) const;
+    virtual DVector definePY(int order, double y) const;
 
 };
-
-extern template class Legendre2D<std::complex<double> >;
-extern template class Legendre2D<double>;
 
 #endif

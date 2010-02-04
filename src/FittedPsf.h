@@ -49,11 +49,11 @@ public :
     void interpolate(Position pos, BVec& b) const
     {
         Assert(_avePsf.get());
-        Assert(_mV.get());
+        //Assert(_mV.get());
         Assert(b.getOrder() == _psfOrder);
         Assert(b.size() == _avePsf->size());
         b.setSigma(_sigma);
-        interpolateVector(pos,b.vec().view());
+        interpolateVector(pos,TMV_vview(b.vec()));
     }
 
     // This next construct with FittedPsfAtXY allows you to write:
@@ -66,8 +66,7 @@ public :
 
 private :
 
-    void interpolateVector(
-        Position pos, const tmv::VectorView<double>& b) const;
+    void interpolateVector(Position pos, DVectorView b) const;
 
     const ConfigFile& _params;
 
@@ -77,9 +76,13 @@ private :
     int _fitSize;
     int _nPca;
     Bounds _bounds;
-    std::auto_ptr<tmv::Vector<double> > _avePsf;
+    std::auto_ptr<DVector> _avePsf;
+#if USE_TMV
     std::auto_ptr<tmv::Matrix<double,tmv::RowMajor> > _mV;
-    std::auto_ptr<tmv::Matrix<double> > _f;
+#else
+    std::auto_ptr<DMatrix> _mV_transpose;
+#endif
+    std::auto_ptr<DMatrix> _f;
 };
 
 class FittedPsfAtXY : public AssignableToBVec

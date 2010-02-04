@@ -130,7 +130,7 @@ std::vector<PotentialStar*> StarFinder::findStars(
         // Basically it takes the 10 smallest of the 50 brightest objects,
         // finds the peakiest 5, then fits their sizes to a 1st order function.
         // It also gives us a rough value for the sigma
-        Legendre2D<double> fLinear(qBounds[i]);
+        Legendre2D fLinear(qBounds[i]);
         double sigma;
         roughlyFitBrightStars(someObj,&fLinear,&sigma);
         dbg<<"fit bright stars: sigma = "<<sigma<<std::endl;
@@ -184,7 +184,7 @@ std::vector<PotentialStar*> StarFinder::findStars(
 
     // Now we have a first estimate of which objects are stars.
     // Fit a quadratic function to them to characterize the variation in size
-    Legendre2D<double> f(totalBounds);
+    Legendre2D f(totalBounds);
     double sigma;
     fitStellarSizes(&f,_fitOrder,_fitSigClip,probStars,&sigma);
 
@@ -298,7 +298,7 @@ std::vector<PotentialStar*> StarFinder::findStars(
 
 void StarFinder::findMinMax(
     const std::vector<PotentialStar*>& list, 
-    double *min, double *max, const Function2D<double>& f)
+    double *min, double *max, const Function2D& f)
 {
     double min1,max1;
     min1 = max1 = list[0]->getSize()-f(list[0]->getPos());
@@ -314,7 +314,7 @@ void StarFinder::findMinMax(
 
 void StarFinder::rejectOutliers(
     std::vector<PotentialStar*>& list, 
-    double nSigma, double minSigma, const Function2D<double>& f)
+    double nSigma, double minSigma, const Function2D& f)
 {
     // This rejects outliers by finding the median and the quartile 
     // values, and calls sigma the average of the two quartile deviations.
@@ -360,7 +360,7 @@ std::vector<PotentialStar*> StarFinder::getPeakList(
     const std::vector<PotentialStar*>& objList,
     double binSize, double minSize, double maxSize,
     int nStart, int minIter, double magStep, double maxSignifRatio,
-    bool isFirstPass, const Function2D<double>& f)
+    bool isFirstPass, const Function2D& f)
 {
     if (binSize < _minBinSize) binSize = _minBinSize;
 
@@ -597,7 +597,7 @@ std::vector<PotentialStar*> StarFinder::getPeakList(
 }
 
 void StarFinder::fitStellarSizes(
-    Function2D<double> *f, int order, double sigClip,
+    Function2D *f, int order, double sigClip,
     const std::vector<PotentialStar*>& starList, double *outSigma)
 {
     // Make list of positions
@@ -634,7 +634,7 @@ void StarFinder::fitStellarSizes(
 
 void StarFinder::roughlyFitBrightStars(
     const std::vector<PotentialStar*>& objList,
-    Function2D<double> *f,double *outSigma)
+    Function2D *f,double *outSigma)
 {
     // objList is already sorted by magnitude
     // make a new list with just the 50 brightest objects:

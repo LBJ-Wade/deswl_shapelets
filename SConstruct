@@ -89,6 +89,8 @@ opts.Add(BoolVariable('CACHE_LIB',
 
 opts.Add(BoolVariable('WITH_OPENMP',
             'Look for openmp and use if found.', True))
+opts.Add(BoolVariable('WITH_TMV',
+            'Use TMV for Matrix/Vector (rather than Eigen)', True))
 opts.Add(BoolVariable('STATIC',
             'Use static linkage', False))
 opts.Add(BoolVariable('MEM_TEST',
@@ -883,6 +885,41 @@ int main()
     return 1
 
 
+def CheckEigen(context):
+    eigen_source_file = """
+#include "Eigen/Core"
+#include "Eigen/Cholesky"
+int main()
+{
+  Eigen::MatrixXd S(10,10);
+  S.setConstant(4.);
+  Eigen::MatrixXd m(10,3);
+  m.setConstant(2.);
+  Eigen::MatrixXd m2(10,3);
+  S.llt().solve(m,&m2);
+  return 0;
+}
+"""
+
+    print 'Checking for correct Eigen linkage... (this may take a little while)'
+    context.Message('Checking for correct Eigen linkage... ')
+
+    if not context.TryCompile(eigen_source_file,'.cpp'):
+        context.Result(0)
+        print 'Error: Eigen file failed to compile.'
+        Exit(1)
+
+    # Eigen doesn't actually need any linking, but I didn't bother to 
+    # change the format of this check.  So [] for the linking libraries.
+    if not CheckLibs(context,[],eigen_source_file):
+        context.Result(0)
+        print 'Error: Eigen file failed to link correctly'
+        Exit(1)
+
+    context.Result(1)
+    return 1
+
+
 
 def DoLibraryAndHeaderChecks(config):
     """
@@ -900,137 +937,146 @@ def DoLibraryAndHeaderChecks(config):
         print 'cfitsio not found'
         Exit(1)
 
-    # Mike Jarvis' matrix libraries
-    # First do a simple check that the library and header are in the path.
-    # We check the linking with the BLAS library below.
-    if not config.CheckLibWithHeader('tmv','TMV.h',language='C++',autoadd=0):
-        print 'tmv library or TMV.h not found'
-        Exit(1)
-    if not config.CheckLibWithHeader('tmv_symband','TMV_Sym.h',language='C++',
-            autoadd=0):
-        print 'tmv_symband library not found'
-        Exit(1)
-
     if not config.CheckLibWithHeader('CCfits','CCfits/CCfits.h',
                                      language='C++'):
         stdout.write('CCfits library or header not found\n')
         Exit(1)
 
-    # This next section checks for the BLAS and/or LAPACK libraries.
-    # It needs to be the same as in the TMV SConstruct file
-    # to make sure the correct libraries are linked
-    # We don't need the CPPDEFINES or env['LAP'] or env['NOMIX_SMALL'] 
-    # here though.
-    #
-    # This should be modularized.  Is there a way to do something similar
-    # to a #include in python?  It would be nice to just include 
-    # a file that does the BLAS/LAPACK check, since that would make it 
-    # easier to keep the tmv and wl SConstruct files in sync.
-    foundlap = 0
-    foundblas = 0
-    foundatlasblas = 0
+    if config.env['WITH_TMV'] :
+        # Mike Jarvis' matrix libraries
+        # First do a simple check that the library and header are in the path.
+        # We check the linking with the BLAS library below.
+        if not config.CheckLibWithHeader('tmv','TMV.h',language='C++',autoadd=0):
+            print 'tmv library or TMV.h not found'
+            Exit(1)
+        if not config.CheckLibWithHeader('tmv_symband','TMV_Sym.h',language='C++',
+                autoadd=0):
+            print 'tmv_symband library not found'
+            Exit(1)
 
-    compiler = config.env['CXXTYPE']
-    version = config.env['CXXVERSION_NUMERICAL']
+        # This next section checks for the BLAS and/or LAPACK libraries.
+        # It needs to be the same as in the TMV SConstruct file
+        # to make sure the correct libraries are linked
+        # We don't need the CPPDEFINES or env['LAP'] or env['NOMIX_SMALL'] 
+        # here though.
+        #
+        # This should be modularized.  Is there a way to do something similar
+        # to a #include in python?  It would be nice to just include 
+        # a file that does the BLAS/LAPACK check, since that would make it 
+        # easier to keep the tmv and wl SConstruct files in sync.
+        foundlap = 0
+        foundblas = 0
+        foundatlasblas = 0
+    
+        compiler = config.env['CXXTYPE']
+        version = config.env['CXXVERSION_NUMERICAL']
+    
+        if not (config.env.has_key('LIBS')) :
+          config.env['LIBS'] = []
+    
+        if config.env['WITH_BLAS']:
+            foundblas = 1  # Set to 0 at end if not found
+            # Do FORCE options first:
+            if config.env['FORCE_MKL']:
+                config.CheckMKL()
+                if (config.env['WITH_LAPACK'] and config.CheckMKL_LAP()) :
+                    print 'Using MKL LAPACK'
+                    foundlap = 1
+                print 'Using MKL BLAS'
+    
+            elif config.env['FORCE_ACML']:
+                config.CheckACML()
+                if config.env['WITH_LAPACK']:
+                    print 'Using ACML LAPACK'
+                    foundlap = 1
+                print 'Using ACML BLAS'
+     
+            elif config.env['FORCE_GOTO']:
+                config.CheckGOTO()
+                print 'Using GOTO BLAS'
+    
+            elif config.env['FORCE_ATLAS']:
+                config.CheckATLAS()
+                print 'Using ATLAS BLAS'
+                foundatlasblas = 1
+    
+            elif config.env['FORCE_CBLAS']:
+                config.CheckCBLAS()
+                print 'Using CBLAS'
+    
+            elif config.env['FORCE_FBLAS']:
+                config.CheckFBLAS()
+                print 'Using FBLAS'
+    
+            # If no BLAS is forced, then look for MKL, ACML before more generic
+            # (and probably less optimized) BLAS library.
+            elif config.CheckMKL() :
+                if (config.env['WITH_LAPACK'] and config.CheckMKL_LAP()) :
+                    print 'Using MKL LAPACK'
+                    foundlap = 1
+                print 'Using MKL BLAS'
+     
+            elif config.CheckACML() :
+                if config.env['WITH_LAPACK']:
+                    print 'Using ACML LAPACK'
+                    foundlap = 1
+                print 'Using ACML BLAS'
+    
+            elif config.CheckGOTO() :
+                print 'Using GotoBLAS'
+    
+            elif config.CheckCBLAS() :
+                print 'Using CBLAS'
+    
+            elif config.CheckATLAS() :
+                print 'Using ATLAS'
+                foundatlasblas = 1
+    
+            elif config.CheckFBLAS() :
+                print 'Using Fortran BLAS'
+    
+            else:
+                print 'No BLAS libraries found'
+                foundblas = 0
+    
+        if foundblas and not foundlap and config.env['WITH_LAPACK']:
+            foundlap = 1   # Set back to 0 at end if not found.
+            if config.env['FORCE_CLAPACK']:
+                config.CheckCLAPACK()
+                print 'Using CLAPACK'
+    
+            elif config.env['FORCE_FLAPACK']:
+                config.CheckFLAPACK()
+                print 'Using FLAPACK'
+    
+            elif foundatlasblas and config.env['FORCE_ATLAS_LAPACK']:
+                config.CheckATLAS_LAP()
+                print 'Using ATLAS LAPACK'
+    
+            elif config.CheckCLAPACK() :
+                print 'Using CLAPACK'
+    
+            elif config.CheckFLAPACK() :
+                print 'Using Fortran LAPACK'
+    
+            elif foundatlasblas and config.CheckATLAS_LAP():
+                print 'Using ATLAS LAPACK'
+    
+            else :
+                print 'No LAPACK libraries found'
+                foundlap = 0
+    
+        config.CheckTMV()
+        env.Append(CPPDEFINES=['USE_TMV'])
 
-    if not (config.env.has_key('LIBS')) :
-      config.env['LIBS'] = []
+    else :
+        # No need for the BLAS libraries if we are using Eigen.
 
-    if config.env['WITH_BLAS']:
-        foundblas = 1  # Set to 0 at end if not found
-        # Do FORCE options first:
-        if config.env['FORCE_MKL']:
-            config.CheckMKL()
-            if (config.env['WITH_LAPACK'] and config.CheckMKL_LAP()) :
-                print 'Using MKL LAPACK'
-                foundlap = 1
-            print 'Using MKL BLAS'
+        if not config.CheckHeader('Eigen/Core',language='C++') :
+            print 'Eigen/Core not found'
+            Exit(1)
 
-        elif config.env['FORCE_ACML']:
-            config.CheckACML()
-            if config.env['WITH_LAPACK']:
-                print 'Using ACML LAPACK'
-                foundlap = 1
-            print 'Using ACML BLAS'
- 
-        elif config.env['FORCE_GOTO']:
-            config.CheckGOTO()
-            print 'Using GOTO BLAS'
-
-        elif config.env['FORCE_ATLAS']:
-            config.CheckATLAS()
-            print 'Using ATLAS BLAS'
-            foundatlasblas = 1
-
-        elif config.env['FORCE_CBLAS']:
-            config.CheckCBLAS()
-            print 'Using CBLAS'
-
-        elif config.env['FORCE_FBLAS']:
-            config.CheckFBLAS()
-            print 'Using FBLAS'
-
-        # If no BLAS is forced, then look for MKL, ACML before more generic
-        # (and probably less optimized) BLAS library.
-        elif config.CheckMKL() :
-            if (config.env['WITH_LAPACK'] and config.CheckMKL_LAP()) :
-                print 'Using MKL LAPACK'
-                foundlap = 1
-            print 'Using MKL BLAS'
- 
-        elif config.CheckACML() :
-            if config.env['WITH_LAPACK']:
-                print 'Using ACML LAPACK'
-                foundlap = 1
-            print 'Using ACML BLAS'
-
-        elif config.CheckGOTO() :
-            print 'Using GotoBLAS'
-
-        elif config.CheckCBLAS() :
-            print 'Using CBLAS'
-
-        elif config.CheckATLAS() :
-            print 'Using ATLAS'
-            foundatlasblas = 1
-
-        elif config.CheckFBLAS() :
-            print 'Using Fortran BLAS'
-
-        else:
-            print 'No BLAS libraries found'
-            foundblas = 0
-
-    if foundblas and not foundlap and config.env['WITH_LAPACK']:
-        foundlap = 1   # Set back to 0 at end if not found.
-        if config.env['FORCE_CLAPACK']:
-            config.CheckCLAPACK()
-            print 'Using CLAPACK'
-
-        elif config.env['FORCE_FLAPACK']:
-            config.CheckFLAPACK()
-            print 'Using FLAPACK'
-
-        elif foundatlasblas and config.env['FORCE_ATLAS_LAPACK']:
-            config.CheckATLAS_LAP()
-            print 'Using ATLAS LAPACK'
-
-        elif config.CheckCLAPACK() :
-            print 'Using CLAPACK'
-
-        elif config.CheckFLAPACK() :
-            print 'Using Fortran LAPACK'
-
-        elif foundatlasblas and config.CheckATLAS_LAP():
-            print 'Using ATLAS LAPACK'
-
-        else :
-            print 'No LAPACK libraries found'
-            foundlap = 0
-
-    # Check that tmv library links correctly with the BLAS/LAPACK
-    # library found above.
-    config.CheckTMV()
+        config.CheckEigen()
 
 
 def DoConfig(env):
@@ -1080,7 +1126,8 @@ def DoConfig(env):
         'CheckATLAS_LAP' : CheckATLAS_LAP ,
         'CheckCLAPACK' : CheckCLAPACK ,
         'CheckFLAPACK' : CheckFLAPACK ,
-        'CheckTMV' : CheckTMV
+        'CheckTMV' : CheckTMV ,
+        'CheckEigen' : CheckEigen
         })
     DoLibraryAndHeaderChecks(config)
     env = config.Finish()

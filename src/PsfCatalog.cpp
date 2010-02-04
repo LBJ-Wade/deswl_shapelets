@@ -1,7 +1,6 @@
 
 #include <sstream>
 #include <valarray>
-#include "TMV.h"
 #include <CCfits/CCfits>
 
 #include "PsfCatalog.h"
@@ -33,7 +32,7 @@ void measureSinglePsf1(
     ell.fixMu();
     ell.peakCentroid(pix[0],psfAp/3.);
     ell.crudeMeasure(pix[0],sigmaP);
-    tmv::Matrix<double> cov(psf.size(),psf.size());
+    DMatrix cov(psf.size(),psf.size());
 
     long flag1=0;
     if (ell.measure(pix,psfOrder,sigmaP,false,flag1,0,&psf,&cov)) {
@@ -49,8 +48,8 @@ void measureSinglePsf1(
     // of the same value.  (Within 10s of percent usually, but we only call it
     // an error if it is more than a factor of 3 different.)
     BVec flux(0,sigmaP);
-    tmv::Matrix<double> fluxCov(1,1);
-    ell.measureShapelet(pix,flux,&fluxCov);
+    DMatrix fluxCov(1,1);
+    ell.measureShapelet(pix,flux,0,&fluxCov);
     nu = flux(0) / std::sqrt(fluxCov(0,0));
     dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<nu<<std::endl;
     dbg<<" or  "<<psf(0)<<" / sqrt("<<cov(0,0)<<") = "<<
@@ -94,11 +93,13 @@ void measureSinglePsf(
         measureSinglePsf1(
 	    cen,im,sky,trans,noise,gain,weightIm,
 	    sigmaP,psfAp,psfOrder,log,psf,nu,flag);
+#ifdef USE_TMV
     } catch (tmv::Error& e) {
         dbg<<"TMV Error thrown in MeasureSinglePSF\n";
         dbg<<e<<std::endl;
         ++log._nfTmvError;
         flag |= TMV_EXCEPTION;
+#endif
     } catch (...) {
         dbg<<"unkown exception in MeasureSinglePSF\n";
         ++log._nfOtherError;
@@ -254,7 +255,11 @@ void PsfCatalog::writeFits(std::string file) const
     double dbl;
     int intgr;
 
+#ifdef USE_TMV
     std::string tmvVers = tmv::TMV_Version();
+#else
+    std::string tmvVers = "Eigen";
+#endif
     std::string wlVers = getWlVersion();
 
     table->addKey("tmvvers", tmvVers, "version of TMV code");
@@ -304,7 +309,7 @@ void PsfCatalog::writeFits(std::string file) const
 
         table->column(colNames[7]).write(&bOrder,1,row);
         table->column(colNames[8]).write(&bSigma,1,row);
-        double* cptr = const_cast<double *>(_psf[i].vec().cptr());
+        double* cptr = const_cast<double *>(TMV_cptr(_psf[i].vec()));
         table->column(colNames[9]).write(cptr, nCoeff, 1, row);
     }
 }

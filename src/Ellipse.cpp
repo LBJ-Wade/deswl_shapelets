@@ -1,7 +1,6 @@
 
 #include "Ellipse.h"
 #include "EllipseSolver.h"
-#include "TMV.h"
 #include <cmath>
 #include "dbg.h"
 #include <fstream>
@@ -16,7 +15,7 @@ bool Ellipse::measure(
     const std::vector<PixelList>& pix,
     const std::vector<BVec>& psf,
     int order, double sigma, bool shouldUseInteg, long& flag,
-    tmv::Matrix<double>* cov, BVec* bRet, tmv::Matrix<double>* bCov)
+    DMatrix* cov, BVec* bRet, DMatrix* bCov)
 { 
     return doMeasure(pix,&psf,order,sigma,shouldUseInteg,flag,cov,bRet,bCov); 
 }
@@ -24,18 +23,18 @@ bool Ellipse::measure(
 bool Ellipse::measure(
     const std::vector<PixelList>& pix,
     int order, double sigma, bool shouldUseInteg, long& flag, 
-    tmv::Matrix<double>* cov, BVec* bRet, tmv::Matrix<double>* bCov)
+    DMatrix* cov, BVec* bRet, DMatrix* bCov)
 {
     return doMeasure(pix,0,order,sigma,shouldUseInteg,flag,cov,bRet,bCov);
 }
 
 void Ellipse::doMeasureShapelet(
     const std::vector<PixelList>& pix,
-    const std::vector<BVec>* psf, BVec& b, tmv::Matrix<double>* bCov) const
+    const std::vector<BVec>* psf, BVec& b, int order, DMatrix* bCov) const
 {
-    xdbg<<"Start MeasureShapelet: order = "<<b.getOrder()<<std::endl;
-    xdbg<<"sigma = "<<b.getSigma()<<std::endl;
-    xdbg<<"el = "<<*this<<std::endl;
+    xdbg<<"Start MeasureShapelet: order = "<<order<<std::endl;
+    xdbg<<"b.order, sigma = "<<b.getOrder()<<", "<<b.getSigma()<<std::endl;
+    //xdbg<<"el = "<<*this<<std::endl;
 
     // ( u )' = exp(-mu)/sqrt(1-gsq) ( 1-g1  -g2  ) ( u-uc )
     // ( v )                         ( -g2   1+g1 ) ( v-vc )
@@ -46,7 +45,6 @@ void Ellipse::doMeasureShapelet(
     //    = exp(-mu)/sqrt(1-gsq) [ z-zc - g1(z-zc)* -Ig2(z-zc)* ]
     //    = exp(-mu)/sqrt(1-gsq) ( z-zc - g (z-zc)* )
 
-    int order = b.getOrder();
     double sigma = b.getSigma();
     double gsq = std::norm(_gamma);
     Assert(gsq < 1.);
@@ -56,11 +54,11 @@ void Ellipse::doMeasureShapelet(
     int nTot = 0;
     const int nExp = pix.size();
     for(int i=0;i<nExp;++i) nTot += pix[i].size();
-    dbg<<"ntot = "<<nTot<<" in "<<nExp<<" images\n";
+    //dbg<<"ntot = "<<nTot<<" in "<<nExp<<" images\n";
 
-    tmv::Vector<double> I(nTot);
-    tmv::DiagMatrix<double> W(nTot);
-    tmv::Vector<std::complex<double> > Z(nTot);
+    DVector I(nTot);
+    DVector W(nTot);
+    CDVector Z(nTot);
 
     for(int k=0,n=0;k<nExp;++k) {
         double sigma_obs = 
@@ -78,46 +76,88 @@ void Ellipse::doMeasureShapelet(
         }
     }
 
-    const int bSize = b.size();
-    tmv::Matrix<double> A(nTot,bSize);
-    makePsi(A.view(),Z,order,&W);
+    const int bSize = (order+1)*(order+2)/2;
+
+    DMatrix A(nTot,bSize);
+    Assert(nTot >= bSize); // Should have been addressed by calling routine.
+    makePsi(A,TMV_vview(Z),order,&W);
 
     if (psf) {
         for(int k=0,n=0,nx;k<nExp;++k,n=nx) {
             const int psfSize = (*psf)[k].size();
             BVec newPsf = (*psf)[k];
-            tmv::Matrix<double> S(psfSize,psfSize);
+            DMatrix S(psfSize,psfSize);
             calculateGTransform(_gamma,newPsf.getOrder(),S);
             newPsf.vec() = S * (*psf)[k].vec();
-            tmv::Matrix<double> D(psfSize,psfSize);
+            DMatrix D(psfSize,psfSize);
             calculateMuTransform(_mu,newPsf.getOrder(),D);
             newPsf.vec() = D * newPsf.vec();
-            tmv::Matrix<double> C(bSize,bSize);
-            calculatePsfConvolve(newPsf,b.getOrder(),b.getSigma(),C);
+            DMatrix C(bSize,bSize);
+            calculatePsfConvolve(newPsf,order,b.getSigma(),C);
             const int nPix = pix[k].size();
             nx = n+nPix;
-            A.rowRange(n,nx) *= C;
+            TMV_rowRange(A,n,nx) *= C;
         }
     }
+#ifdef USE_TMV
     A.divideUsing(tmv::SV);
     A.saveDiv();
     const double sqrtEps = sqrt(std::numeric_limits<double>::epsilon());
     A.svd().thresh(sqrtEps);
     dbg<<"For MeasureShapelet: svd = "<<A.svd().getS().diag()<<std::endl;
-    dbg<<"Omitting last "<<A.rowsize()-A.svd().getKMax()<<" singular values\n";
-    b.vec() = I/A;
+    if (A.svd().getKMax() < A.rowsize())
+        dbg<<"Omitting last "<<A.rowsize()-A.svd().getKMax()<<" singular values\n";
+    b.vec().subVector(0,bSize) = I/A;
     if (bCov) {
         A.makeInverseATA(*bCov);
     }
+#else
+    const double sqrtEps = sqrt(std::numeric_limits<double>::epsilon());
+    Eigen::SVD<DMatrix> svd = A.svd().sort();
+    const DMatrix& svd_u = svd.matrixU();
+    const DVector& svd_s = svd.singularValues();
+    const DMatrix& svd_v = svd.matrixV();
+    double max = svd_s(0);
+    int kmax = 0;
+    double thresh = sqrtEps * max;
+    while (kmax < svd_s.size() && svd_s(kmax) > thresh) ++kmax;
+    dbg<<"For MeasureShapelet: svd = "<<svd_s.transpose()<<std::endl;
+    if (kmax < svd_s.size())
+        dbg<<"Omitting last "<<svd_s.size()-kmax<<" singular values\n";
+    // USVtb = I
+    // b = VS^-1UtI
+    DVector temp = TMV_colRange(svd_u,0,kmax).transpose() * I;
+    //dbg<<"after temp = Ut I\n";
+    temp = svd_s.TMV_subVector(0,kmax).cwise().inverse().asDiagonal() * temp;
+    //dbg<<"after temp = S^-1 * temp\n";
+    b.vec().TMV_subVector(0,bSize) = TMV_colRange(svd_v,0,kmax) * temp;
+    //dbg<<"after b = v * temp\n";
+    if (bCov) {
+        //dbg<<"make bCov:\n";
+        // (AtA)^-1 = (VSUt USVt)^-1 = (V S^2 Vt)^-1 = V S^-2 Vt
+        DMatrix temp2 = 
+            svd_s.TMV_subVector(0,kmax).cwise().square().inverse().asDiagonal() *
+            TMV_colRange(svd_v,0,kmax).transpose();
+        //dbg<<"after temp2 = s^-2 * v\n";
+        *bCov = TMV_colRange(svd_v,0,kmax).transpose() * temp2;
+        //dbg<<"after bCov = vt * temp2\n";
+    }
+#endif
+    if (order < b.getOrder()) {
+        dbg<<"Need to zero the rest of b\n";
+        dbg<<"bSize = "<<bSize<<"  b.size = "<<b.size()<<std::endl;
+        // Zero out the rest of the shapelet vector:
+        b.vec().TMV_subVector(bSize,b.size()).setZero();
+    }
+    //dbg<<"Done measure Shapelet\n";
 }
 
 void Ellipse::measureShapelet(
     const std::vector<PixelList>& pix,
-    const std::vector<BVec>& psf, BVec& b, tmv::Matrix<double>* bCov) const
-{ doMeasureShapelet(pix,&psf,b,bCov); }
+    const std::vector<BVec>& psf, BVec& b, int order, DMatrix* bCov) const
+{ doMeasureShapelet(pix,&psf,b,order,bCov); }
 
 void Ellipse::measureShapelet(
-    const std::vector<PixelList>& pix,
-    BVec& b, tmv::Matrix<double>* bCov) const
-{ doMeasureShapelet(pix,0,b,bCov); }
+    const std::vector<PixelList>& pix, BVec& b, int order, DMatrix* bCov) const
+{ doMeasureShapelet(pix,0,b,order,bCov); }
 
