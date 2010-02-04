@@ -1,3 +1,62 @@
+
+
+src/Ellipse_omp.cpp: Switched deconvolving solver to use numeric J, rather
+  than calculated J, since it turns out to be faster.
+
+example_config/wl.config,
+src/PsfCatalog_omp.cpp: Added option of specifying sigma_p directly,
+  rather than calculating it from the data.  This is useful for 
+  testing with simulation images that have a known sigma to test that
+  the PSF measures the same thing that you put in.
+
+Updated to work with TMV v0.63.
+
+Added option of using Eigen rather than TMV (for lsst -- TMV is faster).
+
+-------------------------------------------------------------------------
+v0.53   (2009-12-18)  Found some bugs when the DM team staged the DC5
+        data to try out the multishear code.
+
+src/ShearCatalog.cpp (and others): Make skyBounds from only good objects.
+  Also, keep ra, dec in degrees rather than arcsec.
+
+src/*Catalog.cpp: Changed CCfits::FITS construction to not load everything
+  until it is needed.  (4th parameter true->false)
+
+src/Pixel.cpp: added explicit copy constructor and op=, since implicit
+  versions did the wrong thing.
+
+src/BVec.cpp: added explicit op=, since implicit version did the wrong thing.
+
+src/*Catalog.cpp: Improved precision of ASCII output.
+
+src/NLSolver.cpp: Improved accuracy of numeric J calculation.
+
+src/CrudeMeasure.cpp: Sped up estimate of sizes.
+
+src/StarCatalog.cpp: Fixed bug in size estimation where it relied on a 
+  return flag from ell.measure being set, but it isn't always set on
+  failure.  So now explicitly set NATIVE_FAILED on failures.
+
+example_config/wl.config,
+src/MultiShearCatalog.cpp: Added support for explicitly listing 
+  background image file in the input file list, rather than forming it
+  from the main image name.
+
+example_config/wl.config,
+src/*Catalog.cpp: Added support for using a different hdu for each
+  possible extension when multiple extensions are provided for in 
+  input file.  Also, looks for the hdu here even if the filename is
+  explicitly given.  Also, if explicit filename is not found, looks for 
+  other names constructed from the extension list.
+
+example_config/wl.config: Set to good values for DC5.
+
+Updated style to match lsst style (mostly) to make it easier to keep the
+two versions of the code in sync.
+
+... other miscellaneous small bug fixes.
+
 -------------------------------------------------------------------------
 v0.52   (2009-11-25)  We have made a number of bug fixes since v0.51, and
         the DM team is about to start their multishear tests, so it seemed
