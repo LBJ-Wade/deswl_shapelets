@@ -53,6 +53,7 @@ static void doMeasureShear(ConfigFile& params, ShearLog& log)
 
     // Read the fitted psf file
     FittedPsf fitPsf(params);
+    fitPsf.read();
 
     if (isTiming) {
         gettimeofday(&tp,0);

@@ -18,10 +18,9 @@ public :
     // Make from PsfCatalog
     FittedPsf(PsfCatalog& psfcat, const ConfigFile& params);
 
-    // Read from file
+    // Setup FittedPsf, but don't assign to the values yet.
+    // Should be followed by either read or calculate.
     FittedPsf(const ConfigFile& params);
-    // With this one we don't have to use the whole root= thing
-    FittedPsf(const ConfigFile& params, std::string file);
 
     int getPsfOrder() const { return _psfOrder; }
     int getPsfSize() const { return (_psfOrder+1)*(_psfOrder+2)/2; }
@@ -45,6 +44,12 @@ public :
     void read(std::string file);
     void readAscii(std::string file);
     void readFits(std::string file);
+
+    void calculate(
+        const std::vector<Position>& pos,
+        const std::vector<BVec>& psf,
+        const std::vector<double>& nu,
+        std::vector<long>& flags);
 
     void interpolate(Position pos, BVec& b) const
     {

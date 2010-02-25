@@ -59,6 +59,7 @@ public :
     const BVec& getPsf(int i) const { return _psf[i]; }
 
     void setFlag(int i, long newFlag) { _flags[i] |= newFlag; }
+    std::vector<long>& getFlagsList() { return _flags; }
 
 private :
 

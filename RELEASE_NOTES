@@ -1,4 +1,7 @@
 
+src/FittedPsf.cpp: Changed FittedPsf constructor to just take params and set
+  up the sizes of the objects, but then have separate read and calculate 
+  commands to either read from disk or calculate as appropriate.
 
 src/Ellipse_omp.cpp: Switched deconvolving solver to use numeric J, rather
   than calculated J, since it turns out to be faster.
@@ -11,7 +14,9 @@ src/PsfCatalog_omp.cpp: Added option of specifying sigma_p directly,
 
 Updated to work with TMV v0.63.
 
-Added option of using Eigen rather than TMV (for lsst -- TMV is faster).
+Added option of using Eigen rather than TMV 
+  For lsst compatibility.
+  Not recommended for DES, since TMV is faster (with or without BLAS).
 
 -------------------------------------------------------------------------
 v0.53   (2009-12-18)  Found some bugs when the DM team staged the DC5

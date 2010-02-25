@@ -69,6 +69,20 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
         break;
     }
 
+    calculate(
+        psfCat.getPosList(),
+        psfCat.getPsfList(),
+        psfCat.getNuList(),
+        psfCat.getFlagsList());
+}
+
+void FittedPsf::calculate(
+    const std::vector<Position>& pos,
+    const std::vector<BVec>& psf,
+    const std::vector<double>& nu,
+    std::vector<long>& flags)
+{
+    const int nStars = pos.size();
     const int psfSize = (_psfOrder+1)*(_psfOrder+2)/2;
     const double nSigmaClip = _params.read("fitpsf_nsigma_outlier",3);
 
@@ -96,9 +110,9 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
         Assert(psfSize == int(_avePsf->size()));
         _avePsf->setZero();
         int nGoodPsf = 0;
-        for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
-            Assert(psfCat.getPsf(n).getSigma() == _sigma);
-            *_avePsf += psfCat.getPsf(n).vec();
+        for(int n=0;n<nStars;++n) if (!flags[n]) {
+            Assert(psf[n].getSigma() == _sigma);
+            *_avePsf += psf[n].vec();
             ++nGoodPsf;
         }
         if (nGoodPsf == 0) {
@@ -112,12 +126,12 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
         DMatrix mM(nGoodPsf,psfSize);
         DDiagMatrix inverseSigma(nGoodPsf);
         int i=0;
-        for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
-            Assert(int(psfCat.getPsf(n).size()) == psfSize);
+        for(int n=0;n<nStars;++n) if (!flags[n]) {
+            Assert(int(psf[n].size()) == psfSize);
             Assert(i < nGoodPsf);
-            mM.row(i) = psfCat.getPsf(n).vec() - *_avePsf;
-            inverseSigma(i) = psfCat.getNu(n);
-            _bounds += psfCat.getPos(n);
+            mM.row(i) = psf[n].vec() - *_avePsf;
+            inverseSigma(i) = nu[n];
+            _bounds += pos[n];
             ++i;
         }
         Assert(i == nGoodPsf);
@@ -183,13 +197,13 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
         DMatrix mP(nGoodPsf,_fitSize);
         mP.setZero();
         i=0;
-        for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
+        for(int n=0;n<nStars;++n) if (!flags[n]) {
             xdbg<<"n = "<<n<<" / "<<nStars<<std::endl;
 #ifdef USE_TMV
-            setPRow(_fitOrder,psfCat.getPos(n),_bounds,mP.row(i));
+            setPRow(_fitOrder,pos[n],_bounds,mP.row(i));
 #else
             DVector mProwi(mP.TMV_rowsize());
-            setPRow(_fitOrder,psfCat.getPos(n),_bounds,mProwi);
+            setPRow(_fitOrder,pos[n],_bounds,mProwi);
             mP.row(i) = mProwi.transpose();
 #endif
             ++i;
@@ -215,10 +229,10 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
         // Calculate the covariance matrix
         DMatrix cov(psfSize,psfSize);
         cov.setZero();
-        for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
-            const BVec& data = psfCat.getPsf(n);
+        for(int n=0;n<nStars;++n) if (!flags[n]) {
+            const BVec& data = psf[n];
             DVector fit(psfSize);
-            interpolateVector(psfCat.getPos(n),TMV_vview(fit));
+            interpolateVector(pos[n],TMV_vview(fit));
             DVector diff = data.vec() - fit;
 #ifdef USE_TMV
             cov += diff ^ diff;
@@ -243,10 +257,10 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
 
         // Clip out 3 sigma outliers:
         nOutliers = 0;
-        for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
-            const BVec& data = psfCat.getPsf(n);
+        for(int n=0;n<nStars;++n) if (!flags[n]) {
+            const BVec& data = psf[n];
             DVector fit(psfSize);
-            interpolateVector(psfCat.getPos(n),TMV_vview(fit));
+            interpolateVector(pos[n],TMV_vview(fit));
             DVector diff = data.vec() - fit;
 #ifdef USE_TMV
             double dev = diff * cov.inverse() * diff;
@@ -267,7 +281,7 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
 #endif
                 xdbg<<"dev = "<<dev<<std::endl;
                 ++nOutliers;
-                psfCat.setFlag(n, PSF_INTERP_OUTLIER);
+                flags[n] |= PSF_INTERP_OUTLIER;
             }
         }
         xdbg<<"ngoodpsf = "<<nGoodPsf<<std::endl;
@@ -277,19 +291,11 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
 
 }
 
-FittedPsf::FittedPsf(const ConfigFile& params) : _params(params)
-{
-    read();
-}
-
-// With this one we don't have to use the whole root= thing
-FittedPsf::FittedPsf(const ConfigFile& params, std::string file) : 
-    _params(params)
-{
-    read(file);
-}
-
-
+FittedPsf::FittedPsf(const ConfigFile& params) : 
+    _params(params), _psfOrder(_params.read<int>("psf_order")),
+    _fitOrder(_params.read<int>("fitpsf_order")),
+    _fitSize((_fitOrder+1)*(_fitOrder+2)/2)
+{ }
 
 void FittedPsf::writeAscii(std::string file) const
 {

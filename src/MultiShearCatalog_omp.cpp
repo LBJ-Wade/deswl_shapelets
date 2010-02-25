@@ -331,6 +331,7 @@ void MultiShearCatalog::getImagePixelLists(
 
     // Read the psf
     FittedPsf fitPsf(_params);
+    fitPsf.read();
 
     // Make a tree of the shear catalog to more easily find the nearest
     // single-epoch object to each coadd detection.

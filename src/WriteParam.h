@@ -1,5 +1,5 @@
-#ifndef WriteParKey_H
-#define WriteParKey_H
+#ifndef WriteParam_H
+#define WriteParam_H
 
 template <typename T>
 static void writeParamToTable(

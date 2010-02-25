@@ -46,7 +46,8 @@ int main(int argc, char **argv)
     PsfCatalog psfCat(params, psfFile);
 
     std::cerr<<"Loading a FittedPSF\n";
-    FittedPsf fitPsf(params, fitPsfFile);
+    FittedPsf fitPsf(params);
+    fitPsf.read(fitPsfFile);
 
     BVec iPsf(fitPsf.getPsfOrder(), fitPsf.getSigma());
 

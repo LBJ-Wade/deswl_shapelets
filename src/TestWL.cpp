@@ -1990,6 +1990,7 @@ int main(int argc, char **argv) try
     // Test I/O
     fitpsf.write();
     FittedPsf fitpsf2(params);
+    fitpsf2.read();
     all_ext = params["fitpsf_ext"];
     for(size_t k=0;k<all_ext.size();++k) {
         dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
