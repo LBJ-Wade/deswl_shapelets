@@ -15,7 +15,7 @@ double PsfCatalog::estimateSigma(
     const Image<double>* weightIm, const Transformation& trans)
 {
     if (_params.keyExists("psf_force_sigma_p")) {
-        double sigmaP = _params["psf_force_simga_p"];
+        double sigmaP = _params["psf_force_sigma_p"];
         dbg<<"Using forced value for sigmaP = "<<sigmaP<<std::endl;
         return sigmaP;
     }
