@@ -39,6 +39,11 @@ public:
     Position& operator/=(double x) 
     { _z /= x; return *this; }
 
+    Position& operator+=(const std::complex<double>& z2) 
+    { _z += z2; return *this; }
+    Position& operator-=(const std::complex<double>& z2) 
+    { _z -= z2; return *this; }
+
     double getX() const { return(_z.real()); }
 
     double getY() const { return(_z.imag()); }

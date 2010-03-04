@@ -1,3 +1,15 @@
+src/PsfCatalog_omp.cpp, src/ShearCatalog_omp.cpp, etc.: Added option to
+  fix the centroid at the value given by the input catalog.
+  Use psf_fix_centroid=true or shear_fix_centroid=true respectively.
+
+  Also, when the centroid is not fixed, I now update the position in the 
+  PsfCatalog or ShearCatalog object, so the new values are written out
+  in the output file.
+
+src/PsfCatalog_omp.cpp: Added option to force a particular value of sigma_p,
+  rather than have the code calculate a value from the measured native-fit
+  value of sigma for each star.
+  Use psf_force_sigma_p=<value>
 
 src/FittedPsf.cpp: Changed FittedPsf constructor to just take params and set
   up the sizes of the objects, but then have separate read and calculate 

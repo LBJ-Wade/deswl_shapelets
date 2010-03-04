@@ -11,12 +11,12 @@
 #include "MeasureShearAlgo.h"
 
 void measureSingleShear1(
-    Position cen, const Image<double>& im, double sky,
+    Position& cen, const Image<double>& im, double sky,
     const Transformation& trans, const std::vector<BVec>& psf,
     double noise, double gain, const Image<double>* weightIm, 
     double galAperture, double maxAperture,
     int galOrder, int galOrder2,
-    double fPsf, double minGalSize,
+    double fPsf, double minGalSize, bool fixCen,
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     DSmallMatrix22& shearcov, BVec& shapelet,
@@ -47,6 +47,7 @@ void measureSingleShear1(
 
     Ellipse ell;
     ell.fixGam();
+    if (fixCen) ell.fixCen();
     ell.crudeMeasure(pix[0],sigmaObs);
     xdbg<<"Crude Measure: centroid = "<<ell.getCen()<<", mu = "<<ell.getMu()<<std::endl;
 
@@ -66,6 +67,7 @@ void measureSingleShear1(
         ++log._nfNative;
         dbg<<"Native measurement failed\n";
         flag |= NATIVE_FAILED;
+        if (!fixCen) cen += ell.getCen();
         return;
     }
 
@@ -77,6 +79,7 @@ void measureSingleShear1(
             " psf size = "<<sigmaP<<std::endl;
         ++log._nfSmall;
         flag |= TOO_SMALL;
+        if (!fixCen) cen += ell.getCen();
         return;
     }
     galAp *= exp(ell.getMu());
@@ -146,7 +149,11 @@ void measureSingleShear1(
         dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
         dbg<<"Reduced gal_order to "<<go<<" gal_size = "<<galSize<<std::endl;
         flag |= SHAPE_REDUCED_ORDER;
-        if (go < 2) { flag |= TOO_SMALL; return; }
+        if (go < 2) { 
+            flag |= TOO_SMALL; 
+            if (!fixCen) cen += ell.getCen();
+            return; 
+        }
     }
     shapelet.setSigma(sigma);
     std::complex<double> gale = 0.;
@@ -171,7 +178,10 @@ void measureSingleShear1(
     }
 
     // If the above deconvolving fit failed, then return.
-    if (flag & DECONV_FAILED) return;
+    if (flag & DECONV_FAILED) {
+        if (!fixCen) cen += ell.getCen();
+        return;
+    }
 
     // Under normal circumstances, b20/b00 ~= conj(gamma)/sqrt(2)
     gale = std::complex<double>(shapelet(3),shapelet(4));
@@ -198,30 +208,26 @@ void measureSingleShear1(
         ++log._nsGamma;
         dbg<<"Successful Gamma fit\n";
         xdbg<<"Measured gamma = "<<ell.getGamma()<<std::endl;
-        shear = ell.getGamma();
-        DSmallMatrix22 cov1 = cov.TMV_subMatrix(2,4,2,4);
-        if (!(cov1.TMV_det() > 0.)) flag |= SHEAR_BAD_COVAR;
-        else shearcov = cov1;
     } else {
         if (times) times->failGamma(ell.getTimes());
         ++log._nfGamma;
         dbg<<"Measurement failed\n";
         flag |= SHEAR_FAILED;
-        shear = ell.getGamma();
-        DSmallMatrix22 cov1 = cov.TMV_subMatrix(2,4,2,4);
-        if (!(cov1.TMV_det() > 0.)) flag |= SHEAR_BAD_COVAR;
-        else shearcov = cov1;
-        return;
     }
+    shear = ell.getGamma();
+    DSmallMatrix22 cov1 = cov.TMV_subMatrix(2,4,2,4);
+    if (!(cov1.TMV_det() > 0.)) flag |= SHEAR_BAD_COVAR;
+    else shearcov = cov1;
+    if (!fixCen) cen += ell.getCen();
 }
 
 void measureSingleShear(
-    Position cen, const Image<double>& im, double sky,
+    Position& cen, const Image<double>& im, double sky,
     const Transformation& trans, const FittedPsf& fitpsf,
     double noise, double gain, const Image<double>* weightIm, 
     double galAperture, double maxAperture,
     int galOrder, int galOrder2,
-    double fPsf, double minGalSize,
+    double fPsf, double minGalSize, bool fixCen,
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     DSmallMatrix22& shearcov, BVec& shapelet,
@@ -244,8 +250,7 @@ void measureSingleShear(
     }
 
     // Calculate the psf from the fitted-psf formula:
-    std::vector<BVec> psf(
-	1, BVec(fitpsf.getPsfOrder(), fitpsf.getSigma()));
+    std::vector<BVec> psf(1, BVec(fitpsf.getPsfOrder(), fitpsf.getSigma()));
     try {
         dbg<<"for fittedpsf cen = "<<cen<<std::endl;
         psf[0] = fitpsf(cen);
@@ -268,7 +273,7 @@ void measureSingleShear(
             noise, gain, weightIm, 
             // Parameters:
             galAperture, maxAperture, galOrder, galOrder2, 
-            fPsf, minGalSize, 
+            fPsf, minGalSize, fixCen,
             // Time stats if desired:
             times,
             // Log information

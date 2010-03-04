@@ -23,6 +23,7 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
     int galOrder2 = _params.read("shear_gal_order2",galOrder);
     double fPsf = _params.read<double>("shear_f_psf");
     double minGalSize = _params.read<double>("shear_min_gal_size");
+    bool galFixCen = _params.read("shear_fix_centroid",false);
     bool shouldOutputDots = _params.read("output_dots",false);
     bool isTiming = _params.read("timing",false);
 
@@ -83,7 +84,7 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                     _skyPos[i], _pixList[i], _psfList[i],
                     // Parameters:
                     galAperture, maxAperture, galOrder, galOrder2, 
-                    fPsf, minGalSize, 
+                    fPsf, minGalSize, galFixCen,
                     // Time stats if desired:
                     isTiming ? &times : 0, 
                     // Log information

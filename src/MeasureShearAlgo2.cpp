@@ -18,12 +18,12 @@
 //       chunks with a single driver function.
 
 void measureMultiShear(
-    const Position& cen, 
+    Position& cen, 
     const std::vector<PixelList>& allpix,
     const std::vector<BVec>& psf,
     double gal_aperture, double max_aperture,
     int gal_order, int gal_order2,
-    double fPsf, double min_gal_size, 
+    double fPsf, double min_gal_size, bool fixCen,
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     DSmallMatrix22& shearcov, BVec& shapelet,
@@ -78,6 +78,7 @@ void measureMultiShear(
         // guess rather than crudeMeasure.
         Ellipse ell;
         ell.fixGam();
+        if (fixCen) ell.fixCen();
         ell.crudeMeasure(pix,sigma_obs);
         xdbg<<"Crude Measure: centroid = "<<ell.getCen()<<", mu = "<<ell.getMu()<<std::endl;
 
@@ -98,6 +99,7 @@ void measureMultiShear(
             ++log._nfNative;
             dbg<<"Native measurement failed\n";
             flag |= NATIVE_FAILED;
+            if (!fixCen) cen += ell.getCen();
             return;
         }
 
@@ -111,6 +113,7 @@ void measureMultiShear(
             if (times) ++times->_nfSmall;
             ++log._nfSmall;
             flag |= TOO_SMALL;
+            if (!fixCen) cen += ell.getCen();
             return;
         }
         galap *= exp(ell.getMu());
@@ -185,7 +188,11 @@ void measureMultiShear(
             dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
             dbg<<"Reduced gal_order to "<<go<<" gal_size = "<<gal_size<<std::endl;
             flag |= SHAPE_REDUCED_ORDER;
-            if (go < 2) { flag |= TOO_SMALL; return; }
+            if (go < 2) { 
+                flag |= TOO_SMALL; 
+                if (!fixCen) cen += ell.getCen();
+                return; 
+            }
         }
         shapelet.setSigma(sigma);
         std::complex<double> gale = 0.;
@@ -210,7 +217,10 @@ void measureMultiShear(
             flag |= SHAPE_BAD_FLUX;
         }
         // If the above deconvolving fit failed, then return.
-        if (flag & DECONV_FAILED) return;
+        if (flag & DECONV_FAILED) {
+            if (!fixCen) cen += ell.getCen();
+            return;
+        }
 
         // Under normal circumstances, b20/b00 ~= conj(gamma)/sqrt(2)
         gale = std::complex<double>(shapelet(3),shapelet(4));
@@ -237,21 +247,17 @@ void measureMultiShear(
             ++log._nsGamma;
             dbg<<"Successful Gamma fit\n";
             dbg<<"Measured gamma = "<<ell.getGamma()<<std::endl;
-            shear = ell.getGamma();
-            DSmallMatrix22 cov1 = cov.TMV_subMatrix(2,4,2,4);
-            if (!(cov1.TMV_det() > 0.)) flag |= SHEAR_BAD_COVAR;
-            else shearcov = cov1;
         } else {
             if (times) times->failGamma(ell.getTimes());
             ++log._nfGamma;
             dbg<<"Gamma measurement failed\n";
             flag |= SHEAR_FAILED;
-            shear = ell.getGamma();
-            DSmallMatrix22 cov1 = cov.TMV_subMatrix(2,4,2,4);
-            if (!(cov1.TMV_det() > 0.)) flag |= SHEAR_BAD_COVAR;
-            else shearcov = cov1;
-            return;
         }
+        shear = ell.getGamma();
+        DSmallMatrix22 cov1 = cov.TMV_subMatrix(2,4,2,4);
+        if (!(cov1.TMV_det() > 0.)) flag |= SHEAR_BAD_COVAR;
+        else shearcov = cov1;
+        if (!fixCen) cen += ell.getCen();
 #ifdef USE_TMV
     } catch (tmv::Error& e) {
         dbg<<"TMV Error thrown in MeasureSingleShear\n";

@@ -86,6 +86,7 @@ int PsfCatalog::measurePsf(
     bool shouldOutputDots = _params.read("output_dots",false);
     double gain = _params.read("image_gain",0.);
     double psfAp = _params.read<double>("psf_aperture");
+    bool psfFixCen = _params.read("psf_fix_centroid",false);
     dbg<<"psfap = "<<psfAp<<std::endl;
     psfAp *= sigmaP;  // arcsec
     dbg<<"psfap => "<<psfAp<<std::endl;
@@ -155,7 +156,7 @@ int PsfCatalog::measurePsf(
                     // Noise values:
                     _noise[i], gain, weightIm,
                     // Parameters:
-                    sigmaP, psfAp, psfOrder, 
+                    sigmaP, psfAp, psfOrder, psfFixCen,
                     // Log information
                     log1,
                     // Ouput value:

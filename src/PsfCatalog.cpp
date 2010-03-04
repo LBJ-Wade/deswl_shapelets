@@ -15,10 +15,10 @@
 #include "WriteParam.h"
 
 void measureSinglePsf1(
-    Position cen, const Image<double>& im, double sky,
+    Position& cen, const Image<double>& im, double sky,
     const Transformation& trans,
     double noise, double gain, const Image<double>* weightIm,
-    double sigmaP, double psfAp, int psfOrder,
+    double sigmaP, double psfAp, int psfOrder, bool fixCen,
     PsfLog& log, BVec& psf, double& nu, long& flag)
 {
     std::vector<PixelList> pix(1);
@@ -30,8 +30,11 @@ void measureSinglePsf1(
     Ellipse ell;
     ell.fixGam();
     ell.fixMu();
-    ell.peakCentroid(pix[0],psfAp/3.);
-    ell.crudeMeasure(pix[0],sigmaP);
+    if (fixCen) ell.fixCen();
+    else {
+        ell.peakCentroid(pix[0],psfAp/3.);
+        ell.crudeMeasure(pix[0],sigmaP);
+    }
     DMatrix cov(psf.size(),psf.size());
 
     long flag1=0;
@@ -66,13 +69,14 @@ void measureSinglePsf1(
     xdbg<<"psf = "<<psf.vec()<<std::endl;
     psf.normalize();  // Divide by (0,0) element
     xdbg<<"Normalized psf: "<<psf.vec()<<std::endl;
+    if (!fixCen) cen += ell.getCen();
 }
 
 void measureSinglePsf(
-    Position cen, const Image<double>& im, double sky,
+    Position& cen, const Image<double>& im, double sky,
     const Transformation& trans,
     double noise, double gain, const Image<double>* weightIm,
-    double sigmaP, double psfAp, int psfOrder,
+    double sigmaP, double psfAp, int psfOrder, bool fixCen,
     PsfLog& log, BVec& psf, double& nu, long& flag)
 {
     try {
@@ -92,7 +96,7 @@ void measureSinglePsf(
     try {
         measureSinglePsf1(
 	    cen,im,sky,trans,noise,gain,weightIm,
-	    sigmaP,psfAp,psfOrder,log,psf,nu,flag);
+	    sigmaP,psfAp,psfOrder,fixCen,log,psf,nu,flag);
 #ifdef USE_TMV
     } catch (tmv::Error& e) {
         dbg<<"TMV Error thrown in MeasureSinglePSF\n";
