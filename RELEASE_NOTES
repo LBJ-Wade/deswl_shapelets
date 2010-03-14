@@ -1,3 +1,8 @@
+
+-------------------------------------------------------------------------
+v0.54   (2010-3-14)  Mostly feature additions, rather than bug fixes.
+        Especially features that are helpful in testing.
+
 src/PsfCatalog_omp.cpp, src/ShearCatalog_omp.cpp, etc.: Added option to
   fix the centroid at the value given by the input catalog.
   Use psf_fix_centroid=true or shear_fix_centroid=true respectively.
