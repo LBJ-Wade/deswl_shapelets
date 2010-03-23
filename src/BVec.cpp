@@ -7,17 +7,17 @@ const double sqrtpi = sqrt(PI);
 
 BVec& BVec::operator=(const AssignableToBVec& rhs)
 {
-    rhs.AssignTo(*this);
+    rhs.assignTo(*this);
     return *this; 
 }
 
 BVec& BVec::operator=(const BVec& rhs)
 {
-    rhs.AssignTo(*this);
+    rhs.assignTo(*this);
     return *this; 
 }
 
-void BVec::AssignTo(BVec& rhs) const
+void BVec::assignTo(BVec& rhs) const
 {
     Assert(rhs.getOrder() >= getOrder());
     rhs.setSigma(_sigma);
@@ -30,6 +30,19 @@ void BVec::setValues(const DVector& v)
     _b.TMV_subVector(0,v.size()) = v;
     if (_b.size() > v.size())
         _b.TMV_subVector(v.size(),_b.size()).setZero();
+}
+
+void BVec::conjugateSelf()
+{
+    for(int N=1,k=1;N<=getOrder();++N) {
+        for(int m=N;m>=0;m-=2) {
+            if (m==0) ++k;
+            else {
+                _b(k+1) *= -1.0;
+                k+=2;
+            }
+        }
+    }
 }
 
 void calculateZTransform(std::complex<double> z, int order, DMatrix& T)

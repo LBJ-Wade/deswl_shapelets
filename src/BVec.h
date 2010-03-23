@@ -11,7 +11,7 @@ class BVec;
 class AssignableToBVec
 {
 public:
-    virtual void AssignTo(BVec& bvec) const = 0;
+    virtual void assignTo(BVec& bvec) const = 0;
     virtual int getOrder() const = 0;
     virtual double getSigma() const = 0;
     virtual ~AssignableToBVec() {}
@@ -45,7 +45,7 @@ public :
     BVec& operator=(const AssignableToBVec& rhs);
     BVec& operator=(const BVec& rhs);
 
-    void AssignTo(BVec& bvec) const;
+    void assignTo(BVec& bvec) const;
 
     DVector& vec() { return _b; }
     const DVector& vec() const { return _b; }
@@ -73,6 +73,8 @@ public :
     }
 
     void normalize() { _b /= _b(0); }
+
+    void conjugateSelf();
 
 private :
 

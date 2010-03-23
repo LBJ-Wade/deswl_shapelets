@@ -11,15 +11,20 @@
 // n 0  1   2  2  3   3    4     4    4   5     5     5     6     6     6    6
 // m 0  1   2  0  3   1    4     2    0   5     3     1     6     4     2    0
 
-#if 0
-void makePsi1(DVectorView psi, std::complex<double> z, int order);
-#endif
-
+// Make the psi matrix.
+// Each row is a pixel.
+// The columns correspond to each psi index (see above).
+// The input z vector has the position of each pixel.
+// The optional coeff parameter specifies a coefficient to multiple each row.
 void makePsi(
     DMatrix& psi, CDVectorView z, int order, const DVector* coeff=0);
 
+// Add some more columns to a psi matrix for two more radial orders.
+// The order is the original order of the matrix.
+// So the result is a psi matrix for order+2.
 void augmentPsi(DMatrix& psi, CDVectorView z, int order);
 
+// Gx = d(psi)/dx.  Likewise for the other parameters.
 void setupGx(DMatrix& Gx, int order1, int order2);
 void setupGy(DMatrix& Gy, int order1, int order2);
 void setupGg1(DMatrix& Gg1, int order1, int order2);

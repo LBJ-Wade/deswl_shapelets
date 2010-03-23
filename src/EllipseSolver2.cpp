@@ -334,7 +334,8 @@ void EllipseSolver2::ESImpl2::calculateF(const DVector& x, DVector& f) const
         Z1.TMV_subVector(n,nx) /= sigma_obs[k];
 
         makePsi(A_aux[k],Z1.TMV_subVector(n,nx),b.getOrder());
-        // b = C^-1 normD AT I
+
+        // b = C^-1 normD At I
         b1 = A[k].transpose() * I.TMV_subVector(n,nx);
         b1 = normD EIGEN_asDiag() * b1;
 
@@ -371,14 +372,15 @@ void EllipseSolver2::ESImpl2::calculateF(const DVector& x, DVector& f) const
     }
     // Leave this out of f, but get it right in case getB is called.
     b.vec() *= exp(-2.*mu);
+    b.conjugateSelf();
 }
 
 void EllipseSolver2::ESImpl2::calculateJ(
     const DVector& x, const DVector& f, DMatrix& J) const
 {
     // b = C^-1 normD AT I
-    // db/dE = C^-1 normD (dA/dE)T I
-    //         - C^-1 (dC/dE) C^-1 normD AT I
+    // db/dE = C^-1 normD (dA/dE)t I
+    //         - C^-1 (dC/dE) C^-1 normD At I
     Assert(x.size() == U.TMV_colsize());
     Assert(J.TMV_rowsize() == U.TMV_colsize());
     if (shouldUseFlux) {
@@ -529,8 +531,9 @@ bool EllipseSolver2::solve(DVector& x, DVector& f) const
     Assert(x.size() == 5);
     Assert(f.size() == 5);
     _pimpl->xinit = x;
-    if (_pimpl->isFixedCen) { _pimpl->fixuc = x[0]; _pimpl->fixvc = x[1]; }
-    if (_pimpl->isFixedGamma) { _pimpl->fixg1 = x[2]; _pimpl->fixg2 = x[3]; }
+    
+    if (_pimpl->isFixedCen) { _pimpl->fixuc = x[0]; _pimpl->fixvc = -x[1]; }
+    if (_pimpl->isFixedGamma) { _pimpl->fixg1 = x[2]; _pimpl->fixg2 = -x[3]; }
     if (_pimpl->isFixedMu) { _pimpl->fixm = x[4]; }
 
     _pimpl->x_short = _pimpl->U * x;

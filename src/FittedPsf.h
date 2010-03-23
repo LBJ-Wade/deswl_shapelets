@@ -103,7 +103,7 @@ public :
     int getOrder() const { return _psf.getPsfOrder(); }
     double getSigma() const { return _psf.getSigma(); }
 
-    void AssignTo(BVec& b) const
+    void assignTo(BVec& b) const
     { _psf.interpolate(_pos,b); }
 
 private :
