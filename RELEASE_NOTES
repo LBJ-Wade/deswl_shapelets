@@ -1,3 +1,13 @@
+-------------------------------------------------------------------------
+v0.54.1  (2010-04-04)  Small updates to framework on top of v0.54
+
+python/wlpipe.py: 
+	Added ability to send wl_config as a keyword to run_shear or
+	run_multishear, or get it from the runconfig, with default
+	falling back to $WL_DIR/etc/wl.config.  I'm putting these 
+	config files under $DESFILES_DIR/wl.config
+
+	Added && between all setup commands: if one fails all fails.
 
 -------------------------------------------------------------------------
 v0.54   (2010-3-14)  Mostly feature additions, rather than bug fixes.
