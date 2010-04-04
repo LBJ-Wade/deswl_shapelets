@@ -13,6 +13,8 @@
         # create a run name and its configuration
             rc=deswl.files.Runconfig()
             rc.generate_new_runconfig('wlse', dataset)
+        a useful keyword to send is wl_config= to override the default
+        under etc.  I keep these in $DESFILES_DIR/wl.config, e.g. wl01.config
         
         You can send test=True and dryrun=True also
 
@@ -681,15 +683,14 @@ source /global/data/products/eups/bin/setups.sh
     tmv_setup = _make_setup_command('tmv',rc['tmvvers'])
     wl_setup = _make_setup_command('wl',rc['wlvers'])
 
+    # tmv,esutil must come after wl if wl is not current
+    setups = [wl_setup, tmv_setup, esutil_setup]
+    setups = ' \\\n\t&& '.join(setups)
     
     fobj=open(outfile, 'w')
 
     fobj.write(header)
-    fobj.write(wl_setup+'\n')
-
-    # must come after if it is not the current version
-    fobj.write(tmv_setup+'\n')
-    fobj.write(esutil_setup+'\n')
+    fobj.write(setups + '\n')
 
     fobj.write("shear-run    \\\n")
     fobj.write('    --serun=%s    \\\n' % serun)
@@ -838,7 +839,9 @@ def getband_from_exposurename(exposurename):
             return band
     raise ValueError("No band found in exposurename: %s\n" % exposurename)
 
-def run_shear(exposurename, ccd=None,
+def run_shear(exposurename, 
+              ccd=None,
+              config_file=None,
               outdir=None, 
               rootdir=None,
               copyroot=False,
@@ -850,60 +853,39 @@ def run_shear(exposurename, ccd=None,
               debug=0):
     """
 
-    deswl.wlpipe.run_shear(tilename,band
-                                outdir=None, 
-                                rootdir=None,
-                                copyroot=False,
-                                cleanup=False,
-                                merun=None,
-                                dataset=None, 
-                                localid=None,
-                                serun=None,
-                                srclist=None,
-                                redirect=True,
-                                debug=0)                               
+    deswl.wlpipe.run_shear(exposurename, 
+                           ccd=None,
+                           config_file=None,
+                           outdir=None, 
+                           rootdir=None,
+                           copyroot=False,
+                           cleanup=False,
+                           serun=None,
+                           dataset=None, 
+                           writelog=False,
+                           nodots=False,
+                           debug=0):
 
-    Wrapper function requiring minimial info to process a tile, namely the
-    tilename and the band.  The newest version of the tile is found and used.
-    All paths are generated.  The output file is placed in '.' unless
-    specified via the optional outdir/rootdir parameters or the merun is sent.
+
+    Wrapper function requiring minimial info to process an exposure or ccd,
+    namely the exposurename and possile ccd.  The output file is placed in '.'
+    unless specified via the optional outdir/rootdir parameters or the serun is
+    sent.
 
     For this code to work, you need to setup the products WL and DESFILES,
     which sets paths and environment variables such as $WL_DIR.  Note WL
-    automaticaly sets up DESFILES.  The information for the tiles is kept in
-    the file
+    automaticaly sets up DESFILES.  
 
-        $DESFILES_DIR/(dataset)/
-           (dataset)-images-catalogs-withsrc-(localid)-newest-(band).json
-
-    This contains a list of the newest versions of all the unique tiles.  The
-    exececutable file for multishear and the config file are under $WL_DIR/bin
-    and $WL_DIR/etc.  Note the variables 'dataset' and 'localid', which default
-    to dataset='dc4coadd' and localid='tutti'.  The localid may be relevant since
-    different sites may contain different newest versions.
-
-    The input source list is in 
-        $DESFILES_DIR/(dataset)/multishear-srclists/
-           (tilename)-(band)-srclist.dat
-
-    You can override the srclist file with the srclist= keyword.
-
-    Example using the library:
-        deswl.wlpipe.run_shear('DES2215-2853', 'i')
-        
-   
     Parameters
-        tilename: e.g. DES2215-2853  
-        band: e.g. 'i'
+        exposurename: e.g. decam--25--20-i-12 
 
     Optional parameters:
-        merun: The multi-epoch run identifier.  If sent then the default output 
-            directory is $DESDATA/wlbnl/run/me_shapelet/tilename.
-            The merun= keyword is sent to multishear and added to the
-            header.  An merun implies and overrides dataset and localid.
-        outdir: The output directory.  Default '.'.  If merun is sent the
+        ccd: The ccd number from 1-62.
+        config_file: The path to the config file.  Defaults to 
+            $WL_DIR/etc/wl.config
+        outdir: The output directory.  Default '.'.  If serun is sent the
             default directory is the "standard" place.  See below.
-        rootdir: The root directory when merun sent.  Default is $DESDATA.
+        rootdir: The root directory when serun sent.  Default is $DESDATA.
         copyroot: Copy the output files to the default path under $DESDATA.
             Useful when writing to local scratch disk and you want to copy
             the data over to shared disk upon completion.
@@ -911,16 +893,11 @@ def run_shear(exposurename, ccd=None,
             deleted.
         dataset:  The dataset to use.  This tells the code how to get the
             list of available tiles (see above).  Default is 
-            is used if merun is not sent.  see default_dataset()
-        localid:  The localid holding the files.  The available tile list may
-            be different on different machines.  Default is used if
-            merun is not sent. see default_localid()
-        serun:  The serun used to generate the SE shear input for the
-            srclist.  Default defined in default_serun()
-        srclist: The list of input SE images used to create the coadd.  If
-            not sent the default is as listed above.
-        redirect: If True redirect the stdout/stderr to files
-            with the default names.
+            is used if serun is not sent.  see default_dataset()
+        serun:  The single epoch shear run identifier.  If sent, is used to
+            generate file names and paths.
+        writelog: Write out the QA/Status file.
+        nodots: Don't print dots as we process to indicate progress.
         debug: The level of debugging information printed.  Default 0.  
             1 gives "dbg" level and 2 gives "xdbg" level.\n\n"""
 
@@ -984,7 +961,15 @@ def run_shear(exposurename, ccd=None,
     executable=path_join(wl_dir, 'bin','fullpipe')
 
     # config file
-    config=path_join(wl_dir, 'etc','wl.config')
+    if config_file is not None:
+        config = config_file
+    elif runconfig is not None:
+        if 'wl_config' in runconfig:
+            config = runconfig['wl_config']
+    else:   
+        config=path_join(wl_dir, 'etc','wl.config')
+
+    config = os.path.expandvars(config)
 
     # info on all the unique, newest tiles and catalogs
     stdout.write('\n')
@@ -1572,15 +1557,14 @@ source /global/data/products/eups/bin/setups.sh
     tmv_setup = _make_setup_command('tmv',rc['tmvvers'])
     wl_setup = _make_setup_command('wl',rc['wlvers'])
 
+    # tmv,esutil must come after wl if wl is not current
+    setups = [wl_setup, tmv_setup, esutil_setup]
+    setups = ' \\\n\t&& '.join(setups)
     
     fobj=open(outfile, 'w')
 
     fobj.write(header)
-    fobj.write(wl_setup+'\n')
-
-    # must come after if it is not the current version
-    fobj.write(tmv_setup+'\n')
-    fobj.write(esutil_setup+'\n')
+    fobj.write(setups + '\n')
 
     fobj.write("multishear-run    \\\n")
     fobj.write('    --merun=%s    \\\n' % merun)
@@ -1711,6 +1695,7 @@ def process_me_tile(fdict,
 
 
 def run_multishear(tilename, band, 
+                   config_file=None,
                    outdir=None, 
                    rootdir=None,
                    copyroot=False,
@@ -1726,6 +1711,7 @@ def run_multishear(tilename, band,
     """
 
     deswl.wlpipe.run_multishear(tilename,band
+                                config_file=None,
                                 outdir=None, 
                                 rootdir=None,
                                 copyroot=False,
@@ -1772,6 +1758,8 @@ def run_multishear(tilename, band,
         band: e.g. 'i'
 
     Optional parameters:
+        config_file: The path to the config file.  Defaults to 
+            $WL_DIR/etc/wl.config
         merun: The multi-epoch run identifier.  If sent then the default output 
             directory is $DESDATA/wlbnl/run/me_shapelet/tilename.
             The merun= keyword is sent to multishear and added to the
@@ -1841,7 +1829,15 @@ def run_multishear(tilename, band,
     executable=path_join(wl_dir, 'bin','multishear')
 
     # config file
-    config=path_join(wl_dir, 'etc','wl.config')
+    if config_file is not None:
+        config = config_file
+    elif runconfig is not None:
+        if 'wl_config' in runconfig:
+            config = runconfig['wl_config']
+    else:   
+        config=path_join(wl_dir, 'etc','wl.config')
+
+
 
     # source list can be determined from tilename/band
     if srclist is None:
