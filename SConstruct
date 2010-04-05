@@ -237,7 +237,6 @@ def AddOpenMPFlag(env):
         print 'Warning: No OpenMP support for compiler ',compiler
 
     #print 'Adding openmp support:',flag
-    print 'Using OpenMP'
     env['OMP_FLAGS'] = flag
     env.Append(LINKFLAGS=ldflag)
     env.Append(LIBS=xlib)
@@ -877,10 +876,20 @@ int main()
         Exit(1)
 
     if not CheckLibs(context,['tmv_symband','tmv'],tmv_source_file):
-        context.Result(0)
-        print 'Error: TMV file failed to link correctly'
-        Exit(1)
-
+        # If that didn't work, we might need to add the openmp flag to the 
+        # linking step.
+        if not env['WITH_OPENMP']:
+            env1 = context.env.Clone()
+            AddOpenMPFlag(env1)
+            context.env['LINKFLAGS'] = env1['LINKFLAGS']
+            if not CheckLibs(context,['tmv_symband','tmv'],tmv_source_file):
+                context.Result(0)
+                print 'Error: TMV file failed to link correctly'
+                Exit(1)
+        else:
+            context.Result(0)
+            print 'Error: TMV file failed to link correctly'
+            Exit(1)
     context.Result(1)
     return 1
 
@@ -1067,7 +1076,7 @@ def DoLibraryAndHeaderChecks(config):
                 foundlap = 0
     
         config.CheckTMV()
-        env.Append(CPPDEFINES=['USE_TMV'])
+        config.env.Append(CPPDEFINES=['USE_TMV'])
 
     else :
         # No need for the BLAS libraries if we are using Eigen.
@@ -1096,6 +1105,7 @@ def DoConfig(env):
 
     # Some extra flags depending on the options:
     if env['WITH_OPENMP']:
+        print 'Using OpenMP'
         AddOpenMPFlag(env)
     if not env['DEBUG']:
         print 'Debugging turned off'

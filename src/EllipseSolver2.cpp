@@ -139,7 +139,6 @@ EllipseSolver2::ESImpl2::ESImpl2(
     _Gth(np2size,nsize), _Gmu(np2size,nsize),
     _dTdE(1,1)
 {
-    //dbg<<"Start ESImpl2"<<std::endl;
     U.setZero();
     xinit.setZero();
 
@@ -173,7 +172,6 @@ EllipseSolver2::ESImpl2::ESImpl2(
             else normD(k) = val;
         }
     }
-    //dbg<<"Done ESImpl2"<<std::endl;
 }
 
 #define ORDER_1 (std::max(maxpsforder,_order))
@@ -329,7 +327,6 @@ void EllipseSolver2::ESImpl2::calculateF(const DVector& x, DVector& f) const
     Z1.TMV_addToAll(m0*(g*std::conj(zc)-zc));
     for(size_t k=0,n=0,nx;k<pix.size();++k,n=nx) {
         nx = n+pix[k].size();
-        //dbg<<"k,n,nx = "<<k<<','<<n<<','<<nx<<std::endl;
 
         Z1.TMV_subVector(n,nx) /= sigma_obs[k];
 

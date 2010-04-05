@@ -34,9 +34,22 @@ struct OverallFitTimes
         _nfRange1(0), _nfRange2(0),
         _nfPixFlag1(0), _nfNPix1(0), _nfSmall(0),
         _nfPixFlag2(0), _nfNPix2(0),
+        _nsCentroid(0), _nfCentroid(0),
         _nsNative(0), _nfNative(0),
         _nsMu(0), _nfMu(0),
         _nsGamma(0), _nfGamma(0) {}
+
+    void successCentroid(const EllipseTimes& et)
+    {
+        _tsCentroid += et;
+        ++_nsCentroid;
+    }
+
+    void failCentroid(const EllipseTimes& et)
+    {
+        _tfCentroid += et;
+        ++_nfCentroid;
+    }
 
     void successNative(const EllipseTimes& et)
     {
@@ -76,6 +89,8 @@ struct OverallFitTimes
 
     OverallFitTimes& operator+=(const OverallFitTimes& rhs)
     {
+        _tsCentroid += rhs._tsCentroid;
+        _tfCentroid += rhs._tfCentroid;
         _tsNative += rhs._tsNative;
         _tfNative += rhs._tfNative;
         _tsMu += rhs._tsMu;
@@ -90,6 +105,8 @@ struct OverallFitTimes
         _nfSmall += rhs._nfSmall;
         _nfPixFlag2 += rhs._nfPixFlag2;
         _nfNPix2 += rhs._nfNPix2;
+        _nsCentroid += rhs._nsCentroid;
+        _nfCentroid += rhs._nfCentroid;
         _nsNative += rhs._nsNative;
         _nfNative += rhs._nfNative;
         _nsMu += rhs._nsMu;
@@ -105,6 +122,16 @@ struct OverallFitTimes
         os<<"N_Rejected for range error - psf interp = "<<_nfRange2<<std::endl;
         os<<"N_Rejected for pixel flag (#1) = "<<_nfPixFlag1<<std::endl;
         os<<"N_Rejected for too few pixels (#1) = "<<_nfNPix1<<std::endl;
+
+        os<<"Centroid step:\n";
+        os<<"  N_Success = "<<_nsCentroid<<std::endl;
+        os<<"  Times = "<<_tsCentroid._tInteg<<"  "<<_tsCentroid._tCentroid<<"  "<<
+            _tsCentroid._tGamma<<"  "<<_tsCentroid._tMu<<"  "<<
+            _tsCentroid._tFixFlux<<"  "<<_tsCentroid._tFinal<<std::endl;
+        os<<"  N_Fail = "<<_nfCentroid<<std::endl;
+        os<<"  Times = "<<_tfCentroid._tInteg<<"  "<<_tfCentroid._tCentroid<<"  "<<
+            _tfCentroid._tGamma<<"  "<<_tfCentroid._tMu<<"  "<<
+            _tfCentroid._tFixFlux<<"  "<<_tfCentroid._tFinal<<std::endl;
 
         os<<"Native fits:\n";
         os<<"  N_Success = "<<_nsNative<<std::endl;
@@ -141,6 +168,8 @@ struct OverallFitTimes
             _tfGamma._tFixFlux<<"  "<<_tfGamma._tFinal<<std::endl;
     }
 
+    EllipseTimes _tsCentroid;
+    EllipseTimes _tfCentroid;
     EllipseTimes _tsNative;
     EllipseTimes _tfNative;
     EllipseTimes _tsMu;
@@ -155,6 +184,8 @@ struct OverallFitTimes
     int _nfSmall;
     int _nfPixFlag2;
     int _nfNPix2;
+    int _nsCentroid;
+    int _nfCentroid;
     int _nsNative;
     int _nfNative;
     int _nsMu;

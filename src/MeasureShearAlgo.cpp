@@ -10,6 +10,8 @@
 #include "Params.h"
 #include "MeasureShearAlgo.h"
 
+#define RANDOMIZE_CENTER
+
 void measureSingleShear1(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans, const std::vector<BVec>& psf,
@@ -22,6 +24,15 @@ void measureSingleShear1(
     DSmallMatrix22& shearcov, BVec& shapelet,
     double& nu, long& flag)
 {
+#ifdef RANDOMIZE_CENTER
+    static bool first = true;
+    if (first) {
+        // initialize random seed:
+        srand ( time(NULL) );
+        first = false;
+    }
+#endif
+
     // Find harmonic mean of psf sizes:
     // MJ: Is it correct to use the harmonic mean of sigma^2?
     double sigmaP = 0.;
@@ -53,9 +64,75 @@ void measureSingleShear1(
 
     int go = 2;
     int galSize = (go+1)*(go+2)/2;
+    long flag1=0;
+
+    if (!fixCen) {
+        if (times) ell.doTimings();
+        flag1=0;
+        ell.fixGam();
+        ell.fixMu();
+        if (!ell.measure(pix,go,sigmaObs,true,flag1)) {
+            if (times) times->failCentroid(ell.getTimes());
+            ++log._nfCentroid;
+            dbg<<"First centroid pass failed.\n";
+            flag |= CENTROID_FAILED;
+            return;
+        }
+        dbg<<"After first centroid pass: cen = "<<ell.getCen()<<std::endl;
+
+        // redo the pixlist:
+        pix[0].clear();
+        cen += ell.getCen();
+        dbg<<"New center = "<<cen<<std::endl;
+        getPixList(im,pix[0],cen,sky,noise,gain,weightIm,trans,galAp,flag);
+
+#ifdef RANDOMIZE_CENTER
+        // The centroid doesn't necessarily get all the way to the perfect
+        // centroid, so if the input guess is consistently biased in some 
+        // direction (e.g. by a different convention for the (0,0) or (1,1) 
+        // location), then this results in a bias in the shear values.  
+        // To avoid that, we first get to what we think it the correct centroid.
+        // Then we redo the aperture from this point.  Then we shift the 
+        // centroid value by 1 pixel in a random direction, and resolve for
+        // the centroid.  This is all pretty fast, so it's worth doing to
+        // avoid the subtle bias that can otherwise result.
+
+        std::complex<double> cen1 = ell.getCen();
+        // get a random offset in the unit circle
+        double x_offset, y_offset, rsq_offset;
+        do {
+            x_offset = double(rand())*2./double(RAND_MAX) - 1.;
+            y_offset = double(rand())*2./double(RAND_MAX) - 1.;
+            rsq_offset = x_offset*x_offset + y_offset*y_offset;
+        } while (rsq_offset > 1. || rsq_offset == 0.);
+        double r_offset = sqrt(rsq_offset);
+        x_offset /= r_offset;
+        y_offset /= r_offset;
+        ell.setCen(std::complex<double>(x_offset,y_offset));
+        dbg<<"After random offset: cen = "<<cen1+ell.getCen()<<std::endl;
+
+        // Now do it again.
+        flag1=0;
+        if (!ell.measure(pix,go,sigmaObs,true,flag1)) {
+            if (times) times->failCentroid(ell.getTimes());
+            ++log._nfCentroid;
+            dbg<<"Second centroid pass failed.\n";
+            flag |= CENTROID_FAILED;
+            return;
+        }
+        dbg<<"After second centroid pass: cen = "<<cen1+ell.getCen()<<std::endl;
+        dbg<<"Which is now considered "<<ell.getCen()<<" relative to the new "
+            "center value of "<<cen<<std::endl;
+#else
+        ell.setCen(std::complex<double>(0.,0.));
+#endif
+        if (times) times->successCentroid(ell.getTimes());
+        ++log._nsCentroid;
+    }
 
     if (times) ell.doTimings();
-    long flag1=0;
+    flag1=0;
+    ell.unfixMu();
     if (ell.measure(pix,go,sigmaObs,true,flag1)) {
         if (times) times->successNative(ell.getTimes());
         ++log._nsNative;

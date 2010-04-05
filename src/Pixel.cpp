@@ -91,7 +91,8 @@ void getPixList(
     xdbg<<"npix = "<<nPix<<std::endl;
     pix.resize(nPix);
 
-    xdbg<<"pixlist size = "<<nPix<<" = "<<nPix*sizeof(Pixel)<<" bytes = "<<nPix*sizeof(Pixel)/1024.<<" KB\n";
+    xdbg<<"pixlist size = "<<nPix<<" = "<<nPix*sizeof(Pixel)<<
+        " bytes = "<<nPix*sizeof(Pixel)/1024.<<" KB\n";
 
     int k=0;
     chipX = xMin+i1-xCen;

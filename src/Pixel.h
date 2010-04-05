@@ -75,6 +75,7 @@ public :
     void push_back(const Pixel& p);
     Pixel& operator[](const int i);
     const Pixel& operator[](const int i) const;
+    void sort(const Position& cen);
 
 private :
 

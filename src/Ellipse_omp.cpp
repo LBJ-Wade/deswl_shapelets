@@ -64,15 +64,9 @@ bool Ellipse::doMeasure(
     DVector xinit = x;
     DVector f(5);
 
-    if (shouldUseInteg && order <= 3) {
-        if (_shouldDoTimings) {
-            gettimeofday(&tp,0);
-            t1 = tp.tv_sec + tp.tv_usec/1.e6;
-        }
-        // First we make the approximations the the galaxy is well-sampled
-        // and has uniform variance.
-        // Also, we start by just fitting the centroid.
-        if (!_isFixedCen && (!_isFixedGamma || !_isFixedMu)) {
+    // First get the centroid right before we allow the size or shape to vary.
+    if (!_isFixedCen) {
+        if (shouldUseInteg && order <= 3) {
             xdbg<<"Do Integrating centroid solve\n";
             if (psf) {
                 // pixscale doesn't really matter unless we want an accurate B in
@@ -83,7 +77,7 @@ bool Ellipse::doMeasure(
                 solver.reset(new EllipseSolver2(
                         pix,order,sigma,1.,false,true,true));
             }
-            xdbg<<"xinit (int fixgam) = "<<EIGEN_Transpose(x)<<std::endl;
+            xdbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
             solver->useDogleg();
 #ifdef NOTHROW
             solver->noUseCholesky();
@@ -106,8 +100,45 @@ bool Ellipse::doMeasure(
             xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
             xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
         }
+        xdbg<<"Do ML centroid solve\n";
+        if (psf) {
+            solver.reset(new EllipseSolver(
+                    pix,order,sigma,false,true,true));
+        } else {
+            solver.reset(new EllipseSolver(
+                    pix,order,sigma,false,true,true));
+        }
+        xdbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
+        solver->useDogleg();
+#ifdef NOTHROW
+        solver->noUseCholesky();
+#endif
+        solver->setTol(1.e-8,1.e-25);
+        if (XDEBUG) solver->setOutput(*dbgout);
+        solver->setDelta0(0.01);
+        solver->setMinStep(1.e-15);
+        solver->setMaxIter(50);
+        xdbg<<"ML solver, centroid only:\n";
+        //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-5)) exit(1);
+        bool ret = solver->solve(x,f);
+        if (!ret) {
+            dbg<<"failed ML solver, centroid - x = "<<EIGEN_Transpose(x)<<std::endl;
+            dbg<<"f = "<<EIGEN_Transpose(f)<<"  Norm(f) = "<<f.norm()<<std::endl;
+            dbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
+            return false;
+        }
+        xdbg<<"Done: x (ML, centroid only) = "<<EIGEN_Transpose(x)<<std::endl;
+        xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
+        xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
+    }
 
-        // Next allow the shear and/or mu to be fit as well:
+    if (shouldUseInteg && order <= 3) {
+        if (_shouldDoTimings) {
+            gettimeofday(&tp,0);
+            t1 = tp.tv_sec + tp.tv_usec/1.e6;
+        }
+        // First we make the approximations the the galaxy is well-sampled
+        // and has uniform variance.
 #ifdef N_FLUX_ATTEMPTS
 #if N_FLUX_ATTEMPTS > 0
         xdbg<<"Do Integrating regular solve (fixed flux)\n";
@@ -156,7 +187,7 @@ bool Ellipse::doMeasure(
         } else {
             solver.reset(new EllipseSolver2(
                     pix,order,sigma,1.,
-                                            _isFixedCen,_isFixedGamma,_isFixedMu));
+                    _isFixedCen,_isFixedGamma,_isFixedMu));
         }
         xdbg<<"xinit (integ) = "<<EIGEN_Transpose(x)<<std::endl;
         solver->useDogleg();
@@ -201,13 +232,13 @@ bool Ellipse::doMeasure(
 #ifdef NOTHROW
         solver->noUseCholesky();
 #endif
-        solver->setTol(1.e-3,1.e-8);
+        solver->setTol(1.e-8,1.e-12);
         if (XDEBUG) solver->setOutput(*dbgout);
         solver->setDelta0(0.01);
         solver->setMinStep(1.e-12);
         solver->setMaxIter(50);
         xdbg<<"ML solver centroid:\n";
-        bool rete= solver->solve(x,f);
+        bool ret = solver->solve(x,f);
         if (!ret) {
             dbg<<"ML solver, centroid, failed - x = "<<EIGEN_Transpose(x)<<std::endl;
             dbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
@@ -410,7 +441,7 @@ bool Ellipse::doMeasure(
 #endif
     solver->setTol(1.e-8,1.e-25);
     if (XDEBUG) solver->setOutput(*dbgout);
-    solver->useVerboseOutput();
+    //solver->useVerboseOutput();
     solver->setDelta0(0.01);
     solver->setMinStep(1.e-15);
     solver->setMaxIter(50);

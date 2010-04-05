@@ -56,6 +56,8 @@ public :
         _nfSmall += rhs._nfSmall;
         _nfTmvError += rhs._nfTmvError;
         _nfOtherError += rhs._nfOtherError;
+        _nsCentroid += rhs._nsCentroid;
+        _nfCentroid += rhs._nfCentroid;
         _nsNative += rhs._nsNative;
         _nfNative += rhs._nfNative;
         _nsMu += rhs._nsMu;
@@ -74,6 +76,8 @@ public :
     int _nfSmall;
     int _nfTmvError;
     int _nfOtherError;
+    int _nsCentroid;
+    int _nfCentroid;
     int _nsNative;
     int _nfNative;
     int _nsMu;

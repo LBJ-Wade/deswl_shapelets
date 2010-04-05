@@ -60,8 +60,9 @@ ShearLog::ShearLog(const ConfigFile& params,
                    std::string logFile, std::string fitsFile) : 
     Log(params,logFile,fitsFile),
     _nGals(0), _nGoodIn(0), _nGood(0), _nfRange1(0), _nfRange2(0), 
-    _nfSmall(0), _nfTmvError(0), _nfOtherError(0), _nsNative(0),
-    _nfNative(0), _nsMu(0), _nfMu(0), _nsGamma(0), _nfGamma(0)
+    _nfSmall(0), _nfTmvError(0), _nfOtherError(0), 
+    _nsCentroid(0), _nfCentroid(0), _nsNative(0), _nfNative(0),
+    _nsMu(0), _nfMu(0), _nsGamma(0), _nfGamma(0)
 {}
 
 ShearLog::~ShearLog() 
@@ -88,16 +89,20 @@ void ShearLog::writeLogToFitsHeader() const
                      "# of objects with no input error flags");
         table.addKey("ms_ngood", _nGood,
                      "# of measurements with no error flags");
+        table.addKey("ns_centr", _nsCentroid, 
+                     "# of objects successfully centroided");
         table.addKey("ns_gamma", _nsGamma, 
                      "# of successful shear measurements");
         table.addKey("ns_nativ", _nsNative, 
-                     "# of successful native shapeles measurements");
+                     "# of successful native shapelet measurements");
 
         table.addKey("nf_rnge1", _nfRange1, 
                      "# of MeasureShear failures range1");
         table.addKey("nf_rnge2", _nfRange2, 
                      "# of MeasureShear failures range2");
 
+        table.addKey("nf_centr", _nfCentroid, 
+                     "# of MeasureShear failures during centroiding");
         table.addKey("nf_nativ", _nfNative, 
                      "# of MeasureShear failures native calculations");
         table.addKey("nf_small", _nfSmall, 
@@ -158,10 +163,12 @@ void ShearLog::writeLog() const
                 "ngals="<<_nGals <<" & "<<
                 "ngoodin="<<_nGoodIn <<" & "<<
                 "ngood="<<_nGood <<" & "<<
+                "ns_centroid="<<_nsCentroid <<" & "<<
                 "ns_gamma="<<_nsGamma <<" & "<<
                 "ns_native="<<_nsNative <<" & "<<
                 "nf_range1="<<_nfRange1 <<" & "<<
                 "nf_range2="<<_nfRange2 <<" & "<<
+                "nf_centroid="<<_nfCentroid <<" & "<<
                 "nf_native="<<_nfNative <<" & "<<
                 "nf_small="<<_nfSmall <<" & "<<
                 "nf_tmverror="<<_nfTmvError <<" & "<<
@@ -181,6 +188,10 @@ void ShearLog::write(std::ostream& os) const
 
     os<<"N_Rejected for range error - distortion = "<<_nfRange1<<std::endl;
     os<<"N_Rejected for range error - psf interp = "<<_nfRange2<<std::endl;
+
+    os<<"Centroid step:\n";
+    os<<"  N_Success = "<<_nsCentroid<<std::endl;
+    os<<"  N_Fail = "<<_nfCentroid<<std::endl;
 
     os<<"Native fits:\n";
     os<<"  N_Success = "<<_nsNative<<std::endl;

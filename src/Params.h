@@ -36,6 +36,7 @@
 #define PSF_INTERP_OUTLIER	    0x800000
 #define SHAPE_BAD_FLUX          0x1000000
 #define PSF_BAD_FLUX            0x2000000
+#define CENTROID_FAILED         0x4000000
 
 
 // Errors specific to the weak lensing code

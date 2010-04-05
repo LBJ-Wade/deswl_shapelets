@@ -134,3 +134,17 @@ const Pixel& PixelList::operator[](const int i) const
     else return (*_v1)[i];
 }
 
+struct PixelListSorter
+{
+    Position _cen;
+    PixelListSorter(const Position& cen) : _cen(cen) {}
+    bool operator()(const Pixel& p1, const Pixel& p2) const
+    { return std::norm(p1.getPos()-_cen) < std::norm(p2.getPos()-_cen); }
+};
+
+void PixelList::sort(const Position& cen) 
+{
+    PixelListSorter sorter(cen);
+    if (_shouldUsePool) std::sort(_v2->begin(),_v2->end(),sorter);
+    else std::sort(_v1->begin(),_v1->end(),sorter);
+}
