@@ -49,6 +49,7 @@ int ShearCatalog::measureShears(
 #endif
     log._nGoodIn = std::count(_flags.begin(),_flags.end(),0);
     dbg<<log._nGoodIn<<"/"<<log._nGals<<" galaxies with no input flags\n";
+    std::vector<Position> initPos = _pos;
 
     // Main loop to measure shears
 #ifdef _OPENMP
@@ -80,7 +81,7 @@ int ShearCatalog::measureShears(
                     }
                 }
                 dbg<<"galaxy "<<i<<":\n";
-                dbg<<"pos[i] = "<<_pos[i]<<std::endl;
+                dbg<<"pos = "<<_pos[i]<<std::endl;
 
                 // Start with an error code of unknown failure, in case
                 // something happens that I don't detect as an error.
@@ -102,6 +103,8 @@ int ShearCatalog::measureShears(
                     log1,
                     // Ouput values:
                     _shear[i], _cov[i], _shape[i], _nu[i], flag1);
+
+                dbg<<"After measureSingleShear, pos = "<<_pos[i]<<std::endl;
 
                 _flags[i] = flag1;
 
@@ -158,6 +161,25 @@ int ShearCatalog::measureShears(
         dbg<<" + "<<allTimes._nfGamma<<" unsuccessful\n";
         std::cerr<<allTimes<<std::endl;
     }
+
+    // Check if the input positions are biased with respect to the 
+    // actual values.  If they are, then this can cause a bias in the
+    // shears, so it's worth fixing.
+    std::complex<double> meanOffset(0);
+    int nOffset=0;
+    for(int i=0;i<nGals;++i) if (!_flags[i]) {
+        meanOffset += _pos[i] - initPos[i];
+        ++nOffset;
+    }
+    meanOffset /= nOffset;
+    if (std::abs(meanOffset) > 0.5) {
+        std::cerr<<"STATUS3BEG Warning: A bias in the input positions found: "
+            <<meanOffset<<".\nThis may bias the shear, so you should "
+            <<"change cat_x_offset, cat_y_offset.  STATUS3END\n";
+    }
+    dbg<<"Found mean offset of "<<meanOffset<<" using "<<nOffset<<
+        " galaxies with no error codes.\n";
+
     xdbg<<log<<std::endl;
 
     return log._nsGamma;

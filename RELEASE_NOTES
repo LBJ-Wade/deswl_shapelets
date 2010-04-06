@@ -1,3 +1,19 @@
+
+src/MeasureShearAlgo.cpp: Fixed a subtle bug in the centroiding where
+  the centroid used has a slight memory of the direction the centroid came 
+  from.  If the input positions are consistently biased in the same 
+  direction (e.g. by having a different definition of pixel (1,1), then
+  this leads to a bias in the final shear values.
+
+src/ShearCatalog_omp.cpp: Check whether there is such a bias in the input
+  positions, and output a warning if the bias is more than 0.5 pixels,
+  since this is something that should probably be corrected using the 
+  cat_x_offset and cat_y_offset values.
+
+src/EllipseSolver2.cpp: Fixed getB() to return the vector with the correct
+  conjugation.  Nothing uses this value, but for testing it is useful to 
+  have it give the right answer.
+
 -------------------------------------------------------------------------
 v0.54.1  (2010-04-04)  Small updates to framework on top of v0.54
 
@@ -7,7 +23,7 @@ python/wlpipe.py:
 	falling back to $WL_DIR/etc/wl.config.  I'm putting these 
 	config files under $DESFILES_DIR/wl.config
 
-	Added && between all setup commands: if one fails all fails.
+	Added && between all setup commands: if one fails all fail.
 
 -------------------------------------------------------------------------
 v0.54   (2010-3-14)  Mostly feature additions, rather than bug fixes.
