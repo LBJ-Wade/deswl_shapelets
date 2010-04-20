@@ -167,7 +167,7 @@ static void getImagePixList(
     const double noise, const double gain,
     const std::string& skyMethod, const double meanSky, 
     const Image<float>*const skyMap,
-    const double galAperture, const double maxAperture)
+    double galAperture, double maxAperture, double xOffset, double yOffset)
 {
     Assert(psfList.size() == pixList.size());
     Assert(seShearList.size() == pixList.size());
@@ -248,7 +248,7 @@ static void getImagePixList(
         sky = shearCat.getSky(nearest);
     } else {
         Assert(skyMethod == "MAP");
-        sky = getLocalSky(*skyMap,pos,trans,galAp,flag);
+        sky = getLocalSky(*skyMap,pos,trans,galAp,xOffset,yOffset,flag);
         // If no pixels in aperture, then
         // a) something is very wrong, but
         // b) use the NEAREST method instead.
@@ -265,7 +265,7 @@ static void getImagePixList(
     flag = 0;
     getPixList(
         im,pixList.back(),pos,
-        sky,noise,gain,weightIm,trans,galAp,flag);
+        sky,noise,gain,weightIm,trans,galAp,xOffset,yOffset,flag);
     xdbg<<"Got pixellist, flag = "<<flag<<std::endl;
 
     // Make sure not (edge or < 10 pixels) although edge is already
@@ -312,6 +312,7 @@ void MultiShearCatalog::getImagePixelLists(
 
     // Read the shear catalog
     ShearCatalog shearCat(_params);
+    shearCat.read();
     Bounds seSkyBounds = shearCat.getSkyBounds();
     Bounds seBounds = shearCat.getBounds();
     dbg<<"bounds for image "<<seIndex<<" = "<<seSkyBounds;
@@ -417,6 +418,8 @@ void MultiShearCatalog::getImagePixelLists(
     Assert(_nImagesGotPix.size() == size());
 
     const int nGals = size();
+    double xOffset = _params.read("cat_x_offset",0.);
+    double yOffset = _params.read("cat_y_offset",0.);
 #ifdef _OPENMP
     //#pragma omp parallel for
 #endif
@@ -430,7 +433,7 @@ void MultiShearCatalog::getImagePixelLists(
             *image, trans, invTrans, psf, fitPsf, shearCat, shearCatTree,
             weightIm.get(), noise, gain,
             skyMethod, meanSky, skyMap.get(),
-            galAperture, maxAperture);
+            galAperture, maxAperture, xOffset, yOffset);
     } 
     // Keep track of how much memory we are using.
     // TODO: introduce a parameter max_memory and check to make sure

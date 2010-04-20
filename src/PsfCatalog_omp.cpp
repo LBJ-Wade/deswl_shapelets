@@ -35,6 +35,8 @@ double PsfCatalog::estimateSigma(
     double gain = _params.read("gain",0.);
     double psfAp = _params.read<double>("psf_aperture");
     dbg<<"psfap = "<<psfAp<<std::endl;
+    double xOffset = _params.read("cat_x_offset",0.);
+    double yOffset = _params.read("cat_y_offset",0.);
 
     const bool shouldUseShapeletSigma = true;
 
@@ -52,7 +54,7 @@ double PsfCatalog::estimateSigma(
         calculateSigma(
             sigma,
             im, _pos[i], _sky[i], _noise[i], gain, weightIm, 
-            trans, psfAp, flag1, shouldUseShapeletSigma);
+            trans, psfAp, xOffset, yOffset, flag1, shouldUseShapeletSigma);
         // Ignore errors -- just don't add to meanMu
         if (flag1) continue;
         meanMu += log(sigma);
@@ -87,6 +89,8 @@ int PsfCatalog::measurePsf(
     double gain = _params.read("image_gain",0.);
     double psfAp = _params.read<double>("psf_aperture");
     bool psfFixCen = _params.read("psf_fix_centroid",false);
+    double xOffset = _params.read("cat_x_offset",0.);
+    double yOffset = _params.read("cat_y_offset",0.);
     dbg<<"psfap = "<<psfAp<<std::endl;
     psfAp *= sigmaP;  // arcsec
     dbg<<"psfap => "<<psfAp<<std::endl;
@@ -156,7 +160,7 @@ int PsfCatalog::measurePsf(
                     // Noise values:
                     _noise[i], gain, weightIm,
                     // Parameters:
-                    sigmaP, psfAp, psfOrder, psfFixCen,
+                    sigmaP, psfAp, psfOrder, psfFixCen, xOffset, yOffset,
                     // Log information
                     log1,
                     // Ouput value:

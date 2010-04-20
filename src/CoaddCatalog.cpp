@@ -9,8 +9,33 @@
 
 CoaddCatalog::CoaddCatalog(const ConfigFile& params) :
     _params(params)
+{}
+
+CoaddCatalog::~CoaddCatalog()
+{}
+
+
+void CoaddCatalog::read()
 {
-    readCatalog();
+    std::string file=_params.get("coaddcat_file");
+
+    if (!doesFileExist(file)) {
+        throw FileNotFoundException(file);
+    }
+
+    try {
+        // No ASCII version currently.
+        readFits(file);
+    } catch (CCfits::FitsException& e) {
+        throw ReadException(
+            "Error reading from "+file+" -- caught error\n" + e.message());
+    } catch (std::exception& e) {
+        throw ReadException(
+            "Error reading from "+file+" -- caught error\n" + e.what());
+    } catch (...) {
+        throw ReadException(
+            "Error reading from "+file+" -- caught unknown error");
+    }
 
     Assert(_pos.size() == _id.size());
     Assert(_skyPos.size() == _id.size());
@@ -107,98 +132,80 @@ CoaddCatalog::CoaddCatalog(const ConfigFile& params) :
     dbg<<"in degrees: "<<skyBounds2<<std::endl;
 }
 
-CoaddCatalog::~CoaddCatalog()
+void CoaddCatalog::readFits(const std::string& file)
 {
-}
+    dbg<<"Reading coadd catalog from FITS file: "<<file<<std::endl;
 
-
-void CoaddCatalog::readCatalog()
-{
-    std::string file=_params.get("coaddcat_file");
     int hdu = getHdu(_params,"coaddcat",file,1);
 
-    if (!doesFileExist(file)) {
-        throw FileNotFoundException(file);
+    dbg<<"Opening CoaddCatalog file "<<file<<" at hdu "<<hdu<<std::endl;
+    CCfits::FITS fits(file, CCfits::Read);
+    if (hdu > 1) fits.read(hdu-1);
+
+    CCfits::ExtHDU& table=fits.extension(hdu-1);
+
+    long nRows=table.rows();
+
+    dbg<<"  nrows = "<<nRows<<std::endl;
+    if (nRows <= 0) {
+        throw ReadException(
+            "CoaddCatalog found to have 0 rows.  Must have > 0 rows.");
     }
-    try {
-        dbg<<"Opening CoaddCatalog file "<<file<<" at hdu "<<hdu<<std::endl;
-        CCfits::FITS fits(file, CCfits::Read);
-        if (hdu > 1) fits.read(hdu-1);
 
-        CCfits::ExtHDU& table=fits.extension(hdu-1);
+    std::string idCol=_params.get("coaddcat_id_col");
+    std::string xCol=_params.get("coaddcat_x_col");
+    std::string yCol=_params.get("coaddcat_y_col");
+    std::string skyCol=_params.get("coaddcat_sky_col");
 
-        long nRows=table.rows();
+    std::string magCol=_params.get("coaddcat_mag_col");
+    std::string magErrCol=_params.get("coaddcat_mag_err_col");
 
-        dbg<<"  nrows = "<<nRows<<std::endl;
-        if (nRows <= 0) {
-            throw ReadException(
-                "CoaddCatalog found to have 0 rows.  Must have > 0 rows.");
-        }
+    std::string flagsCol=_params.get("coaddcat_flag_col");
+    std::string raCol=_params.get("coaddcat_ra_col");
+    std::string declCol=_params.get("coaddcat_dec_col");
 
-        std::string idCol=_params.get("coaddcat_id_col");
-        std::string xCol=_params.get("coaddcat_x_col");
-        std::string yCol=_params.get("coaddcat_y_col");
-        std::string skyCol=_params.get("coaddcat_sky_col");
+    long start=1;
+    long end=nRows;
 
-        std::string magCol=_params.get("coaddcat_mag_col");
-        std::string magErrCol=_params.get("coaddcat_mag_err_col");
+    dbg<<"Reading columns"<<std::endl;
+    dbg<<"  "<<idCol<<std::endl;
+    table.column(idCol).read(_id, start, end);
 
-        std::string flagsCol=_params.get("coaddcat_flag_col");
-        std::string raCol=_params.get("coaddcat_ra_col");
-        std::string declCol=_params.get("coaddcat_dec_col");
+    dbg<<"  "<<xCol<<"  "<<yCol<<std::endl;
+    _pos.resize(nRows);
+    std::vector<double> x;
+    std::vector<double> y;
+    table.column(xCol).read(x, start, end);
+    table.column(yCol).read(y, start, end);
 
-        long start=1;
-        long end=nRows;
+    dbg<<"  "<<skyCol<<std::endl;
+    table.column(skyCol).read(_sky, start, end);
 
-        dbg<<"Reading columns"<<std::endl;
-        dbg<<"  "<<idCol<<std::endl;
-        table.column(idCol).read(_id, start, end);
+    dbg<<"  "<<magCol<<std::endl;
+    table.column(magCol).read(_mag, start, end);
 
-        dbg<<"  "<<xCol<<"  "<<yCol<<std::endl;
-        _pos.resize(nRows);
-        std::vector<double> x;
-        std::vector<double> y;
-        table.column(xCol).read(x, start, end);
-        table.column(yCol).read(y, start, end);
+    dbg<<"  "<<magErrCol<<std::endl;
+    table.column(magErrCol).read(_magErr, start, end);
 
-        dbg<<"  "<<skyCol<<std::endl;
-        table.column(skyCol).read(_sky, start, end);
+    dbg<<"  "<<flagsCol<<std::endl;
+    table.column(flagsCol).read(_flags, start, end);
 
-        dbg<<"  "<<magCol<<std::endl;
-        table.column(magCol).read(_mag, start, end);
+    dbg<<"  "<<raCol<<"  "<<declCol<<std::endl;
+    _skyPos.resize(nRows);
+    std::vector<float> ra;
+    std::vector<float> decl;
+    table.column(raCol).read(ra, start, end);
+    table.column(declCol).read(decl, start, end);
 
-        dbg<<"  "<<magErrCol<<std::endl;
-        table.column(magErrCol).read(_magErr, start, end);
-
-        dbg<<"  "<<flagsCol<<std::endl;
-        table.column(flagsCol).read(_flags, start, end);
-
-        dbg<<"  "<<raCol<<"  "<<declCol<<std::endl;
-        _skyPos.resize(nRows);
-        std::vector<float> ra;
-        std::vector<float> decl;
-        table.column(raCol).read(ra, start, end);
-        table.column(declCol).read(decl, start, end);
-
-        xdbg<<"list of coaddcatalog: (id, pos, ra, dec, mag, flag)\n";
-        for(long i=0;i<nRows;++i) {
-            _pos[i] = Position(x[i],y[i]);
-            _skyPos[i] = Position(ra[i],decl[i]);
-            // The convention for Position is to use arcsec for everything.
-            // ra and dec come in as degrees.  So wee need to convert to arcsec.
-            _skyPos[i] *= 3600.;  // deg -> arcsec
-            xdbg<<_id[i]<<"  "<<x[i]<<"  "<<y[i]<<"  "<<ra[i]/15.<<"  "<<
-                decl[i]<<"  "<<_mag[i]<<"  "<<_flags[i]<<std::endl;
-        }
-    } catch (CCfits::FitsException& e) {
-        throw ReadException(
-            "Error reading from "+file+" -- caught error\n" + e.message());
-    } catch (std::exception& e) {
-        throw ReadException(
-            "Error reading from "+file+" -- caught error\n" + e.what());
-    } catch (...) {
-        throw ReadException(
-            "Error reading from "+file+" -- caught unknown error");
+    xdbg<<"list of coaddcatalog: (id, pos, ra, dec, mag, flag)\n";
+    for(long i=0;i<nRows;++i) {
+        _pos[i] = Position(x[i],y[i]);
+        _skyPos[i] = Position(ra[i],decl[i]);
+        // The convention for Position is to use arcsec for everything.
+        // ra and dec come in as degrees.  So wee need to convert to arcsec.
+        _skyPos[i] *= 3600.;  // deg -> arcsec
+        xdbg<<_id[i]<<"  "<<x[i]<<"  "<<y[i]<<"  "<<ra[i]/15.<<"  "<<
+            decl[i]<<"  "<<_mag[i]<<"  "<<_flags[i]<<std::endl;
     }
 }
 

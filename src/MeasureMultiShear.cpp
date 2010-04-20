@@ -35,7 +35,9 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
 
     bool shouldOutputDots = params.read("output_dots",false);
 
+    // Read the coadd catalog.
     CoaddCatalog coaddCat(params);
+    coaddCat.read();
     dbg<<"Made coaddcat\n";
 
     if (isTiming) {
@@ -45,6 +47,7 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
         t1 = t2;
     }
 
+    // Make the multishear catalog.
     MultiShearCatalog shearCat(coaddCat,params);
     dbg<<"Made multishearcat\n";
     dbg<<"Total bounds are "<<shearCat.getSkyBounds()<<std::endl;
@@ -82,6 +85,13 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
     double loadTime=0.;
     double calcTime=0.;
 
+    // Break the area up into sections and load each section separately.
+    // It is most efficient to load everything at once, but it can take 
+    // a lot of memory.  So this bit keeps the memory requirement for each
+    // section manageable.  So long as each section does a significant amount
+    // of work, the extra I/O time won't be much of an issue. 
+    // 20'-30' armin seems to be a good size to keep the memory under around
+    // 4-5 GB, and only add about 5-10% to the running time.
     long nShear = 0;
     std::vector<Bounds> sectionBounds = shearCat.splitBounds();
     for(size_t i=0;i<sectionBounds.size();++i) {
@@ -91,6 +101,7 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
             std::cerr<<"Starting section ";
             std::cerr<<(i+1)<<"/"<<sectionBounds.size()<<std::endl;
         }
+        // Load the pixel information for each galaxy in the section.
         int nPix = shearCat.getPixels(sectionBounds[i]);
         if (shouldOutputDots)
             std::cerr<<nPix<<" galaxies in this section.\n";
@@ -103,6 +114,7 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
             t1 = t2;
         }
 
+        // Measure the shears.
         long nShear1 = shearCat.measureMultiShears(sectionBounds[i],log);
 
         nShear += nShear1;
@@ -151,6 +163,7 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
             <<std::endl;
     }
 
+    // Write the catalog.
     shearCat.write();
     dbg<<"After Write\n";
 

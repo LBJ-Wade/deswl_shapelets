@@ -22,6 +22,8 @@ void StarCatalog::calculateSizes(
     dbg<<"n = "<<n<<std::endl;
     double psfAp = _params.read<double>("psf_aperture"); 
     double gain = _params.read("image_gain",0.);
+    double xOffset = _params.read("cat_x_offset",0.);
+    double yOffset = _params.read("cat_y_offset",0.);
 
     const bool shouldUseShapeletSigma = _params["stars_use_shapelet_sigma"];
 
@@ -36,7 +38,8 @@ void StarCatalog::calculateSizes(
         calculateSigma(
             _objSize[i],
             im, _pos[i], _sky[i], _noise[i], gain, weightIm, 
-            trans, psfAp, _flags[i], shouldUseShapeletSigma);
+            trans, psfAp, xOffset, yOffset, 
+            _flags[i], shouldUseShapeletSigma);
     }
     dbg<<"Done MeasureSigmas\n";
 }

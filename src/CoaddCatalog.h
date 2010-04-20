@@ -11,12 +11,14 @@ class CoaddCatalog
 
 public :
 
+    // Just sets up the parameters.  Normally followed by read().
     CoaddCatalog(const ConfigFile& _params);
     ~CoaddCatalog();
 
     size_t size() const { return _id.size(); }
 
-    void readCatalog();
+    void read();
+    void readFits(const std::string& file);
 
     const std::vector<long>& getIdList() const { return _id; }
     const std::vector<Position>& getPosList() const { return _pos; }

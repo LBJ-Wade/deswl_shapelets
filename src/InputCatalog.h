@@ -17,6 +17,8 @@ public :
     // so if you haven't loaded it, and you don't have any bad local
     // sky values, it won't need the global_sky value, so it won't
     // load the image here either.
+    // The contructor just sets up the basic parameter information. 
+    // It is usually followed by read() or something similar.
     InputCatalog(ConfigFile& params, const Image<double>* im=0);
 
     size_t size() const { return _pos.size(); }
@@ -65,6 +67,15 @@ private :
     Bounds _bounds;
     Bounds _skyBounds;
 
+    const Image<double>* _im;
+
+    enum NoiseMethod {
+        VALUE, CATALOG, CATALOG_SIGMA, GAIN_VALUE, GAIN_FITS, WEIGHT_IMAGE
+    };
+    NoiseMethod _nm;
+    double _noiseValue;
+    double _gain;
+    double _readNoise;
 };
 
 #endif

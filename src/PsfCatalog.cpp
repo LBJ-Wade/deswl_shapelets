@@ -19,10 +19,12 @@ void measureSinglePsf1(
     const Transformation& trans,
     double noise, double gain, const Image<double>* weightIm,
     double sigmaP, double psfAp, int psfOrder, bool fixCen,
+    double xOffset, double yOffset,
     PsfLog& log, BVec& psf, double& nu, long& flag)
 {
     std::vector<PixelList> pix(1);
-    getPixList(im,pix[0],cen,sky,noise,gain,weightIm,trans,psfAp,flag);
+    getPixList(im,pix[0],cen,sky,noise,gain,weightIm,trans,
+               psfAp,xOffset,yOffset,flag);
 
     int nPix = pix[0].size();
     xdbg<<"npix = "<<nPix<<std::endl;
@@ -77,6 +79,7 @@ void measureSinglePsf(
     const Transformation& trans,
     double noise, double gain, const Image<double>* weightIm,
     double sigmaP, double psfAp, int psfOrder, bool fixCen,
+    double xOffset, double yOffset,
     PsfLog& log, BVec& psf, double& nu, long& flag)
 {
     try {
@@ -96,7 +99,7 @@ void measureSinglePsf(
     try {
         measureSinglePsf1(
 	    cen,im,sky,trans,noise,gain,weightIm,
-	    sigmaP,psfAp,psfOrder,fixCen,log,psf,nu,flag);
+	    sigmaP,psfAp,psfOrder,fixCen,xOffset,yOffset,log,psf,nu,flag);
 #ifdef USE_TMV
     } catch (tmv::Error& e) {
         dbg<<"TMV Error thrown in MeasureSinglePSF\n";
@@ -166,23 +169,6 @@ PsfCatalog::PsfCatalog(
 
 PsfCatalog::PsfCatalog(const ConfigFile& params) : _params(params)
 {
-    read();
-
-    Assert(_id.size() == size());
-    Assert(_pos.size() == size());
-    Assert(_sky.size() == size());
-    Assert(_noise.size() == size());
-    Assert(_flags.size() == size());
-    Assert(_nu.size() == size());
-    Assert(_psf.size() == size());
-}
-
-// this one we don't have to deal with root= stuff
-PsfCatalog::PsfCatalog(const ConfigFile& params, std::string file) : 
-    _params(params)
-{
-    read(file);
-
     Assert(_id.size() == size());
     Assert(_pos.size() == size());
     Assert(_sky.size() == size());

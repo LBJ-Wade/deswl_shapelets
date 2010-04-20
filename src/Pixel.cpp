@@ -7,7 +7,7 @@ void getPixList(
     const Image<double>& im, PixelList& pix,
     const Position cen, double sky, double noise, double gain,
     const Image<double>* weightImage, const Transformation& trans,
-    double aperture, long& flag)
+    double aperture, double xOffset, double yOffset, long& flag)
 {
     xdbg<<"Start GetPixList\n";
     if (weightImage) {
@@ -44,7 +44,10 @@ void getPixList(
     // ie. where the lower left corner pixel is (1,1), rather than (0,0).
     // The easiest way to do this is to just decrease xCen,yCen by 1 each:
     //--xCen; --yCen;
-    // === This is now handled by x_offset, y_offset in ReadCatalog
+    // This is now handled by parameters xOffset and yOffset, which are
+    // set from the parameters: cat_x_offset and cat_y_offset
+    xCen -= xOffset;
+    yCen -= yOffset;
 
     int i1 = int(floor(xCen-xAp-xMin));
     int i2 = int(ceil(xCen+xAp-xMin));
@@ -130,8 +133,8 @@ void getPixList(
 
 double getLocalSky(
     const Image<float>& bkg, 
-    const Position cen, const Transformation& trans,
-    double aperture, long& flag)
+    const Position cen, const Transformation& trans, double aperture,
+    double xOffset, double yOffset, long& flag)
 {
     // This function is very similar in structure to the above getPixList
     // function.  It does the same thing with the distortion and the 
@@ -161,6 +164,10 @@ double getLocalSky(
 
     double xCen = cen.getX();
     double yCen = cen.getY();
+    xdbg<<"cen = "<<xCen<<"  "<<yCen<<std::endl;
+    xdbg<<"xmin, ymin = "<<xMin<<"  "<<yMin<<std::endl;
+    xCen -= xOffset;
+    yCen -= yOffset;
 
     int i1 = int(floor(xCen-xAp-xMin));
     int i2 = int(ceil(xCen+xAp-xMin));
@@ -206,8 +213,8 @@ double getLocalSky(
     return meanSky;
 }
 
-void getSubPixList(PixelList& pix, const PixelList& allpix,
-                   double aperture, long& flag)
+void getSubPixList(
+    PixelList& pix, const PixelList& allpix, double aperture, long& flag)
 {
     // Select a subset of allpix that are within the given aperture
     xdbg<<"Start GetSubPixList\n";

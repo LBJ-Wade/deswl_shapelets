@@ -23,7 +23,7 @@ output=/Users/Mike/Astro/des/devel/wl/testdata/output2
 #output=/u/ac/jarvis/wl/testdata/output
 #dc4=
 #dc4='shear_dc4_input_format=true'
-dc4='+dc4.config'
+dc4='+dc4.config cat_x_offset=1 cat_y_offset=1'
 BINDIR=.
 #BINDIR=/home/mjarvis/bin
 #BINDIR=/Users/Mike/bin

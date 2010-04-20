@@ -21,9 +21,9 @@ void measureMultiShear(
     Position& cen, 
     const std::vector<PixelList>& allpix,
     const std::vector<BVec>& psf,
-    double gal_aperture, double max_aperture,
-    int gal_order, int gal_order2,
-    double fPsf, double min_gal_size, bool fixCen,
+    double galAperture, double maxAperture,
+    int galOrder, int galOrder2,
+    double fPsf, double minGalSize, bool fixCen,
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     DSmallMatrix22& shearcov, BVec& shapelet,
@@ -46,30 +46,30 @@ void measureMultiShear(
     try {
         // Find harmonic mean of psf sizes:
         // MJ: Is it correct to use the harmonic mean of sigma^2?
-        xdbg<<"sigma_p values are: \n";
-        double sigma_p = 0.;
+        xdbg<<"sigmaP values are: \n";
+        double sigmaP = 0.;
         Assert(psf.size() > 0);
         for(int i=0;i<nExp;++i) {
             xdbg<<psf[i].getSigma()<<std::endl;
-            sigma_p += 1./psf[i].getSigma();
+            sigmaP += 1./psf[i].getSigma();
         }
-        sigma_p = double(psf.size()) / sigma_p;
-        xdbg<<"Harmonic mean = "<<sigma_p<<std::endl;
+        sigmaP = double(psf.size()) / sigmaP;
+        xdbg<<"Harmonic mean = "<<sigmaP<<std::endl;
 
-        // We start with a native fit using sigma = 2*sigma_p:
-        double sigma_obs = 2.*sigma_p;
-        double galap = gal_aperture * sigma_obs;
-        xdbg<<"galap = "<<gal_aperture<<" * "<<sigma_obs<<" = "<<galap<<std::endl;
-        if (max_aperture > 0. && galap > max_aperture) {
-            galap = max_aperture;
-            xdbg<<"      => "<<galap<<std::endl;
+        // We start with a native fit using sigma = 2*sigmaP:
+        double sigmaObs = 2.*sigmaP;
+        double galAp = galAperture * sigmaObs;
+        xdbg<<"galAp = "<<galAperture<<" * "<<sigmaObs<<" = "<<galAp<<std::endl;
+        if (maxAperture > 0. && galAp > maxAperture) {
+            galAp = maxAperture;
+            xdbg<<"      => "<<galAp<<std::endl;
         }
-        xdbg<<"sigma_obs = "<<sigma_obs<<", sigma_p = "<<sigma_p<<std::endl;
+        xdbg<<"sigmaObs = "<<sigmaObs<<", sigmaP = "<<sigmaP<<std::endl;
 
         std::vector<PixelList> pix(allpix.size());
         int npix = 0;
         for(int i=0;i<nExp;++i) {
-            getSubPixList(pix[i],allpix[i],galap,flag);
+            getSubPixList(pix[i],allpix[i],galAp,flag);
             npix += pix[i].size();
         }
         xdbg<<"npix = "<<npix<<std::endl;
@@ -79,16 +79,16 @@ void measureMultiShear(
         Ellipse ell;
         ell.fixGam();
         if (fixCen) ell.fixCen();
-        ell.crudeMeasure(pix,sigma_obs);
+        ell.crudeMeasure(pix,sigmaObs);
         xdbg<<"Crude Measure: centroid = "<<ell.getCen()<<", mu = "<<ell.getMu()<<std::endl;
 
         int go = 2;
-        int gal_size = (go+1)*(go+2)/2;
+        int galSize = (go+1)*(go+2)/2;
 
         if (times) ell.doTimings();
         long flag1=0;
 
-        if (ell.measure(pix,go,sigma_obs,true,flag1)) {
+        if (ell.measure(pix,go,sigmaObs,true,flag1)) {
             if (times) times->successNative(ell.getTimes());
             ++log._nsNative;
             dbg<<"Successful native fit:\n";
@@ -105,38 +105,38 @@ void measureMultiShear(
 
         // Now we can do a deconvolving fit, but one that does not 
         // shear the coordinates.
-        sigma_obs *= exp(ell.getMu());
-        xdbg<<"sigma_obs -> "<<sigma_obs<<std::endl;
-        if (sigma_obs < min_gal_size*sigma_p) {
-            dbg<<"skip: galaxy is too small -- "<<sigma_obs<<
-                " psf size = "<<sigma_p<<std::endl;
+        sigmaObs *= exp(ell.getMu());
+        xdbg<<"sigmaObs -> "<<sigmaObs<<std::endl;
+        if (sigmaObs < minGalSize*sigmaP) {
+            dbg<<"skip: galaxy is too small -- "<<sigmaObs<<
+                " psf size = "<<sigmaP<<std::endl;
             if (times) ++times->_nfSmall;
             ++log._nfSmall;
             flag |= TOO_SMALL;
             if (!fixCen) cen += ell.getCen();
             return;
         }
-        galap *= exp(ell.getMu());
-        if (max_aperture > 0. && galap > max_aperture) galap = max_aperture;
+        galAp *= exp(ell.getMu());
+        if (maxAperture > 0. && galAp > maxAperture) galAp = maxAperture;
         ell.setMu(0);
 
         // Check - mu should now be zero:
         // This one works
-        //ell.measure(pix,go,sigma_obs,true,flag1);
+        //ell.measure(pix,go,sigmaObs,true,flag1);
         xxdbg<<"After native fit #2:\n";
         xxdbg<<"Mu = "<<ell.getMu()<<std::endl;
 
         npix = 0;
         for(int i=0;i<nExp;++i) {
-            getSubPixList(pix[i],allpix[i],galap,flag);
+            getSubPixList(pix[i],allpix[i],galAp,flag);
             npix += pix[i].size();
         }
 
         xdbg<<"npix = "<<npix<<std::endl;
-        double sigpsq = pow(sigma_p,2);
-        double sigma = pow(sigma_obs,2) - sigpsq;
-        xdbg<<"sigma_p^2 = "<<sigpsq<<std::endl;
-        xdbg<<"sigma^2 = sigma_obs^2 - sigmap^2 = "<<sigma<<std::endl;
+        double sigpsq = pow(sigmaP,2);
+        double sigma = pow(sigmaObs,2) - sigpsq;
+        xdbg<<"sigmaP^2 = "<<sigpsq<<std::endl;
+        xdbg<<"sigma^2 = sigmaObs^2 - sigmap^2 = "<<sigma<<std::endl;
         if (sigma < 0.1*sigpsq) sigma = 0.1*sigpsq;
         sigma = sqrt(sigma);
         xdbg<<"sigma = sqrt(sigma^2) "<<sigma<<std::endl;
@@ -181,12 +181,12 @@ void measureMultiShear(
 #endif
 
         // Measure the galaxy shape at the full order
-        go = gal_order;
-        gal_size = (go+1)*(go+2)/2;
-        if (npix <= gal_size) {
-            while (npix <= gal_size) { gal_size -= go+1; --go; }
-            dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
-            dbg<<"Reduced gal_order to "<<go<<" gal_size = "<<gal_size<<std::endl;
+        go = galOrder;
+        galSize = (go+1)*(go+2)/2;
+        if (npix <= galSize) {
+            while (npix <= galSize) { galSize -= go+1; --go; }
+            dbg<<"Too few pixels ("<<npix<<") for given galOrder. \n";
+            dbg<<"Reduced galOrder to "<<go<<" galSize = "<<galSize<<std::endl;
             flag |= SHAPE_REDUCED_ORDER;
             if (go < 2) { 
                 flag |= TOO_SMALL; 
@@ -233,12 +233,12 @@ void measureMultiShear(
         // Finally, we calculate the shear in the deconvolved galaxy.
         //ell.fixMu();
         ell.unfixGam();
-        go = gal_order2;
-        gal_size = (go+1)*(go+2)/2;
-        if (npix <= gal_size) {
-            while (npix <= gal_size) { gal_size -= go+1; --go; }
-            dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
-            dbg<<"Reduced gal_order to "<<go<<" gal_size = "<<gal_size<<std::endl;
+        go = galOrder2;
+        galSize = (go+1)*(go+2)/2;
+        if (npix <= galSize) {
+            while (npix <= galSize) { galSize -= go+1; --go; }
+            dbg<<"Too few pixels ("<<npix<<") for given galOrder. \n";
+            dbg<<"Reduced galOrder to "<<go<<" galSize = "<<galSize<<std::endl;
         }
         if (times) ell.resetTimes();
         DMatrix cov(5,5);

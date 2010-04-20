@@ -31,6 +31,8 @@ int ShearCatalog::measureShears(
     double gain = _params.read("image_gain",0.);
     double minGalSize = _params.read<double>("shear_min_gal_size");
     bool galFixCen = _params.read("shear_fix_centroid",false);
+    double xOffset = _params.read("cat_x_offset",0.);
+    double yOffset = _params.read("cat_y_offset",0.);
     bool shouldOutputDots = _params.read("output_dots",false);
     bool isTiming = _params.read("timing",false);
 
@@ -96,7 +98,7 @@ int ShearCatalog::measureShears(
                     _noise[i], gain, weightIm, 
                     // Parameters:
                     galAperture, maxAperture, galOrder, galOrder2, 
-                    fPsf, minGalSize, galFixCen,
+                    fPsf, minGalSize, galFixCen, xOffset, yOffset,
                     // Time stats if desired:
                     isTiming ? &times : 0, 
                     // Log information

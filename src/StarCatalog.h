@@ -15,8 +15,8 @@ void calculateSigma(
     double& sigma, // Initial value -- use <=0 if no initial guess
     const Image<double>& im, const Position& pos, double sky, 
     double noise, double gain, const Image<double>* weightIm,
-    const Transformation& trans, double psfAp, long& flag,
-    bool shouldUseShapeletSigma);
+    const Transformation& trans, double psfAp, double xOffset, double yOffset,
+    long& flag, bool shouldUseShapeletSigma);
 
 class StarCatalog
 {
@@ -28,7 +28,7 @@ public:
         const InputCatalog& inCat,
         const ConfigFile& params, std::string fsPrefix = "stars_");
 
-    // Read in from file
+    // Setup the parameters.  Normally followed by read() or similar.
     StarCatalog(const ConfigFile& params, std::string fsPrefix = "stars_");
 
     size_t size() const { return _id.size(); }

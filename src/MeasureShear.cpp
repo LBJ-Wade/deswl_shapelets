@@ -43,6 +43,7 @@ static void doMeasureShear(ConfigFile& params, ShearLog& log)
 
     // Read input catalog
     InputCatalog inCat(params,&im);
+    inCat.read();
 
     if (isTiming) {
         gettimeofday(&tp,0);

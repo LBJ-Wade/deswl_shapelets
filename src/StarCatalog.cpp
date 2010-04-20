@@ -25,14 +25,14 @@ static void calculateSigma1(
     double& sigma,
     const Image<double>& im, const Position& pos, double sky,
     double noise, double gain, const Image<double>* weightIm, 
-    const Transformation& trans, double psfAp, long& flag,
-    bool shouldUseShapeletSigma)
+    const Transformation& trans, double psfAp, double xOffset, double yOffset,
+    long& flag, bool shouldUseShapeletSigma)
 {
     std::vector<PixelList> pix(1);
     long flag1 = 0;
     try {
-        getPixList(im, pix[0], pos, sky, noise, gain, weightIm, trans, psfAp, 
-                   flag1);
+        getPixList(im, pix[0], pos, sky, noise, gain, weightIm, trans, 
+                   psfAp, xOffset, yOffset, flag1);
     } catch (RangeException) {
         flag1 |= TRANSFORM_EXCEPTION;
     }
@@ -70,14 +70,14 @@ void calculateSigma(
     double& sigma,
     const Image<double>& im, const Position& pos, double sky,
     double noise, double gain, const Image<double>* weightIm, 
-    const Transformation& trans, double psfAp, long& flag,
-    bool shouldUseShapeletSigma)
+    const Transformation& trans, double psfAp, double xOffset, double yOffset,
+    long& flag, bool shouldUseShapeletSigma)
 {
     try {
         calculateSigma1(
             sigma,
             im, pos, sky, noise, gain, weightIm,
-            trans, psfAp, flag, shouldUseShapeletSigma);
+            trans, psfAp, xOffset, yOffset, flag, shouldUseShapeletSigma);
         dbg<<"objsize: "<<sigma<<std::endl;
         dbg<<"flags: "<<flag<<std::endl;
 #ifdef USE_TMV
@@ -121,8 +121,6 @@ StarCatalog::StarCatalog(
 StarCatalog::StarCatalog(const ConfigFile& params, std::string fsPrefix) :
     _params(params), _prefix(fsPrefix)
 { 
-    read();
-
     Assert(_id.size() == size());
     Assert(_pos.size() == size());
     Assert(_sky.size() == size());

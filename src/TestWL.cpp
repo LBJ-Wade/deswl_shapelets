@@ -1886,6 +1886,7 @@ int main(int argc, char **argv) try
     Image<double> im(params,weight_im);
     Transformation trans(params);
     InputCatalog incat(params);
+    incat.read();
 
     // Find stars
     StarCatalog starCat(incat,params,"");
@@ -1898,6 +1899,7 @@ int main(int argc, char **argv) try
     // Test I/O
     starCat.write();
     StarCatalog starCat2(params,"");
+    starCat2.read();
     std::vector<std::string> all_ext = params["stars_ext"];
     for(size_t k=0;k<all_ext.size();++k) {
         dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
@@ -1942,6 +1944,7 @@ int main(int argc, char **argv) try
     // Test I/O
     psfcat.write();
     PsfCatalog psfcat2(params);
+    psfcat2.read();
     all_ext = params["psf_ext"];
     for(size_t k=0;k<all_ext.size();++k) {
         dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
@@ -2032,6 +2035,7 @@ int main(int argc, char **argv) try
     // Test I/O
     shearcat.write();
     ShearCatalog shearcat2(params);
+    shearcat2.read();
     all_ext = params["shear_ext"];
     for(size_t k=0;k<all_ext.size();++k) {
         dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;

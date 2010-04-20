@@ -29,6 +29,7 @@ static void doFullPipeline(
 
     // Read input catalog
     InputCatalog inCat(params,&im);
+    inCat.read();
 
     // Create StarCatalog from InputCatalog
     StarCatalog starCat(inCat,params);

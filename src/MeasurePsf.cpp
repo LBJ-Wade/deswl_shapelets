@@ -43,6 +43,7 @@ static void doMeasurePsf(ConfigFile& params, PsfLog& log)
 
     // Read star catalog info
     StarCatalog starCat(params);
+    starCat.read();
 
     if (isTiming) {
         gettimeofday(&tp,0);

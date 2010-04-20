@@ -43,7 +43,8 @@ int main(int argc, char **argv)
 
 
     std::cerr<<"Loading a PSFCatalog\n";
-    PsfCatalog psfCat(params, psfFile);
+    PsfCatalog psfCat(params);
+    psfCat.read(psfFile);
 
     std::cerr<<"Loading a FittedPSF\n";
     FittedPsf fitPsf(params);

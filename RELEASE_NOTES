@@ -1,3 +1,10 @@
+src/InputCatalog.cpp, src/PsfCatalog.cpp, src/ShearCatalog.cpp, etc.:
+  Removed the read() statement from constructors that just take a params
+  argument.  Now it requires an explicit read() statement following the
+  constructor.  This is really just to make the style consistent, since 
+  FittedPsf already worked that way.  It makes it easier to write test 
+  programs that read in a particular file without having to go through the
+  makeName stuff with root, etc.
 
 src/MeasureShearAlgo.cpp: Fixed a subtle bug in the centroiding where
   the centroid used has a slight memory of the direction the centroid came 
@@ -9,6 +16,18 @@ src/ShearCatalog_omp.cpp: Check whether there is such a bias in the input
   positions, and output a warning if the bias is more than 0.5 pixels,
   since this is something that should probably be corrected using the 
   cat_x_offset and cat_y_offset values.
+
+example_config/wl.config:
+  I discovered that there is a 1 pixel offset in the input catalogs
+  (as ES had thought there was, and I wrongly thought there wasn't).
+  So I changed cat_x_offset and cat_y_offset to 1 in the config file.
+
+src/Pixel.cpp: Moved the xOffset and yOffset correction back to getPixList
+  rather than in ReadCatalog.  This way all the catalogs will maintain
+  whatever convention is established in the original input catalog, and 
+  we just correct for our different convention when we load the pixels.
+  This is also needed for the WCS to work correctly and still get the
+  right pixels.
 
 src/EllipseSolver2.cpp: Fixed getB() to return the vector with the correct
   conjugation.  Nothing uses this value, but for testing it is useful to 

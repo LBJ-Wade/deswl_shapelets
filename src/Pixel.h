@@ -90,15 +90,14 @@ void getPixList(
     const Image<double>& im, PixelList& pix,
     const Position cen, double sky, double noise, double gain,
     const Image<double>* weightImage, const Transformation& trans,
-    double aperture, long& flag);
+    double aperture, double xOffset, double yOffset, long& flag);
 
 double getLocalSky(
     const Image<float>& bkg, 
     const Position cen, const Transformation& trans,
-    double aperture, long& flag);
+    double aperture, double xOffset, double yOffset, long& flag);
 
 void getSubPixList(
-    PixelList& pix, const PixelList& allPix,
-    double aperture, long& flag);
+    PixelList& pix, const PixelList& allPix, double aperture, long& flag);
 
 #endif

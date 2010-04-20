@@ -19,6 +19,7 @@ void measureSingleShear1(
     double galAperture, double maxAperture,
     int galOrder, int galOrder2,
     double fPsf, double minGalSize, bool fixCen,
+    double xOffset, double yOffset,
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     DSmallMatrix22& shearcov, BVec& shapelet,
@@ -52,9 +53,16 @@ void measureSingleShear1(
     xdbg<<"sigma_obs = "<<sigmaObs<<", sigma_p = "<<sigmaP<<std::endl;
 
     std::vector<PixelList> pix(1);
-    getPixList(im,pix[0],cen,sky,noise,gain,weightIm,trans,galAp,flag);
+    getPixList(im,pix[0],cen,sky,noise,gain,weightIm,trans,
+               galAp,xOffset,yOffset,flag);
     int npix = pix[0].size();
     xdbg<<"npix = "<<npix<<std::endl;
+    if (npix < 10) {
+        dbg<<"Too few pixels to continue: "<<npix<<std::endl;
+        flag |= LT10PIX; // Should already be set by getPixList, but...
+        return;
+    }
+
 
     Ellipse ell;
     ell.fixGam();
@@ -84,7 +92,13 @@ void measureSingleShear1(
         pix[0].clear();
         cen += ell.getCen();
         dbg<<"New center = "<<cen<<std::endl;
-        getPixList(im,pix[0],cen,sky,noise,gain,weightIm,trans,galAp,flag);
+        getPixList(im,pix[0],cen,sky,noise,gain,weightIm,trans,
+                   galAp,xOffset,yOffset,flag);
+        if (npix < 10) {
+            dbg<<"Too few pixels to continue: "<<npix<<std::endl;
+            flag |= LT10PIX; // Should already be set by getPixList, but...
+            return;
+        }
 
 #ifdef RANDOMIZE_CENTER
         // The centroid doesn't necessarily get all the way to the perfect
@@ -98,7 +112,7 @@ void measureSingleShear1(
         // avoid the subtle bias that can otherwise result.
 
         std::complex<double> cen1 = ell.getCen();
-        // get a random offset in the unit circle
+        // get a offset of 0.1 pixels in a random direction.
         double x_offset, y_offset, rsq_offset;
         do {
             x_offset = double(rand())*2./double(RAND_MAX) - 1.;
@@ -106,10 +120,11 @@ void measureSingleShear1(
             rsq_offset = x_offset*x_offset + y_offset*y_offset;
         } while (rsq_offset > 1. || rsq_offset == 0.);
         double r_offset = sqrt(rsq_offset);
-        x_offset /= r_offset;
-        y_offset /= r_offset;
+        x_offset /= r_offset*10.;
+        y_offset /= r_offset*10.;
         ell.setCen(std::complex<double>(x_offset,y_offset));
-        dbg<<"After random offset: cen = "<<cen1+ell.getCen()<<std::endl;
+        dbg<<"After random offset "<<x_offset<<","<<y_offset<<
+            ": cen = "<<cen1+ell.getCen()<<std::endl;
 
         // Now do it again.
         flag1=0;
@@ -170,9 +185,15 @@ void measureSingleShear1(
     //xdbg<<"Mu = "<<ell.getMu()<<std::endl;
 
     pix[0].clear();
-    getPixList(im,pix[0],cen,sky,noise,gain,weightIm,trans,galAp,flag);
+    getPixList(im,pix[0],cen,sky,noise,gain,weightIm,trans,
+               galAp,xOffset,yOffset,flag);
     npix = pix[0].size();
     xdbg<<"npix = "<<npix<<std::endl;
+    if (npix < 10) {
+        dbg<<"Too few pixels to continue: "<<npix<<std::endl;
+        flag |= LT10PIX; // Should already be set by getPixList, but...
+        return;
+    }
     double sigpsq = pow(sigmaP,2);
     double sigma = pow(sigmaObs,2) - sigpsq;
     if (sigma < 0.1*sigpsq) sigma = 0.1*sigpsq;
@@ -305,6 +326,7 @@ void measureSingleShear(
     double galAperture, double maxAperture,
     int galOrder, int galOrder2,
     double fPsf, double minGalSize, bool fixCen,
+    double xOffset, double yOffset,
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     DSmallMatrix22& shearcov, BVec& shapelet,
@@ -350,7 +372,7 @@ void measureSingleShear(
             noise, gain, weightIm, 
             // Parameters:
             galAperture, maxAperture, galOrder, galOrder2, 
-            fPsf, minGalSize, fixCen,
+            fPsf, minGalSize, fixCen, xOffset, yOffset,
             // Time stats if desired:
             times,
             // Log information

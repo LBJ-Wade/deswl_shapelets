@@ -23,7 +23,7 @@ public :
         const InputCatalog& inCat, const Transformation& trans,
         const ConfigFile& params);
 
-    // Read from file
+    // Just load parameter.  Normally followed by cat.read() or similar.
     ShearCatalog(const ConfigFile& params);
 
     size_t size() const { return _id.size(); }

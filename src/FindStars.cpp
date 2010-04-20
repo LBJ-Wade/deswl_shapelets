@@ -40,6 +40,7 @@ static void doFindStars(ConfigFile& params, FindStarsLog& log)
 
     // Read input catalog
     InputCatalog inCat(params,&im);
+    inCat.read();
 
     if (isTiming) {
         gettimeofday(&tp,0);

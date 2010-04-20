@@ -18,10 +18,8 @@ public :
     // Make from starcat
     PsfCatalog(const StarCatalog& starCat, const ConfigFile& params);
 
-    // Read from file
+    // Just load the parameters.  Normally followed by read() or similar.
     PsfCatalog(const ConfigFile& params);
-    // this one we don't have to deal with root= stuff
-    PsfCatalog(const ConfigFile& params, std::string file);
 
     size_t size() const { return _id.size(); }
 
@@ -80,12 +78,14 @@ void measureSinglePsf(
     const Transformation& trans,
     double noise, double gain, const Image<double>* weightIm,
     double sigmaP, double psfap, int psfOrder, bool fixCen,
+    double xOffset, double yOffset,
     PsfLog& log, BVec& psf, double& nu, long& flag);
 void measureSinglePsf1(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans,
     double noise, double gain, const Image<double>* weightIm,
     double sigmaP, double psfap, int psfOrder, bool fixCen,
+    double xOffset, double yOffset,
     PsfLog& log, BVec& psf, double& nu, long& flag);
 
 #endif

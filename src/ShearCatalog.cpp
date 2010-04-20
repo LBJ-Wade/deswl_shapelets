@@ -108,8 +108,6 @@ ShearCatalog::ShearCatalog(
 
 ShearCatalog::ShearCatalog(const ConfigFile& params) : _params(params)
 {
-    read();
-
     Assert(_id.size() == size());
     Assert(_pos.size() == size());
     Assert(_sky.size() == size());

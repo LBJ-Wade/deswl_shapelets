@@ -127,13 +127,10 @@ int MultiShearCatalog::getPixels(const Bounds& bounds)
 
 MultiShearCatalog::MultiShearCatalog(const ConfigFile& params) :
     _params(params)
-{
-    read();
-}
+{}
 
 MultiShearCatalog::~MultiShearCatalog()
-{
-}
+{}
 
 // readFileLists reads the srclist file specified in params
 // and reads the names of the images and fitpsf 

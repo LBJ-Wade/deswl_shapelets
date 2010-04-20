@@ -17,6 +17,7 @@ void measureSingleShear(
     double galAperture, double maxAperture,
     int galOrder, int galOrder2,
     double fPsf, double minGalSize, bool fixCen,
+    double xOffset, double yOffset,
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     DSmallMatrix22& shearCov, BVec& shapelet,
@@ -29,11 +30,19 @@ void measureSingleShear1(
     double galAperture, double maxAperture,
     int galOrder, int galOrder2,
     double fPsf, double minGalSize, bool fixCen,
+    double xOffset, double yOffset,
     OverallFitTimes* times, ShearLog& log,
     std::complex<double>& shear, 
     DSmallMatrix22& shearCov, BVec& shapelet,
     double& nu, long& flag);
 
+// This is poorly named.  It is still only measuring a single shear,
+// but it is doing the multi-exposure version of the measurement.
+// It is _not_ measuring multiple shears.
+// The algorithm is basically the same as the above function, except that
+// we already have the pixel values loaded up with a larger than needed 
+// aperture.  Then we take subsets of that give the actual aperture size
+// that we want each time.
 void measureMultiShear(
     Position& cen, 
     const std::vector<PixelList>& allPix,
