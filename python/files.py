@@ -105,6 +105,7 @@ class Runconfig(object):
     def generate_new_runconfig(self, 
                                run_type, 
                                dataset, 
+                               wl_config,
                                localid=None, 
                                test=False, 
                                dryrun=False, 
@@ -145,7 +146,8 @@ class Runconfig(object):
                    'esutilvers': esutilvers,
                    'wlvers':wlvers,
                    'tmvvers':tmvvers,
-                   'dataset':dataset}
+                   'dataset':dataset,
+                   'wl_config':wl_config}
 
         if comment is not None:
             runconfig['comment'] = comment

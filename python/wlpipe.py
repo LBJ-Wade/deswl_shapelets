@@ -12,9 +12,11 @@
 
         # create a run name and its configuration
             rc=deswl.files.Runconfig()
-            rc.generate_new_runconfig('wlse', dataset)
-        a useful keyword to send is wl_config= to override the default
-        under etc.  I keep these in $DESFILES_DIR/wl.config, e.g. wl01.config
+            rc.generate_new_runconfig('wlse', dataset, wl_config)
+        Note I've started setting wl_config here, instead of using
+        what is under etc. This allows us to use the same version
+        of code but run with a different configuration.
+        I keep these in $DESFILES_DIR/wl.config, e.g. wl01.config
         
         You can send test=True and dryrun=True also
 
@@ -164,7 +166,7 @@ def default_localid():
 def default_serun():
     return 'wlse000001'
 def default_scratch_rootdir():
-    return '/scratch/esheldon/DES'
+    return '/scratch/users/esheldon/DES'
 
 
 def get_red_filelist(band=None, extra=None, newest=False, return_dict=False):
@@ -948,7 +950,9 @@ def run_shear(exposurename,
 
 
 
+    tmv_dir=getenv_check('TMV_DIR')
     wl_dir=getenv_check('WL_DIR')
+    esutil_dir=getenv_check('ESUTIL_DIR')
     desfiles_dir=getenv_check('DESFILES_DIR')
 
     pyvers=deswl.get_python_version()
@@ -1021,6 +1025,8 @@ def run_shear(exposurename,
     stat['esutilvers'] = esutilvers
     stat['wlvers'] = wlvers
     stat['tmvvers'] = tmvvers
+    stat['TMV_DIR'] = tmv_dir
+    stat['ESUTIL_DIR'] = esutil_dir
     stat['WL_DIR'] = wl_dir
     stat['DESFILES_DIR'] = desfiles_dir
     stat['infodict_file'] = infodict_file
@@ -1053,6 +1059,8 @@ def run_shear(exposurename,
     stdout.write('    python version: %s\n' % pyvers)
     stdout.write('    tmv version: %s\n' % tmvvers)
     stdout.write('    wl version: %s\n' % wlvers)
+    stdout.write('    TMV_DIR: %s\n' % tmv_dir)
+    stdout.write('    ESUTIL_DIR: %s\n' % esutil_dir)
     stdout.write('    WL_DIR: %s\n' % wl_dir)
     stdout.write('    DESFILES_DIR: %s\n' % desfiles_dir)
     stdout.write('    infodict_file: %s\n' % infodict_file)
@@ -1816,7 +1824,9 @@ def run_multishear(tilename, band,
 
 
     tm1=time.time()
+    tmv_dir=getenv_check('TMV_DIR')
     wl_dir=getenv_check('WL_DIR')
+    esutil_dir=getenv_check('ESUTIL_DIR')
     desfiles_dir=getenv_check('DESFILES_DIR')
 
     pyvers=deswl.get_python_version()
@@ -1898,6 +1908,8 @@ def run_multishear(tilename, band,
     stat['esutilvers'] = esutilvers
     stat['wlvers'] = wlvers
     stat['tmvvers'] = tmvvers
+    stat['TMV_DIR'] = tmv_dir
+    stat['ESUTIL_DIR'] = esutil_dir
     stat['WL_DIR'] = wl_dir
     stat['DESFILES_DIR'] = desfiles_dir
     stat['executable'] = executable
@@ -1933,6 +1945,8 @@ def run_multishear(tilename, band,
     stdout.write('    python version: %s\n' % pyvers)
     stdout.write('    tmv version: %s\n' % tmvvers)
     stdout.write('    wl version: %s\n' % wlvers)
+    stdout.write('    TMV_DIR: %s\n' % tmv_dir)
+    stdout.write('    ESUTIL_DIR: %s\n' % esutil_dir)
     stdout.write('    WL_DIR: %s\n' % wl_dir)
     stdout.write('    DESFILES_DIR: %s\n' % desfiles_dir)
     stdout.write('    executable: %s\n' % executable)
