@@ -1,7 +1,12 @@
 -------------------------------------------------------------------------
-v0.55  (2010-04-21)  One bug fix regarding centroiding, and added a couple
-  features that are useful for testing:
+v0.55  (2010-04-23)  One bug fix regarding centroiding, and added a couple
+  features that are useful for testing.  Features in framework to simplify
+  configurations and identify particilar wl.config with each run.
 
+python/files.Runconfig:  Require wl_config as input to run configurations.
+	the wl_config are now being kept under SVN in $DESFILES_DIR/wl.config
+python/wlpipe: Run config through os.path.expandvars() to expand things
+	environment variables like $DESFILES_DIR and $DESDATA.
 
 src/MeasureShearAlgo.cpp: Fixed a subtle bug in the centroiding where
   the centroid used has a slight memory of the direction the centroid came 

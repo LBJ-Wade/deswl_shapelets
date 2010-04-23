@@ -1848,6 +1848,7 @@ def run_multishear(tilename, band,
         config=path_join(wl_dir, 'etc','wl.config')
 
 
+    config = os.path.expandvars(config)
 
     # source list can be determined from tilename/band
     if srclist is None:
