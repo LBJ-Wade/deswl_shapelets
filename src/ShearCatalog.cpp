@@ -20,13 +20,13 @@
 #include "WriteParam.h"
 
 ShearCatalog::ShearCatalog(
-    const InputCatalog& inCat,
-    const Transformation& trans, const ConfigFile& params) :
+    const InputCatalog& inCat, const Transformation& trans,
+    const FittedPsf& fitPsf, const ConfigFile& params) :
     _id(inCat.getIdList()), _pos(inCat.getPosList()), 
     _sky(inCat.getSkyList()), _noise(inCat.getNoiseList()),
     _flags(inCat.getFlagsList()), _skyPos(inCat.getSkyPosList()),
     _bounds(inCat.getBounds()), _skyBounds(inCat.getSkyBounds()),
-    _params(params)
+    _trans(&trans), _fitPsf(&fitPsf), _params(params)
 {
     dbg<<"Create ShearCatalog\n";
     const int nGals = _id.size();
@@ -43,7 +43,7 @@ ShearCatalog::ShearCatalog(
         _skyPos.resize(nGals,skyPosDefault);
         for(int i=0;i<nGals;++i) {
             try {
-                trans.transform(_pos[i],_skyPos[i]);
+                _trans->transform(_pos[i],_skyPos[i]);
             } catch (RangeException& e) {
                 xdbg<<"distortion range error\n";
                 xdbg<<"p = "<<_pos[i]<<", b = "<<e.getBounds()<<std::endl;
@@ -59,7 +59,7 @@ ShearCatalog::ShearCatalog(
         for(int i=0;i<nGals;++i) {
             try {
                 Position temp;
-                trans.transform(_pos[i],temp);
+                _trans->transform(_pos[i],temp);
                 xdbg<<_pos[i]<<"  "<<_skyPos[i]/3600.<<"  "<<temp/3600.;
                 xdbg<<"  "<<temp-_skyPos[i]<<std::endl;
                 rmsError += std::norm(temp-_skyPos[i]);
@@ -133,13 +133,23 @@ void ShearCatalog::writeFits(std::string file) const
     Assert(_shape.size() == size());
     const int nGals = size();
 
+    bool shouldOutputPsf = _params.read("shear_output_psf",false);
+
     // ! means overwrite existing file
     CCfits::FITS fits("!"+file, CCfits::Write);
 
-    const int nFields=17;
+    const int nFields= shouldOutputPsf ? 20 : 17;
     std::vector<string> colNames(nFields);
     std::vector<string> colFmts(nFields);
     std::vector<string> colUnits(nFields);
+
+    std::vector<BVec> interp_psf;
+    if (shouldOutputPsf) {
+        Assert(_fitPsf);
+        interp_psf.resize( nGals,
+                           BVec(_fitPsf->getPsfOrder(),_fitPsf->getSigma()));
+        for(int i=0;i<nGals;++i) interp_psf[i] = (*_fitPsf)(_pos[i]);
+    }
 
     colNames[0] = _params.get("shear_id_col");
     colNames[1] = _params.get("shear_x_col");
@@ -158,6 +168,11 @@ void ShearCatalog::writeFits(std::string file) const
     colNames[14] = _params.get("shear_order_col");
     colNames[15] = _params.get("shear_sigma_col");
     colNames[16] = _params.get("shear_coeffs_col");
+    if (shouldOutputPsf) {
+        colNames[17] = _params.get("shear_psforder_col");
+        colNames[18] = _params.get("shear_psfsigma_col");
+        colNames[19] = _params.get("shear_psfcoeffs_col");
+    }
 
     colFmts[0] = "1J"; // id
     colFmts[1] = "1D"; // x
@@ -177,9 +192,18 @@ void ShearCatalog::writeFits(std::string file) const
     colFmts[15] = "1D"; // sigma
 
     int nCoeff = _shape[0].size();
-    dbg<<"ncoeff = "<<nCoeff<<std::endl;
+    dbg<<"nCoeff = "<<nCoeff<<std::endl;
     colFmts[16] = ConvertibleString(nCoeff) + "D"; // shapelet coeffs
     dbg<<"colfmts[16] = "<<colFmts[16]<<std::endl;
+
+    if (shouldOutputPsf) {
+        colFmts[17] = "1J"; // psforder
+        colFmts[18] = "1D"; // psfsigma
+        int nPsfCoeff = interp_psf[0].size();
+        dbg<<"nPsfCoeff = "<<nPsfCoeff<<std::endl;
+        colFmts[19] = ConvertibleString(nPsfCoeff) + "D"; // psf coeffs
+        dbg<<"colFmts[19] = "<<colFmts[19]<<std::endl;
+    }
 
     colUnits[0] = "None";   // id
     colUnits[1] = "Pixels"; // x
@@ -198,6 +222,11 @@ void ShearCatalog::writeFits(std::string file) const
     colUnits[14] = "None";  // order
     colUnits[15] = "Arcsec";// sigma
     colUnits[16] = "None";  // coeffs
+    if (shouldOutputPsf) {
+        colUnits[17] = "None";  // order
+        colUnits[18] = "Arcsec";// sigma
+        colUnits[19] = "None";  // coeffs
+    }
 
     dbg<<"Before Create table"<<std::endl;
     CCfits::Table* table;
@@ -286,6 +315,21 @@ void ShearCatalog::writeFits(std::string file) const
         double* cptr = (double *) TMV_cptr(_shape[i].vec());
         table->column(colNames[16]).write(cptr, nCoeff, 1, row);
     }
+
+    if (shouldOutputPsf) {
+        for (int i=0; i<nGals; ++i) {
+            int row = i+1;
+            long psfOrder = interp_psf[i].getOrder();
+            double psfSigma = interp_psf[i].getSigma();
+
+            table->column(colNames[17]).write(&psfOrder,1,row);
+            table->column(colNames[18]).write(&psfSigma,1,row);
+            double* cptr = (double *) TMV_cptr(interp_psf[i].vec());
+            Assert(interp_psf[i].size() == interp_psf[0].size());
+            int nPsfCoeff = interp_psf[i].size();
+            table->column(colNames[19]).write(cptr, nPsfCoeff, 1, row);
+        }
+    }
 }
 
 void ShearCatalog::writeAscii(std::string file, std::string delim) const
@@ -305,6 +349,8 @@ void ShearCatalog::writeAscii(std::string file, std::string delim) const
     if (!fout) {
         throw WriteException("Error opening shear file"+file);
     }
+
+    bool shouldOutputPsf = _params.read("shear_output_psf",false);
 
     Form sci8; sci8.sci().trail(0).prec(8);
     Form fix3; fix3.fix().trail(0).prec(3);
@@ -333,6 +379,17 @@ void ShearCatalog::writeAscii(std::string file, std::string delim) const
         const int nCoeff = _shape[i].size();
         for(int j=0;j<nCoeff;++j)
             fout << delim << sci8(_shape[i](j));
+        if (shouldOutputPsf) {
+            Assert(_fitPsf);
+            BVec interp_psf(_fitPsf->getPsfOrder(),_fitPsf->getSigma());
+            interp_psf = (*_fitPsf)(_pos[i]);
+            fout
+                << delim << interp_psf.getOrder()
+                << delim << fix6(interp_psf.getSigma());
+            const int nPsfCoeff = interp_psf.size();
+            for(int j=0;j<nPsfCoeff;++j)
+                fout << delim << sci8(interp_psf(j));
+        }
         fout << std::endl;
     }
 }

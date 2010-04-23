@@ -64,7 +64,7 @@ static void doMeasureShear(ConfigFile& params, ShearLog& log)
     }
 
     // Create shear catalog
-    ShearCatalog shearCat(inCat,trans,params);
+    ShearCatalog shearCat(inCat,trans,fitPsf,params);
 
     if (isTiming) {
         gettimeofday(&tp,0);
@@ -74,7 +74,7 @@ static void doMeasureShear(ConfigFile& params, ShearLog& log)
     }
 
     // Measure shears and shapelet vectors
-    int nShear = shearCat.measureShears(im,weightIm.get(),trans,fitPsf,log);
+    int nShear = shearCat.measureShears(im,weightIm.get(),log);
 
     if (isTiming) {
         gettimeofday(&tp,0);

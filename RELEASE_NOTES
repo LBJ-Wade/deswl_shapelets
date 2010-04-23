@@ -1,10 +1,7 @@
-src/InputCatalog.cpp, src/PsfCatalog.cpp, src/ShearCatalog.cpp, etc.:
-  Removed the read() statement from constructors that just take a params
-  argument.  Now it requires an explicit read() statement following the
-  constructor.  This is really just to make the style consistent, since 
-  FittedPsf already worked that way.  It makes it easier to write test 
-  programs that read in a particular file without having to go through the
-  makeName stuff with root, etc.
+-------------------------------------------------------------------------
+v0.55  (2010-04-21)  One bug fix regarding centroiding, and added a couple
+  features that are useful for testing:
+
 
 src/MeasureShearAlgo.cpp: Fixed a subtle bug in the centroiding where
   the centroid used has a slight memory of the direction the centroid came 
@@ -18,7 +15,7 @@ src/ShearCatalog_omp.cpp: Check whether there is such a bias in the input
   cat_x_offset and cat_y_offset values.
 
 example_config/wl.config:
-  I discovered that there is a 1 pixel offset in the input catalogs
+  I (MJ) discovered that there is a 1 pixel offset in the input catalogs
   (as ES had thought there was, and I wrongly thought there wasn't).
   So I changed cat_x_offset and cat_y_offset to 1 in the config file.
 
@@ -32,6 +29,18 @@ src/Pixel.cpp: Moved the xOffset and yOffset correction back to getPixList
 src/EllipseSolver2.cpp: Fixed getB() to return the vector with the correct
   conjugation.  Nothing uses this value, but for testing it is useful to 
   have it give the right answer.
+
+src/ShearCatalog.cpp: Added an parameter option, shear_output_psf,
+  which adds the interpolated PSF at the location of the galaxy to the 
+  output file.  Useful for testing.
+
+src/InputCatalog.cpp, src/PsfCatalog.cpp, src/ShearCatalog.cpp, etc.:
+  Removed the read() statement from constructors that just take a params
+  argument.  Now it requires an explicit read() statement following the
+  constructor.  This is really just to make the style consistent, since 
+  FittedPsf already worked that way.  It makes it easier to write test 
+  programs that read in a particular file without having to go through the
+  makeName stuff with root, etc.
 
 -------------------------------------------------------------------------
 v0.54.1  (2010-04-04)  Small updates to framework on top of v0.54

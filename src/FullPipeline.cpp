@@ -91,11 +91,10 @@ static void doFullPipeline(
 
     std::cerr<<"Measuring Shears\n";
     // Create shear catalog
-    ShearCatalog shearCat(inCat,trans,params);
+    ShearCatalog shearCat(inCat,trans,fitPsf,params);
 
     // Measure shears and shapelet vectors
-    shearCat.measureShears(im,weightIm.get(),trans,fitPsf,
-                           static_cast<ShearLog&>(*log));
+    shearCat.measureShears(im,weightIm.get(),static_cast<ShearLog&>(*log));
 
     // Write results to file
     shearCat.write();

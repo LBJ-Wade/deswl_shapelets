@@ -21,10 +21,13 @@ public :
     // Make from incat, trans
     ShearCatalog(
         const InputCatalog& inCat, const Transformation& trans,
-        const ConfigFile& params);
+        const FittedPsf& fitPsf, const ConfigFile& params);
 
     // Just load parameter.  Normally followed by cat.read() or similar.
     ShearCatalog(const ConfigFile& params);
+
+    void setTrans(const Transformation& trans) { _trans = &trans; }
+    void setFittedPsf(const FittedPsf& fitPsf) { _fitPsf = &fitPsf; }
 
     size_t size() const { return _id.size(); }
 
@@ -38,8 +41,7 @@ public :
 
     int measureShears(
         const Image<double>& im,
-        const Image<double>* weightIm, const Transformation& trans,
-        const FittedPsf& fitPsf, ShearLog& log);
+        const Image<double>* weightIm, ShearLog& log);
 
     const std::vector<long> getIdList() const { return _id; }
     const std::vector<Position> getPosList() const { return _pos; }
@@ -85,6 +87,8 @@ private :
     Bounds _skyBounds;
 
     const ConfigFile& _params;
+    const Transformation* _trans;
+    const FittedPsf* _fitPsf;
 
 };
 

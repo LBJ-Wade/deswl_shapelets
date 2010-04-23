@@ -16,8 +16,7 @@
 
 int ShearCatalog::measureShears(
     const Image<double>& im,
-    const Image<double>* weightIm, const Transformation& trans,
-    const FittedPsf& fitPsf, ShearLog& log)
+    const Image<double>* weightIm, ShearLog& log)
 {
     int nGals = size();
     dbg<<"ngals = "<<nGals<<std::endl;
@@ -35,6 +34,10 @@ int ShearCatalog::measureShears(
     double yOffset = _params.read("cat_y_offset",0.);
     bool shouldOutputDots = _params.read("output_dots",false);
     bool isTiming = _params.read("timing",false);
+
+    // This need to have been set.
+    Assert(_trans);
+    Assert(_fitPsf);
 
     OverallFitTimes allTimes;
 
@@ -91,9 +94,7 @@ int ShearCatalog::measureShears(
                 long flag1 = 0;
                 measureSingleShear(
                     // Input data:
-                    _pos[i], im, _sky[i], trans, 
-                    // Fitted PSF
-                    fitPsf,
+                    _pos[i], im, _sky[i], *_trans, *_fitPsf,
                     // Noise variables:
                     _noise[i], gain, weightIm, 
                     // Parameters:

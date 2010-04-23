@@ -2022,10 +2022,9 @@ int main(int argc, char **argv) try
     params["fitpsf_ext"] = all_ext;
 
     // Measure shears
-    ShearCatalog shearcat(incat,trans,params);
+    ShearCatalog shearcat(incat,trans,fitpsf,params);
     ShearLog shearlog(params,"testshear.log");
-    int nshear = shearcat.measureShears(
-        im,weight_im.get(),trans,fitpsf,shearlog);
+    int nshear = shearcat.measureShears(im,weight_im.get(),shearlog);
     dbg<<shearlog<<std::endl;
     // There are 4557 galaxies in the file without error codes.
     // The code currently converges on more than 3000 of them,
