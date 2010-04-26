@@ -1141,6 +1141,12 @@ def check_shear(serun, band, rootdir=None, outdir=None):
     goodlist=[]
     for info in infolist:
 
+        # fix bug we had with integers
+        info['ccd'] = int(info['ccd'])
+        info['repeatnum'] = int(info['repeatnum'])
+
+
+
         problem_found=False
 
         exposurename=info['exposurename']
