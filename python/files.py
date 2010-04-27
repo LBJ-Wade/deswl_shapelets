@@ -469,7 +469,8 @@ def generate_se_filenames(exposurename, ccd, serun=None,
 
 
 def wlse_coldir(serun):
-    dir=run_dir('wlbnl',serun)
+    #dir=run_dir('wlbnl',serun)
+    dir = wlse_collated_dir(serun)
     dir=os.path.join(dir,serun+'.cols')
     return dir
 
