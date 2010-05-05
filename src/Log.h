@@ -84,7 +84,6 @@ public :
     int _nfMu;
     int _nsGamma;
     int _nfGamma;
-    int _nsGood;
 
 };
 
@@ -119,8 +118,11 @@ public :
     int _nfOtherError;
     int _nsPsf;
     int _nfPsf;
-    int _nsGood;
-
+    int _nOutliers;
+    int _nFit;
+    int _nPC;
+    double _chisqFit;
+    int _dofFit;
 };
 
 class FindStarsLog : public Log 

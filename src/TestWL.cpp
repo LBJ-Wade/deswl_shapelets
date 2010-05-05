@@ -1974,7 +1974,7 @@ int main(int argc, char **argv) try
     params["psf_ext"] = all_ext;
 
     // Fit PSF
-    FittedPsf fitpsf(psfcat,params);
+    FittedPsf fitpsf(psfcat,params,psflog);
     double rms = 0.; 
     int count = 0;
     for(int i=0;i<nstars;++i) if (!psfcat.getFlags(i)) {

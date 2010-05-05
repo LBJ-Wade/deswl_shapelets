@@ -48,7 +48,8 @@ static void setPRow(
     Assert(pq == int(pRow.size()));
 }
 
-FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
+FittedPsf::FittedPsf(
+    PsfCatalog& psfCat, const ConfigFile& params, PsfLog& log) :
     _params(params), _psfOrder(_params.read<int>("psf_order")),
     _fitOrder(_params.read<int>("fitpsf_order")),
     _fitSize((_fitOrder+1)*(_fitOrder+2)/2)
@@ -73,14 +74,16 @@ FittedPsf::FittedPsf(PsfCatalog& psfCat, const ConfigFile& params) :
         psfCat.getPosList(),
         psfCat.getPsfList(),
         psfCat.getNuList(),
-        psfCat.getFlagsList());
+        psfCat.getFlagsList(),
+        log);
 }
 
 void FittedPsf::calculate(
     const std::vector<Position>& pos,
     const std::vector<BVec>& psf,
     const std::vector<double>& nu,
-    std::vector<long>& flags)
+    std::vector<long>& flags, 
+    PsfLog& log)
 {
     const int nStars = pos.size();
     const int psfSize = (_psfOrder+1)*(_psfOrder+2)/2;
@@ -102,21 +105,22 @@ void FittedPsf::calculate(
     const double outlierThresh = nSigmaClip * nSigmaClip * chisqLevel;
     dbg<<"outlierThresh = "<<outlierThresh<<std::endl;
 
-    int nOutliers;
+    int nGoodPsf, nOutliers, dof;
+    double chisq;
     do {
 
         // Calculate the average psf vector
         _avePsf.reset(new DVector(psfSize));
         Assert(psfSize == int(_avePsf->size()));
         _avePsf->setZero();
-        int nGoodPsf = 0;
+        nGoodPsf = 0;
         for(int n=0;n<nStars;++n) if (!flags[n]) {
             Assert(psf[n].getSigma() == _sigma);
             *_avePsf += psf[n].vec();
             ++nGoodPsf;
         }
         if (nGoodPsf == 0) {
-            dbg<<"ngoodpsf = 0 in FittedPsf constructor\n";
+            dbg<<"ngoodpsf = 0 in FittedPsf::calculate\n";
             throw ProcessingException("No good stars found for interpolation.");
         }
         *_avePsf /= double(nGoodPsf);
@@ -168,17 +172,17 @@ void FittedPsf::calculate(
 #endif
         if (_params.keyExists("fitpsf_npca")) {
             _nPca = _params["fitpsf_npca"];
-            xdbg<<"npca = "<<_nPca<<" from parameter file\n";
+            dbg<<"npca = "<<_nPca<<" from parameter file\n";
         } else {
             double thresh = mS(0);
             if (_params.keyExists("fitpsf_pca_thresh")) 
                 thresh *= double(_params["fitpsf_pca_thresh"]);
             else thresh *= std::numeric_limits<double>::epsilon();
-            xdbg<<"thresh = "<<thresh<<std::endl;
+            dbg<<"thresh = "<<thresh<<std::endl;
             for(_nPca=1;_nPca<int(mM.TMV_rowsize());++_nPca) {
                 if (mS(_nPca) < thresh) break;
             }
-            xdbg<<"npca = "<<_nPca<<std::endl;
+            dbg<<"npca = "<<_nPca<<std::endl;
         }
 #ifdef USE_TMV
         mU.colRange(0,_nPca) *= mS.subDiagMatrix(0,_nPca);
@@ -240,23 +244,28 @@ void FittedPsf::calculate(
             cov += diff * diff.transpose();
 #endif
         }
-        if (nGoodPsf > _fitSize) { 
-            // only <= if both == 1, so basically always true
-            cov /= double(nGoodPsf-_fitSize);
+
+        chisq = (mP * *_f - TMV_colRange(mU,0,_nPca)).TMV_normSq();
+        dbg<<"chisq calculation #1 = "<<chisq<<std::endl;
+        dof = nGoodPsf - _fitSize;
+
+        if (dof > 0) { 
+            cov /= double(dof);
         }
 #ifdef USE_TMV
         cov.divideUsing(tmv::SV);
         cov.saveDiv();
         cov.setDiv();
-        xdbg<<"cov S = "<<cov.svd().getS().diag()<<std::endl;
+        dbg<<"cov S = "<<cov.svd().getS().diag()<<std::endl;
 #else
         Eigen::SVD<DMatrix> cov_svd = cov.svd();
-        xdbg<<"cov S = "<<EIGEN_Transpose(cov_svd.singularValues())<<std::endl;
+        dbg<<"cov S = "<<EIGEN_Transpose(cov_svd.singularValues())<<std::endl;
 
 #endif
 
         // Clip out 3 sigma outliers:
         nOutliers = 0;
+        chisq = 0;
         for(int n=0;n<nStars;++n) if (!flags[n]) {
             const BVec& data = psf[n];
             DVector fit(psfSize);
@@ -269,6 +278,7 @@ void FittedPsf::calculate(
             cov_svd.solve(diff,&temp);
             double dev = (diff.transpose() * temp)(0,0);
 #endif
+            chisq += dev;
             if (dev > outlierThresh) {
                 xdbg<<"n = "<<n<<" is an outlier.\n";
                 xdbg<<"data = "<<data.vec()<<std::endl;
@@ -284,10 +294,17 @@ void FittedPsf::calculate(
                 flags[n] |= PSF_INTERP_OUTLIER;
             }
         }
-        xdbg<<"ngoodpsf = "<<nGoodPsf<<std::endl;
-        xdbg<<"nOutliers = "<<nOutliers<<std::endl;
+        dbg<<"ngoodpsf = "<<nGoodPsf<<std::endl;
+        dbg<<"nOutliers = "<<nOutliers<<std::endl;
+        dbg<<"chisq calculation #2 = "<<chisq<<std::endl;
 
     } while (nOutliers > 0);
+
+    log._nOutliers = nOutliers;
+    log._nFit = nGoodPsf;
+    log._nPC = _nPca;
+    log._chisqFit = chisq;
+    log._dofFit = dof;
 
 }
 

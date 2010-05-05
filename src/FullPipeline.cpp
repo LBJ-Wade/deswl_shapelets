@@ -80,14 +80,16 @@ static void doFullPipeline(
     //       FittedPsf calculation, since the fittedpsf file is not ingested.
 
     // Fit the PSF with a polynomial:
-    FittedPsf fitPsf(psfCat,params);
-
-    // Overwrite the psf cat again with the extra flags that may
-    // have been set by fitPsf
-    psfCat.write();
+    FittedPsf fitPsf(psfCat,params,static_cast<PsfLog&>(*log));
 
     // Write fitted psf to file
     fitPsf.write();
+
+    // Re-write the PSF catalog, since the interpolation may have changed
+    // the flags.
+    // TODO: It may be worth having a new routine that just updates the 
+    // flags.  More efficient, since don't need to re-write everything.
+    psfCat.write();
 
     xdbg<<"PSFLog: \n"<<*log<<std::endl;
 

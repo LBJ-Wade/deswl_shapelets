@@ -101,7 +101,7 @@ static void doMeasurePsf(ConfigFile& params, PsfLog& log)
     //       number of outliers found.  Maybe other values?
 
     // Fit the PSF with a polynomial:
-    FittedPsf fitPsf(psfCat,params);
+    FittedPsf fitPsf(psfCat,params,log);
 
     if (isTiming) {
         gettimeofday(&tp,0);

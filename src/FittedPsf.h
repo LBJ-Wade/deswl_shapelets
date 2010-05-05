@@ -8,6 +8,7 @@
 #include "ConfigFile.h"
 #include "dbg.h"
 #include "PsfCatalog.h"
+#include "Log.h"
 
 class FittedPsfAtXY;
 
@@ -16,7 +17,7 @@ class FittedPsf {
 public :
 
     // Make from PsfCatalog
-    FittedPsf(PsfCatalog& psfcat, const ConfigFile& params);
+    FittedPsf(PsfCatalog& psfcat, const ConfigFile& params, PsfLog& log);
 
     // Setup FittedPsf, but don't assign to the values yet.
     // Should be followed by either read or calculate.
@@ -49,7 +50,7 @@ public :
         const std::vector<Position>& pos,
         const std::vector<BVec>& psf,
         const std::vector<double>& nu,
-        std::vector<long>& flags);
+        std::vector<long>& flags, PsfLog& log);
 
     void interpolate(Position pos, BVec& b) const
     {

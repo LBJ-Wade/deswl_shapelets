@@ -215,7 +215,8 @@ PsfLog::PsfLog(const ConfigFile& params,
                std::string logFile, std::string fitsFile) :
     Log(params,logFile,fitsFile),
     _nStars(0), _nGoodIn(0), _nGood(0), _nfRange(0),
-    _nfTmvError(0), _nfOtherError(0), _nsPsf(0), _nfPsf(0) {}
+    _nfTmvError(0), _nfOtherError(0), _nsPsf(0), _nfPsf(0),
+    _nOutliers(0), _nFit(0), _nPC(0), _chisqFit(0.), _dofFit(0) {}
 
 PsfLog::~PsfLog() 
 {
@@ -251,6 +252,16 @@ void PsfLog::writeLogToFitsHeader() const
                      "# PSF failures due to unclassified errors");
         table.addKey("nf_psf", _nfPsf, 
                      "# PSF failures");
+        table.addKey("noutlier", _nOutliers,
+                     "# outliers rejected during fit");
+        table.addKey("n_fit", _nFit,
+                     "# final stars used for fit");
+        table.addKey("n_pc", _nPC,
+                     "# principal components used for fit");
+        table.addKey("chisqfit", _chisqFit,
+                     "# chisq of fit");
+        table.addKey("dof_fit", _dofFit,
+                     "# degrees of freedom of fit");
     } catch (...) {
         // If we already have a Failure exit, then ignore any problems with
         // writing the Log file.  There is already something else wrong, so 
@@ -286,7 +297,12 @@ void PsfLog::writeLog() const
                 "nf_range="<<_nfRange <<" & "<<
                 "nf_tmverror="<<_nfTmvError <<" & "<<
                 "nf_othererror="<<_nfOtherError <<" & "<<
-                "nf_psf="<<_nfPsf <<
+                "nf_psf="<<_nfPsf <<" & "<<
+                "n_outlier="<<_nOutliers <<" & "<<
+                "n_fit="<<_nFit <<" & "<<
+                "n_pc="<<_nPC <<" & "<<
+                "chisq_fit="<<_chisqFit <<" & "<<
+                "dof_fit="<<_dofFit <<
                 " QA2END"<<std::endl;
         }
     }
@@ -298,11 +314,18 @@ void PsfLog::write(std::ostream& os) const
     os<<"N stars with no input error flags = "<<_nGoodIn<<std::endl;
     os<<"N stars with no measurement error flags = "<<_nGood<<std::endl;
 
-    os<<"N_Rejected for range error - distortion = "<<_nfRange<<std::endl;
+    os<<"N Rejected for range error - distortion = "<<_nfRange<<std::endl;
 
     os<<"PSF measurement:\n";
-    os<<"  N_Success = "<<_nsPsf<<std::endl;
-    os<<"  N_Fail = "<<_nfPsf<<std::endl;
+    os<<"  N Success = "<<_nsPsf<<std::endl;
+    os<<"  N Fail = "<<_nfPsf<<std::endl;
+
+    os<<"PSF interpolation:\n";
+    os<<"  N outliers found = "<<_nOutliers<<std::endl;
+    os<<"  N stars used in fit = "<<_nFit<<std::endl;
+    os<<"  N principal components used for fit = "<<_nPC<<std::endl;
+    os<<"  chisq of fit = "<<_chisqFit<<std::endl;
+    os<<"  degrees of freedom of fit = "<<_dofFit<<std::endl;
 
     os<<"N_Error: TMV Error caught = "<<_nfTmvError<<std::endl;
     os<<"N_Error: Other caught = "<<_nfOtherError<<std::endl;
