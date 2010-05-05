@@ -82,6 +82,10 @@ static void doFullPipeline(
     // Fit the PSF with a polynomial:
     FittedPsf fitPsf(psfCat,params);
 
+    // Overwrite the psf cat again with the extra flags that may
+    // have been set by fitPsf
+    psfCat.write();
+
     // Write fitted psf to file
     fitPsf.write();
 

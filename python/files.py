@@ -467,6 +467,13 @@ def generate_se_filenames(exposurename, ccd, serun=None,
 
     return fdict
 
+def wlse_coldir_open(serun):
+    import columns
+    coldir=wlse_coldir(serun)
+
+    cols = columns.Columns(coldir)
+    return cols
+    
 
 def wlse_coldir(serun):
     #dir=run_dir('wlbnl',serun)

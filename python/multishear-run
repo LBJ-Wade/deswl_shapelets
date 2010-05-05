@@ -31,7 +31,7 @@ parser.add_option("--outdir", default=None,
                   help="Where to place the output file. Default "
                        " is '.' if the merun is not sent,"
                        " but if merun is sent it will be"
-                       " $DESDATA/wlbnl/run/tilename")
+                       " $DESDATA/wlbnl/{merun}/tilename")
 parser.add_option("--rootdir", default=None,
     help="Specify the data root directory. Default $DESDATA")
 parser.add_option("--copyroot", action='store_true', default=False,

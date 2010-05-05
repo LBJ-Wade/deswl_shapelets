@@ -911,6 +911,7 @@ def run_shear(exposurename,
         tmall0=time.time()
         for ccd in range(1,62+1):
             run_shear(exposurename, ccd,
+                      config_file=config_file,
                       outdir=outdir, 
                       rootdir=rootdir,
                       copyroot=copyroot,

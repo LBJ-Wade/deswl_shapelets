@@ -18,14 +18,17 @@ parser.add_option("--serun", default=None,
          "read and verified against current settings. The outdir will be "
          "set to the usual place (see below)")
 
+parser.add_option("--config", default=None,
+                  help="Where the wl.config is located")
+
 parser.add_option("--dataset", default=None,
                   help="dataset. e.g. 'dc4'")
 
 parser.add_option("--outdir", default=None,
                   help="Where to place the output file. Default "
-                       " is '.' if the merun is not sent,"
-                       " but if merun is sent it will be"
-                       " $DESDATA/wlbnl/run/exposurename")
+                       " is '.' if the serun is not sent,"
+                       " but if serun is sent it will be"
+                       " $DESDATA/wlbnl/{serun}/exposurename")
 parser.add_option("--rootdir", default=None,
     help="Specify the data root directory. Default $DESDATA")
 parser.add_option("--copyroot", action='store_true', default=False,
@@ -71,7 +74,10 @@ writelog=options.writelog
 
 debug=options.debug
 
+config_file=options.config
+
 deswl.wlpipe.run_shear(exposurename, ccd, 
+                       config_file=config_file,
                        serun=serun,
                        outdir=outdir, 
                        rootdir=rootdir,
