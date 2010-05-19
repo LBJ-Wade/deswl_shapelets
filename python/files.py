@@ -178,27 +178,24 @@ class Runconfig(object):
 
         """
 
-        wlvers=deswl.version()
-        esutilvers=esutil.version()
-        tmvvers=deswl.get_tmv_version()
-        pyvers=deswl.get_python_version()
+        vdict={}
+        vdict['wlvers']=deswl.version()
+        vdict['esutilvers']=esutil.version()
+        vdict['tmvvers']=deswl.get_tmv_version()
+        vdict['pyvers']=deswl.get_python_version()
 
-        if self.config['esutilvers'] != esutilvers:
-            raise ValueError("current esutil '%s' does not match "
-                    "runconfig '%s'" % (esutilvers,self.config['esutilvers']))
-
-        if self.config['wlvers'] != wlvers:
-            raise ValueError("current wlvers '%s' does not match "
-                             "runconfig '%s'" % (wlvers,self.config['wlvers']))
-
-        if self.config['tmvvers'] != tmvvers:
-            raise ValueError("current tmvvers '%s' does not match "
-                        "runconfig '%s'" % (tmvvers,self.config['tmvvers']))
-
-        if self.config['pyvers'] != pyvers:
-            raise ValueError("current pyvers '%s' does not match "
-                        "runconfig '%s'" % (pyvers,self.config['pyvers']))
-
+        for type in vdict:
+            vers=self.config[type]
+            cvers=vdict[type]
+            if vers != cvers:
+                # check for possiblity we are using a local install of trunk
+                # declared with -r
+                # note, when making the pbs files we automaticaly expand
+                # trunk to ~/exports/{prodname}-work so putting in the -r
+                # still is usually not necessary
+                if cvers == 'trunk' and vers.find('-r') == -1:
+                    raise ValueError("current %s '%s' does not match "
+                                     "runconfig '%s'" % (type,cvers,vers))
 
 
     def load(self, run):

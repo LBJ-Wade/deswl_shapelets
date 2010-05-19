@@ -13,6 +13,7 @@
         # create a run name and its configuration
             rc=deswl.files.Runconfig()
             rc.generate_new_runconfig('wlse', dataset, wl_config)
+
         Note I've started setting wl_config here, instead of using
         what is under etc. This allows us to use the same version
         of code but run with a different configuration.
@@ -26,6 +27,15 @@
 
         generate_se_pbsfiles(serun, band, byccd=False): 
 
+        # after running you can check the results.  This will write
+        # out lists of successful and unsuccessful jobs
+
+        check_shear(serun, band)
+
+        # the files written are these.  Need to make it bandpass 
+        # dependent
+        deswl.files.wlse_collated_path(serun, 'goodlist')
+        deswl.files.wlse_collated_path(serun, 'badlist')
 
     For coadds, using multishear:
         On a machine that can directly access the desdm database:
@@ -681,20 +691,20 @@ source /global/data/products/eups/bin/setups.sh
 """ % (jobname, pbslog_file, walltime, nodes, ppn, logf)
 
     rc=deswl.files.Runconfig(serun)
-    esutil_setup = _make_setup_command('esutil', rc['esutilvers'])
-    tmv_setup = _make_setup_command('tmv',rc['tmvvers'])
     wl_setup = _make_setup_command('wl',rc['wlvers'])
+    tmv_setup = _make_setup_command('tmv',rc['tmvvers'])
+    esutil_setup = _make_setup_command('esutil', rc['esutilvers'])
 
     # tmv,esutil must come after wl if wl is not current
-    setups = [wl_setup, tmv_setup, esutil_setup]
-    setups = ' \\\n\t&& '.join(setups)
     
     fobj=open(outfile, 'w')
 
     fobj.write(header)
-    fobj.write(setups + '\n')
+    fobj.write('%s\n' % wl_setup)
+    fobj.write('%s\n' % tmv_setup)
+    fobj.write('%s\n' % esutil_setup)
 
-    fobj.write("shear-run    \\\n")
+    fobj.write("\nshear-run    \\\n")
     fobj.write('    --serun=%s    \\\n' % serun)
     fobj.write('    --rootdir=%s  \\\n' % scratch_rootdir)
     fobj.write('    --copyroot    \\\n')
@@ -1568,20 +1578,21 @@ source /global/data/products/eups/bin/setups.sh
 """ % (jobname, pbslog_file, walltime, nodes, ppn, logf)
 
     rc=deswl.files.Runconfig(merun)
-    esutil_setup = _make_setup_command('esutil', rc['esutilvers'])
-    tmv_setup = _make_setup_command('tmv',rc['tmvvers'])
-    wl_setup = _make_setup_command('wl',rc['wlvers'])
 
     # tmv,esutil must come after wl if wl is not current
-    setups = [wl_setup, tmv_setup, esutil_setup]
-    setups = ' \\\n\t&& '.join(setups)
+    wl_setup = _make_setup_command('wl',rc['wlvers'])
+    tmv_setup = _make_setup_command('tmv',rc['tmvvers'])
+    esutil_setup = _make_setup_command('esutil', rc['esutilvers'])
     
     fobj=open(outfile, 'w')
 
     fobj.write(header)
-    fobj.write(setups + '\n')
+    fobj.write('%s\n' % wl_setup)
+    fobj.write('%s\n' % tmv_setup)
+    fobj.write('%s\n' % esutil_setup)
 
-    fobj.write("multishear-run    \\\n")
+
+    fobj.write("\nmultishear-run    \\\n")
     fobj.write('    --merun=%s    \\\n' % merun)
     fobj.write('    --rootdir=%s  \\\n' % scratch_rootdir)
     fobj.write('    --copyroot    \\\n')
