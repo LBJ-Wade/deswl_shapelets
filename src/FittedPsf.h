@@ -52,6 +52,10 @@ public :
         const std::vector<double>& nu,
         std::vector<long>& flags, PsfLog& log);
 
+
+    // Split the PSF stars into a training set and validation set
+    void split_psf_stars(std::vector<long>& flags);
+
     void interpolate(Position pos, BVec& b) const
     {
         Assert(_avePsf.get());

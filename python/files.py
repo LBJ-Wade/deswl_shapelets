@@ -115,6 +115,31 @@ class Runconfig(object):
                                tmvvers=None,
                                comment=None,
                                **extra):
+        """
+        Class:
+            Runconfig
+        Name:
+            generate_new_runconfig
+        Purpose:
+            Generate a new run configuration and write into the usual
+            place.
+        Calling Sequence:
+            rc=deswl.files.Runconfig()
+            rc.generate_new_runconfig(run_type, dataset, wl_config, keywords)
+        Inputs:
+            run_type: 'wlse' or 'wlme'
+            dataset: e.g. 'dc4'
+            wl_config: Location of the weak lensing config you want to use
+                for this run.
+        Keywords:
+            localid: Required for wlme runs.  What is this again?
+            test: If true, this is a test run and gets a prefix {run_type}test
+            dryrun: If true, just show what would have been written to the file.
+
+            pyvers, esutilvers, wlvers, tmvvers: The versions to use.  Default is
+                the current version.
+            comment: Add an additional comment.
+        """
 
         # wlme runs depend on wlse runs
         if run_type == 'wlme':
