@@ -138,8 +138,8 @@ void FittedPsf::calculate(
         Assert(psfSize == int(_avePsf->size()));
         _avePsf->setZero();
         nGoodPsf = 0;
-        //for(int n=0;n<nStars;++n) if (!flags[n]) {
-        for(int n=0;n<nStars;++n) if (flags[n] & PSF_TRAINING) {
+        // check that only PSF_TRAINING is set
+        for(int n=0;n<nStars;++n) if ( (flags[n] & ~PSF_TRAINING)==0) {
             Assert(psf[n].getSigma() == _sigma);
             *_avePsf += psf[n].vec();
             ++nGoodPsf;
@@ -155,8 +155,7 @@ void FittedPsf::calculate(
         DMatrix mM(nGoodPsf,psfSize);
         DDiagMatrix inverseSigma(nGoodPsf);
         int i=0;
-        //for(int n=0;n<nStars;++n) if (!flags[n]) {
-        for(int n=0;n<nStars;++n) if (flags[n] & PSF_TRAINING) {
+        for(int n=0;n<nStars;++n) if ( (flags[n] & ~PSF_TRAINING)==0) {
             Assert(int(psf[n].size()) == psfSize);
             Assert(i < nGoodPsf);
             mM.row(i) = psf[n].vec() - *_avePsf;
@@ -227,8 +226,7 @@ void FittedPsf::calculate(
         DMatrix mP(nGoodPsf,_fitSize);
         mP.setZero();
         i=0;
-        //for(int n=0;n<nStars;++n) if (!flags[n]) {
-        for(int n=0;n<nStars;++n) if (flags[n] & PSF_TRAINING) {
+        for(int n=0;n<nStars;++n) if ( (flags[n] & ~PSF_TRAINING)==0) {
             xdbg<<"n = "<<n<<" / "<<nStars<<std::endl;
 #ifdef USE_TMV
             setPRow(_fitOrder,pos[n],_bounds,mP.row(i));
@@ -260,8 +258,7 @@ void FittedPsf::calculate(
         // Calculate the covariance matrix
         DMatrix cov(psfSize,psfSize);
         cov.setZero();
-        //for(int n=0;n<nStars;++n) if (!flags[n]) {
-        for(int n=0;n<nStars;++n) if (flags[n] & PSF_TRAINING) {
+        for(int n=0;n<nStars;++n) if ( (flags[n] & ~PSF_TRAINING)==0) {
             const BVec& data = psf[n];
             DVector fit(psfSize);
             interpolateVector(pos[n],TMV_vview(fit));
@@ -294,8 +291,7 @@ void FittedPsf::calculate(
         // Clip out 3 sigma outliers:
         nOutliers = 0;
         chisq = 0;
-        //for(int n=0;n<nStars;++n) if (!flags[n]) {
-        for(int n=0;n<nStars;++n) if (flags[n] & PSF_TRAINING) {
+        for(int n=0;n<nStars;++n) if ( (flags[n] & ~PSF_TRAINING)==0) {
             const BVec& data = psf[n];
             DVector fit(psfSize);
             interpolateVector(pos[n],TMV_vview(fit));
