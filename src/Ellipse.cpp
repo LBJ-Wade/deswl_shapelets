@@ -108,6 +108,7 @@ void Ellipse::doMeasureShapelet(
     if (A.svd().getKMax() < A.rowsize())
         dbg<<"Omitting last "<<A.rowsize()-A.svd().getKMax()<<" singular values\n";
     b.vec().subVector(0,bSize) = I/A;
+    b.vec().subVector(bSize,b.size()).setZero();
     if (bCov) {
         A.makeInverseATA(*bCov);
     }

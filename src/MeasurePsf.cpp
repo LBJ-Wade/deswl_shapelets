@@ -97,9 +97,6 @@ static void doMeasurePsf(ConfigFile& params, PsfLog& log)
             "No successful PSF measurements");
     }
 
-    // TODO: Pass the log to the FittedPsf constructor to record the
-    //       number of outliers found.  Maybe other values?
-
     // Fit the PSF with a polynomial:
     FittedPsf fitPsf(psfCat,params,log);
 

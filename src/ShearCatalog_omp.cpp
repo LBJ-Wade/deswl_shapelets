@@ -50,7 +50,7 @@ int ShearCatalog::measureShears(
     log._nGals -= STARTAT;
 #endif
 #ifdef SINGLEGAL
-    log.nGals = 1;
+    log._nGals = 1;
 #endif
     log._nGoodIn = std::count(_flags.begin(),_flags.end(),0);
     dbg<<log._nGoodIn<<"/"<<log._nGals<<" galaxies with no input flags\n";
