@@ -66,12 +66,11 @@ class FileFinder:
             im.run as im_run,
             im.filename as im_filename,
             im.filetype as im_filetype,
-            im.filedate as im_filedate,
             cat.id as cat_id,
             cat.run as cat_run,
             cat.filename as cat_filename, 
             cat.filetype as cat_filetype,
-            cat.filedate as cat_filedate
+            cat.catalog_parentid as cat_parentid
         from
             {table} cat,
             (select 
@@ -101,14 +100,13 @@ class FileFinder:
             im.run as im_run,
             im.filename as im_filename,
             im.filetype as im_filetype,
-            im.filedate as im_filedate,
             im.tilename as im_tilename,
             cat.id as cat_id,
             cat.run as cat_run,
             cat.filename as cat_filename, 
             cat.filetype as cat_filetype,
-            cat.filedate as cat_filedate,
-            cat.tilename as cat_tilename
+            cat.tilename as cat_tilename,
+            cat.catalog_parentid as cat_parentid
         from
             {table} cat,
             (select 
