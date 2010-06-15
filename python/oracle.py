@@ -1,3 +1,14 @@
+"""
+
+    This is how we'll work with the dc5 data.  We'll first get a list of all
+    the coadds.  Then we will assemble the "red" images that went into the
+    coadds.  Instead of trying to work with *all* images, we will for now just
+    process these red images.
+
+    The still do not contain calibrated fluxes.  We may wish to assemble our
+    own catalogs with re-calibrated fluxes.
+
+"""
 from sys import stdout,stderr
 try:
     from esutil import oracle_util
@@ -6,6 +17,179 @@ except:
     pass
 
 from esutil import json_util
+
+import numpy
+
+# dc5 stuff
+
+shantanu="""
+> About the catalogs:  How would you select the correct catalog FITS
+> files for a given "red" or "coadd" image?  Is this easy to track down
+> from the database?
+Yes here is how to do it for a red file:
+    select filename,band from dr004_files where  id=18066080;
+    corresponds to the red  file decam--32--39-i-1_41.fits
+    To find the red_cat file corresponding to this
+    use
+    select filename from dr004_files where  catalog_parentid=18066080 and
+    filetype='red_cat' ;
+
+    For coadds it is the same
+
+    select id from dr004_files where tilename='DES2237-4522' and band='g'
+    and filetype='coadd' ;
+    will give you id of the coadd image for band g and DES2237-4522 (29135027)
+    To find the corresponding coadd_cat file use
+    select id,filename from dr004_files where catalog_parentid=29135027;
+
+    Let me know if this helps.
+    shantanu
+
+"""
+class FileFinder:
+    def __init__(self, release='dr004'):
+        """
+        dr004 is dc5a
+        """
+        self.init(release)
+    def init(self,release='dr004'):
+        self.release = release
+
+    def collate_red(self,band):
+        table = '%s_files' % self.release
+        query="""
+        select 
+            im.band as band,
+            im.file_exposure_name as exposurename,
+            im.ccd as ccd,
+            im.id as im_id,
+            im.run as im_run,
+            im.filename as im_filename,
+            im.filetype as im_filetype,
+            im.filedate as im_filedate,
+            cat.id as cat_id,
+            cat.run as cat_run,
+            cat.filename as cat_filename, 
+            cat.filetype as cat_filetype,
+            cat.filedate as cat_filedate
+        from
+            {table} cat,
+            (select 
+                id,run,band,ccd,filename,filetype,filedate,
+                file_exposure_name
+             from 
+                {table}
+             where 
+                band = '{band}'
+                and filetype='red') im
+        where
+            cat.catalog_parentid = im.id
+        """.format(table=table,band=band)
+
+        stdout.write("query: \n%s\n" % query)
+        oc=oracle_util.Connection()
+        res = oc.Execute(query)
+        return res
+
+
+    def collate_coadd(self,band):
+        table = '%s_files' % self.release
+        query="""
+        select 
+            im.band as band,
+            im.id as im_id,
+            im.run as im_run,
+            im.filename as im_filename,
+            im.filetype as im_filetype,
+            im.filedate as im_filedate,
+            im.tilename as im_tilename,
+            cat.id as cat_id,
+            cat.run as cat_run,
+            cat.filename as cat_filename, 
+            cat.filetype as cat_filetype,
+            cat.filedate as cat_filedate,
+            cat.tilename as cat_tilename
+        from
+            {table} cat,
+            (select 
+                id,run,band,filename,filetype,filedate,tilename
+             from 
+                {table}
+             where 
+                band = '{band}'
+                and filetype='coadd') im
+        where
+            cat.catalog_parentid = im.id
+        """.format(table=table,band=band)
+
+        stdout.write("query: \n%s\n" % query)
+        oc=oracle_util.Connection()
+        res = oc.Execute(query)
+        return res
+
+
+    def get_filetype_info(self,band,filetype,columns=None):
+        """
+        Get some info for all files of a given filetype.  filetype could be,
+        e.g., 'red','red_cat','coadd','coadd_cat', etc
+        """
+        if columns is None:
+            columns="id,run,band,filetype,filename,filedate"
+            if 'coadd' in filetype:
+                columns+=",tilename"
+        if isinstance(columns,(tuple,list)):
+            columns=','.join(columns)
+
+        table = '%s_files' % self.release
+        query="""
+            select 
+                {columns}
+            from 
+                {table} 
+            where 
+                band = '{band}'
+                and filetype='{filetype}'""".format(columns=columns,
+                                                    table=table,
+                                                    band=band,
+                                                    filetype=filetype)
+        stdout.write("query: \n%s\n" % query)
+        oc=oracle_util.Connection()
+        res = oc.Execute(query)
+        return res
+
+
+ 
+    def test(self):
+        query="""
+        select 
+            cat.filename as catname, 
+            cat.filetype as cattype,
+            cat.id as catid,
+            im.filename as imname,
+            im.filetype as imtype,
+            im.id as imid
+        from
+            dr004_files im,
+            (select 
+                id,filename,filetype,catalog_parentid 
+             from 
+                dr004_files 
+             where 
+                filetype='red_cat') cat
+        where
+            cat.catalog_parentid = im.id
+        """
+
+        print 'query:',query
+
+        oc=oracle_util.Connection()
+        res = oc.Execute(query)
+        oc.Close()
+
+        return res
+
+
+# older dc4 stuff
 
 def get_tile_run(tilename, verbose=False, multi=False):
     """
