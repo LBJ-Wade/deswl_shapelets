@@ -20,43 +20,107 @@ from esutil import json_util
 
 import numpy
 
-# dc5 stuff
-
-shantanu="""
-> About the catalogs:  How would you select the correct catalog FITS
-> files for a given "red" or "coadd" image?  Is this easy to track down
-> from the database?
-Yes here is how to do it for a red file:
-    select filename,band from dr004_files where  id=18066080;
-    corresponds to the red  file decam--32--39-i-1_41.fits
-    To find the red_cat file corresponding to this
-    use
-    select filename from dr004_files where  catalog_parentid=18066080 and
-    filetype='red_cat' ;
-
-    For coadds it is the same
-
-    select id from dr004_files where tilename='DES2237-4522' and band='g'
-    and filetype='coadd' ;
-    will give you id of the coadd image for band g and DES2237-4522 (29135027)
-    To find the corresponding coadd_cat file use
-    select id,filename from dr004_files where catalog_parentid=29135027;
-
-    Let me know if this helps.
-    shantanu
-
-"""
+# newer method for getting files
 class FileFinder:
-    def __init__(self, release='dr004'):
+    def __init__(self, dataset=None, release=None):
         """
-        dr004 is dc5a
+
+        Can init either by dataset or release.  If using dataset, the map
+        between dataset and release must be known.
+
+        dataset could be, e.g. 'dc5a', and this would correspond to a release
+        dr004
+
+        From Brian's May 24th email:
+
+            The key to the naming of the various data releases vs. their
+            Database table name prefix is as follows:
+
+                DR004:  
+                    DC5A (175 sq degrees of sky) DR004_COADD_OBJECTS_TAG@fmdes
+                    is the key table.
+
+                DR005: 
+                    GSN2 (release March 2010), 0.56 sq deg, includes constant
+                    shear weak lensing outputs, DR005_COADD_OBJECTS@fmdes
+
+                DR006: 
+                    GSN3 (release May 2010), 0.56 sq deg,
+                    DR006_COADD_OBJECTS@fmdes
+
+                DR007: 
+                    DC5B (improved astrometry and photometry, initial release
+                    size about 20 square degrees).  Coadd only.
+                    DR007_COADD_OBJECTS_TAG@fmdes
+
         """
-        self.init(release)
-    def init(self,release='dr004'):
-        self.release = release
+
+        # this is a map between the "dataset" and the "release", since two
+        # different names seem to be thrown around but only the release is used
+        # in the database.
+
+        self._release_map={'dc5a':'dr004',
+                           'gsn2':'dr005',
+                           'gsn3':'dr006',
+                           'dc5b':'dr007'}
+
+        self.init(dataset=dataset,release=release)
+
+    def init(self,dataset=None, release=None):
+        if dataset is not None:
+            self.set_release_from_dataset(dataset)
+        elif release is not None:
+            self._release = release
+        else:
+            raise ValueError("init using either dataset or release")
+
+    def set_release_from_dataset(self, dataset):
+        self._dataset = dataset
+        if self._dataset not in self._release_map:
+            raise ValueError("unknown data set: "
+                             "%s" % dataset)
+        self._release = self._release_map[self._dataset]
 
     def collate_red(self,band):
-        table = '%s_files' % self.release
+        """
+
+        Note the kludge on filename to remove dups associated with standard
+        star fields
+
+        """
+
+        table = '%s_files' % self._release
+        query="""
+        select 
+            im.band as band,
+            im.file_exposure_name as exposurename,
+            im.ccd as ccd,
+            im.id as im_id,
+            im.run as im_run,
+            im.filename as im_filename,
+            im.filetype as im_filetype,
+            cat.id as cat_id,
+            cat.run as cat_run,
+            cat.filename as cat_filename, 
+            cat.filetype as cat_filetype,
+            cat.catalog_parentid as cat_parentid
+        from
+            {table} cat,
+            {table} im
+        where
+            im.filetype = 'red'
+            and im.band = '{band}'
+            and im.filename not like 'decam%-0-%.fits%'
+            and cat.catalog_parentid = im.id
+        """.format(table=table,band=band)
+
+        stdout.write("query: \n%s\n" % query)
+        oc=oracle_util.Connection()
+        res = oc.Execute(query)
+        return res
+
+    def collate_red_old(self,band):
+        table = '%s_files' % self._release
         query="""
         select 
             im.band as band,
@@ -91,8 +155,9 @@ class FileFinder:
         return res
 
 
+
     def collate_coadd(self,band):
-        table = '%s_files' % self.release
+        table = '%s_files' % self._release
         query="""
         select 
             im.band as band,
@@ -109,15 +174,11 @@ class FileFinder:
             cat.catalog_parentid as cat_parentid
         from
             {table} cat,
-            (select 
-                id,run,band,filename,filetype,filedate,tilename
-             from 
-                {table}
-             where 
-                band = '{band}'
-                and filetype='coadd') im
+            {table} im
         where
-            cat.catalog_parentid = im.id
+            im.filetype = 'coadd'
+            and im.band = 'i'
+            and cat.catalog_parentid = im.id
         """.format(table=table,band=band)
 
         stdout.write("query: \n%s\n" % query)
@@ -125,6 +186,11 @@ class FileFinder:
         res = oc.Execute(query)
         return res
 
+    def collate_coadd_seimages(self,band):
+        """
+        This one runs collate_coadd and adds in the SE images that 
+        make up each coadd
+        """
 
     def get_filetype_info(self,band,filetype,columns=None):
         """
@@ -138,7 +204,7 @@ class FileFinder:
         if isinstance(columns,(tuple,list)):
             columns=','.join(columns)
 
-        table = '%s_files' % self.release
+        table = '%s_files' % self._release
         query="""
             select 
                 {columns}
