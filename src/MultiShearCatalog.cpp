@@ -509,10 +509,6 @@ void MultiShearCatalog::writeFits(std::string file) const
     table->addKey("tmvvers", tmvVers, "version of TMV code");
     table->addKey("wlvers", wlVers, "version of weak lensing code");
 
-    // Add the multi epoch runid if set
-    std::string wlmerun = _params.read<std::string>("wlmerun","None");
-    table->addKey("wlmerun", wlmerun, "multi epoch shear run id");
-
     std::string str;
     double dbl;
     int intgr;
@@ -528,10 +524,10 @@ void MultiShearCatalog::writeFits(std::string file) const
 
     writeParamToTable(_params, table, "maxmem", dbl);
 
-    // if merun= is sent we'll put it in the header.  This allows us to 
+    // if wlmerun= is sent we'll put it in the header.  This allows us to 
     // associate some more, possibly complicated, metadata with this file
-    if (_params.keyExists("merun")) {
-        writeParamToTable(_params, table, "merun", str);
+    if (_params.keyExists("wlmerun")) {
+        writeParamToTable(_params, table, "wlmerun", str);
     }
 
     const int nGals = size();

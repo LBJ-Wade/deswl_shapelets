@@ -564,20 +564,16 @@ void FittedPsf::writeFits(std::string file) const
     table->addKey("tmvvers", tmvVersion, "version of TMV code");
     table->addKey("wlvers", wlVersion, "version of weak lensing code");
 
-    // Add the single epoch runid if set
-    std::string wlserun = _params.read<std::string>("wlserun","None");
-    table->addKey("wlserun", wlserun, "single epoch shear run id");
-
     std::string str;
     double dbl;
     int intgr;
 
     dbg<<"Before Write Par Keys"<<std::endl;
 
-    // if serun= is sent we'll put it in the header.  This allows us to 
+    // if wlserun= is sent we'll put it in the header.  This allows us to 
     // associate some more, possibly complicated, metadata with this file
-    if ( _params.keyExists("serun") ) {
-        writeParamToTable(_params, table, "serun", str);
+    if ( _params.keyExists("wlserun") ) {
+        writeParamToTable(_params, table, "wlserun", str);
     }
 
     writeParamToTable(_params, table, "noise_method", str);
