@@ -814,7 +814,7 @@ def make_se_commandlist(fdict, debug=0):
         command.append('output_dots=false')
 
     if 'serun' in fdict:
-        command.append('serun=%s' % fdict['serun'])
+        command.append('wlserun=%s' % fdict['serun'])
 
 
     if debug:
@@ -1683,7 +1683,7 @@ def make_me_commandlist(fdict,shear_dc4_input_format=False, debug=0):
         command.append('shear_dc4_input_format=true')
 
     if 'merun' in fdict:
-        command.append('merun=%s' % fdict['merun'])
+        command.append('wlmerun=%s' % fdict['merun'])
 
     if debug:
         debug_file=fdict['multishear'].replace('.fits','.debug')
