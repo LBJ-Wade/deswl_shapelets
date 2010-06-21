@@ -564,6 +564,10 @@ void FittedPsf::writeFits(std::string file) const
     table->addKey("tmvvers", tmvVersion, "version of TMV code");
     table->addKey("wlvers", wlVersion, "version of weak lensing code");
 
+    // Add the single epoch runid if set
+    std::string wlserun = _params.read<std::string>("wlserun","None");
+    table->addKey("wlserun", wlserun, "single epoch shear run id");
+
     std::string str;
     double dbl;
     int intgr;

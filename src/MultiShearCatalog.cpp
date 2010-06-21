@@ -509,6 +509,10 @@ void MultiShearCatalog::writeFits(std::string file) const
     table->addKey("tmvvers", tmvVers, "version of TMV code");
     table->addKey("wlvers", wlVers, "version of weak lensing code");
 
+    // Add the multi epoch runid if set
+    std::string wlmerun = _params.read<std::string>("wlmerun","None");
+    table->addKey("wlmerun", wlmerun, "multi epoch shear run id");
+
     std::string str;
     double dbl;
     int intgr;

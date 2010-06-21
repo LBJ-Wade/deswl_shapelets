@@ -272,6 +272,9 @@ void StarCatalog::writeFits(std::string file) const
     table->addKey("tmvvers", tmvVers, "version of TMV code");
     table->addKey("wlvers", wlVers, "version of weak lensing code");
 
+    // Add the single epoch runid if set
+    std::string wlserun = _params.read<std::string>("wlserun","None");
+    table->addKey("wlserun", wlserun, "single epoch shear run id");
 
     // kind of kludgy but is more flexible than using type numbers or strings
     double dbl;
