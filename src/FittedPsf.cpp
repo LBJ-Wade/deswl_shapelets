@@ -84,7 +84,7 @@ FittedPsf::FittedPsf(
 void FittedPsf::split_psf_stars(std::vector<long>& flags) {
     // split at this point.  If split_point = 0.5, we split
     // the sample in half
-    double split_point = _params.read<double>("fitpsf_split_point");
+    double split_point = _params.read("fitpsf_split_point",1.);
     for (int i=0; i<flags.size(); i++) {
         // this must already be a good PSF star
         if (flags[i] == 0) {
