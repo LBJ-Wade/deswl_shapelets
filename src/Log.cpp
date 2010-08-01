@@ -5,8 +5,10 @@
 #include "Params.h"
 #include "Name.h"
 
-Log::Log(const ConfigFile& params,
-         std::string logFile, std::string fitsFile) :
+Log::Log(
+    const ConfigFile& params,
+    std::string logFile, std::string fitsFile
+) :
     _exitCode(SUCCESS), _extraExitInfo(""),
     _params(params), _logOut(0), _fitsFile(fitsFile)
 {
@@ -56,8 +58,10 @@ void Log::noWriteLog()
     _logOut = 0;
 }
 
-ShearLog::ShearLog(const ConfigFile& params,
-                   std::string logFile, std::string fitsFile) : 
+ShearLog::ShearLog(
+    const ConfigFile& params,
+    std::string logFile, std::string fitsFile
+) : 
     Log(params,logFile,fitsFile),
     _nGals(0), _nGoodIn(0), _nGood(0), _nfRange1(0), _nfRange2(0), 
     _nfSmall(0), _nfTmvError(0), _nfOtherError(0), 
@@ -74,6 +78,8 @@ ShearLog::~ShearLog()
 void ShearLog::writeLogToFitsHeader() const
 {
     if ("" == _fitsFile) return;
+    // Also return if the provided file isn't actually a fits file.
+    if (_fitsFile.find(".fits") == std::string::npos) return;
 
     try {
         int hdu = getHdu(this->_params,"shear",_fitsFile,2);
@@ -126,7 +132,6 @@ void ShearLog::writeLogToFitsHeader() const
             throw WriteException(
                 "Error writing ShearLog to the Fits file header info.");
     }
-
 }
 
 inline std::string StatusText1(ExitCode exitCode, const ConfigFile& params)
@@ -211,8 +216,10 @@ void ShearLog::write(std::ostream& os) const
     os<<"N_Error: Other caught = "<<_nfOtherError<<std::endl;
 }
 
-PsfLog::PsfLog(const ConfigFile& params,
-               std::string logFile, std::string fitsFile) :
+PsfLog::PsfLog(
+    const ConfigFile& params,
+    std::string logFile, std::string fitsFile
+) :
     Log(params,logFile,fitsFile),
     _nStars(0), _nGoodIn(0), _nGood(0), _nfRange(0),
     _nfTmvError(0), _nfOtherError(0), _nsPsf(0), _nfPsf(0),
@@ -227,6 +234,8 @@ PsfLog::~PsfLog()
 void PsfLog::writeLogToFitsHeader() const
 {
     if ("" == _fitsFile) return;
+    // Also return if the provided file isn't actually a fits file.
+    if (_fitsFile.find(".fits") == std::string::npos) return;
 
     try {
         int hdu = getHdu(this->_params,"psf",_fitsFile,2);
@@ -332,8 +341,10 @@ void PsfLog::write(std::ostream& os) const
 }
 
 
-FindStarsLog::FindStarsLog(const ConfigFile& params,
-                           std::string logFile, std::string fitsFile) : 
+FindStarsLog::FindStarsLog(
+    const ConfigFile& params,
+    std::string logFile, std::string fitsFile
+) : 
     Log(params,logFile,fitsFile),
     _nTot(0), _nrFlag(0), _nrMag(0), _nrSize(0),
     _nObj(0), _nAllStars(0), _nStars(0) 
@@ -348,6 +359,8 @@ FindStarsLog::~FindStarsLog()
 void FindStarsLog::writeLogToFitsHeader() const
 {
     if ("" == _fitsFile) return;
+    // Also return if the provided file isn't actually a fits file.
+    if (_fitsFile.find(".fits") == std::string::npos) return;
 
     try {
         int hdu = getHdu(this->_params,"stars",_fitsFile,2);

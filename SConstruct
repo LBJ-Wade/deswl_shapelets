@@ -494,15 +494,13 @@ def DoLibraryAndHeaderChecks(config):
         else :
             tmv_link_file = config.env['TMV_LINK']
     
-        print 'TMV_LINK:'
-        print tmv_link_file
+        print 'Using TMV_LINK file:',tmv_link_file
         try:
-            tmv_link = open(tmv_link_file).read()
+            tmv_link = open(tmv_link_file).read().strip()
         except:
             print 'Could not open TMV link file: ',tmv_link_file
             Exit(1)
-        print tmv_link
-
+        print '    ',tmv_link
         config.env.Append(LINKFLAGS=tmv_link)
 
         config.CheckTMV()
