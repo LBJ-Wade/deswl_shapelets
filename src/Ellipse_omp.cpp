@@ -102,11 +102,9 @@ bool Ellipse::doMeasure(
         }
         xdbg<<"Do ML centroid solve\n";
         if (psf) {
-            solver.reset(new EllipseSolver(
-                    pix,order,sigma,false,true,true));
+            solver.reset(new EllipseSolver(pix,order,sigma,false,true,true));
         } else {
-            solver.reset(new EllipseSolver(
-                    pix,order,sigma,false,true,true));
+            solver.reset(new EllipseSolver(pix,order,sigma,false,true,true));
         }
         xdbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
         solver->useDogleg();
@@ -379,11 +377,11 @@ bool Ellipse::doMeasure(
     if (psf) {
         solver.reset(new EllipseSolver(
                 pix,*psf,_fPsf,order,sigma,
-                _isFixedCen,_isFixedGamma,_isFixedMu,true));
+                _isFixedCen,_isFixedGamma,_isFixedMu,/*true*/));
     } else {
         solver.reset(new EllipseSolver(
                 pix,order,sigma,
-                _isFixedCen,_isFixedGamma,_isFixedMu,true));
+                _isFixedCen,_isFixedGamma,_isFixedMu,/*true*/));
     }
     xdbg<<"xinit = "<<EIGEN_Transpose(x)<<std::endl;
     solver->useHybrid();
@@ -508,11 +506,11 @@ bool Ellipse::doMeasure(
         if (psf) {
             solver.reset(new EllipseSolver(
                     pix,*psf,_fPsf,order,sigma,
-                    _isFixedCen,_isFixedGamma,true));
+                    _isFixedCen,_isFixedGamma/*,true*/));
         } else {
             solver.reset(new EllipseSolver(
                     pix,order,sigma,
-                    _isFixedCen,_isFixedGamma,true));
+                    _isFixedCen,_isFixedGamma/*,true*/));
         }
 
         solver->useHybrid();
@@ -541,13 +539,22 @@ bool Ellipse::doMeasure(
 
     // Check for flags
     xdbg<<"Checking for possible problems\n";
-    solver->callF(x,f);
-    if (f.norm() > solver->getFTol()) {
+    if (solver->getB()(0) < 0.) {
+        xdbg<<"getB = "<<solver->getB().vec()<<", negative flux.\n";
+        flag |= SHEAR_BAD_FLUX;
+    }
+    //solver->callF(x,f);
+    if (f.normInf() > solver->getFTol()) {
         xdbg<<"Local minimum\n";
+        xdbg<<"x = "<<x<<std::endl;
+        xdbg<<"f = "<<f<<std::endl;
+        xdbg<<"f.norm = "<<f.norm()<<std::endl;
+        xdbg<<"ftol = "<<solver->getFTol()<<std::endl;
         flag |= SHEAR_LOCAL_MIN;
     }
     if (solver->getFTol() > 1.e-8) {
         xdbg<<"ftol was raised\n";
+        xdbg<<"ftol = "<<solver->getFTol()<<std::endl;
         flag |= SHEAR_POOR_FIT;
     }
 

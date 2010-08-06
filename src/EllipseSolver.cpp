@@ -391,8 +391,7 @@ void EllipseSolver::ESImpl::doF(const DVector& x, DVector& f) const
     if (useflux) f(0) -= 1.;
 }
 
-void EllipseSolver::ESImpl::calculateF(
-    const DVector& x, DVector& f) const
+void EllipseSolver::ESImpl::calculateF(const DVector& x, DVector& f) const
 {
     Assert(x.size() == U.TMV_colsize());
     if (useflux) Assert(f.size() == U.TMV_colsize()+1);
@@ -1090,13 +1089,12 @@ void EllipseSolver::getInverseCovariance(DMatrix& invcov) const
     DMatrix invcov1(_pimpl->x_short.size(),_pimpl->x_short.size());
     NLSolver::getInverseCovariance(invcov1);
     invcov = _pimpl->U.transpose()*invcov1*_pimpl->U;
-    dbg<<"getCovariance:\n";
+    dbg<<"getInverseCovariance:\n";
     dbg<<"invcov1 = "<<invcov1<<std::endl;
     dbg<<"full invcov = "<<invcov<<std::endl;
 }
 
-void EllipseSolver::callF(
-    const DVector& x, DVector& f) const
+void EllipseSolver::callF(const DVector& x, DVector& f) const
 {
     Assert(x.size() == 5);
     Assert(f.size() == 5);
@@ -1113,8 +1111,8 @@ void EllipseSolver::callF(
 
     if (_pimpl->useflux) 
         EIGEN_Transpose(f) = 
-            EIGEN_Transpose(_pimpl->f_short.TMV_subVector(1,_pimpl->f_short.size())) * 
-            _pimpl->U;
+            EIGEN_Transpose(_pimpl->f_short.TMV_subVector(
+                    1,_pimpl->f_short.size())) * _pimpl->U;
     else EIGEN_Transpose(f) = EIGEN_Transpose(_pimpl->f_short)*_pimpl->U;
 }
 
@@ -1143,8 +1141,8 @@ bool EllipseSolver::solve(DVector& x, DVector& f) const
     if (_pimpl->fixmu) { x[4] = _pimpl->fixm; }
     if (_pimpl->useflux) 
         EIGEN_Transpose(f) = 
-            EIGEN_Transpose(_pimpl->f_short.TMV_subVector(1,_pimpl->f_short.size())) * 
-            _pimpl->U;
+            EIGEN_Transpose(_pimpl->f_short.TMV_subVector(
+                    1,_pimpl->f_short.size())) * _pimpl->U;
     else EIGEN_Transpose(f) = EIGEN_Transpose(_pimpl->f_short)*_pimpl->U;
 
     return ret;

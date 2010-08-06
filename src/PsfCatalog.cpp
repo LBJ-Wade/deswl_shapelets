@@ -142,7 +142,7 @@ PsfCatalog::PsfCatalog(
     // Fix flags to only have INPUT_FLAG set.
     // i.e. Ignore any flags set by StarCatalog.
     for (int i=0; i<nStars; ++i) {
-        _flags[i] &= INPUT_FLAG;
+        if (_flags[i]) _flags[i] = INPUT_FLAG;
     }
 
     // Set up a default psf vector for output when an object measurement

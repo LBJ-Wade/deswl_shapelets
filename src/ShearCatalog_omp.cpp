@@ -69,7 +69,10 @@ int ShearCatalog::measureShears(
 #pragma omp for schedule(dynamic)
 #endif
             for(int i=0;i<nGals;++i) {
-                if (_flags[i]) continue;
+                if (_flags[i]) {
+                    xdbg<<i<<" skipped because has flag "<<_flags[i]<<std::endl;
+                    continue;
+                }
 #ifdef STARTAT
                 if (i < STARTAT) continue;
 #endif

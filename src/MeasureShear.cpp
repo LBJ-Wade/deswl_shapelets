@@ -52,6 +52,17 @@ static void doMeasureShear(ConfigFile& params, ShearLog& log)
         t1 = t2;
     }
 
+    // Read star catalog info
+    StarCatalog starCat(params);
+    starCat.read();
+
+    if (isTiming) {
+        gettimeofday(&tp,0);
+        t2 = tp.tv_sec + tp.tv_usec/1.e6;
+        std::cout<<"Time: Read StarCatalog = "<<t2-t1<<std::endl;
+        t1 = t2;
+    }
+
     // Read the fitted psf file
     FittedPsf fitPsf(params);
     fitPsf.read();
@@ -70,6 +81,16 @@ static void doMeasureShear(ConfigFile& params, ShearLog& log)
         gettimeofday(&tp,0);
         t2 = tp.tv_sec + tp.tv_usec/1.e6;
         std::cout<<"Time: Create ShearCatalog = "<<t2-t1<<std::endl;
+        t1 = t2;
+    }
+
+    // Flag known stars as too small to bother trying to measure the shear.
+    shearCat.flagStars(starCat);
+
+    if (isTiming) {
+        gettimeofday(&tp,0);
+        t2 = tp.tv_sec + tp.tv_usec/1.e6;
+        std::cout<<"Time: Flag stars = "<<t2-t1<<std::endl;
         t1 = t2;
     }
 

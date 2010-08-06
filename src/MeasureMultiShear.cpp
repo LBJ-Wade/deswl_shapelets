@@ -198,7 +198,7 @@ int main(int argc, char **argv) try
     try {
         doMeasureMultiShear(params,*log);
     }
-#if 1
+#if 0
     // Change to 1 to let gdb see where the program bombed out.
     catch(int) {}
 #else

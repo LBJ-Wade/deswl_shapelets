@@ -31,14 +31,12 @@ std::ostream* dbgout = 0;
 bool XDEBUG = true;
 //bool XDEBUG = false;
 
-#if 1
-#define TEST1
-#define TEST2
+//#define TEST1
+//#define TEST2
 #define TEST3
-#define TEST4
-#define TEST5
-#endif
-#define TEST6
+//#define TEST4
+//#define TEST5
+//#define TEST6
 
 #ifdef TEST1
 #define TEST12

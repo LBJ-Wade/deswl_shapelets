@@ -37,9 +37,9 @@
 #define SHAPE_BAD_FLUX          0x1000000
 #define PSF_BAD_FLUX            0x2000000
 #define CENTROID_FAILED         0x4000000
-
-#define PSF_TRAINING        0x8000000
-#define PSF_VALIDATION      0x10000000
+#define SHEAR_BAD_FLUX          0x8000000
+#define PSF_TRAINING            0x10000000
+#define PSF_VALIDATION          0x20000000
 
 // Errors specific to the weak lensing code
 

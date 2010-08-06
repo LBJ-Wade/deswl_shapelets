@@ -34,7 +34,7 @@ ShearCatalog::ShearCatalog(
     // Fix flags to only have INPUT_FLAG set.
     // (I don't think this is necessary, but just in case.)
     for (int i=0; i<nGals; ++i) {
-        _flags[i] &= INPUT_FLAG;
+        if (_flags[i]) _flags[i] = INPUT_FLAG;
     }
 
     // Calculate sky positions
@@ -118,6 +118,20 @@ ShearCatalog::ShearCatalog(const ConfigFile& params) : _params(params)
     Assert(_nu.size() == size());
     Assert(_cov.size() == size());
     Assert(_shape.size() == size());
+}
+
+void ShearCatalog::flagStars(const StarCatalog& starCat)
+{
+    const int nGals = _id.size();
+    for (int i=0; i<nGals; ++i) {
+        // It doesn't seem worth making a separate flag for this.
+        // If it's considered a star, let's just admit that it's too small 
+        // to bother trying to measure a shear for it.
+        if (starCat.isAStar(i)) {
+            _flags[i] |= TOO_SMALL;
+            xdbg<<i<<" is a star: flag -> "<<_flags[i]<<std::endl;
+        }
+    }
 }
 
 void ShearCatalog::writeFits(std::string file) const
