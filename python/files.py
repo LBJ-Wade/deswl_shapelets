@@ -662,18 +662,22 @@ def generate_me_filenames(tilename, band,
 
 
 
-def collated_redfiles_dir(dataset):
+def collated_redfiles_dir(dataset, html=False):
     desfiles_dir=getenv_check('DESFILES_DIR')
+    if html:
+        desfiles_dir=path_join(desfiles_dir,'html')
     desfiles_dir = path_join(desfiles_dir,dataset)
     return desfiles_dir
 
 def collated_redfiles_name(dataset, band):
     name=[dataset,'images','catalogs']
     name.append(band)
-    return '-'.join(name)+'.json'
+    name = '-'.join(name)
+    name += '.json'
+    return name
 
-def collated_redfiles_path(dataset, band):
-    tdir=collated_redfiles_dir(dataset)
+def collated_redfiles_path(dataset, band, html=False):
+    tdir=collated_redfiles_dir(dataset, html=html)
     name = collated_redfiles_name(dataset, band)
     return path_join(tdir, name)
 
@@ -715,6 +719,48 @@ def collated_redfiles_write(dataset, band, flist):
     stdout.write("    Don't forget to check it into SVN!!!!!")
 
 
+def collated_redfiles_write_web(dataset, band):
+    json_file=collated_redfiles_path(dataset, band)
+    dat_file=collated_redfiles_path(dataset, band, html=True)
+    dat_file = dat_file.replace('.json','-pointings.json')
+
+    html_dir = collated_redfiles_dir(dataset, html=True)
+
+    stdout.write("Writing to: %s\n" % dat_file)
+    if not os.path.exists(html_dir):
+        os.makedirs(html_dir)
+
+    data = esutil.io.read(json_file)
+    flist = data['flist']
+
+    DESDATA=data['rootdir']
+
+
+    # just for getting unique ones
+    phist = {}
+    # for json output
+    pdata = {}
+    pdata['band'] = band
+    pdata['dataset'] = dataset
+    pdata['DESDATA'] = DESDATA
+    pdata['flist'] = []
+    for f in flist:
+
+        imfile=f['imfile'].replace(DESDATA,'$DESDATA')
+        catfile=f['catfile'].replace(DESDATA,'$DESDATA')
+
+        imdir=os.path.dirname(imfile)
+        catdir=os.path.dirname(catfile)
+
+        imid = '{redrun}/red/{expname}'.format(redrun=f['redrun'],
+                                               expname=f['exposurename'])
+        if imid not in phist:
+            phist[imid] = 1
+            pdata['flist'].append( {'imdir':imdir,'catdir':catdir} )
+
+
+    esutil.io.write(dat_file,pdata,verbose=True)
+                                    
 
 
 

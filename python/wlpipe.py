@@ -1,6 +1,8 @@
 """
     Order of doing things for SE image processing:
 
+        For DC4 (dc5 things are a *little* easier)
+
         Find the collated, newest versions of SE "red" images and catalogs
 
             deswl.wlpipe.find_collated_redfiles(dataset, band)
@@ -45,7 +47,7 @@
                                              getsrc=True)
 
 
-        For dc4 I'm putting all this stuff into the nyu repo 'desfiles':
+        For DC4 I'm putting all this stuff into the nyu repo 'desfiles':
             $DESFILES_DIR/dc4coadd
         Generally
           $DESFILES_DIR/(dataset)/(dataset)-images-catalogs-(band).json

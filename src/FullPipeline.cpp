@@ -89,9 +89,14 @@ static void doFullPipeline(
     // the flags.
     // TODO: It may be worth having a new routine that just updates the 
     // flags.  More efficient, since don't need to re-write everything.
-    psfCat.write();
+    //
+    // don't need this any more since we don't modify the star catalog
+    //psfCat.write();
 
     xdbg<<"PSFLog: \n"<<*log<<std::endl;
+
+
+
 
     log.reset(new ShearLog(params,logFile,makeName(params,"shear",false,false)));
 
@@ -106,6 +111,90 @@ static void doFullPipeline(
     shearCat.write();
 
     xdbg<<"ShearLog: \n"<<*log<<std::endl;
+
+
+
+
+
+    bool splitstars=params.read("splitstars",false);
+    if (splitstars) {
+
+      std::cerr<<"\n\nSplitting stars into two sets\n";
+
+      // split the catalog and perform the psf analysis on both sets
+      // separately.  We work in fits only to avoid dealing with all the
+      // different naming cases.
+
+      // these file names are always fits files
+      std::string star_file1,star_file2;
+      starCat.splitInTwo(star_file1, star_file2);
+
+      std::string psf_file = makeFitsName(params, "psf");
+      std::string fitpsf_file = makeFitsName(params, "fitpsf");
+      std::string shear_file = makeFitsName(params, "shear");
+
+      std::string psf_file1 = addExtraToName(psf_file, "1");
+      std::string psf_file2 = addExtraToName(psf_file, "2");
+      std::string fitpsf_file2 = addExtraToName(fitpsf_file, "2");
+      std::string fitpsf_file1 = addExtraToName(fitpsf_file, "1");
+      std::string shear_file1 = addExtraToName(shear_file, "1");
+      std::string shear_file2 = addExtraToName(shear_file, "2");
+
+      // set 1
+      std::cerr<<"\nDoing PSF/Shear for Set1\n";
+      log.reset(new PsfLog(params,logFile,psf_file1));
+
+      StarCatalog starCat1(params);
+      starCat1.readFits(star_file1);
+
+      PsfCatalog psfCat1(starCat1,params);
+      psfCat1.measurePsf(
+	  im,weightIm.get(),trans,sigmaP,static_cast<PsfLog&>(*log));
+
+      psfCat1.writeFits(psf_file1);
+
+      FittedPsf fitPsf1(psfCat1,params,static_cast<PsfLog&>(*log));
+
+      fitPsf1.writeFits(fitpsf_file1);
+
+      log.reset(new ShearLog(params,logFile,shear_file1));
+
+      ShearCatalog shearCat1(inCat,trans,fitPsf1,params);
+
+      shearCat1.measureShears(im,weightIm.get(),static_cast<ShearLog&>(*log));
+      shearCat1.writeFits(shear_file1);
+
+      // set 1
+      std::cerr<<"\nDoing PSF/Shear for Set1\n";
+      log.reset(new PsfLog(params,logFile,psf_file2));
+
+      StarCatalog starCat2(params);
+      starCat2.readFits(star_file2);
+
+      PsfCatalog psfCat2(starCat2,params);
+      psfCat2.measurePsf(
+	  im,weightIm.get(),trans,sigmaP,static_cast<PsfLog&>(*log));
+
+      psfCat2.writeFits(psf_file2);
+
+
+      FittedPsf fitPsf2(psfCat2,params,static_cast<PsfLog&>(*log));
+
+      fitPsf2.writeFits(fitpsf_file2);
+
+
+      log.reset(new ShearLog(params,logFile,shear_file2));
+
+      ShearCatalog shearCat2(inCat,trans,fitPsf2,params);
+
+      shearCat2.measureShears(im,weightIm.get(),static_cast<ShearLog&>(*log));
+      shearCat2.writeFits(shear_file2);
+
+
+
+    }
+
+
 
 }
 

@@ -97,6 +97,63 @@ void calculateSigma(
     }
 }
 
+StarCatalog::StarCatalog(
+        const StarCatalog& inStarCat) :
+    _id(inStarCat.getIdList()), 
+    _pos(inStarCat.getPosList()), 
+    _sky(inStarCat.getSkyList()), 
+    _noise(inStarCat.getNoiseList()),
+    _flags(inStarCat.getFlagsList()), 
+    _mag(inStarCat.getMagList()), 
+    _objSize(inStarCat.getObjSizeList()),
+    _isAStar(inStarCat.getIsAStarList()),
+    _params(inStarCat.getParams())
+{
+  Assert(_id.size() == size());
+  Assert(_pos.size() == size());
+  Assert(_sky.size() == size());
+  Assert(_noise.size() == size());
+  Assert(_flags.size() == size());
+  Assert(_mag.size() == size());
+  Assert(_objSize.size() == size());
+  Assert(_isAStar.size() == size());
+
+
+}
+
+
+StarCatalog::StarCatalog(
+    const StarCatalog& inStarCat, const std::vector<long> indices) :
+    _params(inStarCat.getParams())
+{
+
+  size_t nind = indices.size();
+  _id.resize(nind);
+  _pos.resize(nind);
+  _sky.resize(nind);
+  _noise.resize(nind);
+  _flags.resize(nind);
+
+  _mag.resize(nind);
+  _objSize.resize(nind);
+  _isAStar.resize(nind);
+
+  for (size_t i=0; i<nind; i++) {
+    long ind = indices[i];
+    _id[i]      = inStarCat.getId(ind);
+    _pos[i]     = inStarCat.getPos(ind);
+    _sky[i]     = inStarCat.getSky(ind);
+    _noise[i]   = inStarCat.getNoise(ind);
+    _flags[i]   = inStarCat.getFlags(ind);
+
+    _mag[i]     = inStarCat.getMag(ind);
+    _objSize[i] = inStarCat.getObjSize(ind);
+    _isAStar[i] = inStarCat.getIsAStar(ind);
+  }
+
+}
+
+
 
 StarCatalog::StarCatalog(
     const InputCatalog& inCat,
@@ -130,6 +187,72 @@ StarCatalog::StarCatalog(const ConfigFile& params, std::string fsPrefix) :
     Assert(_mag.size() == size());
     Assert(_isAStar.size() == size());
 }
+
+
+void StarCatalog::splitInTwo() {
+  std::string f1,f2;
+  splitInTwo(f1,f2);
+}
+void StarCatalog::splitInTwo(std::string&f1, std::string& f2) {
+
+  std::vector<long> id1;
+  std::vector<long> id2;
+
+  double split_point = 0.5;
+
+  // initialize random seed
+  srand ( time(NULL) );
+
+  for (size_t i=0; i<this->size(); i++) {
+
+    // number between [0,1)
+    double r = ( (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
+    if (r > split_point) {
+      id1.push_back(i);
+    } else {
+      id2.push_back(i);
+    }
+
+  }
+
+  StarCatalog cat1(*this, id1);
+  StarCatalog cat2(*this, id2);
+
+  std::string fitsname = makeFitsName(_params, "stars");
+  f1 = addExtraToName(fitsname, "1");
+  f2 = addExtraToName(fitsname, "2");
+
+  cat1.writeFits(f1);
+  cat2.writeFits(f2);
+
+
+}
+
+/*
+std::string StarCatalog::getFitsName(std::string extra) {
+  std::string file = makeName(_params, "stars",false,false);  
+
+  size_t fits_pos = file.rfind(".fits");
+  size_t dat_pos = file.rfind(".dat");
+
+  if (fits_pos != std::string::npos) {
+    if (extra != "") {
+      file.insert(fits_pos, extra);
+    }
+  } else if (dat_pos != std::string::npos) {
+    std::string e = extra+".fits";
+    file.replace(dat_pos, 4, e);
+  } else {
+
+    // didn't find the expected ending .fits or .dat;  we will just tac it on
+    // the end
+    file += extra+".fits";
+
+  }
+
+  return file;
+}
+*/
 
 int StarCatalog::findStars(FindStarsLog& log)
 {

@@ -18,6 +18,17 @@ std::string makeName(
 std::vector<std::string> makeMultiName(
     const ConfigFile& params, const std::string& what);
 
+// By forcing fits we can avoid dealing with all the cases involved with the
+// naming scheme
+std::string makeFitsName(
+    const ConfigFile& params, 
+    const std::string& what);
+
+// for names like name.ext, add an extra string to make name{extra}.ext
+std::string addExtraToName(
+    const std::string& input_name, 
+    const std::string extra);
+
 int getHdu(
     const ConfigFile& params, const std::string& what, 
     const std::string& name, int def);

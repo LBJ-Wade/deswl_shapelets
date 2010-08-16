@@ -69,6 +69,8 @@ opts.Add(BoolVariable('STATIC','Use static linkage', False))
 opts.Add(BoolVariable('MEM_TEST','Test for memory leaks',False))
 opts.Add(BoolVariable('WARN','Add warning compiler flags, like -Wall', False))
 
+opts.Add(BoolVariable('WITH_LIB',
+            'Install the static library and headers.',False))
 opts.Add(BoolVariable('WITH_UPS',
             'Create ups/wl.table.  Install the ups directory under PREFIX/ups',False))
 opts.Add(BoolVariable('WITH_PROF',

@@ -71,7 +71,7 @@ FittedPsf::FittedPsf(
     }
 
     std::vector<long>& flags = psfCat.getFlagsList();
-    split_psf_stars(flags);
+    //split_psf_stars(flags);
 
     calculate(
         psfCat.getPosList(),
@@ -81,10 +81,11 @@ FittedPsf::FittedPsf(
         log);
 }
 
+// this is no longer used
 void FittedPsf::split_psf_stars(std::vector<long>& flags) {
     // split at this point.  If split_point = 0.5, we split
     // the sample in half
-    double split_point = _params.read("fitpsf_split_point",1.);
+    double split_point = _params.read("fitpsf_split_point",0.5);
     for (int i=0; i<flags.size(); i++) {
         // this must already be a good PSF star
         if (flags[i] == 0) {
@@ -139,7 +140,8 @@ void FittedPsf::calculate(
         _avePsf->setZero();
         nGoodPsf = 0;
         // check that only PSF_TRAINING is set
-        for(int n=0;n<nStars;++n) if ( (flags[n] & ~PSF_TRAINING)==0) {
+        //for(int n=0;n<nStars;++n) if ( (flags[n] & ~PSF_TRAINING)==0) {
+        for(int n=0;n<nStars;++n) if ( flags[n]==0 ) {
             Assert(psf[n].getSigma() == _sigma);
             *_avePsf += psf[n].vec();
             ++nGoodPsf;
@@ -155,7 +157,8 @@ void FittedPsf::calculate(
         DMatrix mM(nGoodPsf,psfSize);
         DDiagMatrix inverseSigma(nGoodPsf);
         int i=0;
-        for(int n=0;n<nStars;++n) if ( (flags[n] & ~PSF_TRAINING)==0) {
+        //for(int n=0;n<nStars;++n) if ( (flags[n] & ~PSF_TRAINING)==0) {
+        for(int n=0;n<nStars;++n) if ( flags[n]==0 ) {
             Assert(int(psf[n].size()) == psfSize);
             Assert(i < nGoodPsf);
             mM.row(i) = psf[n].vec() - *_avePsf;
@@ -226,7 +229,8 @@ void FittedPsf::calculate(
         DMatrix mP(nGoodPsf,_fitSize);
         mP.setZero();
         i=0;
-        for(int n=0;n<nStars;++n) if ( (flags[n] & ~PSF_TRAINING)==0) {
+        //for(int n=0;n<nStars;++n) if ( (flags[n] & ~PSF_TRAINING)==0) {
+        for(int n=0;n<nStars;++n) if ( flags[n]==0 ) {
             xdbg<<"n = "<<n<<" / "<<nStars<<std::endl;
 #ifdef USE_TMV
             setPRow(_fitOrder,pos[n],_bounds,mP.row(i));
@@ -258,7 +262,8 @@ void FittedPsf::calculate(
         // Calculate the covariance matrix
         DMatrix cov(psfSize,psfSize);
         cov.setZero();
-        for(int n=0;n<nStars;++n) if ( (flags[n] & ~PSF_TRAINING)==0) {
+        //for(int n=0;n<nStars;++n) if ( (flags[n] & ~PSF_TRAINING)==0) {
+        for(int n=0;n<nStars;++n) if ( flags[n]==0 ) {
             const BVec& data = psf[n];
             DVector fit(psfSize);
             interpolateVector(pos[n],TMV_vview(fit));
@@ -291,7 +296,8 @@ void FittedPsf::calculate(
         // Clip out 3 sigma outliers:
         nOutliers = 0;
         chisq = 0;
-        for(int n=0;n<nStars;++n) if ( (flags[n] & ~PSF_TRAINING)==0) {
+        //for(int n=0;n<nStars;++n) if ( (flags[n] & ~PSF_TRAINING)==0) {
+        for(int n=0;n<nStars;++n) if ( flags[n]==0 ) {
             const BVec& data = psf[n];
             DVector fit(psfSize);
             interpolateVector(pos[n],TMV_vview(fit));

@@ -19,6 +19,8 @@ fobj.write('setupRequired("esutil")\n')
 # optional since we might be using the system install
 fobj.write('setupOptional("numpy")\n')
 fobj.write('envPrepend(PATH,${PRODUCT_DIR}/bin)\n')
+fobj.write('envPrepend(C_INCLUDE_PATH,${PRODUCT_DIR}/include)\n')
+fobj.write('envPrepend(LD_LIBRARY_PATH,${PRODUCT_DIR}/lib)\n')
 fobj.write('envPrepend(PYTHONPATH,${PRODUCT_DIR}/'+this_libdir+')\n')
 fobj.close()
 

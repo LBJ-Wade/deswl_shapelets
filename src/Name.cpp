@@ -169,6 +169,56 @@ std::string makeName(
     throw FileNotFoundException(allNames);
 }
 
+std::string makeFitsName(
+    const ConfigFile& params, 
+    const std::string& what) {
+
+  // Since we don't know what type the extension is, .fits, .dat, etc.  we will
+  // replace .dat with .fits
+
+  // Just get the first name and modify it if necessary
+  std::string file = makeName(params,what,false,false);  
+
+  size_t fits_pos = file.rfind(".fits");
+  size_t fit_pos = file.rfind(".fit");
+  size_t dat_pos = file.rfind(".dat");
+
+  if (fits_pos==std::string::npos && fit_pos==std::string::npos) {
+    if (dat_pos != std::string::npos) {
+      // replace the .dat with .fits
+      std::string e = ".fits";
+      file.replace(dat_pos, 4, e);
+    } else {
+      // didn't find the .dat;  we will just tac it on the end
+      file += ".fits";
+    }
+  }
+
+  return file;
+}
+
+std::string addExtraToName(
+    const std::string& input_name, 
+    const std::string extra) {
+  
+  std::string name = input_name;
+
+  if (extra == "") {
+    return name;
+  }
+
+  size_t pos = name.rfind(".");
+  if (pos != std::string::npos) {
+    name.insert(pos, extra);
+  } else {
+    // didn't find the expected extension ending with a .ext;  we will just tac
+    // it on the end
+    name+= extra;
+  }
+
+  return name;
+}
+
 std::vector<std::string> makeMultiName(
     const ConfigFile& params, const std::string& what)
 {
