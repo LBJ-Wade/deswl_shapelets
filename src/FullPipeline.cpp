@@ -164,8 +164,8 @@ static void doFullPipeline(
       shearCat1.measureShears(im,weightIm.get(),static_cast<ShearLog&>(*log));
       shearCat1.writeFits(shear_file1);
 
-      // set 1
-      std::cerr<<"\nDoing PSF/Shear for Set1\n";
+      // set 2
+      std::cerr<<"\nDoing PSF/Shear for Set2\n";
       log.reset(new PsfLog(params,logFile,psf_file2));
 
       StarCatalog starCat2(params);
