@@ -107,7 +107,7 @@ testnl = env2.Program('testnl', 'TestNL.cpp')
 
 test_psfrec = env2.Program('test-psfrec', 'TestPsfRec.cpp')
 
-test_scat_split = env2.Program('test-scat-split', 'test-scat-split.cpp')
+#test_scat_split = env2.Program('test-scat-split', 'test-scat-split.cpp')
 
 
 bin_targets = [measurepsf, measureshear, findstars, multishear, fullpipe, 
