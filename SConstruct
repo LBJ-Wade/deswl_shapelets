@@ -59,6 +59,10 @@ opts.Add(BoolVariable('IMPORT_PATHS',
             False))
 opts.Add(BoolVariable('IMPORT_ENV','Import full environment from calling shell', False))
 
+opts.Add('TMV_DIR','Explicitly give the tmv prefix','')
+opts.Add('CFITSIO_DIR','Explicitly give the cfitsio prefix','')
+opts.Add('CCFITS_DIR','Explicitly give the ccfits prefix','')
+
 opts.Add('TMV_LINK','File that contains the linking instructions for TMV','')
 opts.Add('LIBS','Libraries to send to the linker','')
 opts.Add(BoolVariable('CACHE_LIB','Cache the results of the library checks',True))
@@ -271,8 +275,12 @@ def GetCompilerVersion(env):
     env['CXXVERSION'] = version
     env['CXXVERSION_NUMERICAL'] = float(vnum)
 
+def ExpandPath(path):
+    p=os.path.expanduser(path)
+    p=os.path.expandvars(p)
+    return p
 
-def AddPath(pathlist, newpath):
+def AddPath(pathlist, newpath, prepend=False):
     """
     Add path(s) to a list of paths.  Check the path exists and that it is
     not already in the list
@@ -281,12 +289,50 @@ def AddPath(pathlist, newpath):
         for l in newpath:
             AddPath(pathlist, l)
     else:
-        # to deal with expansions and possible end / which 
-        # messes up uniqueness test
-        p = os.path.abspath(newpath) 
+        # to deal with ~ and ${var} expansions
+        p=ExpandPath(newpath)
+        p = os.path.abspath(p)
+
         if os.path.exists(p):
-            if pathlist.count(p) == 0:
-                pathlist.append(p)
+            if p not in pathlist:
+                if prepend:
+                    pathlist.insert(0, p)
+                else:
+                    pathlist.append(p)
+
+def GetDepPaths(env):
+    """
+
+    Look for paths associated with the dependencies.  E.g. if TMV_DIR is set
+    either on the command line or in the environment, add $TMV_DIR/include etc.
+    to the paths.  Will add them to the back of the paths.  Also, we don't have
+    to worry about dups because AddPath checks for that.
+
+    """
+
+    types = ['TMV','CFITSIO','CCFITS']
+    bin_paths = []
+    cpp_paths = []
+    lib_paths = []
+
+    for t in types:
+        dirtag = t+'_DIR'
+        tdir = FindPathInEnv(env, dirtag)
+        if tdir is None:
+            continue
+
+        bindir = os.path.join(tdir, 'bin')
+        incdir = os.path.join(tdir, 'include')
+        libdir = os.path.join(tdir, 'lib')
+
+        if os.path.exists(bindir):
+            AddPath(bin_paths,bindir)
+        if os.path.exists(incdir): 
+            AddPath(cpp_paths,incdir)
+        if os.path.exists(libdir):
+            AddPath(lib_paths,libdir)
+
+    return bin_paths, cpp_paths, lib_paths
 
 def AddExtraPaths(env):
     """
@@ -349,9 +395,16 @@ def AddExtraPaths(env):
         env['INSTALL_PREFIX'] = env['PREFIX']
     
 
-    #print 'bin paths = ',bin_paths
-    #print 'cpp paths = ',cpp_paths
-    #print 'lib paths = ',lib_paths
+    # get directories specified explicitly for our dependencies on the command
+    # line or as an environment variable.  these will be prepended, as explicit
+    # should override implicit.
+    bp,cp,lp = GetDepPaths(env)
+    for p in bp:
+        AddPath(bin_paths, p, prepend=True)
+    for p in cp:
+        AddPath(cpp_paths, p, prepend=True)
+    for p in lp:
+        AddPath(lib_paths, p, prepend=True)
 
     #env.AppendENVPath('PATH', bin_paths)
     #env.Append(LIBPATH= lib_paths)
@@ -359,6 +412,7 @@ def AddExtraPaths(env):
     env.PrependENVPath('PATH', bin_paths)
     env.Prepend(LIBPATH= lib_paths)
     env.Prepend(CPPPATH= cpp_paths)
+
 
 def ReadFileList(fname):
     """
@@ -458,6 +512,50 @@ int main()
     return 1
 
 
+def FindPathInEnv(env, dirtag):
+    """
+    Find the path tag in the environment and return
+    The path must exist
+    """
+    dir = None
+    # first try the local environment (which can be from the command
+    # line), then try external environment
+    if env[dirtag] != '':
+        tmpdir = ExpandPath(env[dirtag])
+        if os.path.exists(tmpdir):
+            dir = tmpdir
+
+    if dir is None and dirtag in os.environ:
+        tmpdir = ExpandPath(os.environ[dirtag])
+        if os.path.exists(tmpdir):
+            dir=tmpdir
+    return dir
+
+def FindTmvLinkFile(config):
+    if (config.env['TMV_LINK'] != '') :
+        tmv_link = config.env['TMV_LINK']
+        if os.path.exists(tmv_link):
+            return tmv_link
+        else:
+            raise ValueError("Specified TMV_LINK does not "
+                             "exist: %s" % tmv_link)
+
+    tmv_dir = FindPathInEnv(config.env, 'TMV_DIR')
+
+    if tmv_dir is not None:
+        tmv_share_dir = os.path.join(tmv_dir,'share')
+        tmv_link = os.path.join(tmv_share_dir, 'tmv-link')
+        if os.path.exists(tmv_link):
+            return tmv_link
+
+    # Finally try the install prefix/share
+    prefix=config.env['INSTALL_PREFIX']
+    tmv_share_dir =  os.path.join(prefix,'share')
+    tmv_link = os.path.join(tmv_share_dir, 'tmv-link')
+    if os.path.exists(tmv_link):
+        return tmv_link
+
+    raise ValueError("No tmv-link file could be found")
 
 def DoLibraryAndHeaderChecks(config):
     """
@@ -491,10 +589,7 @@ def DoLibraryAndHeaderChecks(config):
         if not (config.env.has_key('LIBS')) :
             config.env['LIBS'] = []
     
-        if (config.env['TMV_LINK'] == '') :
-            tmv_link_file = config.env['INSTALL_PREFIX'] + '/share/tmv-link'
-        else :
-            tmv_link_file = config.env['TMV_LINK']
+        tmv_link_file = FindTmvLinkFile(config)
     
         print 'Using TMV_LINK file:',tmv_link_file
         try:
@@ -582,6 +677,8 @@ if not GetOption('help'):
         # But I think it works, so good enough for now.
         env = Environment(ENV=os.environ)
         # Now repeat the stuff that has already been done to env
+        # note command line specifications will override environment
+        # variables.
         opts.Update(env)
         opts.Save(config_file,env)
         Help(opts.GenerateHelpText(env))
