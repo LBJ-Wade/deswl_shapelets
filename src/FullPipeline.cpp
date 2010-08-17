@@ -90,8 +90,9 @@ static void doFullPipeline(
     // TODO: It may be worth having a new routine that just updates the 
     // flags.  More efficient, since don't need to re-write everything.
     //
-    // don't need this any more since we don't modify the star catalog
-    //psfCat.write();
+    // ES: don't need this any more since we don't modify the star catalog
+    // MJ: Yes, we do.  We flag that stars that are found to be outliers.
+    psfCat.write();
 
     xdbg<<"PSFLog: \n"<<*log<<std::endl;
 
@@ -103,6 +104,9 @@ static void doFullPipeline(
     std::cerr<<"Measuring Shears\n";
     // Create shear catalog
     ShearCatalog shearCat(inCat,trans,fitPsf,params);
+
+    // Flag known stars as too small to bother trying to measure the shear.
+    shearCat.flagStars(starCat);
 
     // Measure shears and shapelet vectors
     shearCat.measureShears(im,weightIm.get(),static_cast<ShearLog&>(*log));
