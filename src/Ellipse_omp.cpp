@@ -46,7 +46,8 @@ bool Ellipse::doMeasure(
     // The non-linear solver is pretty sensitive to having a good
     // initial estimate.  So start with a simple estimate.
     if (order > 3) {
-        doMeasure(pix,psf,order-2,sigma,shouldUseInteg,flag);
+        //doMeasure(pix,psf,order-2,sigma,shouldUseInteg,flag);
+        doMeasure(pix,psf,2,sigma,shouldUseInteg,flag);
     }
 
     xdbg<<"Start DoMeasure: order = "<<order<<", psf = "<<bool(psf)<<std::endl;
