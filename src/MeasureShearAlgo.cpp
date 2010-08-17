@@ -81,6 +81,7 @@ void measureSingleShear1(
         ell.fixMu();
         if (!ell.measure(pix,go,sigmaObs,true,flag1)) {
             if (times) times->failCentroid(ell.getTimes());
+            xdbg<<"This FailCentroid Final time = "<<ell.getTimes()._tFinal<<std::endl;
             ++log._nfCentroid;
             dbg<<"First centroid pass failed.\n";
             flag |= CENTROID_FAILED;
@@ -130,6 +131,7 @@ void measureSingleShear1(
         flag1=0;
         if (!ell.measure(pix,go,sigmaObs,true,flag1)) {
             if (times) times->failCentroid(ell.getTimes());
+            xdbg<<"This FailCentroid Final time = "<<ell.getTimes()._tFinal<<std::endl;
             ++log._nfCentroid;
             dbg<<"Second centroid pass failed.\n";
             flag |= CENTROID_FAILED;
@@ -142,6 +144,7 @@ void measureSingleShear1(
         ell.setCen(std::complex<double>(0.,0.));
 #endif
         if (times) times->successCentroid(ell.getTimes());
+        xdbg<<"This SuccessCentroid Final time = "<<ell.getTimes()._tFinal<<std::endl;
         ++log._nsCentroid;
     }
 
@@ -150,12 +153,14 @@ void measureSingleShear1(
     ell.unfixMu();
     if (ell.measure(pix,go,sigmaObs,true,flag1)) {
         if (times) times->successNative(ell.getTimes());
+        xdbg<<"This SuccessNative Final time = "<<ell.getTimes()._tFinal<<std::endl;
         ++log._nsNative;
         dbg<<"Successful native fit:\n";
         dbg<<"Z = "<<ell.getCen()<<std::endl;
         dbg<<"Mu = "<<ell.getMu()<<std::endl;
     } else {
         if (times) times->failNative(ell.getTimes());
+        xdbg<<"This FailNative Final time = "<<ell.getTimes()._tFinal<<std::endl;
         ++log._nfNative;
         dbg<<"Native measurement failed\n";
         flag |= NATIVE_FAILED;
@@ -204,6 +209,7 @@ void measureSingleShear1(
     flag1 = 0;
     if (ell.measure(pix,psf,go,sigma,false,flag1)) {
         if (times) times->successMu(ell.getTimes());
+        xdbg<<"This SuccessMu Final time = "<<ell.getTimes()._tFinal<<std::endl;
         ++log._nsMu;
         if (flag1) {
             Assert((flag1 & ~(SHEAR_LOCAL_MIN | SHEAR_POOR_FIT)) == false);
@@ -217,6 +223,7 @@ void measureSingleShear1(
         xdbg<<"Mu = "<<ell.getMu()<<std::endl;
     } else {
         if (times) times->failMu(ell.getTimes());
+        xdbg<<"This FailMu Final time = "<<ell.getTimes()._tFinal<<std::endl;
         ++log._nfMu;
         dbg<<"Deconvolving measurement failed\n";
         flag |= DECONV_FAILED;
@@ -303,11 +310,13 @@ void measureSingleShear1(
     DMatrix cov(5,5);
     if (ell.measure(pix,psf,go,sigma,false,flag,&cov)) {
         if (times) times->successGamma(ell.getTimes());
+        xdbg<<"This SuccessGamma Final time = "<<ell.getTimes()._tFinal<<std::endl;
         ++log._nsGamma;
         dbg<<"Successful Gamma fit\n";
         xdbg<<"Measured gamma = "<<ell.getGamma()<<std::endl;
     } else {
         if (times) times->failGamma(ell.getTimes());
+        xdbg<<"This FailGamma Final time = "<<ell.getTimes()._tFinal<<std::endl;
         ++log._nfGamma;
         dbg<<"Measurement failed\n";
         flag |= SHEAR_FAILED;

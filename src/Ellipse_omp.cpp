@@ -208,6 +208,7 @@ bool Ellipse::doMeasure(
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
             _times._tInteg += t2-t1;
+            xdbg<<"This Integ time = "<<t2-t1<<std::endl;
         }
     }
 
@@ -247,6 +248,7 @@ bool Ellipse::doMeasure(
                 gettimeofday(&tp,0);
                 t2 = tp.tv_sec + tp.tv_usec/1.e6;
                 _times._tCentroid += t2-t1;
+                xdbg<<"This Centroid time = "<<t2-t1<<std::endl;
             }
             return false;
         }
@@ -258,6 +260,7 @@ bool Ellipse::doMeasure(
         gettimeofday(&tp,0);
         t2 = tp.tv_sec + tp.tv_usec/1.e6;
         _times._tCentroid += t2-t1;
+        xdbg<<"This Centroid time = "<<t2-t1<<std::endl;
     }
 
     if (_shouldDoTimings) {
@@ -307,6 +310,7 @@ bool Ellipse::doMeasure(
                 gettimeofday(&tp,0);
                 t2 = tp.tv_sec + tp.tv_usec/1.e6;
                 _times._tGamma += t2-t1;
+                xdbg<<"This Gamma time = "<<t2-t1<<std::endl;
             }
             return false;
         }
@@ -318,6 +322,7 @@ bool Ellipse::doMeasure(
         gettimeofday(&tp,0);
         t2 = tp.tv_sec + tp.tv_usec/1.e6;
         _times._tGamma += t2-t1;
+        xdbg<<"This Gamma time = "<<t2-t1<<std::endl;
     }
 
     if (_shouldDoTimings) {
@@ -353,6 +358,7 @@ bool Ellipse::doMeasure(
                 gettimeofday(&tp,0);
                 t2 = tp.tv_sec + tp.tv_usec/1.e6;
                 _times._tGamma += t2-t1;
+                xdbg<<"This Gamma time = "<<t2-t1<<std::endl;
             }
             return false;
         }
@@ -364,6 +370,7 @@ bool Ellipse::doMeasure(
         gettimeofday(&tp,0);
         t2 = tp.tv_sec + tp.tv_usec/1.e6;
         _times._tGamma += t2-t1;
+        xdbg<<"This Gamma time = "<<t2-t1<<std::endl;
     }
 #endif
 
@@ -413,6 +420,7 @@ bool Ellipse::doMeasure(
         gettimeofday(&tp,0);
         t2 = tp.tv_sec + tp.tv_usec/1.e6;
         _times._tFixFlux += t2-t1;
+        xdbg<<"This FixFlux time = "<<t2-t1<<std::endl;
     }
 #endif
 #endif
@@ -434,7 +442,15 @@ bool Ellipse::doMeasure(
     }
     xdbg<<"xinit = "<<EIGEN_Transpose(x)<<std::endl;
     solver->useDogleg();
-    if (psf) solver->useNumericJ();
+    // MJ: It used to be the case that numeric J was faster,
+    // but now it's not.  We made two changes that might be relevant:
+    // We upped the order to 8 (from 4).
+    // And we increased the number of pixels by increasing the 
+    // shear_aperture parameter.
+    // So for now, I'll say to use the numeric jacobian if order <= 4,
+    // but it probably deserves some more checking to see how the 
+    // time is affected by the number of pixels.
+    if (psf && order <= 4) solver->useNumericJ();
 #ifdef NOTHROW
     solver->noUseCholesky();
 #endif
@@ -454,6 +470,7 @@ bool Ellipse::doMeasure(
                 gettimeofday(&tp,0);
                 t2 = tp.tv_sec + tp.tv_usec/1.e6;
                 _times._tFinal += t2-t1;
+                xdbg<<"This Final time = "<<t2-t1<<std::endl;
             }
             return false;
         }
@@ -570,6 +587,7 @@ bool Ellipse::doMeasure(
         gettimeofday(&tp,0);
         t2 = tp.tv_sec + tp.tv_usec/1.e6;
         _times._tFinal += t2-t1;
+        xdbg<<"This Final time = "<<t2-t1<<std::endl;
     }
 
     setCen(std::complex<double>(x(0),x(1)));
