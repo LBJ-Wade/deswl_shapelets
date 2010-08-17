@@ -135,12 +135,15 @@ static void doFullPipeline(
 
       std::string psf_file1 = addExtraToName(psf_file, "1");
       std::string psf_file2 = addExtraToName(psf_file, "2");
-      std::string fitpsf_file2 = addExtraToName(fitpsf_file, "2");
       std::string fitpsf_file1 = addExtraToName(fitpsf_file, "1");
+      std::string fitpsf_file2 = addExtraToName(fitpsf_file, "2");
+
       std::string shear_file1 = addExtraToName(shear_file, "1");
       std::string shear_file2 = addExtraToName(shear_file, "2");
 
+      //
       // set 1
+      //
       std::cerr<<"\nDoing PSF/Shear for Set1\n";
       log.reset(new PsfLog(params,logFile,psf_file1));
 
@@ -164,7 +167,9 @@ static void doFullPipeline(
       shearCat1.measureShears(im,weightIm.get(),static_cast<ShearLog&>(*log));
       shearCat1.writeFits(shear_file1);
 
+      //
       // set 2
+      //
       std::cerr<<"\nDoing PSF/Shear for Set2\n";
       log.reset(new PsfLog(params,logFile,psf_file2));
 
