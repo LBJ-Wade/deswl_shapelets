@@ -89,9 +89,6 @@ static void doFullPipeline(
     // the flags.
     // TODO: It may be worth having a new routine that just updates the 
     // flags.  More efficient, since don't need to re-write everything.
-    //
-    // ES: don't need this any more since we don't modify the star catalog
-    // MJ: Yes, we do.  We flag that stars that are found to be outliers.
     psfCat.write();
 
     xdbg<<"PSFLog: \n"<<*log<<std::endl;
@@ -129,13 +126,15 @@ static void doFullPipeline(
       // separately.  We work in fits only to avoid dealing with all the
       // different naming cases.
 
-      // these file names are always fits files
-      std::string star_file1,star_file2;
-      starCat.splitInTwo(star_file1, star_file2);
 
+      std::string star_file = makeFitsName(params, "stars");
       std::string psf_file = makeFitsName(params, "psf");
       std::string fitpsf_file = makeFitsName(params, "fitpsf");
       std::string shear_file = makeFitsName(params, "shear");
+
+      // this will turn _stars.fits into _stars1.fits
+      std::string star_file1 = addExtraToName(star_file, "1");
+      std::string star_file2 = addExtraToName(star_file, "2");
 
       std::string psf_file1 = addExtraToName(psf_file, "1");
       std::string psf_file2 = addExtraToName(psf_file, "2");
@@ -144,6 +143,8 @@ static void doFullPipeline(
 
       std::string shear_file1 = addExtraToName(shear_file, "1");
       std::string shear_file2 = addExtraToName(shear_file, "2");
+
+      starCat.splitInTwo(star_file1, star_file2);
 
       //
       // set 1
@@ -163,6 +164,8 @@ static void doFullPipeline(
       FittedPsf fitPsf1(psfCat1,params,static_cast<PsfLog&>(*log));
 
       fitPsf1.writeFits(fitpsf_file1);
+      // rewrite since flags may have changed from outlier checking.
+      psfCat1.writeFits(psf_file1);
 
       log.reset(new ShearLog(params,logFile,shear_file1));
 
@@ -190,6 +193,8 @@ static void doFullPipeline(
       FittedPsf fitPsf2(psfCat2,params,static_cast<PsfLog&>(*log));
 
       fitPsf2.writeFits(fitpsf_file2);
+      // rewrite since flags may have changed from outlier checking.
+      psfCat2.writeFits(psf_file2);
 
 
       log.reset(new ShearLog(params,logFile,shear_file2));

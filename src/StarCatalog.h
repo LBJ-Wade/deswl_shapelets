@@ -40,10 +40,11 @@ public:
     // Setup the parameters.  Normally followed by read() or similar.
     StarCatalog(const ConfigFile& params, std::string fsPrefix = "stars_");
 
-    // Split into two and write out files.
-    void splitInTwo();
-    // in this version we return the file names
-    void splitInTwo(std::string&f1, std::string& f2);
+    // a deterministic seed is generated based on size of catalog and number
+    // of stars
+    void splitInTwo(const std::string f1, const std::string f2);
+    void splitInTwo(
+	const std::string f1, const std::string f2, const unsigned int seed);
 
   // Get the fits version of the name, possibly adding an extra bit
     // e.g. if the default name is blah_stars.fits it can return

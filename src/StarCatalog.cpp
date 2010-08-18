@@ -189,19 +189,31 @@ StarCatalog::StarCatalog(const ConfigFile& params, std::string fsPrefix) :
 }
 
 
-void StarCatalog::splitInTwo() {
-  std::string f1,f2;
-  splitInTwo(f1,f2);
+void StarCatalog::splitInTwo(
+    const std::string f1, const std::string f2) {
+
+  // use a deterministic seed: number of objects in catalog plus number
+  // that are stars
+  unsigned int nstar=0;
+  for (unsigned int i=0;i<this->size();i++) {
+    if (this->isAStar(i)) {
+      nstar++;
+    }
+  }
+  unsigned int seed = this->size() + nstar*100000;
+  this->splitInTwo(f1,f2,seed);
 }
-void StarCatalog::splitInTwo(std::string&f1, std::string& f2) {
+
+void StarCatalog::splitInTwo(
+    const std::string f1, const std::string f2, const unsigned int seed) {
+
+  srand(seed);
 
   std::vector<long> id1;
   std::vector<long> id2;
 
   double split_point = 0.5;
 
-  // initialize random seed
-  srand ( time(NULL) );
 
   for (size_t i=0; i<this->size(); i++) {
 
@@ -217,10 +229,6 @@ void StarCatalog::splitInTwo(std::string&f1, std::string& f2) {
 
   StarCatalog cat1(*this, id1);
   StarCatalog cat2(*this, id2);
-
-  std::string fitsname = makeFitsName(_params, "stars");
-  f1 = addExtraToName(fitsname, "1");
-  f2 = addExtraToName(fitsname, "2");
 
   cat1.writeFits(f1);
   cat2.writeFits(f2);
