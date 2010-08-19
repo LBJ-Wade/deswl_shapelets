@@ -190,7 +190,8 @@ StarCatalog::StarCatalog(const ConfigFile& params, std::string fsPrefix) :
 
 
 void StarCatalog::splitInTwo(
-    const std::string f1, const std::string f2) {
+    const std::string f1, const std::string f2) const
+{
 
   // use a deterministic seed: number of objects in catalog plus number
   // that are stars
@@ -205,8 +206,9 @@ void StarCatalog::splitInTwo(
 }
 
 void StarCatalog::splitInTwo(
-    const std::string f1, const std::string f2, const unsigned int seed) {
-
+    const std::string f1, const std::string f2,
+    const unsigned int seed) const
+{
   srand(seed);
 
   std::vector<long> id1;
@@ -232,8 +234,6 @@ void StarCatalog::splitInTwo(
 
   cat1.writeFits(f1);
   cat2.writeFits(f2);
-
-
 }
 
 /*

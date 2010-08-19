@@ -43,7 +43,6 @@ echo MeasureShear:
 echo $BINDIR/measureshear $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=ms.debug verbose=$vl output_dots=1 $dc4
 time $BINDIR/measureshear $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=ms.debug verbose=$vl output_dots=1 $dc4
 cp ms.debug $output
-exit
 
 echo FullPipeline
 echo $BINDIR/fullpipe $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fp.debug verbose=$vl output_dots=1 $dc4

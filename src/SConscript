@@ -64,7 +64,7 @@ EllipseSolver2.cpp CrudeMeasure.cpp Name.cpp Log.cpp Ellipse.cpp PsiHelper.cpp
 Histogram.cpp StarFinder.cpp StarCatalog.cpp PsfCatalog.cpp Params.cpp
 ShearCatalog.cpp InputCatalog.cpp ExecuteCommand.cpp CoaddCatalog.cpp 
 ShearCatalogTree.cpp MultiShearCatalog.cpp WlVersion.cpp Pool.cpp
-MeasureShearAlgo.cpp MeasureShearAlgo2.cpp """.split()
+MeasureShearAlgo.cpp MeasureShearAlgo2.cpp Scripts.cpp """.split()
 
 libwl_omp_files="""
 Ellipse_omp.cpp StarCatalog_omp.cpp PsfCatalog_omp.cpp Pixel_omp.cpp
