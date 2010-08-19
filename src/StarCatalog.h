@@ -43,14 +43,10 @@ public:
     // a deterministic seed is generated based on size of catalog and number
     // of stars
     void splitInTwo(const std::string f1, const std::string f2) const;
+    // seed explicitly sent
     void splitInTwo(
         const std::string f1, const std::string f2,
         const unsigned int seed) const;
-
-    // Get the fits version of the name, possibly adding an extra bit
-    // e.g. if the default name is blah_stars.fits it can return
-    // blah_stars{extra}.fits
-    //std::string getFitsName(std::string extra="");
 
     size_t size() const { return _id.size(); }
     void read();

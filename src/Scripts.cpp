@@ -258,13 +258,14 @@ void doSplitStars(
     // separately.  We work in fits only to avoid dealing with all the
     // different naming cases.
 
-    // these file names are always fits files
-    std::string star_file1,star_file2;
-    starCat.splitInTwo(star_file1, star_file2);
-
+    std::string stars_file = makeFitsName(params, "stars");
     std::string psf_file = makeFitsName(params, "psf");
     std::string fitpsf_file = makeFitsName(params, "fitpsf");
     std::string shear_file = makeFitsName(params, "shear");
+
+    std::string stars_file1 = addExtraToName(stars_file, "1");
+    std::string stars_file2 = addExtraToName(stars_file, "2");
+    starCat.splitInTwo(stars_file1, stars_file2);
 
     // set 1
     dbg<<"\nDoing PSF/Shear for Set1\n";
@@ -273,7 +274,7 @@ void doSplitStars(
     params1["fitpsf_file"] = addExtraToName(fitpsf_file, "1");
     params1["shear_file"] = addExtraToName(shear_file, "1");
     StarCatalog starCat1(params);
-    starCat1.readFits(star_file1);
+    starCat1.readFits(stars_file1);
     std::auto_ptr<PsfCatalog> psfCat1;
     std::auto_ptr<FittedPsf> fitPsf1;
     std::auto_ptr<ShearCatalog> shearCat1;
@@ -298,7 +299,7 @@ void doSplitStars(
     params2["fitpsf_file"] = addExtraToName(fitpsf_file, "2");
     params2["shear_file"] = addExtraToName(shear_file, "2");
     StarCatalog starCat2(params2);
-    starCat2.readFits(star_file2);
+    starCat2.readFits(stars_file2);
     std::auto_ptr<PsfCatalog> psfCat2;
     std::auto_ptr<FittedPsf> fitPsf2;
     std::auto_ptr<ShearCatalog> shearCat2;
