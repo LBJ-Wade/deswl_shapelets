@@ -32,28 +32,34 @@ pylib_targets = [init_file,wlpipe_file,oracle_file,files_file]
 
 if env['WITH_PYTHON']:
     # try to build the python bindings
-    try:
 
-        files = ReadFileList('../src/wl_files.txt')
-        files += ReadFileList('../src/wl_omp_files.txt')
+    files = ReadFileList('../src/wl_files.txt')
+    files_omp = ReadFileList('../src/wl_omp_files.txt')
 
-        files = ['../src/'+f for f in files]
+    files = ['../src/'+f for f in files]
+    files_omp = ['../src/'+f for f in files_omp]
 
-        
-        import distutils.sysconfig
-        env2 = env.Clone()
-        env2.Prepend(CPPPATH=[distutils.sysconfig.get_python_inc()])
-        env2.Prepend(SWIGFLAGS=['-python','-c++'])
-        env2.Prepend(LIBS=['wl'])
+    env2 = env.Clone()
 
-        ext_lib = env2.SharedLibrary('_cwl', 
-                                     ['cwl.i']+files+['cwl.cpp'],
+    import distutils.sysconfig
+    env2.Prepend(CPPPATH=[distutils.sysconfig.get_python_inc()])
+    env2.Prepend(SWIGFLAGS=['-python','-c++'])
+    env2.Prepend(LIBS=['wl'])
+
+    # special environment for openmp stuff
+    env2_omp = env2.Clone()
+
+    if env['WITH_OPENMP']:
+        env2_omp.Append(CCFLAGS=env['OMP_FLAGS'])
+
+    objs = env2.SharedObject(files)
+    objs_omp = env2_omp.SharedObject(files_omp)
+
+    ext_lib = env2_omp.SharedLibrary('_cwl', 
+                                     ['cwl.i','cwl.cpp']+objs+objs_omp,
                                      SHLIBPREFIX='')
+    pylib_targets += [ext_lib,'cwl.py']
 
-        pylib_targets += [ext_lib,'cwl.py']
-
-    except:
-        stderr.write("Could not build python bindings")
 
 
 if 'install' in COMMAND_LINE_TARGETS:
