@@ -293,24 +293,24 @@ public:
     ConfigFile();
 
     // Create and read from the specified file
-    ConfigFile( std::string fileName,
-                std::string delimiter = "=",
-                std::string comment = "#",
-                std::string include = "+",
-                std::string sentry = "EndConfigFile" );
+    ConfigFile( const std::string fileName,
+                const std::string delimiter = "=",
+                const std::string comment = "#",
+                const std::string include = "+",
+                const std::string sentry = "EndConfigFile" );
 
     // Load more value from a file.
-    void load( std::string fileName )
+    void load( const std::string fileName )
     { std::ifstream fs(fileName.c_str()); read(fs); }
 
     // Load a file that uses different delimiter or comment or ...
     // Note: these delimiter, comment, etc. are temporary for this load only.
     // "" means use existing values
-    void load( std::string fileName,
-               std::string delimiter,
-               std::string comment = "",
-               std::string include = "",
-               std::string sentry = "" );
+    void load( const std::string fileName,
+               const std::string delimiter,
+               const std::string comment = "",
+               const std::string include = "",
+               const std::string sentry = "" );
 
     // Read more values from stream or a string:
     void read(std::istream& is);
@@ -338,6 +338,16 @@ public:
     template <typename T> inline bool readInto( 
         T& var, const std::string& key, const T& value ) const;
 
+    // special string getter.  This is really for the python
+    // bindings for just viewing quickly the contents.  Hence
+    // also throwing const char* for now, which swig can easily
+    // deal with
+    std::string getstr(const std::string key) const throw (const char*);
+    // with default value
+    std::string getstr(
+        const std::string key, 
+        const std::string defval);
+
     // Modify keys and values
     template <typename T> inline void add( std::string key, const T& value );
     void remove( const std::string& key );
@@ -359,6 +369,10 @@ public:
     { std::string old = _include;  _include = s;  return old; }  
     std::string setSentry( const std::string& s )
     { std::string old = _sentry;  _sentry = s;  return old; }  
+
+    size_t size() {
+      return _contents.size();
+    }
 
 protected:
 

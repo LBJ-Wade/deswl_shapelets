@@ -9,8 +9,8 @@ ConfigFile::ConfigFile() :
 }
 
 ConfigFile::ConfigFile( 
-    std::string fileName, std::string delimiter,
-    std::string comment, std::string inc, std::string sentry ) : 
+    const std::string fileName, const std::string delimiter,
+    const std::string comment, const std::string inc, const std::string sentry ) : 
     _delimiter(delimiter), _comment(comment), _include(inc), _sentry(sentry)
 {
     // Construct a ConfigFile, getting keys and values from given file
@@ -30,11 +30,12 @@ ConfigFile::ConfigFile(
 }
 
 void ConfigFile::load( 
-    std::string fileName, std::string delimiter,
-    std::string comment, std::string inc, std::string sentry )
+    const std::string fileName, const std::string delimiter,
+    const std::string comment, const std::string inc, const std::string sentry )
 {
     // Construct a ConfigFile, getting keys and values from given file
 
+    // the old values
     std::string delimiter1 = _delimiter;
     std::string comment1 = _comment;
     std::string inc1 = _include;
@@ -88,6 +89,40 @@ ConvertibleString ConfigFile::get( const std::string& key ) const
         return p->second;
     }
 }
+
+// special string getter.  This is really for the python
+// bindings for just viewing quickly the contents.  Hence
+// also throwing const char* for now, which swig can easily
+// deal with
+std::string ConfigFile::getstr(const std::string key) const throw (const char*) {
+  MapCIt p = _contents.find(key);
+
+  if (p == _contents.end()) {
+    std::stringstream err;
+    err<<"ConfigFile error: key '"<<key<<"' not found";
+    throw err.str().c_str();
+  }
+
+  std::string val = get(key);
+  return val;
+}
+// with default value
+std::string ConfigFile::getstr(
+    const std::string key, 
+    const std::string defval) {
+  MapCIt p = _contents.find(key);
+
+  std::string val;
+  if (p == _contents.end()) {
+    val = defval;
+  } else {
+    val = get(key);
+  }
+  return val;
+}
+
+
+
 
 void ConfigFile::remove( const std::string& key )
 {

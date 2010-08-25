@@ -23,6 +23,7 @@ def xxd(fname, outfname):
 
 
 Import('env')
+ReadFileList=env['__readfunc']
 
 try:
     xxd("fitsparams.config","fp.h")
@@ -36,21 +37,6 @@ except:
     print '    Failure making file fspd.h.'
     print '    This is ok if you have not updated findstars.params.default'
 
-junk="""
-pipe = os.popen("xxd -i fitsparams.config fp.h")
-xxdexit = pipe.close()
-if not (xxdexit == None):
-    print 'Warning: xxd exit status = ',xxdexit
-    print '         Failure making file fp.h.'
-    print '         This is ok if you have not updated fitsparams.config'
-
-pipe = os.popen("xxd -i findstars.params.default fspd.h")
-xxdexit = pipe.close()
-if not (xxdexit == None):
-    print 'Warning: xxd exit status = ',xxdexit
-    print '         Failure making file fspd.h.'
-    print '         This is ok if you have not updated findstars.params.default'
-"""
 
 header_dir = 'src'
 
@@ -58,17 +44,9 @@ bin_install_dir = os.path.join(env['PREFIX'], 'bin')
 lib_install_dir = os.path.join(env['PREFIX'], 'lib')
 header_install_dir = os.path.join(env['PREFIX'], 'include')
 
-libwl_files="""Bounds.cpp Legendre2D.cpp NLSolver.cpp Image.cpp BVec.cpp
-EllipseSolver.cpp Pixel.cpp Transformation.cpp ConfigFile.cpp FittedPsf.cpp
-EllipseSolver2.cpp CrudeMeasure.cpp Name.cpp Log.cpp Ellipse.cpp PsiHelper.cpp
-Histogram.cpp StarFinder.cpp StarCatalog.cpp PsfCatalog.cpp Params.cpp
-ShearCatalog.cpp InputCatalog.cpp ExecuteCommand.cpp CoaddCatalog.cpp 
-ShearCatalogTree.cpp MultiShearCatalog.cpp WlVersion.cpp Pool.cpp
-MeasureShearAlgo.cpp MeasureShearAlgo2.cpp Scripts.cpp """.split()
 
-libwl_omp_files="""
-Ellipse_omp.cpp StarCatalog_omp.cpp PsfCatalog_omp.cpp Pixel_omp.cpp
-ShearCatalog_omp.cpp MultiShearCatalog_omp.cpp """.split()
+libwl_files = ReadFileList('wl_files.txt')
+libwl_omp_files = ReadFileList('wl_omp_files.txt')
 
 env1 = env.Clone()
 
@@ -82,11 +60,13 @@ if env['WITH_OPENMP']:
     env2.Append(CCFLAGS=env['OMP_FLAGS'])
 
 # Library file containing generic code
-obj_lib = env1.Object(libwl_files)
-obj_omp_lib = env2.Object(libwl_omp_files)
+obj_lib = env1.StaticObject(libwl_files)
+obj_omp_lib = env2.StaticObject(libwl_omp_files)
 
-libwl = env.Library('#lib/wl',obj_lib+obj_omp_lib)
+
+libwl = env.StaticLibrary('#lib/wl',obj_lib+obj_omp_lib)
 lib_targets = [libwl]
+
 
 # Use env2 for these, since we have openmp stuff in the BasicSetup function.
 env2.Prepend(LIBS=['wl'])

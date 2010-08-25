@@ -67,6 +67,8 @@ opts.Add('TMV_LINK','File that contains the linking instructions for TMV','')
 opts.Add('LIBS','Libraries to send to the linker','')
 opts.Add(BoolVariable('CACHE_LIB','Cache the results of the library checks',True))
 
+
+opts.Add(BoolVariable('WITH_PYTHON','Build Python bindings.', True))
 opts.Add(BoolVariable('WITH_OPENMP','Look for openmp and use if found.', True))
 opts.Add(BoolVariable('WITH_TMV','Use TMV for Matrix/Vector (rather than Eigen)', True))
 opts.Add(BoolVariable('STATIC','Use static linkage', False))
@@ -575,13 +577,18 @@ def DoLibraryAndHeaderChecks(config):
     if config.env['WITH_TMV'] :
         # First do a simple check that the library and header are in the path.
         # We check the linking with the BLAS library below.
+        if not config.CheckHeader('TMV.h',language='C++'):
+            print 'TMV.h not found'
+            Exit(1)
         if not config.CheckLibWithHeader('tmv','TMV.h',language='C++',autoadd=0):
             print 'tmv library or TMV.h not found'
             Exit(1)
+        junk="""
         if not config.CheckLibWithHeader('tmv_symband','TMV_Sym.h',language='C++',
                 autoadd=0):
             print 'tmv_symband library not found'
             Exit(1)
+        """
 
         compiler = config.env['CXXTYPE']
         version = config.env['CXXVERSION_NUMERICAL']

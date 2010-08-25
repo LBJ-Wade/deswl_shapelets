@@ -63,40 +63,57 @@ InputCatalog::InputCatalog(ConfigFile& params, const Image<double>* im) :
     _params(params), _im(im),
     _noiseValue(0), _gain(0), _readNoise(0)
 {
-    // Setup noise calculation:
-    std::string noiseMethod = _params.get("noise_method");
-    if (noiseMethod == "VALUE") {
-        _nm = VALUE;
-        _noiseValue = _params.read<double>("noise");
-    } else if (noiseMethod == "CATALOG") {
-        _nm = CATALOG;
-        Assert(_params.keyExists("cat_noise_col"));
-    } else if (noiseMethod == "CATALOG_SIGMA") {
-        _nm = CATALOG_SIGMA;
-        Assert(_params.keyExists("cat_noise_col"));
-    } else if (noiseMethod == "GAIN_VALUE") {
-        _nm = GAIN_VALUE;
-        _gain = _params.read<double>("image_gain");
-        _readNoise = _params.read<double>("image_readnoise");
-        dbg<<"gain, readnoise = "<<_gain<<"  "<<_readNoise<<std::endl;
-    } else if (noiseMethod == "GAIN_FITS") {
-        std::string imageName = makeName(_params,"image",true,true);
-        int hdu = getHdu(_params,"image",imageName,1);
-        readGain(imageName,hdu,_params);
-        xdbg<<"Read gain = "<<_params["image_gain"]<<
-            ", rdn = "<<_params["image_readnoise"]<<std::endl;
-        _gain = _params.read<double>("image_gain");
-        _readNoise = _params.read<double>("image_readnoise");
-        _nm = GAIN_VALUE;
-        dbg<<"gain, readnoise = "<<_gain<<"  "<<_readNoise<<std::endl;
-    } else if (noiseMethod == "WEIGHT_IMAGE") {
-        _nm = WEIGHT_IMAGE;
-        Assert(_params.keyExists("weight_ext") || 
-               _params.keyExists("weight_file"));
-    } else {
-        throw ParameterException("Unknown noise method "+noiseMethod);
-    }
+  this->determineNoiseMethod();
 }
+
+void InputCatalog::init(ConfigFile& params, const Image<double>* im)
+{
+  _noiseValue=0;
+  _gain=0;
+  _readNoise=0;
+  _im=im;
+  this->loadParams(params);
+  this->determineNoiseMethod();
+}
+
+void InputCatalog::determineNoiseMethod() {
+  // Setup noise calculation:
+  std::string noiseMethod = _params.get("noise_method");
+  if (noiseMethod == "VALUE") {
+    _nm = VALUE;
+    _noiseValue = _params.read<double>("noise");
+  } else if (noiseMethod == "CATALOG") {
+    _nm = CATALOG;
+    Assert(_params.keyExists("cat_noise_col"));
+  } else if (noiseMethod == "CATALOG_SIGMA") {
+    _nm = CATALOG_SIGMA;
+    Assert(_params.keyExists("cat_noise_col"));
+  } else if (noiseMethod == "GAIN_VALUE") {
+    _nm = GAIN_VALUE;
+    _gain = _params.read<double>("image_gain");
+    _readNoise = _params.read<double>("image_readnoise");
+    dbg<<"gain, readnoise = "<<_gain<<"  "<<_readNoise<<std::endl;
+  } else if (noiseMethod == "GAIN_FITS") {
+    std::string imageName = makeName(_params,"image",true,true);
+    int hdu = getHdu(_params,"image",imageName,1);
+    readGain(imageName,hdu,_params);
+    xdbg<<"Read gain = "<<_params["image_gain"]<<
+      ", rdn = "<<_params["image_readnoise"]<<std::endl;
+    _gain = _params.read<double>("image_gain");
+    _readNoise = _params.read<double>("image_readnoise");
+    _nm = GAIN_VALUE;
+    dbg<<"gain, readnoise = "<<_gain<<"  "<<_readNoise<<std::endl;
+  } else if (noiseMethod == "WEIGHT_IMAGE") {
+    dbg<<"using WEIGHT_IMAGE as noise method"<<std::endl;
+    _nm = WEIGHT_IMAGE;
+    Assert(_params.keyExists("weight_ext") || 
+        _params.keyExists("weight_file"));
+  } else {
+    throw ParameterException("Unknown noise method "+noiseMethod);
+  }
+
+}
+
 
 void InputCatalog::read()
 {
@@ -224,6 +241,7 @@ void InputCatalog::read()
                 ignoreFlags<<std::endl;
         }
         Assert(_flags.size() == _id.size());
+        dbg<<"INPUT_FLAG: "<<INPUT_FLAG<<"\n";
         for(int i=0;i<nRows;++i) {
             _flags[i] = (_flags[i] & ignoreFlags) ? INPUT_FLAG : 0;
         }
@@ -253,11 +271,13 @@ void InputCatalog::read()
     dbg<<"Done Read InputCatalog\n";
 }
 
-void InputCatalog::readFits(std::string file)
+void InputCatalog::readFits(std::string file) {
+    int hdu = getHdu(_params,"cat",file,1);
+    readFits(file, hdu);
+}
+void InputCatalog::readFits(std::string file, int hdu)
 {
     dbg<< "Reading cat from FITS file: " << file << std::endl;
-
-    int hdu = getHdu(_params,"cat",file,1);
 
     dbg<<"Opening InputCatalog file "<<file<<" at hdu "<<hdu<<std::endl;
     CCfits::FITS fits(file, CCfits::Read);
@@ -349,6 +369,7 @@ void InputCatalog::readFits(std::string file)
         dbg<<"  "<<flagCol<<std::endl;
         table.column(flagCol).read(_flags, start, end);
     }
+
 
     // RA
     if (_params.keyExists("cat_ra_col")) {
@@ -558,3 +579,52 @@ void InputCatalog::readAscii(std::string file, std::string delim)
     }
 }
 
+void InputCatalog::printall(int i) {
+  if (_id.size() > i) {
+    std::cout<<"  InputCatalog::printall id["<<i<<"]: "<<_id[i]<<"\n";
+  } else {
+    std::cout<<"  InputCatalog::printall index "<<i<<" is larger than id.size\n";
+  }
+
+  if (_pos.size() > i) {
+    std::cout<<"  InputCatalog::printall pos["<<i<<"]: "<<_pos[i]<<"\n";
+  } else {
+    std::cout<<"  InputCatalog::printall index "<<i<<" is larger than pos.size\n";
+  }
+
+  if (_sky.size() > i) {
+    std::cout<<"  InputCatalog::printall sky["<<i<<"]: "<<_sky[i]<<"\n";
+  } else {
+    std::cout<<"  InputCatalog::printall index "<<i<<" is larger than sky.size\n";
+  }
+
+  if (_mag.size() > i) {
+    std::cout<<"  InputCatalog::printall mag["<<i<<"]: "<<_mag[i]<<"\n";
+  } else {
+    std::cout<<"  InputCatalog::printall index "<<i<<" is larger than mag.size\n";
+  }
+
+  if (_magErr.size() > i) {
+    std::cout<<"  InputCatalog::printall magErr["<<i<<"]: "<<_magErr[i]<<"\n";
+  } else {
+    std::cout<<"  InputCatalog::printall index "<<i<<" is larger than magErr.size\n";
+  }
+
+  if (_objSize.size() > i) {
+    std::cout<<"  InputCatalog::printall objSize["<<i<<"]: "<<_objSize[i]<<"\n";
+  } else {
+    std::cout<<"  InputCatalog::printall index "<<i<<" is larger than objSize.size\n";
+  }
+
+  if (_flags.size() > i) {
+    std::cout<<"  InputCatalog::printall flags["<<i<<"]: "<<this->_flags[i]<<"\n";
+  } else {
+    std::cout<<"  InputCatalog::printall index "<<i<<" is larger than flags.size\n";
+  }
+
+  if (_noise.size() > i) {
+    std::cout<<"  InputCatalog::printall noise["<<i<<"]: "<<this->_noise[i]<<"\n";
+  } else {
+    std::cout<<"  InputCatalog::printall index "<<i<<" is larger than noise.size\n";
+  }
+}

@@ -25,6 +25,7 @@ extern std::ostream* dbgout;
 extern bool XDEBUG;
 #endif
 
+
 #ifdef _OPENMP
 #pragma omp threadprivate( dbgout , XDEBUG )
 #endif

@@ -12,8 +12,11 @@ class Image
 
 public:
 
+    Image() {};
+
     // Read new image from file
     Image(std::string fitsFile, int hdu=1); 
+    void load(std::string fitsFile, int hdu=1);
 
     Image(std::string fitsFile, int hdu,
           int x1, int x2, int y1, int y2);
@@ -126,6 +129,7 @@ public:
     // Median value of all pixels
     T median() const;
 
+    bool loaded() { return _loaded; };
 private:
 
     mutable std::string _fileName;
@@ -143,6 +147,7 @@ private:
     void readFits();
     void readFits(int x1, int x2, int y1, int y2);
 
+    bool _loaded;
 };
 
 extern template class Image<double>;

@@ -39,6 +39,7 @@ Image<T>::Image(
             }
         }
     }
+    _loaded=true;
 }
 
 template <typename T>
@@ -48,6 +49,7 @@ Image<T>::Image(const ConfigFile& params)
     _hdu = getHdu(params,"image",_fileName,1);
     readFits();
     xdbg<<"Opened image "<<_fileName<<" at hdu "<<_hdu<<std::endl;
+    _loaded=true;
 }
 
 template <typename T> 
@@ -55,6 +57,15 @@ Image<T>::Image(std::string fileName, int hdu) :
     _fileName(fileName), _hdu(hdu)
 {
     readFits();
+  _loaded=true;
+}
+
+template <typename T> 
+void Image<T>::load(std::string fileName, int hdu) {
+  _fileName = fileName;
+  _hdu = hdu;
+  readFits();
+  _loaded=true;
 }
 
 template <typename T> 

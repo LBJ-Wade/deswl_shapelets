@@ -21,10 +21,29 @@ public :
     // It is usually followed by read() or something similar.
     InputCatalog(ConfigFile& params, const Image<double>* im=0);
 
+
+    // ESS Factor the code a bit.  This allows empty constructor and delayed
+    // load of params and data
+    InputCatalog() {};
+    //void init(ConfigFile& params);
+    void init(ConfigFile& params, const Image<double>* im=0);
+    void loadParams(std::string file) {
+      _params.load(file);
+    }
+    void loadParams(const ConfigFile& params) {
+      // ESS I don't know how else to do this
+      std::stringstream s;
+      s<<params;
+      _params.read(s);
+    }
+    void determineNoiseMethod();
+
+
     size_t size() const { return _pos.size(); }
 
     void read();
     void readFits(std::string file);
+    void readFits(std::string file, int hdu);
     void readAscii(std::string file, std::string delim = "  ");
 
     const std::vector<long>& getIdList() const { return _id; }
@@ -42,7 +61,7 @@ public :
     double getSky(int i) const { return _sky[i]; }
     double getMag(int i) const { return _mag[i]; }
     double getMagErr(int i) const { return _magErr[i]; }
-    double getObjSizeList(int i) const { return _objSize[i]; }
+    double getObjSize(int i) const { return _objSize[i]; }
     long getFlags(int i) const { return _flags[i]; }
     Position getSkyPos(int i) const { return _skyPos[i]; }
     double getNoise(int i) const { return _noise[i]; }
@@ -50,9 +69,12 @@ public :
     const Bounds& getBounds() const { return _bounds; }
     const Bounds& getSkyBounds() const { return _skyBounds; }
 
+    void printall(int i);
+
 private :
 
-    ConfigFile& _params;
+    //ConfigFile& _params;
+    ConfigFile _params;
 
     std::vector<long> _id;
     std::vector<Position> _pos;

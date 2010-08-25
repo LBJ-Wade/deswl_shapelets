@@ -18,6 +18,7 @@ public :
 
     // Read parameter file and load specified transformation function
     Transformation(const ConfigFile& params);
+    void initFromParams(const ConfigFile& params);
 
     // I/O
     void readFunc2D(std::istream& is);

@@ -104,10 +104,10 @@ inline int basicSetup(
 #endif
 
     // Read fits params
-    dbg<<"Config params = \n"<<params<<std::endl;
     std::string fp((const char*)fitsparams_config,fitsparams_config_len);
     std::istringstream is(fp);
     params.read(is);
+    dbg<<"Config params = \n"<<params<<std::endl;
 
     return 0;
 }

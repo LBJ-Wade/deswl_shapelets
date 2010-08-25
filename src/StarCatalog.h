@@ -91,6 +91,8 @@ public:
     bool     isAStar(int i)    const { return _isAStar[i]; }
     bool     getIsAStar(int i) const { return _isAStar[i]; }
 
+    void printall(int i);
+
 private :
 
     std::vector<long> _id;

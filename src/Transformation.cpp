@@ -21,6 +21,10 @@ Transformation::Transformation() :
 Transformation::Transformation(const ConfigFile& params) : 
     _isRaDec(false), _u(0), _v(0), _dudx(0), _dudy(0), _dvdx(0), _dvdy(0)
 {
+  this->initFromParams(params);
+}
+
+void Transformation::initFromParams(const ConfigFile& params) {
     Assert(params.keyExists("dist_method"));
 
     std::string distMethod = params.get("dist_method");
@@ -50,6 +54,7 @@ Transformation::Transformation(const ConfigFile& params) :
         throw ParameterException(
             "Unknown distortion method: "+distMethod);
     }
+
 }
 
 //
