@@ -1,4 +1,3 @@
-#include <CCfits/CCfits>
 #define PY_CATCHALL \
     catch (tmv::Error& e) { \
       throw e.what(); \

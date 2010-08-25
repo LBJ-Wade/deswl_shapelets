@@ -1,3 +1,4 @@
+#include <CCfits/CCfits>
 #include "cwl.h"
 #include "../src/StarFinder.h"
 #include "../src/dbg.h"
@@ -59,6 +60,7 @@ void CWL::set_verbosity(bool verbosity) {
 
 void CWL::load_images(std::string file) throw (const char*) {
 
+  std::stringstream err;
   if (this->params.size() == 0) {
     throw "load a config file";
   }
@@ -72,18 +74,20 @@ void CWL::load_images(std::string file) throw (const char*) {
   this->params["weight_file"] = file;
   this->params["weight_hdu"] = 4;
 
-
+  // not using CCfits for images yet, so must catch ccfits error 
   try {
     this->image.reset( new Image<double>(this->params, this->weight_image) );
     this->load_trans(file);
   } catch(CCfits::FITS::CantOpen& e) {
-    this->err<<"CCfits error: file not found: "<<file;
-    throw this->err.str().c_str();
+    err<<"CCfits error: file not found: "<<file;
+    throw err.str().c_str();
   }
   PY_CATCHALL 
 }
 
 void CWL::load_catalog(std::string file) throw (const char*) {
+
+  std::stringstream err;
   if (this->params.size() == 0) {
     throw "load a config file";
   }
@@ -94,9 +98,6 @@ void CWL::load_catalog(std::string file) throw (const char*) {
   try {
     this->cat.reset( new InputCatalog(this->params) );
     this->cat->read();
-  } catch(CCfits::FITS::CantOpen& e) {
-    this->err<<"CCfits error: file not found: "<<file;
-    throw this->err.str().c_str();
   }
   PY_CATCHALL 
 
@@ -104,16 +105,94 @@ void CWL::load_catalog(std::string file) throw (const char*) {
 
 void CWL::load_trans(std::string file) throw (const char*) {
 
+  std::stringstream err;
   this->params["dist_file"] = file;
   this->params["dist_hdu"] = 2;
+  // not using CCfits for trans yet, so must catch ccfits error 
   try {
-    trans.initFromParams(this->params);
+    this->trans.reset(
+        new Transformation(this->params)
+    );
   } catch(CCfits::FITS::CantOpen& e) {
-    this->err<<"CCfits error: file not found: "<<file;
-    throw this->err.str().c_str();
+    err<<"CCfits error: file not found: "<<file;
+    throw err.str().c_str();
   }
   PY_CATCHALL 
 }
+
+void CWL::write_starcat(std::string file, bool flush_log) throw (const char*) {
+  try {
+    this->starcat->writeFits(file);
+    if (flush_log) {
+      // to flush the log we must delete it
+      this->stars_log.reset();
+    }
+  }
+  PY_CATCHALL
+}
+void CWL::load_starcat(std::string file) throw (const char*) {
+  this->starcat.reset( new StarCatalog( this->params ) );
+  try {
+    this->starcat->readFits(file);
+  }
+  PY_CATCHALL 
+}
+
+void CWL::write_psfcat(std::string file, bool flush_log) throw (const char*) {
+  try {
+    this->psfcat->writeFits(file);
+    if (flush_log) {
+      // to flush the log we must delete it
+      this->psf_log.reset();
+    }
+  }
+  PY_CATCHALL
+}
+void CWL::load_psfcat(std::string file) throw (const char*) {
+  this->psfcat.reset( new PsfCatalog( this->params ) );
+  try {
+    this->psfcat->readFits(file);
+  }
+  PY_CATCHALL 
+}
+
+
+void CWL::write_fitpsf(std::string file) throw (const char*) {
+  try {
+    this->fitpsf->writeFits(file);
+  }
+  PY_CATCHALL
+}
+void CWL::load_fitpsf(std::string file) throw (const char*) {
+  this->fitpsf.reset( new FittedPsf( this->params ) );
+  try {
+    this->fitpsf->readFits(file);
+  }
+  PY_CATCHALL 
+}
+
+
+
+void CWL::write_shearcat(std::string file, bool flush_log) throw (const char*) {
+  try {
+    this->shearcat->writeFits(file);
+    if (flush_log) {
+      // to flush the log we must delete it
+      this->shear_log.reset();
+    }
+  }
+  PY_CATCHALL
+}
+void CWL::load_shearcat(std::string file) throw (const char*) {
+  this->shearcat.reset( new ShearCatalog( this->params ) );
+  try {
+    this->shearcat->readFits(file);
+  }
+  PY_CATCHALL 
+}
+
+
+
 
 
 void CWL::find_stars(std::string outfile) throw (const char*) {
@@ -122,53 +201,158 @@ void CWL::find_stars(std::string outfile) throw (const char*) {
 
   if (!this->image->loaded()) {
     throw "image not loaded";
-  }
-  if (!this->weight_image->loaded()) {
+  } else if (!this->weight_image->loaded()) {
     throw "weight image not loaded";
-  }
-  if (this->cat->size() == 0) {
+  } else  if (this->cat->size() == 0) {
     throw "catalog not loaded";
   }
 
-  this->log.reset(
-      new FindStarsLog(this->params,
-                       this->logfile,
-                       outfile));
+  // create a log, defaults to stdout.  This log also writes results to the
+  // FITS header of outfile when it is destroyed
+  this->stars_log.reset(
+      new FindStarsLog(this->params, this->stars_logfile, outfile)
+  );
+
   // initialize the star cat from cat
   this->starcat.reset( new StarCatalog(*this->cat.get(),this->params) );
 
   // Update the sizes to more robust values
   this->starcat->calculateSizes(
-      *this->image.get(),
-      this->weight_image.get(),
-      this->trans);
+      *this->image.get(), 
+      this->weight_image.get(), 
+      *this->trans.get());
 
   try {
-    
-    this->starcat->findStars(  
-        static_cast<FindStarsLog&>(*this->log)
-    );
-    
+
+    this->starcat->findStars(*this->stars_log.get());
+
   } catch(StarFinderException& e) {
-    // Need to catch this here, so we can write the output file
-    // with the sizes, even though we haven't figured out which 
-    // objects are stars.
     this->write_starcat(outfile);
     err<<"Caught StarFinderException: "<<e.what();
     throw err.str().c_str();
   } catch (...) {
+    // we need this catchall because we *must* write the catalog
+    // and I don't want to write out everything that might be caught
     this->write_starcat(outfile);
-    err<<"Caught unknown exception\n";
-    throw err.str().c_str();
-  }
+    throw "Caught unknown error";
+  } 
 
   this->write_starcat(outfile);
 
 }
 
-void CWL::write_starcat(std::string file) throw (const char*) {
-  try {
-    this->starcat->writeFits(file);
+
+void CWL::measure_psf(
+    std::string psf_file, 
+    std::string fitpsf_file) throw (const char*) {
+
+  if (!this->image->loaded()) {
+    throw "image not loaded";
+  } else if (!this->weight_image->loaded()) {
+    throw "weight image not loaded";
+  } else  if (this->starcat->size() == 0) {
+    throw "star catalog not loaded";
   }
-  PY_CATCHALL
+
+ 
+
+  this->psfcat.reset(
+      new PsfCatalog(*this->starcat.get(), this->params)
+  );
+
+  this->psf_log.reset(
+      new PsfLog(this->params,
+                 this->psf_logfile,
+                 psf_file)
+  );
+
+  // first estimate of the sigma to use for shapelets decomp
+  try {
+    double sigma_p = this->psfcat->estimateSigma(
+        *this->image.get(),
+        this->weight_image.get(),
+        *this->trans.get());
+        
+    int n_good_psf = this->psfcat->measurePsf(
+        *this->image.get(),
+        this->weight_image.get(),
+        *this->trans.get(),
+        sigma_p,
+        *this->psf_log.get());
+
+    // write but don't flush the log yet
+    this->write_psfcat(psf_file, false);
+
+    if (n_good_psf == 0) {
+        throw "No successful PSF measurements";
+    }
+
+    this->fitpsf.reset(
+        new FittedPsf(*this->psfcat.get(),
+                      this->params,
+                      *this->psf_log.get())
+    );
+
+    this->write_fitpsf(fitpsf_file);
+
+    // fitpsf can change the log, so now over-write and flush the log
+    this->write_psfcat(psf_file);
+
+  } catch (...) {
+    // we need this catchall because we *must* write the catalog
+    // and I don't want to write out everything that might be caught
+    //this->write_starcat(outfile);
+    throw "Caught unknown error";
+  } 
+
+
 }
+
+void CWL::measure_shear(std::string shear_file) throw (const char*) {
+  if (!this->image->loaded()) {
+    throw "image not loaded";
+  } else if (!this->weight_image->loaded()) {
+    throw "weight image not loaded";
+  } else if (this->cat->size() == 0) {
+    throw "catalog not loaded";
+  } else if (this->starcat->size() == 0) {
+    throw "star catalog not loaded";
+  } else if (this->psfcat->size() == 0) {
+    throw "psf catalog not loaded";
+  } else if (this->fitpsf.get() == NULL) {
+    throw "fitpsf not loaded";
+  }
+
+
+  this->shearcat.reset(
+      new ShearCatalog(
+        *this->cat.get(),
+        *this->trans.get(),
+        *this->fitpsf.get(),
+        this->params)
+  );
+
+  this->shear_log.reset(
+      new ShearLog(this->params,
+                 this->shear_logfile,
+                 shear_file)
+  );
+
+  this->shearcat->flagStars(*this->starcat.get());
+ 
+  int n_shear = this->shearcat->measureShears(
+      *this->image.get(),
+      this->weight_image.get(),
+      *this->shear_log);
+
+  this->write_shearcat(shear_file);
+}
+
+/*
+void CWL::check_load(const char types, size_t size) {
+
+  for (size_t i=0; i<size; i++) {
+
+  }
+}
+*/
