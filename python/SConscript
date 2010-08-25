@@ -1,10 +1,14 @@
 # vim: set filetype=python :
 
 import os
+import sys
+from sys import stdout, stderr
 import distutils
 import distutils.sysconfig
+import subprocess
 
 Import('env')
+ReadFileList=env['__readfunc']
 
 # for the /bin directory
 wlrun_file=env.File('wl-run.py')
@@ -26,6 +30,30 @@ pylib_install_subdir = main_libdir.replace(distutils.sysconfig.PREFIX+os.sep,'')
 pylib_install_subdir = os.path.join(pylib_install_subdir, 'deswl')
 pylib_targets = [init_file,wlpipe_file,oracle_file,files_file]
 
+if env['WITH_PYTHON']:
+    # try to build the python bindings
+    try:
+
+        files = ReadFileList('../src/wl_files.txt')
+        files += ReadFileList('../src/wl_omp_files.txt')
+
+        files = ['../src/'+f for f in files]
+
+        
+        import distutils.sysconfig
+        env2 = env.Clone()
+        env2.Prepend(CPPPATH=[distutils.sysconfig.get_python_inc()])
+        env2.Prepend(SWIGFLAGS=['-python','-c++'])
+        env2.Prepend(LIBS=['wl'])
+
+        ext_lib = env2.SharedLibrary('_cwl', 
+                                     ['cwl.i']+files+['cwl.cpp'],
+                                     SHLIBPREFIX='')
+
+        pylib_targets += [ext_lib,'cwl.py']
+
+    except:
+        stderr.write("Could not build python bindings")
 
 
 if 'install' in COMMAND_LINE_TARGETS:

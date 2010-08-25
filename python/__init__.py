@@ -71,3 +71,8 @@ import wlpipe
 import files
 import oracle
 
+try:
+    import cwl
+    from cwl import ConfigFile
+except:
+    pass
