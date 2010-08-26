@@ -41,6 +41,9 @@
 #define PSF_TRAINING            0x10000000
 #define PSF_VALIDATION          0x20000000
 
+
+#define RANDOMIZE_CENTER
+
 // Errors specific to the weak lensing code
 
 struct FileNotFoundException : public std::runtime_error 

@@ -10,7 +10,6 @@
 #include "Params.h"
 #include "MeasureShearAlgo.h"
 
-#define RANDOMIZE_CENTER
 
 void measureSingleShear1(
     Position& cen, const Image<double>& im, double sky,
@@ -25,14 +24,6 @@ void measureSingleShear1(
     DSmallMatrix22& shearcov, BVec& shapelet,
     double& nu, long& flag)
 {
-#ifdef RANDOMIZE_CENTER
-    static bool first = true;
-    if (first) {
-        // initialize random seed:
-        srand ( time(NULL) );
-        first = false;
-    }
-#endif
 
     // Find harmonic mean of psf sizes:
     // MJ: Is it correct to use the harmonic mean of sigma^2?
@@ -101,6 +92,7 @@ void measureSingleShear1(
             return;
         }
 
+// see Params.h
 #ifdef RANDOMIZE_CENTER
         // The centroid doesn't necessarily get all the way to the perfect
         // centroid, so if the input guess is consistently biased in some 

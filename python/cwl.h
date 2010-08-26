@@ -47,6 +47,8 @@ class CWL {
     void write_shearcat(std::string file, bool flush_log=true) throw (const char*);
     void load_shearcat(std::string file) throw (const char*);
 
+    void split_starcat(std::string file1, std::string file2) throw (const char*);
+
     //
     // processing methods
     //

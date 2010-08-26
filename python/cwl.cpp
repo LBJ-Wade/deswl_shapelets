@@ -138,6 +138,11 @@ void CWL::load_starcat(std::string file) throw (const char*) {
   PY_CATCHALL 
 }
 
+void CWL::split_starcat(
+    std::string file1, std::string file2) throw (const char*) {
+  this->starcat->splitInTwo(file1, file2);
+}
+
 void CWL::write_psfcat(std::string file, bool flush_log) throw (const char*) {
   try {
     this->psfcat->writeFits(file);

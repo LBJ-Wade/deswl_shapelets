@@ -18,6 +18,25 @@ int ShearCatalog::measureShears(
     const Image<double>& im,
     const Image<double>* weightIm, ShearLog& log)
 {
+
+// should we ramdomize the trajectory of the
+// centroid search?
+// see Params.h
+#ifdef RANDOMIZE_CENTER
+    static bool first = true;
+    if (first) {
+        // initialize random seed:
+        unsigned int seed=0;
+        for (size_t i=0;i<this->size(); i++) {
+          seed += i*_flags[i];
+        }
+        //srand ( time(NULL) );
+        srand (seed);
+        first = false;
+    }
+#endif
+
+
     int nGals = size();
     dbg<<"ngals = "<<nGals<<std::endl;
 
