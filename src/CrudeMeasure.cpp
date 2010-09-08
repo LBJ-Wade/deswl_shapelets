@@ -177,7 +177,12 @@ void Ellipse::crudeMeasure(const PixelList& pix, double sigma)
     if (!(std::abs(zc) < 2.)) return;
 
     xdbg<<"Initial offset to centroid = "<<zc<<std::endl;
-    zc += _cen;
+    if (isFixedCen()) {
+        xdbg<<"But centroid is fixed, so don't apply.\n";
+        zc = _cen;
+    } else {
+        zc += _cen;
+    }
     xdbg<<"zc = "<<zc<<std::endl;
 
     double Irr = 0.;
@@ -223,8 +228,9 @@ void Ellipse::crudeMeasure(const PixelList& pix, double sigma)
     double m = log(exp2mu)/2.;
     xdbg<<"mu = "<<m<<std::endl;
 
-    zc += zc1 * (1.+exp2mu);
-    m += _mu;
+    if (!isFixedCen()) zc += zc1 * (1.+exp2mu);
+    if (isFixedMu()) m = _mu;
+    else  m += _mu;
 
     xdbg<<"Approx cen = "<<zc<<std::endl;
     xdbg<<"Approx mu = "<<m<<std::endl;
