@@ -73,6 +73,6 @@ import oracle
 
 try:
     import cwl
-    from cwl import ConfigFile
+    from cwl import CWL as WL
 except:
     pass

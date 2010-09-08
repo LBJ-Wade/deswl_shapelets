@@ -17,37 +17,39 @@
 // with in SWIG, but I plan to configure the SWIG wrapper to catch other types
 // later.
 
+using std::string;
+
 class CWL {
   public:
     CWL() {};
 
-    CWL(std::string config_file) throw (const char*);
+    CWL(string config_file) throw (const char*);
 
     // file i/o methods
-    void load_config(std::string file) throw (const char*);
+    void load_config(string file) throw (const char*);
     void load_fitsparams();
 
     void load_config_images_catalog(
-        std::string config_file,
-        std::string image_file,
-        std::string cat_file) throw (const char*);
+        string config_file,
+        string image_file,
+        string cat_file) throw (const char*);
 
-    void load_images(std::string file) throw (const char*);
-    void load_catalog(std::string file) throw (const char*);
-    void load_trans(std::string file)  throw (const char*);
+    void load_images(string file) throw (const char*);
+    void load_catalog(string file) throw (const char*);
+    void load_trans(string file)  throw (const char*);
 
-    void write_starcat(std::string file, bool flush_log=true) throw (const char*);
-    void load_starcat(std::string file) throw (const char*);
+    void write_starcat(string file, bool flush_log=true) throw (const char*);
+    void load_starcat(string file) throw (const char*);
 
-    void write_psfcat(std::string file, bool flush_log=true) throw (const char*);
-    void load_psfcat(std::string file) throw (const char*);
-    void write_fitpsf(std::string file) throw (const char*);
-    void load_fitpsf(std::string file) throw (const char*);
+    void write_psfcat(string file, bool flush_log=true) throw (const char*);
+    void load_psfcat(string file) throw (const char*);
+    void write_fitpsf(string file) throw (const char*);
+    void load_fitpsf(string file) throw (const char*);
 
-    void write_shearcat(std::string file, bool flush_log=true) throw (const char*);
-    void load_shearcat(std::string file) throw (const char*);
+    void write_shearcat(string file, bool flush_log=true) throw (const char*);
+    void load_shearcat(string file) throw (const char*);
 
-    void split_starcat(std::string file1, std::string file2) throw (const char*);
+    void split_starcat(string file1, string file2) throw (const char*);
 
     //
     // processing methods
@@ -58,12 +60,12 @@ class CWL {
     // calculating and writing the data to file.  We can't
     // factor out find_stars() and then run write(file) because
     // the log must know the file name
-    void find_stars(std::string outfile) throw (const char*);
+    void find_stars(string outfile) throw (const char*);
 
     void measure_psf(
-        std::string psf_file, 
-        std::string fitpsf_file) throw (const char*);
-    void measure_shear(std::string shear_file) throw (const char*);
+        string psf_file, 
+        string fitpsf_file) throw (const char*);
+    void measure_shear(string shear_file) throw (const char*);
 
     void print_config();
     void set_verbosity(bool verbosity);
@@ -90,13 +92,13 @@ class CWL {
 
 
     // send logs to stdout unless logfile gets set
-    std::string stars_logfile;
+    string stars_logfile;
     std::auto_ptr<FindStarsLog> stars_log;
 
-    std::string psf_logfile;
+    string psf_logfile;
     std::auto_ptr<PsfLog> psf_log;
 
-    std::string shear_logfile;
+    string shear_logfile;
     std::auto_ptr<ShearLog> shear_log;
 
 };

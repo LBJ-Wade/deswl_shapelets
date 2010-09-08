@@ -18,15 +18,15 @@ bool XDEBUG=false
 #endif
 
 
-CWL::CWL(std::string config_file) throw (const char*) {
+CWL::CWL(string config_file) throw (const char*) {
   this->load_config(config_file);
   this->load_fitsparams();
 }
 
 void CWL::load_config_images_catalog(
-    std::string config_file,
-    std::string image_file,
-    std::string cat_file) throw (const char*) {
+    string config_file,
+    string image_file,
+    string cat_file) throw (const char*) {
 
   this->load_config(config_file);
   this->load_fitsparams();
@@ -35,7 +35,7 @@ void CWL::load_config_images_catalog(
   this->load_catalog(cat_file);
 }
 
-void CWL::load_config(std::string file) throw (const char*) {
+void CWL::load_config(string file) throw (const char*) {
   try {
     this->params.load(file);
   }
@@ -43,7 +43,7 @@ void CWL::load_config(std::string file) throw (const char*) {
 }
 
 void CWL::load_fitsparams() {
-    std::string fp((const char*)fitsparams_config,fitsparams_config_len);
+    string fp((const char*)fitsparams_config,fitsparams_config_len);
     std::istringstream is(fp);
     this->params.read(is);
 }
@@ -58,7 +58,7 @@ void CWL::set_verbosity(bool verbosity) {
   dbgout->setf(std::ios_base::unitbuf);
 }
 
-void CWL::load_images(std::string file) throw (const char*) {
+void CWL::load_images(string file) throw (const char*) {
 
   std::stringstream err;
   if (this->params.size() == 0) {
@@ -85,7 +85,7 @@ void CWL::load_images(std::string file) throw (const char*) {
   PY_CATCHALL 
 }
 
-void CWL::load_catalog(std::string file) throw (const char*) {
+void CWL::load_catalog(string file) throw (const char*) {
 
   std::stringstream err;
   if (this->params.size() == 0) {
@@ -103,7 +103,7 @@ void CWL::load_catalog(std::string file) throw (const char*) {
 
 }
 
-void CWL::load_trans(std::string file) throw (const char*) {
+void CWL::load_trans(string file) throw (const char*) {
 
   std::stringstream err;
   this->params["dist_file"] = file;
@@ -120,7 +120,7 @@ void CWL::load_trans(std::string file) throw (const char*) {
   PY_CATCHALL 
 }
 
-void CWL::write_starcat(std::string file, bool flush_log) throw (const char*) {
+void CWL::write_starcat(string file, bool flush_log) throw (const char*) {
   try {
     this->starcat->writeFits(file);
     if (flush_log) {
@@ -130,7 +130,7 @@ void CWL::write_starcat(std::string file, bool flush_log) throw (const char*) {
   }
   PY_CATCHALL
 }
-void CWL::load_starcat(std::string file) throw (const char*) {
+void CWL::load_starcat(string file) throw (const char*) {
   this->starcat.reset( new StarCatalog( this->params ) );
   try {
     this->starcat->readFits(file);
@@ -139,11 +139,11 @@ void CWL::load_starcat(std::string file) throw (const char*) {
 }
 
 void CWL::split_starcat(
-    std::string file1, std::string file2) throw (const char*) {
+    string file1, string file2) throw (const char*) {
   this->starcat->splitInTwo(file1, file2);
 }
 
-void CWL::write_psfcat(std::string file, bool flush_log) throw (const char*) {
+void CWL::write_psfcat(string file, bool flush_log) throw (const char*) {
   try {
     this->psfcat->writeFits(file);
     if (flush_log) {
@@ -153,7 +153,7 @@ void CWL::write_psfcat(std::string file, bool flush_log) throw (const char*) {
   }
   PY_CATCHALL
 }
-void CWL::load_psfcat(std::string file) throw (const char*) {
+void CWL::load_psfcat(string file) throw (const char*) {
   this->psfcat.reset( new PsfCatalog( this->params ) );
   try {
     this->psfcat->readFits(file);
@@ -162,13 +162,13 @@ void CWL::load_psfcat(std::string file) throw (const char*) {
 }
 
 
-void CWL::write_fitpsf(std::string file) throw (const char*) {
+void CWL::write_fitpsf(string file) throw (const char*) {
   try {
     this->fitpsf->writeFits(file);
   }
   PY_CATCHALL
 }
-void CWL::load_fitpsf(std::string file) throw (const char*) {
+void CWL::load_fitpsf(string file) throw (const char*) {
   this->fitpsf.reset( new FittedPsf( this->params ) );
   try {
     this->fitpsf->readFits(file);
@@ -178,7 +178,7 @@ void CWL::load_fitpsf(std::string file) throw (const char*) {
 
 
 
-void CWL::write_shearcat(std::string file, bool flush_log) throw (const char*) {
+void CWL::write_shearcat(string file, bool flush_log) throw (const char*) {
   try {
     this->shearcat->writeFits(file);
     if (flush_log) {
@@ -188,7 +188,7 @@ void CWL::write_shearcat(std::string file, bool flush_log) throw (const char*) {
   }
   PY_CATCHALL
 }
-void CWL::load_shearcat(std::string file) throw (const char*) {
+void CWL::load_shearcat(string file) throw (const char*) {
   this->shearcat.reset( new ShearCatalog( this->params ) );
   try {
     this->shearcat->readFits(file);
@@ -200,7 +200,7 @@ void CWL::load_shearcat(std::string file) throw (const char*) {
 
 
 
-void CWL::find_stars(std::string outfile) throw (const char*) {
+void CWL::find_stars(string outfile) throw (const char*) {
 
   std::stringstream err;
 
@@ -248,8 +248,8 @@ void CWL::find_stars(std::string outfile) throw (const char*) {
 
 
 void CWL::measure_psf(
-    std::string psf_file, 
-    std::string fitpsf_file) throw (const char*) {
+    string psf_file, 
+    string fitpsf_file) throw (const char*) {
 
   if (!this->image->loaded()) {
     throw "image not loaded";
@@ -313,7 +313,7 @@ void CWL::measure_psf(
 
 }
 
-void CWL::measure_shear(std::string shear_file) throw (const char*) {
+void CWL::measure_shear(string shear_file) throw (const char*) {
   if (!this->image->loaded()) {
     throw "image not loaded";
   } else if (!this->weight_image->loaded()) {
