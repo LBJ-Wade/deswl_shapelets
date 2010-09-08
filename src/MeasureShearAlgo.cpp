@@ -115,6 +115,7 @@ void measureSingleShear1(
         double r_offset = sqrt(rsq_offset);
         x_offset /= r_offset*10.;
         y_offset /= r_offset*10.;
+	//std::cout<<"x_offset: "<<x_offset<<"   y_offset: "<<y_offset<<"\n";
         ell.setCen(std::complex<double>(x_offset,y_offset));
         dbg<<"After random offset "<<x_offset<<","<<y_offset<<
             ": cen = "<<cen1+ell.getCen()<<std::endl;

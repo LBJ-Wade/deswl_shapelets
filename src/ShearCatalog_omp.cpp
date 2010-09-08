@@ -31,6 +31,7 @@ int ShearCatalog::measureShears(
           seed += i*_flags[i];
         }
         //srand ( time(NULL) );
+	//std::cout<<"using seed: "<<seed<<"\n";
         srand (seed);
         first = false;
     }
