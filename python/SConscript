@@ -43,7 +43,7 @@ if env['WITH_PYTHON']:
 
     import distutils.sysconfig
     env2.Prepend(CPPPATH=[distutils.sysconfig.get_python_inc()])
-    env2.Prepend(SWIGFLAGS=['-python','-c++'])
+    #env2.Prepend(SWIGFLAGS=['-python','-c++'])
     env2.Prepend(LIBS=['wl'])
 
     # special environment for openmp stuff
@@ -55,8 +55,15 @@ if env['WITH_PYTHON']:
     objs = env2.SharedObject(files)
     objs_omp = env2_omp.SharedObject(files_omp)
 
+    #ext_lib = env2_omp.SharedLibrary('_cwl', 
+    #                                 ['cwl.i','cwl.cpp']+objs+objs_omp,
+    #                                 SHLIBPREFIX='')
+    
+    # just create the swig wrapper ourselves, many systems have old buggy
+    # version of SWIG installed and it is hard to get scons to see the
+    # newer ones installed in alternative places
     ext_lib = env2_omp.SharedLibrary('_cwl', 
-                                     ['cwl.i','cwl.cpp']+objs+objs_omp,
+                                     ['cwl.cpp','cwl_wrap.cpp']+objs+objs_omp,
                                      SHLIBPREFIX='')
     pylib_targets += [ext_lib,'cwl.py']
 

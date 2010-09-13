@@ -825,6 +825,40 @@ def make_se_commandlist(fdict, debug=0):
 
     return command
 
+def do_fullpipe(fdict, writelog=False, debup=0, timeout=5*60):
+    import deswl
+    t=deswl.WL('wl04.config')
+
+    print 'loading images'
+    t.load_images('decam--25--16-i-3_39.fits.fz')
+    print 'loading catalog'
+    t.load_catalog('decam--25--16-i-3_39_cat.fits')
+    print 'finding stars'
+    t.find_stars('stars.fits')
+    print 'measuring psf'
+    t.measure_psf('psf.fits','fitpsf.fits')
+    print 'measuring shear'
+    t.measure_shear('shear.fits')
+
+    # split the star catalog in two and run on each branch
+
+    print 'splitting catalog'
+    t.split_starcat("stars1.fits","stars2.fits")
+
+    print 'loading stars1'
+    t.load_starcat("stars1.fits")
+    print 'measuring psf1'
+    t.measure_psf('psf1.fits','fitpsf1.fits')
+    print 'measuring shear1'
+    t.measure_shear('shear1.fits')
+
+    print 'loading stars2'
+    t.load_starcat("stars2.fits")
+    print 'measuring psf2'
+    t.measure_psf('psf2.fits','fitpsf2.fits')
+    print 'measuring shear2'
+    t.measure_shear('shear2.fits')
+
 def process_se_image(fdict, writelog=False, debug=0, timeout=5*60):
 
     # should we re-direct stdout (which is only QA and STATUS messages)
