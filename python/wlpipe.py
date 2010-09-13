@@ -287,12 +287,20 @@ def find_collated_redfiles(dataset, band):
 
     flist = get_matched_red_image_catlist(band)
 
+    DESDATA=os.env['DESDATA']
     infolist=[]
     for fpair in flist:
         imfile=fpair['imfile']
         info=deswl.files.get_info_from_path(imfile, 'red') 
+
+        catfile = fpair['catfile']
+
+        imfile = imfile.replace(DESDATA,'$DESDATA')
+        catfile = catfile.replace(DESDATA,'$DESDATA')
+
         info['imfile'] = imfile
-        info['catfile'] = fpair['catfile']
+        info['catfile'] = catfile
+
         infolist.append(info)
 
     deswl.files.collated_redfiles_write(dataset, band, infolist)
@@ -825,39 +833,115 @@ def make_se_commandlist(fdict, debug=0):
 
     return command
 
-def do_fullpipe(fdict, writelog=False, debup=0, timeout=5*60):
+ERROR_SE_MISSING_FILE=2**0
+ERROR_SE_LOAD_CONFIG=2**1
+ERROR_SE_LOAD_FILES=2**2
+ERROR_SE_FINDSTARS=2**3
+ERROR_SE_MEASURE_PSF=2**4
+ERROR_SE_MEASURE_SHEAR=2**5
+ERROR_SE_SPLIT_STARS=2**6
+
+def do_fullpipe(fdict, writelog=False, debug=0):
     import deswl
-    t=deswl.WL('wl04.config')
 
-    print 'loading images'
-    t.load_images('decam--25--16-i-3_39.fits.fz')
-    print 'loading catalog'
-    t.load_catalog('decam--25--16-i-3_39_cat.fits')
-    print 'finding stars'
-    t.find_stars('stars.fits')
-    print 'measuring psf'
-    t.measure_psf('psf.fits','fitpsf.fits')
-    print 'measuring shear'
-    t.measure_shear('shear.fits')
+    config_fname = fdict['config']
 
-    # split the star catalog in two and run on each branch
+    image = fdict['image']
+    cat = fdict['cat']
 
-    print 'splitting catalog'
-    t.split_starcat("stars1.fits","stars2.fits")
+    # usually is saved as $DESFILES_DIR/..
+    config_fname = os.path.expandvars(config_fname)
 
-    print 'loading stars1'
-    t.load_starcat("stars1.fits")
-    print 'measuring psf1'
-    t.measure_psf('psf1.fits','fitpsf1.fits')
-    print 'measuring shear1'
-    t.measure_shear('shear1.fits')
+    # usually the names are saves as $DESDATA/...
+    image = os.path.expandvars(image)
+    cat = os.path.expandvars(cat)
 
-    print 'loading stars2'
-    t.load_starcat("stars2.fits")
-    print 'measuring psf2'
-    t.measure_psf('psf2.fits','fitpsf2.fits')
-    print 'measuring shear2'
-    t.measure_shear('shear2.fits')
+    if not os.path.exists(config_fname):
+        return ERROR_SE_MISSING_FILE
+    if not os.path.exists(image):
+        return ERROR_SE_MISSING_FILE
+    if not os.path.exists(cat):
+        return ERROR_SE_MISSING_FILE
+
+    try:
+        stdout.write("Loading config file '%s'\n" % config_fname)
+        t=deswl.WL(config_fname)
+    except RuntimeError as e:
+        stdout.write('%s\n' % e)
+        return ERROR_SE_LOAD_CONFIG
+
+    if writelog:
+        # setting log_file is really the QA file.
+        stdout.write('\nWill write QA/STATUS to %s\n\n' % fdict['qa'])
+        t.set_param("log_file",fdict['qa'])
+
+    if debug:
+        # setting log_file is really the QA file.
+        stdout.write('\nWill write debug to %s\n\n' % fdict['debug'])
+        t.set_param('debug',str(debug))
+        t.set_param("debug_file",fdict['debug'])
+
+    try:
+
+        stdout.write("loading images from: '%s'\n" % fdict['image'])
+        t.load_images(fdict['image'])
+        stdout.write("loading catalog from '%s'\n" % fdict['cat'])
+        t.load_catalog(fdict['cat'])
+    except RuntimeError as e:
+        stdout.write('%s\n' % e)
+        return ERROR_SE_LOAD_FILES
+
+    try:
+        stdout.write("finding stars; writing to '%s'\n" % fdict['stars'])
+        t.find_stars(fdict['stars'])
+    except RuntimeError as e:
+        stdout.write('%s\n' % e)
+        return ERROR_SE_FINDSTARS
+
+    try:
+        stdout.write("measuring psf; writing to \n"
+                     "    '%s'\n"
+                     "    '%s'\n" % (fdict['psf'],fdict['fitpsf']))
+        t.measure_psf(fdict['psf'],fdict['fitpsf'])
+    except RuntimeError as e:
+        stdout.write('%s\n' % e)
+        return ERROR_SE_MEASURE_PSF
+
+    try:
+        stdout.write("measuring shear; writing to '%s'\n" % fdict['shear'])
+        t.measure_shear(fdict['shear'])
+    except RuntimeError as e:
+        stdout.write('%s\n' % e)
+        return ERROR_SE_MEASURE_SHEAR
+
+
+    try:
+        stdout.write("splitting catalog: \n"
+                     "    '%s'\n"
+                     "    '%s'\n" % (fdict['stars1'],fdict['stars2']))
+        t.split_starcat(fdict["stars1"],fdict["stars2"])
+
+        stdout.write('loading stars1\n')
+        t.load_starcat(fdict['stars1'])
+        stdout.write('measuring psf1\n')
+        t.measure_psf(fdict['psf1'],fdict['fitpsf1'])
+        stdout.write('measuring shear1\n')
+        t.measure_shear(fdict['shear1'])
+
+        stdout.write('loading stars2\n')
+        t.load_starcat(fdict['stars2'])
+        stdout.write('measuring psf2\n')
+        t.measure_psf(fdict['psf2'],fdict['fitpsf2'])
+        stdout.write('measuring shear2\n')
+        t.measure_shear(fdict['shear2'])
+
+    except RuntimeError as e:
+        stdout.write('%s\n' % e)
+        return ERROR_SE_SPLIT_STARS
+
+    return 0
+
+
 
 def process_se_image(fdict, writelog=False, debug=0, timeout=5*60):
 
@@ -1031,7 +1115,7 @@ def run_shear(exposurename,
     stdout.write('\n')
 
     # Here we rely on the fact that we picked out the unique, newest
-    # version for each tile
+    # version for each
     image=None
     bname = exposurename+'_%02i' % int(ccd)
     for ti in infolist:
@@ -1130,7 +1214,8 @@ def run_shear(exposurename,
 
 
     # need to write one of these for se
-    exit_status = process_se_image(fdict, writelog=writelog, debug=debug)
+    #exit_status = process_se_image(fdict, writelog=writelog, debug=debug)
+    exit_status = do_fullpipe(fdict, writelog=writelog, debug=debug)
 
     
     stat['exit_status'] = exit_status

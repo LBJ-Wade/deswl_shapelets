@@ -1,1 +1,1 @@
-swig -python -c++ -o cwl_wrap.cc cwl.i
+swig -python -c++ -o cwl_wrap.cpp cwl.i

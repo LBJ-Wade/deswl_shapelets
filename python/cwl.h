@@ -29,6 +29,9 @@ class CWL {
     void load_config(string file) throw (const char*);
     void load_fitsparams();
 
+    // note only strings supported for now
+    void set_param(string key, string value) throw (const char*);
+
     void load_config_images_catalog(
         string config_file,
         string image_file,

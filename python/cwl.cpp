@@ -48,6 +48,11 @@ void CWL::load_fitsparams() {
     this->params.read(is);
 }
 
+
+void CWL::set_param(string key, string value) throw (const char*) {
+    this->params[key] = value;
+}
+
 void CWL::print_config() {
   std::cout<<this->params;
 }

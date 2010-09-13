@@ -33,12 +33,22 @@ class Runconfig(object):
 
         self.se_executables = ['findstars','measurepsf','measureshear']
 
-        self.se_filetypes = ['stars', 'psf',  'fitpsf','shear','qa',  'stat']
+        self.se_filetypes = ['stars', 'stars1','stars2',
+                             'psf',  'fitpsf','shear','qa','stat','debug']
         self.se_fext       = {'stars':  '.fits', 
+                              'stars1':  '.fits', 
+                              'stars2':  '.fits', 
                               'psf':    '.fits',
+                              'psf1':    '.fits',
+                              'psf2':    '.fits',
                               'fitpsf': '.fits', 
+                              'fitpsf1': '.fits', 
+                              'fitpsf2': '.fits', 
                               'shear':  '.fits',
+                              'shear1':  '.fits',
+                              'shear2':  '.fits',
                               'qa':     '.dat',
+                              'debug':'.dat',
                               'stat':   '.json',
                               'checkpsf':'.rec'}
         self.se_collated_type = ['badlist','goodlist','collated']
