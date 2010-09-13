@@ -34,7 +34,10 @@ class Runconfig(object):
         self.se_executables = ['findstars','measurepsf','measureshear']
 
         self.se_filetypes = ['stars', 'stars1','stars2',
-                             'psf',  'fitpsf','shear','qa','stat','debug']
+                             'psf','psf1','psf2',
+                             'fitpsf','fitpsf1','fitpsf2',
+                             'shear','shear1','shear2',
+                             'qa','stat','debug']
         self.se_fext       = {'stars':  '.fits', 
                               'stars1':  '.fits', 
                               'stars2':  '.fits', 

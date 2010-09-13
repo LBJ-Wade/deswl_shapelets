@@ -171,7 +171,7 @@ def default_dataset(run_type):
     if run_type == 'wlme':
         return 'dc4coadd'
     if run_type == 'wlse':
-        return 'dc4'
+        return 'dc4new'
 
 def default_localid():
     return 'tutti2'
@@ -287,7 +287,7 @@ def find_collated_redfiles(dataset, band):
 
     flist = get_matched_red_image_catlist(band)
 
-    DESDATA=os.env['DESDATA']
+    DESDATA=deswl.files.des_rootdir()
     infolist=[]
     for fpair in flist:
         imfile=fpair['imfile']
@@ -862,6 +862,8 @@ def do_fullpipe(fdict, writelog=False, debug=0):
         return ERROR_SE_MISSING_FILE
     if not os.path.exists(cat):
         return ERROR_SE_MISSING_FILE
+    fdict['image']=image
+    fdict['cat'] = cat
 
     try:
         stdout.write("Loading config file '%s'\n" % config_fname)
@@ -1104,7 +1106,6 @@ def run_shear(exposurename,
     else:   
         config=path_join(wl_dir, 'etc','wl.config')
 
-    config = os.path.expandvars(config)
 
     # info on all the unique, newest tiles and catalogs
     stdout.write('\n')
