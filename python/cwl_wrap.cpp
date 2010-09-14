@@ -3230,6 +3230,38 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_CWL_set_log(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  CWL *arg1 = (CWL *) 0 ;
+  string arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:CWL_set_log",&obj0,&obj1)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_CWL, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "CWL_set_log" "', argument " "1"" of type '" "CWL *""'"); 
+  }
+  arg1 = reinterpret_cast< CWL * >(argp1);
+  {
+    std::string *ptr = (std::string *)0;
+    int res = SWIG_AsPtr_std_string(obj1, &ptr);
+    if (!SWIG_IsOK(res) || !ptr) {
+      SWIG_exception_fail(SWIG_ArgError((ptr ? res : SWIG_TypeError)), "in method '" "CWL_set_log" "', argument " "2"" of type '" "string""'"); 
+    }
+    arg2 = *ptr;
+    if (SWIG_IsNewObj(res)) delete ptr;
+  }
+  (arg1)->set_log(arg2);
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_CWL_load_config_images_catalog(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   CWL *arg1 = (CWL *) 0 ;
@@ -4302,6 +4334,7 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"CWL_load_config", _wrap_CWL_load_config, METH_VARARGS, NULL},
 	 { (char *)"CWL_load_fitsparams", _wrap_CWL_load_fitsparams, METH_VARARGS, NULL},
 	 { (char *)"CWL_set_param", _wrap_CWL_set_param, METH_VARARGS, NULL},
+	 { (char *)"CWL_set_log", _wrap_CWL_set_log, METH_VARARGS, NULL},
 	 { (char *)"CWL_load_config_images_catalog", _wrap_CWL_load_config_images_catalog, METH_VARARGS, NULL},
 	 { (char *)"CWL_load_images", _wrap_CWL_load_images, METH_VARARGS, NULL},
 	 { (char *)"CWL_load_catalog", _wrap_CWL_load_catalog, METH_VARARGS, NULL},

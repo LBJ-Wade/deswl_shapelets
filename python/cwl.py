@@ -79,6 +79,7 @@ class CWL(_object):
     def load_config(self, *args): return _cwl.CWL_load_config(self, *args)
     def load_fitsparams(self): return _cwl.CWL_load_fitsparams(self)
     def set_param(self, *args): return _cwl.CWL_set_param(self, *args)
+    def set_log(self, *args): return _cwl.CWL_set_log(self, *args)
     def load_config_images_catalog(self, *args): return _cwl.CWL_load_config_images_catalog(self, *args)
     def load_images(self, *args): return _cwl.CWL_load_images(self, *args)
     def load_catalog(self, *args): return _cwl.CWL_load_catalog(self, *args)

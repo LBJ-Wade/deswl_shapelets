@@ -31,6 +31,8 @@ class CWL {
 
     // note only strings supported for now
     void set_param(string key, string value) throw (const char*);
+    // this sets all logs to the same name
+    void set_log(string logfile);
 
     void load_config_images_catalog(
         string config_file,

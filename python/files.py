@@ -455,7 +455,7 @@ def wlse_path(exposurename, ccd, ftype,
         if serun is not None:
             dir = wlse_dir(serun, exposurename, rootdir=rootdir)
         else:
-            dir='.'
+            dir=os.path.abspath('.')
 
     name = wlse_basename(exposurename, ccd, ftype_use, 
                          serun=serun,

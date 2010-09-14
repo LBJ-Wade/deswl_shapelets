@@ -149,10 +149,12 @@ import platform
 import os
 import subprocess
 import time
+import copy
 import signal
 import re
 import datetime
 import shutil
+import pprint
 
 import deswl
 
@@ -179,6 +181,18 @@ def default_serun():
     return 'wlse000001'
 def default_scratch_rootdir():
     return '/scratch/users/esheldon/DES'
+
+ERROR_SE_UNKNOWN=2**0
+ERROR_SE_MISC=2**1
+ERROR_SE_MISSING_FILE=2**2
+ERROR_SE_LOAD_CONFIG=2**3
+ERROR_SE_LOAD_FILES=2**4
+ERROR_SE_FINDSTARS=2**5
+ERROR_SE_MEASURE_PSF=2**6
+ERROR_SE_MEASURE_SHEAR=2**7
+ERROR_SE_SPLIT_STARS=2**8
+ERROR_SE_IO=2**9
+
 
 
 def get_red_filelist(band=None, extra=None, newest=False, return_dict=False):
@@ -833,15 +847,8 @@ def make_se_commandlist(fdict, debug=0):
 
     return command
 
-ERROR_SE_MISSING_FILE=2**0
-ERROR_SE_LOAD_CONFIG=2**1
-ERROR_SE_LOAD_FILES=2**2
-ERROR_SE_FINDSTARS=2**3
-ERROR_SE_MEASURE_PSF=2**4
-ERROR_SE_MEASURE_SHEAR=2**5
-ERROR_SE_SPLIT_STARS=2**6
 
-def do_fullpipe(fdict, writelog=False, debug=0):
+def run_se_pipe(types, fdict, writelog=False, debug=0, dosplit=True):
     import deswl
 
     config_fname = fdict['config']
@@ -875,7 +882,8 @@ def do_fullpipe(fdict, writelog=False, debug=0):
     if writelog:
         # setting log_file is really the QA file.
         stdout.write('\nWill write QA/STATUS to %s\n\n' % fdict['qa'])
-        t.set_param("log_file",fdict['qa'])
+        #t.set_param("log_file",fdict['qa'])
+        t.set_log(fdict['qa'])
 
     if debug:
         # setting log_file is really the QA file.
@@ -893,53 +901,57 @@ def do_fullpipe(fdict, writelog=False, debug=0):
         stdout.write('%s\n' % e)
         return ERROR_SE_LOAD_FILES
 
-    try:
-        stdout.write("finding stars; writing to '%s'\n" % fdict['stars'])
-        t.find_stars(fdict['stars'])
-    except RuntimeError as e:
-        stdout.write('%s\n' % e)
-        return ERROR_SE_FINDSTARS
+    if 'stars' in types:
+        try:
+            stdout.write("finding stars; writing to '%s'\n" % fdict['stars'])
+            t.find_stars(fdict['stars'])
+        except RuntimeError as e:
+            stdout.write('%s\n' % e)
+            return ERROR_SE_FINDSTARS
 
-    try:
-        stdout.write("measuring psf; writing to \n"
-                     "    '%s'\n"
-                     "    '%s'\n" % (fdict['psf'],fdict['fitpsf']))
-        t.measure_psf(fdict['psf'],fdict['fitpsf'])
-    except RuntimeError as e:
-        stdout.write('%s\n' % e)
-        return ERROR_SE_MEASURE_PSF
+    if 'psf' in types:
+        try:
+            stdout.write("measuring psf; writing to \n"
+                         "    '%s'\n"
+                         "    '%s'\n" % (fdict['psf'],fdict['fitpsf']))
+            t.measure_psf(fdict['psf'],fdict['fitpsf'])
+        except RuntimeError as e:
+            stdout.write('%s\n' % e)
+            return ERROR_SE_MEASURE_PSF
 
-    try:
-        stdout.write("measuring shear; writing to '%s'\n" % fdict['shear'])
-        t.measure_shear(fdict['shear'])
-    except RuntimeError as e:
-        stdout.write('%s\n' % e)
-        return ERROR_SE_MEASURE_SHEAR
+    if 'shear' in types:
+        try:
+            stdout.write("measuring shear; writing to '%s'\n" % fdict['shear'])
+            t.measure_shear(fdict['shear'])
+        except RuntimeError as e:
+            stdout.write('%s\n' % e)
+            return ERROR_SE_MEASURE_SHEAR
 
 
-    try:
-        stdout.write("splitting catalog: \n"
-                     "    '%s'\n"
-                     "    '%s'\n" % (fdict['stars1'],fdict['stars2']))
-        t.split_starcat(fdict["stars1"],fdict["stars2"])
+    if 'split' in types:
+        try:
+            stdout.write("splitting catalog: \n"
+                         "    '%s'\n"
+                         "    '%s'\n" % (fdict['stars1'],fdict['stars2']))
+            t.split_starcat(fdict["stars1"],fdict["stars2"])
 
-        stdout.write('loading stars1\n')
-        t.load_starcat(fdict['stars1'])
-        stdout.write('measuring psf1\n')
-        t.measure_psf(fdict['psf1'],fdict['fitpsf1'])
-        stdout.write('measuring shear1\n')
-        t.measure_shear(fdict['shear1'])
+            stdout.write('loading stars1\n')
+            t.load_starcat(fdict['stars1'])
+            stdout.write('measuring psf1\n')
+            t.measure_psf(fdict['psf1'],fdict['fitpsf1'])
+            stdout.write('measuring shear1\n')
+            t.measure_shear(fdict['shear1'])
 
-        stdout.write('loading stars2\n')
-        t.load_starcat(fdict['stars2'])
-        stdout.write('measuring psf2\n')
-        t.measure_psf(fdict['psf2'],fdict['fitpsf2'])
-        stdout.write('measuring shear2\n')
-        t.measure_shear(fdict['shear2'])
+            stdout.write('loading stars2\n')
+            t.load_starcat(fdict['stars2'])
+            stdout.write('measuring psf2\n')
+            t.measure_psf(fdict['psf2'],fdict['fitpsf2'])
+            stdout.write('measuring shear2\n')
+            t.measure_shear(fdict['shear2'])
 
-    except RuntimeError as e:
-        stdout.write('%s\n' % e)
-        return ERROR_SE_SPLIT_STARS
+        except RuntimeError as e:
+            stdout.write('%s\n' % e)
+            return ERROR_SE_SPLIT_STARS
 
     return 0
 
@@ -973,8 +985,509 @@ def getband_from_exposurename(exposurename):
             return band
     raise ValueError("No band found in exposurename: %s\n" % exposurename)
 
+
+class ExposureProcessor:
+    def __init__(self, exposurename, **keys):
+        """
+        We don't load anything in the constructor because we
+        want to have state available and always write the
+        status file.
+        """
+        self.all_types = ['stars','psf','shear','split']
+
+        # things in stat will get written to the status QA
+        # file
+        self.stat = {}
+        
+        self.stat['exposurename'] = exposurename
+        self.stat['serun']     = keys.get('serun',None)
+        self.stat['config']    = keys.get('config',None)
+        self.stat['outdir']    = keys.get('outdir',None)
+        self.stat['copyroot']  = keys.get('copyroot',False)
+
+        DESDATA = deswl.files.des_rootdir()
+        self.stat['DESDATA'] = DESDATA
+        self.stat['rootdir']   = keys.get('rootdir',DESDATA)
+
+        self.stat['error']        = 0
+        self.stat['error_string'] = ''
+
+        self.stat['hostname'] = platform.node()
+        self.stat['date'] = datetime.datetime.now().strftime("%Y-%m-%d-%X")
+
+        self.runconfig = None
+
+
+    def set_config(self):
+        # config file
+        defconfig = path_join(self.stat['WL_DIR'], 'etc','wl.config')
+
+        if self.stat['config'] is None:
+            stdout.write("Determining config...\n")
+            if self.runconfig is not None:
+                if 'wl_config' in self.runconfig:
+                    self.stat['config'] = self.runconfig['wl_config']
+                else:
+                    self.stat['config'] = defconfig
+            else:
+                self.stat['config'] = defconfig
+            stdout.write("    using: '%s'\n" % self.stat['config'])
+        else:
+            stdout.write("Using input config: '%s'\n" % self.stat['config'])
+
+    def load_serun(self):
+
+        if self.stat['serun'] is not None:
+            stdout.write("Loading runconfig for serun: '%s'\n" % self.stat['serun'])
+            try:
+                self.runconfig=deswl.files.Runconfig(self.stat['serun'])
+            except RuntimeError as e:
+                self.stat['error'] = ERROR_SE_IO
+                self.stat['error_string'] = "Error loading run config: '%s'" % e
+                stdout.write(self.stat['error_string']+'\n')
+                raise e
+            except IOError as e:
+                self.stat['error'] = ERROR_SE_IO
+                self.stat['error_string'] = "Error loading run config: '%s'" % e
+                raise e
+
+                
+            # make sure we have consistency in the software versions
+            stdout.write('Verifying runconfig: ...')
+            try:
+                self.runconfig.verify()
+            except ValueError as e:
+                self.stat['error'] = ERROR_SE_MISC
+                self.stat['error_string'] = "Error verifying runconfig: '%s'" % e
+                stdout.write(self.stat['error_string']+'\n')
+                raise e
+
+            stdout.write('OK\n')
+
+            self.stat['dataset'] = runconfig['dataset']
+        else:
+            self.runconfig=None
+
+    def set_outdir(self):
+        """
+        This method is unused
+        """
+        stdout.write("Setting outdir:\n")
+        if self.stat['outdir'] is None:
+            if self.stat['serun'] is not None:
+                self.stat['outdir'] = \
+                        deswl.files.wlse_dir(self.stat['serun'], 
+                                             self.stat['exposurename'], 
+                                             rootdir=self.stat['rootdir'])
+            else:
+                self.stat['outdir']='.'
+
+        self.stat['outdir'] = os.path.expandvars(self.stat['outdir'])
+        if self.stat['outdir'] == '.':
+            self.stat['outdir']=os.path.abspath('.')
+
+        stdout.write("    outdir: '%s'\n" % self.stat['outdir'])
+
+
+    def get_environ(self):
+        try:
+            self.stat['TMV_DIR']=getenv_check('TMV_DIR')
+            self.stat['WL_DIR']=getenv_check('WL_DIR')
+            self.stat['ESUTIL_DIR']=getenv_check('ESUTIL_DIR')
+            self.stat['DESFILES_DIR']=getenv_check('DESFILES_DIR')
+            self.stat['pyvers']=deswl.get_python_version()
+            self.stat['esutilvers']=esutil.version()
+            self.stat['wlvers']=deswl.version()
+            self.stat['tmvvers']=deswl.get_tmv_version()
+
+        except RuntimeError as e:
+            self.stat['error'] = ERROR_SE_MISC
+            self.stat['error_string'] = str(e)
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+
+    def load_wl(self):
+        # usually is saved as $DESFILES_DIR/..
+        config_fname = os.path.expandvars(self.stat['config'])
+        stdout.write("Loading config file '%s'\n" % config_fname)
+
+        if not os.path.exists(config_fname):
+            self.stat['error'] = ERROR_SE_MISSING_FILE
+            self.stat['error_string'] = \
+                "Config File does not exist: '%s'" % config_fname
+            raise IOError(self.stat['error_string'])
+        
+        try:
+            self.wl = deswl.WL(config_fname)
+        except RuntimeError as e:
+            self.stat['error'] = ERROR_SE_LOAD_CONFIG
+            self.stat['error_string'] = 'Error loading config: %s' % e
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+
+
+    def load_file_lists(self):
+        if not hasattr(self,'infodict'):
+            try:
+                idict, ifile=\
+                        deswl.files.collated_redfiles_read(self.stat['dataset'], 
+                                                           self.stat['band'], 
+                                                           getpath=True)
+                self.infodict=idict
+                self.infodict_file=ifile
+                self.infolist = self.infodict['flist']
+                self.stat['infodict_file'] = ifile
+            except IOError as e:
+                self.stat['error'] = ERROR_SE_IO
+                self.stat['error_string'] = 'Error loading file lists: %s' % e
+                stdout.write(self.stat['error_string']+'\n')
+                raise e
+
+    def get_band(self):
+        stdout.write("Getting band for '%s'\n" % self.stat['exposurename'])
+        try:
+            self.stat['band']=\
+                getband_from_exposurename(self.stat['exposurename'])
+        except RuntimeError as e:
+            self.stat['error'] = ERROR_SE_MISC
+            self.stat['error_string'] = str(e)
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+
+    def setup(self):
+        """
+        Don't call this, let the processing code call it!
+        """
+
+        # this stuff only needs to be loaded once.
+        if not hasattr(self, 'tmv_dir'):
+
+            stdout.write('running setup\n')
+
+            self.get_band()
+            self.get_environ()
+            self.stat['dataset']=default_dataset('wlse')
+
+            # only loads if not None.  Will override the runconfig
+            # and dataset
+            self.load_serun()
+
+            #self.set_outdir()
+            self.set_config()
+
+            self.load_wl()
+
+            self.load_file_lists()
+
+    def get_image_cat(self, ccd):
+        # Here we rely on the fact that we picked out the unique, newest
+        # version for each
+        image=None
+        bname = self.stat['exposurename']+'_%02i' % int(ccd)
+        for ti in self.infolist:
+            tbname=deswl.files.remove_fits_extension(ti['basename'])
+            if tbname == bname:
+                image=ti['imfile']
+                cat=ti['catfile']
+                break
+
+        if image is None:
+            self.stat['error'] = ERROR_SE_MISC
+            self.stat['error_string'] = \
+                "Exposure ccd '%s' not found in '%s'" % \
+                             (bname, self.infodict_file)
+            raise ValueError(self.stat['error_string'])
+        image = os.path.expandvars(image)
+        cat = os.path.expandvars(cat)
+        return image,cat
+
+
+    def get_output_filenames(self, ccd):
+        try:
+            fdict=deswl.files.generate_se_filenames(self.stat['exposurename'],
+                                                    ccd,
+                                                    serun=self.stat['serun'], 
+                                                    dir=self.stat['outdir'], 
+                                                    rootdir=self.stat['rootdir'])
+            for k in fdict:
+                fdict[k] = os.path.expandvars(fdict[k])
+            self.stat['output_files'] = fdict
+
+        except RuntimeError as e:
+            self.stat['error'] = ERROR_SE_MISC
+            self.stat['error_string'] = str(e)
+            stdout.write(self.stat['error_string']+'\n')
+            # since we cannot write to a file, just convert it
+            # to a string
+            stdout.write('%s\n' % pprint.pprint(self.stat))
+            raise e
+        except AttributeError as e:
+            self.stat['error'] = ERROR_SE_MISC
+            self.stat['error_string'] = str(e)
+            stdout.write(self.stat['error_string']+'\n')
+            stdout.write('%s\n' % pprint.pprint(self.stat))
+            raise e
+        except NameError as e:
+            self.stat['error'] = ERROR_SE_MISC
+            self.stat['error_string'] = str(e)
+            stdout.write(self.stat['error_string']+'\n')
+            stdout.write('%s\n' % pprint.pprint(self.stat))
+            raise e
+        except:
+            self.stat['error'] = ERROR_SE_UNKNOWN
+            self.stat['error_string'] = "Unexpected error: '%s'" % sys.exc_info()[0]
+            stdout.write(self.stat['error_string']+'\n')
+            stdout.write('%s\n' % self.stat)
+            raise RuntimeError(self.stat['error_string'])
+
+    def load_images(self):
+
+        stdout.write("Loading images from '%s'\n" % self.stat['image'])
+        try:
+            self.wl.load_images(self.stat['image'])
+        except RuntimeError as e:
+            # the internal routines currently throw const char* which
+            # swig is converting to runtime
+            self.stat['error'] = ERROR_SE_IO
+            self.stat['error_string'] = str(e)
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+
+    def load_catalog(self):
+
+        stdout.write("Loading catalog from '%s'\n" % self.stat['cat'])
+        try:
+            self.wl.load_catalog(self.stat['cat'])
+        except RuntimeError as e:
+            # the internal routines currently throw const char* which
+            # swig is converting to runtime
+            self.stat['error'] = ERROR_SE_IO
+            self.stat['error_string'] = str(e)
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+
+
+    def write_status(self):
+        statfile = self.stat['output_files']['stat']
+        stdout.write("Writing status file: '%s'\n" % statfile)
+        stdout.write("  error: %s\n" % self.stat['error'])
+        stdout.write("  error_string: '%s'\n" % self.stat['error_string'])
+        json_util.write(self.stat, statfile)
+
+
+    def run_findstars(self):
+        starsfile = self.stat['output_files']['stars']
+        try:
+            stdout.write("Finding stars. Will write to '%s'\n" \
+                         % starsfile)
+            self.wl.find_stars(starsfile)
+            stars_loaded=True
+        except RuntimeError as e:
+            self.stat['error'] = ERROR_SE_FINDSTARS
+            self.stat['error_string'] = str(e)
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+
+    def ensure_stars_loaded(self):
+        if not self.stars_loaded:
+            starsfile = self.stat['output_files']['stars']
+            stdout.write("Loading star cat: '%s'\n" % starsfile)
+            self.wl.load_starcat(starsfile)
+            self.stars_loaded=True
+
+    def run_measurepsf(self):
+        try:
+            self.ensure_stars_loaded() 
+            stdout.write('Measuring PSF\n')
+
+            files=self.stat['output_files']
+            stdout.write("measuring psf; Will write to: \n"
+                         "    '%s'\n"
+                         "    '%s'\n" % (files['psf'],files['fitpsf']))
+            self.wl.measure_psf(files['psf'],files['fitpsf'])
+            self.psf_loaded=True
+        except RuntimeError as e:
+            self.stat['error'] = ERROR_SE_MEASURE_PSF
+            self.stat['error_string'] = str(e)
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+    def ensure_psf_loaded(self):
+        if not self.psf_loaded:
+            files=self.stat['output_files']
+            stdout.write("Loading psf cat: '%s'\n" % files['psf'])
+            self.wl.load_psfcat(files['psf'])
+            stdout.write("Loading fitpsf: '%s'\n" % files['fitpsf'])
+            self.wl.load_fitpsf(files['fitpsf'])
+            self.psf_loaded=True
+
+    def run_shear(self):
+        try:
+            self.ensure_stars_loaded()
+            self.ensure_psf_loaded()
+            stdout.write('Measuring shear\n')
+
+            files=self.stat['output_files']
+            stdout.write("Measuring shear. Will write to '%s'\n" \
+                         % files['shear'])
+            self.wl.measure_shear(files['shear'])
+            self.shear_loaded=True
+        except RuntimeError as e:
+            self.stat['error'] = ERROR_SE_MEASURE_SHEAR
+            self.stat['error_string'] = str(e)
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+
+    def run_split(self):
+        try:
+            files=self.stat['output_files']
+
+            self.ensure_stars_loaded()
+            
+            stdout.write("splitting catalog: \n"
+                         "    '%s'\n"
+                         "    '%s'\n" % (files['stars1'],files['stars2']))
+            self.wl.split_starcat(files["stars1"],files["stars2"])
+
+
+            stdout.write("loading stars1 '%s'\n" % files['stars1'])
+            self.wl.load_starcat(files['stars1'])
+
+            stdout.write("measuring psf1; Will write to: \n"
+                         "    '%s'\n"
+                         "    '%s'\n" % (files['psf1'],files['fitpsf1']))
+            self.wl.measure_psf(files['psf1'],files['fitpsf1'])
+
+            stdout.write("Measuring shear1. Will write to '%s'\n" \
+                         % files['shear1'])
+            self.wl.measure_shear(files['shear1'])
+
+            stdout.write("loading stars2 '%s'\n" % files['stars2'])
+            self.wl.load_starcat(files['stars2'])
+
+            stdout.write("measuring psf2; Will write to: \n"
+                         "    '%s'\n"
+                         "    '%s'\n" % (files['psf2'],files['fitpsf2']))
+            self.wl.measure_psf(files['psf2'],files['fitpsf2'])
+
+            stdout.write("Measuring shear2. Will write to '%s'\n" \
+                         % files['shear2'])
+            self.wl.measure_shear(files['shear2'])
+        except RuntimeError as e:
+            self.stat['error'] = ERROR_SE_SPLIT_STARS
+            self.stat['error_string'] = str(e)
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+
+
+    def set_log(self):
+        qafile=self.stat['output_files']['qa']
+        stdout.write("Setting qa file: '%s'\n" % qafile)
+        self.wl.set_log(qafile)
+
+    def _process_ccd_types(self, types):
+        self.stars_loaded=False
+        self.psf_loaded=False
+        self.shear_loaded=False
+
+        if 'stars' in types:
+            self.run_findstars()
+
+        if 'psf' in types:
+            self.run_measurepsf()
+
+        if 'shear' in types:
+            self.run_shear() 
+
+        if 'split' in types:
+            self.run_split()
+
+    def copy_root(self):
+        """
+
+        This method does *not* change the self.stat dictionary.  This is
+        important because we don't want things like the 'outdir' to change.
+        We *might* want to eventually write a new stat file though.
+
+        """
+        # this assumes the default root, to which we will copy
+        fdict_def=\
+            deswl.files.generate_se_filenames(self.stat['exposurename'], 
+                                              self.stat['ccd'], 
+                                              serun=self.stat['serun'])
+
+
+        # see if the file is already in the destination directory.  
+        if self.stat['stat'] != fdict_def['stat']:
+
+            dirname=os.path.dirname(fdict_def['stat'])
+
+            if not os.path.exists(dirname):
+                os.makedirs(dirname)
+            # copy the files
+            rc=deswl.files.Runconfig()
+            for ftype in rc.se_filetypes:
+                f=self.stat['output_files'][ftype]
+                df=fdict_def[ftype]
+                stdout.write(' * copying %s:%s to\n    %s\n' % (hostshort,f,df))
+                if not os.path.exists(f):
+                    stdout.write('    Source file does not exist\n')
+                else:
+                    shutil.copy2(f, df)
+                    stdout.write(' * deleting %s:%s\n' % (hostshort,f,) )
+                    os.remove(f)
+
+
+
+    def process_ccd(self, ccd, **keys):
+        t0=time.time()
+        self.stat['types'] = keys.get('types',self.all_types)
+        # set file names in self.stat
+        # if this fails we can't even write the status file, so let the
+        # exceptions fall through
+        self.get_output_filenames(ccd)
+
+        self.stat['ccd'] = ccd
+
+        # ok, now we at least have the status file name to write to
+        try:
+            self.setup()
+
+            image,cat = self.get_image_cat(ccd)
+
+            self.stat['image'] = image
+            self.stat['cat'] = cat
+
+            self.load_images()
+            self.load_catalog()
+            self.set_log()
+            self._process_ccd_types(self.stat['types'])
+        except:
+            if self.stat['error'] == 0:
+                # this was an unexpected error
+                self.stat['error'] = ERROR_SE_UNKNOWN
+                self.stat['error_string'] = \
+                        "Unexpected error: '%s'" % sys.exc_info()[0]
+            else:
+                # we caught this exception already and set an
+                # error state.  Just proceed and write the status file
+                pass
+
+        self.write_status()
+        if self.stat['copyroot']:
+            self.copy_root()
+        ptime(time.time() - t0, format='Time to process ccd: %s\n')
+
+
+    def process_ccds(self, **keys):
+        t0=time.time()
+        for ccd in xrange(1,62+1):
+            self.process_ccd(ccd, **keys)
+        ptime(time.time() - t0, format='Time for all 62 ccds: %s\n')
+
+
 def run_shear(exposurename, 
               ccd=None,
+              types=None,
               config_file=None,
               outdir=None, 
               rootdir=None,
@@ -989,6 +1502,7 @@ def run_shear(exposurename,
 
     deswl.wlpipe.run_shear(exposurename, 
                            ccd=None,
+                           types=None,
                            config_file=None,
                            outdir=None, 
                            rootdir=None,
@@ -1015,6 +1529,8 @@ def run_shear(exposurename,
 
     Optional parameters:
         ccd: The ccd number from 1-62.
+        types: A list of the types of processing to perform.  Default is
+            all: stars,psf,shear,split
         config_file: The path to the config file.  Defaults to 
             $WL_DIR/etc/wl.config
         outdir: The output directory.  Default '.'.  If serun is sent the
@@ -1043,6 +1559,7 @@ def run_shear(exposurename,
         tmall0=time.time()
         for ccd in range(1,62+1):
             run_shear(exposurename, ccd,
+                      types=types,
                       config_file=config_file,
                       outdir=outdir, 
                       rootdir=rootdir,
@@ -1060,6 +1577,8 @@ def run_shear(exposurename,
 
     tm1=time.time()
 
+    if types is None:
+        types=['stars','psf','shear','split']
 
     band=getband_from_exposurename(exposurename)
 
@@ -1165,6 +1684,7 @@ def run_shear(exposurename,
     stat['exposurename'] = exposurename
     stat['ccd'] = ccd
     stat['outdir'] = outdir
+    stat['types'] = types
     if rootdir is None:
         rootdir=getenv_check('DESDATA')
     stat['rootdir'] = rootdir
@@ -1216,7 +1736,7 @@ def run_shear(exposurename,
 
     # need to write one of these for se
     #exit_status = process_se_image(fdict, writelog=writelog, debug=debug)
-    exit_status = do_fullpipe(fdict, writelog=writelog, debug=debug)
+    exit_status = run_se_pipe(types, fdict, writelog=writelog, debug=debug)
 
     
     stat['exit_status'] = exit_status

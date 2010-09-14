@@ -53,6 +53,12 @@ void CWL::set_param(string key, string value) throw (const char*) {
     this->params[key] = value;
 }
 
+void CWL::set_log(string logfile) {
+    this->stars_logfile=logfile;
+    this->psf_logfile=logfile;
+    this->shear_logfile=logfile;
+}
+
 void CWL::print_config() {
   std::cout<<this->params;
 }
