@@ -21,8 +21,6 @@ parser.add_option("--serun", default=None,
 parser.add_option("-c","--config", default=None,
                   help="Where the wl.config is located")
 
-#parser.add_option("--dataset", default=None,
-#                  help="dataset. e.g. 'dc4'")
 
 parser.add_option("--outdir", default=None,
                   help="Where to place the output file. Default "
@@ -33,15 +31,19 @@ parser.add_option("--rootdir", default=None,
     help="Specify the data root directory. Default $DESDATA")
 parser.add_option("--copyroot", action='store_true', default=False,
     help="Copy output files to the default path under $DESDATA")
-#parser.add_option("--cleanup", action='store_true', default=False,
-# help="If copyroot and cleanup then the local copy of each output is deleted.")
-
-#parser.add_option("--nodots", action='store_true', default=False,
-# help="Don't print progress dots.")
 
 parser.add_option("-t","--types",default="stars,psf,shear,split",
                   help="Comma separated list indicating which"
                        " types of processing to perform.  Default %default")
+
+#parser.add_option("--dataset", default=None,
+#                  help="dataset. e.g. 'dc4'")
+#parser.add_option("--cleanup", action='store_true', default=False,
+# help="If copyroot and cleanup then the local copy of each output is deleted.")
+
+parser.add_option("--nodots", action='store_true', default=False,
+                  help="Don't print progress dots.")
+
 
 #parser.add_option("--writelog", action='store_true', default=False,
 # help="Write QS/STATUS messages to a QA log file")
@@ -70,10 +72,10 @@ rootdir = options.rootdir
 copyroot=options.copyroot
 config_file=options.config
 types = types.split(',')
+nodots=options.nodots
 
 #cleanup=options.cleanup
 #dataset=options.dataset
-#nodots=options.nodots
 #writelog=options.writelog
 #debug=options.debug
 
@@ -83,7 +85,8 @@ ep = deswl.wlpipe.ExposureProcessor(exposurename,
                                     config=config_file,
                                     outdir=outdir,
                                     copyroot=copyroot,
-                                    rootdir=rootdir)
+                                    rootdir=rootdir,
+                                    nodots=nodots)
 
 if ccd is None:
     ep.process_ccds(types=types)

@@ -9,6 +9,8 @@ from esutil.ostools import path_join, getenv_check
 import pprint
 import deswl
 
+# for separating file elements
+file_el_sep = '-'
 
 class Runconfig(object):
     def __init__(self, run=None):
@@ -99,17 +101,30 @@ class Runconfig(object):
 
         i=0
         run_name=self._run_name_from_type_number(run_type, i, test=test)
+        run_name_old=self._run_name_from_type_number_old(run_type, i, test=test)
+
         fullpath=self.getpath(run_name)
-        while os.path.exists(fullpath):
+        fullpath_old=self.getpath(run_name_old)
+        while os.path.exists(fullpath) or os.path.exists(fullpath_old):
             i+=1
             run_name=self._run_name_from_type_number(run_type, i, test=test)
+            run_name_old=self._run_name_from_type_number_old(run_type, i, test=test)
             fullpath=self.getpath(run_name)
+            fullpath_old=self.getpath(run_name_old)
 
         return run_name
 
-    def _run_name_from_type_number(self, run_type, number, test=False):
+    def _run_name_from_type_number_old(self, run_type, number, test=False):
         if test:
             name='%stest%04i' % (run_type, number)
+        else:
+            name='%s%04i' % (run_type, number)
+        return name
+
+
+    def _run_name_from_type_number(self, run_type, number, test=False):
+        if test:
+            name='%s%04it' % (run_type, number)
         else:
             name='%s%04i' % (run_type, number)
         return name
@@ -119,6 +134,7 @@ class Runconfig(object):
                                run_type, 
                                dataset, 
                                wl_config,
+                               run_name=None,
                                localid=None, 
                                test=False, 
                                dryrun=False, 
@@ -145,6 +161,8 @@ class Runconfig(object):
             wl_config: Location of the weak lensing config you want to use
                 for this run.
         Keywords:
+            run_name: e.g. wlse0003 or wlse0007t.  If not sent, will be
+                generated.
             localid: Required for wlme runs.  What is this again?
             test: If true, this is a test run and gets a prefix {run_type}test
             dryrun: If true, just show what would have been written to the file.
@@ -162,7 +180,8 @@ class Runconfig(object):
                 raise RuntimeError("You must send localid= for wlme runs")
 
 
-        run_name=self.generate_new_runconfig_name(run_type, test=test)
+        if run_name is None:
+            run_name=self.generate_new_runconfig_name(run_type, test=test)
 
         fileclass = self.run_types[run_type]['fileclass']
         filetype = self.run_types[run_type]['filetype']
@@ -430,7 +449,7 @@ def wlse_basename(exposurename, ccd, ftype,
     if serun is not None:
         el=[serun]+el
 
-    basename='_'.join(el) + fext
+    basename=file_el_sep.join(el) + fext
     return basename
 
 
@@ -604,6 +623,8 @@ def wlme_dir(merun, tilename, rootdir=None):
     wldir=os.path.join(rundir, tilename)
     return wldir
 
+
+
 def wlme_basename(tilename, band, ftype, merun=None, extra=None, ext=None):
     """
     basename for multi-epoch weak lensing output files
@@ -625,7 +646,7 @@ def wlme_basename(tilename, band, ftype, merun=None, extra=None, ext=None):
     if extra is not None:
         name.append(extra)
 
-    name='_'.join(name)+ext
+    name=file_el_sep.join(name)+ext
     return name
 
 
