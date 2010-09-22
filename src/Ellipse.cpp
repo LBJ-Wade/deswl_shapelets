@@ -105,7 +105,7 @@ void Ellipse::doMeasureShapelet(
     const double sqrtEps = sqrt(std::numeric_limits<double>::epsilon());
     A.svd().thresh(sqrtEps);
     dbg<<"For MeasureShapelet: svd = "<<A.svd().getS().diag()<<std::endl;
-    if (A.svd().getKMax() < A.rowsize())
+    if (A.svd().getKMax() < int(A.rowsize()))
         dbg<<"Omitting last "<<A.rowsize()-A.svd().getKMax()<<" singular values\n";
     b.vec().subVector(0,bSize) = I/A;
     b.vec().subVector(bSize,b.size()).setZero();

@@ -413,7 +413,7 @@ void Function2D::doSimpleFit(
     const int nVals = vals.size();
 
     Assert(int(f->size()) == size);
-    Assert(!diff || diff->size() == nVals);
+    Assert(!diff || int(diff->size()) == nVals);
     Assert(!cov || 
            (int(cov->TMV_colsize()) == size && int(cov->TMV_rowsize()) == size));
 

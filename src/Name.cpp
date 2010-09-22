@@ -111,8 +111,17 @@ std::string makeName(
 
     if (params.keyExists((what+"_file"))) {
         xdbg<<(what+"_file")<<" parameter exists, so use that.\n";
-        std::string name = params[what+"_file"];
-        int extNum = findExtNum(extList,name);
+	xdbg<<"value = "<<params[what+"_file"];
+	std::vector<std::string> multiname = params[what+"_file"];
+	xdbg<<"multiname.size = "<<multiname.size()<<std::endl;
+	if (multiname.size() == 0) {
+	    throw ParameterException(
+		std::string("Name for ") + what + "_file " +
+		"parses as a vector with no elements");
+	}
+	std::string name = multiname[0];
+	xdbg<<"name = "<<name<<std::endl;
+	int extNum = findExtNum(extList,name);
         if (!mustExist || doesFileExist(name)) {
             // File exists or doesn't need to.
             xdbg<<"name = "<<name<<std::endl;

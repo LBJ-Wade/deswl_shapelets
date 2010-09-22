@@ -580,49 +580,49 @@ void InputCatalog::readAscii(std::string file, std::string delim)
 }
 
 void InputCatalog::printall(int i) {
-  if (_id.size() > i) {
+  if (int(_id.size()) > i) {
     std::cout<<"  InputCatalog::printall id["<<i<<"]: "<<_id[i]<<"\n";
   } else {
     std::cout<<"  InputCatalog::printall index "<<i<<" is larger than id.size\n";
   }
 
-  if (_pos.size() > i) {
+  if (int(_pos.size()) > i) {
     std::cout<<"  InputCatalog::printall pos["<<i<<"]: "<<_pos[i]<<"\n";
   } else {
     std::cout<<"  InputCatalog::printall index "<<i<<" is larger than pos.size\n";
   }
 
-  if (_sky.size() > i) {
+  if (int(_sky.size()) > i) {
     std::cout<<"  InputCatalog::printall sky["<<i<<"]: "<<_sky[i]<<"\n";
   } else {
     std::cout<<"  InputCatalog::printall index "<<i<<" is larger than sky.size\n";
   }
 
-  if (_mag.size() > i) {
+  if (int(_mag.size()) > i) {
     std::cout<<"  InputCatalog::printall mag["<<i<<"]: "<<_mag[i]<<"\n";
   } else {
     std::cout<<"  InputCatalog::printall index "<<i<<" is larger than mag.size\n";
   }
 
-  if (_magErr.size() > i) {
+  if (int(_magErr.size()) > i) {
     std::cout<<"  InputCatalog::printall magErr["<<i<<"]: "<<_magErr[i]<<"\n";
   } else {
     std::cout<<"  InputCatalog::printall index "<<i<<" is larger than magErr.size\n";
   }
 
-  if (_objSize.size() > i) {
+  if (int(_objSize.size()) > i) {
     std::cout<<"  InputCatalog::printall objSize["<<i<<"]: "<<_objSize[i]<<"\n";
   } else {
     std::cout<<"  InputCatalog::printall index "<<i<<" is larger than objSize.size\n";
   }
 
-  if (_flags.size() > i) {
+  if (int(_flags.size()) > i) {
     std::cout<<"  InputCatalog::printall flags["<<i<<"]: "<<this->_flags[i]<<"\n";
   } else {
     std::cout<<"  InputCatalog::printall index "<<i<<" is larger than flags.size\n";
   }
 
-  if (_noise.size() > i) {
+  if (int(_noise.size()) > i) {
     std::cout<<"  InputCatalog::printall noise["<<i<<"]: "<<this->_noise[i]<<"\n";
   } else {
     std::cout<<"  InputCatalog::printall index "<<i<<" is larger than noise.size\n";

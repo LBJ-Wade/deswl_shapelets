@@ -55,7 +55,7 @@ public :
     int getOrder() const { return _order; }
     double getSigma() const { return _sigma; }
     const DVector& getValues() const { return _b; }
-    int size() const { return _b.size(); }
+    size_t size() const { return _b.size(); }
 
     void setSigma(double sigma) { _sigma = sigma; }
 

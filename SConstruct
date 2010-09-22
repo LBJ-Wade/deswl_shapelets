@@ -580,15 +580,6 @@ def DoLibraryAndHeaderChecks(config):
         if not config.CheckHeader('TMV.h',language='C++'):
             print 'TMV.h not found'
             Exit(1)
-        if not config.CheckLibWithHeader('tmv','TMV.h',language='C++',autoadd=0):
-            print 'tmv library or TMV.h not found'
-            Exit(1)
-        junk="""
-        if not config.CheckLibWithHeader('tmv_symband','TMV_Sym.h',language='C++',
-                autoadd=0):
-            print 'tmv_symband library not found'
-            Exit(1)
-        """
 
         compiler = config.env['CXXTYPE']
         version = config.env['CXXVERSION_NUMERICAL']

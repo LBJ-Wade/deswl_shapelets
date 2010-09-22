@@ -88,9 +88,9 @@ private :
     Bounds _bounds;
     Bounds _skyBounds;
 
-    const ConfigFile& _params;
     const Transformation* _trans;
     const FittedPsf* _fitPsf;
+    const ConfigFile& _params;
 
 };
 
