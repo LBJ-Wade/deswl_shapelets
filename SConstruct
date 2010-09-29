@@ -433,7 +433,7 @@ def ReadFileList(fname):
 
 def CheckLibs(context,try_libs,source_file):
     init_libs = context.env['LIBS']
-    context.env.Prepend(LIBS=try_libs)
+    context.env.PrependUnique(LIBS=try_libs)
     result = context.TryLink(source_file,'.cpp')
     if not result :
         context.env.Replace(LIBS=init_libs)
@@ -462,7 +462,8 @@ int main()
 
     if not CheckLibs(context,['tmv_symband','tmv'],tmv_source_file):
         # If that didn't work, we might need to add the openmp flag to the 
-        # linking step.
+        # linking step, since scons's MergeFlags function doesn't seem 
+        # to recognize it, so it gets ignored.
         if not env['WITH_OPENMP']:
             env1 = context.env.Clone()
             AddOpenMPFlag(env1)
@@ -588,7 +589,7 @@ def DoLibraryAndHeaderChecks(config):
             config.env['LIBS'] = []
     
         tmv_link_file = FindTmvLinkFile(config)
-    
+
         print 'Using TMV_LINK file:',tmv_link_file
         try:
             tmv_link = open(tmv_link_file).read().strip()
@@ -596,7 +597,22 @@ def DoLibraryAndHeaderChecks(config):
             print 'Could not open TMV link file: ',tmv_link_file
             Exit(1)
         print '    ',tmv_link
-        config.env.Append(LINKFLAGS=tmv_link)
+
+        # Use a clone so we can clear out the relevant values and then
+        # append the new values to the current values. 
+        # This is mostly necessary to get the things MergeFlags parses as 
+        # CCFLAGS into LINKFLAGS where they actually below.  
+        # But might as well do the same to LIBPATH and LIBS as well.
+        env1 = config.env.Clone()
+        env1.Replace(CCFLAGS=[])
+        env1.Replace(LINKFLAGS=[])
+        env1.Replace(LIBS=[])
+        env1.Replace(LIBPATH=[])
+        env1.MergeFlags(tmv_link)
+        config.env.PrependUnique(LINKFLAGS=env1['LINKFLAGS'])
+        config.env.PrependUnique(LINKFLAGS=env1['CCFLAGS'])
+        config.env.PrependUnique(LIBPATH=env1['LIBPATH'])
+        config.env.PrependUnique(LIBS=env1['LIBS'])
 
         config.CheckTMV()
         config.env.Append(CPPDEFINES=['USE_TMV'])

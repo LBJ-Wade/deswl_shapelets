@@ -14,7 +14,7 @@ __thread bool XDEBUG=false;
 //std::ostream* dbgout=&std::cout;
 //bool XDEBUG=true;
 std::ostream* dbgout=0;
-bool XDEBUG=false
+bool XDEBUG=false;
 #endif
 
 
