@@ -1,4 +1,5 @@
 """
+    vim: set ft=python:
     Order of doing things for SE image processing:
 
         For DC4 (dc5 things are a *little* easier)
@@ -297,9 +298,20 @@ def find_collated_redfiles(dataset, band):
 
     dataset is just a label, in fact everything from the disk is lumped
     together.  Need a way to distinguish the old from the new.
+
+    Note if dataset is dc4new, the old dc4 is read and that is used
+    as the basis.  This is because we don't have any other way right
+    not to distinguish dc4 and dc5 files.  Also, dc4new is really
+    just some reformatting of that list
     """
 
-    flist = get_matched_red_image_catlist(band)
+    if dataset == 'dc4new':
+        stdout.write("Bootstrapping off of 'dc4'\n")
+        fl = deswl.files.collated_redfiles_read('dc4',band)
+        flist = fl['flist']
+    else:
+        flist = get_matched_red_image_catlist(band)
+
 
     DESDATA=deswl.files.des_rootdir()
     infolist=[]
@@ -430,7 +442,7 @@ def execute_command(command, timeout=None,
 
 
 def generate_se_checkpsf_pbsfile(serun, exposurename, outfile,
-                                 nodes=1, ppn=1, walltime='1:00:00'):
+                                 nodes=1, ppn=1, walltime='24:00:00'):
 
     """
     """
@@ -551,7 +563,7 @@ done
 
 
 def generate_se_pbsfile(serun, exposurename, outfile, ccd=None,
-                        nodes=1, ppn=8, walltime='4:00:00'):
+                        nodes=1, ppn=8, walltime='24:00:00'):
 
     """
     """
@@ -631,10 +643,11 @@ source /global/data/products/eups/bin/setups.sh
     fobj.write('%s\n' % tmv_setup)
     fobj.write('%s\n' % esutil_setup)
 
-    fobj.write("\nshear-run    \\\n")
+    fobj.write("\nshear-run       \\\n")
     fobj.write('    --serun=%s    \\\n' % serun)
-    fobj.write('    --rootdir=%s  \\\n' % scratch_rootdir)
-    fobj.write('    --copyroot    \\\n')
+    #fobj.write('    --rootdir=%s  \\\n' % scratch_rootdir)
+    #fobj.write('    --copyroot    \\\n')
+    fobj.write('    --nodots      \\\n')
     fobj.write('    %s %s &> "$logf"\n' % (exposurename,ccd))
 
     fobj.write('\n')
@@ -1264,7 +1277,7 @@ class ExposureProcessor:
             self.wl.split_starcat(files["stars1"],files["stars2"])
 
 
-            stdout.write("\nLoading stars1 '%s'\n" % files['stars1'])
+            stdout.write("\nLoading stars1 \n'%s'\n" % files['stars1'])
             stdout.flush()
             self.wl.load_starcat(files['stars1'])
 
@@ -1274,12 +1287,12 @@ class ExposureProcessor:
             stdout.flush()
             self.wl.measure_psf(files['psf1'],files['fitpsf1'])
 
-            stdout.write("\nMeasuring shear1. Will write to '%s'\n" \
+            stdout.write("\nMeasuring shear1. Will write to \n'%s'\n" \
                          % files['shear1'])
             stdout.flush()
             self.wl.measure_shear(files['shear1'])
 
-            stdout.write("\n\nLoading stars2 '%s'\n" % files['stars2']); stdout.flush()
+            stdout.write("\n\nLoading stars2 \n'%s'\n" % files['stars2']); stdout.flush()
             self.wl.load_starcat(files['stars2'])
 
             stdout.write("measuring psf2; Will write to: \n"
@@ -1288,7 +1301,7 @@ class ExposureProcessor:
             stdout.flush()
             self.wl.measure_psf(files['psf2'],files['fitpsf2'])
 
-            stdout.write("Measuring shear2. Will write to '%s'\n" \
+            stdout.write("Measuring shear2. Will write to \n'%s'\n" \
                          % files['shear2'])
             stdout.flush()
             self.wl.measure_shear(files['shear2'])
@@ -1306,10 +1319,6 @@ class ExposureProcessor:
         self.wl.set_log(qafile)
 
     def _process_ccd_types(self, types):
-        outdir=self.stat['outdir']
-        if not os.path.exists(outdir):
-            stdout.write("Creating output dir: '%s'\n" % outdir)
-            os.makedirs(outdir)
 
         self.stars_loaded=False
         self.psf_loaded=False
@@ -1356,20 +1365,22 @@ class ExposureProcessor:
                 f=self.stat['output_files'][ftype]
                 df=fdict_def[ftype]
                 hostshort=self.stat['hostname'].split('.')[0]
-                stdout.write(' * copying %s:%s to\n    %s\n' % (hostshort,f,df))
+                stdout.write(' * moving %s:%s to\n    %s\n' % (hostshort,f,df))
                 if not os.path.exists(f):
                     stdout.write('    Source file does not exist\n')
                     stdout.flush()
                 else:
                     shutil.copy2(f, df)
-                    stdout.write(' * deleting %s:%s\n' % (hostshort,f,) )
-                    stdout.flush()
                     os.remove(f)
 
 
 
     def process_ccd(self, ccd, **keys):
         t0=time.time()
+
+        self.stat['error']        = 0
+        self.stat['error_string'] = ''
+
         self.stat['types'] = keys.get('types',self.all_types)
         # set file names in self.stat
         # if this fails we can't even write the status file, so let the
@@ -1380,6 +1391,7 @@ class ExposureProcessor:
 
         # ok, now we at least have the status file name to write to
         try:
+            stdout.write('-'*72 + '\n')
             self.setup()
 
             image,cat = self.get_image_cat(ccd)
@@ -1387,6 +1399,8 @@ class ExposureProcessor:
             self.stat['image'] = image
             self.stat['cat'] = cat
 
+
+            self.make_output_dir()
             self.load_images()
             self.load_catalog()
             self.set_log()
@@ -1401,12 +1415,17 @@ class ExposureProcessor:
                 # we caught this exception already and set an
                 # error state.  Just proceed and write the status file
                 pass
-
+        
         self.write_status()
         if self.stat['copyroot']:
             self.copy_root()
         ptime(time.time() - t0, format='Time to process ccd: %s\n')
 
+    def make_output_dir(self):
+        outdir=self.stat['outdir']
+        if not os.path.exists(outdir):
+            stdout.write("Creating output dir: '%s'\n" % outdir)
+            os.makedirs(outdir)
 
     def process_ccds(self, **keys):
         t0=time.time()
@@ -1759,12 +1778,18 @@ def check_shear(serun, band, rootdir=None, outdir=None):
                 break
             if ftype == 'stat':
                 stat=json_util.read(fpath)
-                exit_status = int( stat['error'] )
-                if exit_status != 0:
-                    stdout.write("error found: %s\n" % exit_status)
+
+                error_code = int( stat['error'] )
+                estring = stat['error_string']
+                info['error'] = error_code
+                info['error_string'] = estring
+
+                if error_code != 0:
+                    stdout.write("'%s': error: %s: '%s'\n" % (fpath,error_code,estring))
                     info['failtype'] = 'error'
                     problem_found=True
                     badlist.append(info)
+
         if not problem_found:
             goodlist.append(info)
 
@@ -2087,7 +2112,7 @@ def _make_setup_command(prodname, vers):
     return setup_command
 
 def generate_me_pbsfile(merun, tilename, band, outfile,
-                        nodes=1, ppn=8, walltime='2:00:00'):
+                        nodes=1, ppn=8, walltime='24:00:00'):
 
     # the job name
     jobname=tilename+'-'+band

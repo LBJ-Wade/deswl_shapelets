@@ -184,9 +184,14 @@ void InputCatalog::read()
     if (_params.read("des_qa",false)) {
         int minRows = _params.read("cat_nrows",0);
         if (nRows <= minRows) {
-            std::cout<<"STATUS3BEG Warning: Input catalog only has "
-                <<nRows<<" rows for Name="<<makeName(_params,"cat",true,false)
-                <<". STATUS3END"<<std::endl;
+            try {
+                std::cout<<"STATUS3BEG Warning: Input catalog only has "
+                    <<nRows<<" rows for Name="<<makeName(_params,"cat",true,false)
+                    <<". STATUS3END"<<std::endl;
+            } catch (AssertFailureException& e) {
+                std::cout<<"STATUS3BEG Warning: Input catalog only has "
+                    <<nRows<<" rows. STATUS3END"<<std::endl;
+            }
         }
     }
 

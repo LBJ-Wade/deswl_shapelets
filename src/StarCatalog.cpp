@@ -326,11 +326,18 @@ int StarCatalog::findStars(FindStarsLog& log)
 
     if (_params.read("des_qa",false)) {
         if (count < 100) {
-            std::cout
-                << "STATUS3BEG Warning: Only "<<count
-                << " stars found for Name="
-                << makeName(_params,"stars",false,false)
-                << ". STATUS3END"<<std::endl;
+            try {
+                std::cout
+                    << "STATUS3BEG Warning: Only "<<count
+                    << " stars found for Name="
+                    << makeName(_params,"stars",false,false)
+                    << ". STATUS3END"<<std::endl;
+            } catch (AssertFailureException& e) {
+                std::cout
+                    << "STATUS3BEG Warning: Only "<<count
+                    << " stars found. STATUS3END"<<std::endl;
+            }
+
         }
     }
 
