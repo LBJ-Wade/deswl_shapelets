@@ -132,7 +132,6 @@ void calculateMuTransform(double mu, int order, DMatrix& D)
     // The easiest recursion for the D_mu matrix is not actually
     // the one found in BJ02.  Rather, I use the following:
     // D(00,pq) = e^mu sech(mu) (-tanh(mu))^q delta_pq
-    //   where pCq is the binomial coefficient.
     // D(s0,pq) = 1/sqrt(s) sech(mu) sqrt(p) D(s-10,p-1q)
     // D(st,pq) = 1/sqrt(t) [ sech(mu) sqrt(q) D(st-1,pq-1)
     //                        + tanh(mu) sqrt(s) D(s-1t-1,pq) ]
@@ -209,7 +208,6 @@ void augmentMuTransformRows(double mu, int order, DMatrix& D)
     // The easiest recursion for the D_mu matrix is not actually
     // the one found in BJ02.  Rather, I use the following:
     // D(00,pq) = e^mu sech(mu) (-tanh(mu))^q delta_pq
-    //   where pCq is the binomial coefficient.
     // D(s0,pq) = 1/sqrt(s) sech(mu) sqrt(p) D(s-10,p-1q)
     // D(st,pq) = 1/sqrt(t) [ sech(mu) sqrt(q) D(st-1,pq-1)
     //                        + tanh(mu) sqrt(s) D(s-1t-1,pq) ]

@@ -15,9 +15,12 @@
 // Each row is a pixel.
 // The columns correspond to each psi index (see above).
 // The input z vector has the position of each pixel.
-// The optional coeff parameter specifies a coefficient to multiple each row.
+// The optional coeff parameter specifies a coefficient to multiply each row.
 void makePsi(
     DMatrix& psi, CDVectorView z, int order, const DVector* coeff=0);
+
+// Same thing, but for a single pixel.
+void makePsi(DVector& psi, std::complex<double> z, int order);
 
 // Add some more columns to a psi matrix for two more radial orders.
 // The order is the original order of the matrix.

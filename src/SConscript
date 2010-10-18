@@ -47,6 +47,7 @@ header_install_dir = os.path.join(env['PREFIX'], 'include')
 
 libwl_files = ReadFileList('wl_files.txt')
 libwl_omp_files = ReadFileList('wl_omp_files.txt')
+libgary_files = ReadFileList('gary_files.txt')
 
 env1 = env.Clone()
 
@@ -62,14 +63,20 @@ if env['WITH_OPENMP']:
 # Library file containing generic code
 obj_lib = env1.StaticObject(libwl_files)
 obj_omp_lib = env2.StaticObject(libwl_omp_files)
+obj_gary = env1.StaticObject(libgary_files)
 
 
 libwl = env.StaticLibrary('#lib/wl',obj_lib+obj_omp_lib)
+
 lib_targets = [libwl]
 
+libgary = env.StaticLibrary('#lib/gary',obj_gary)
 
 # Use env2 for these, since we have openmp stuff in the BasicSetup function.
 env2.Prepend(LIBS=['wl'])
+
+env3 = env2.Clone()
+env3.Prepend(LIBS=['gary'])
 
 measurepsf = env2.Program('measurepsf', 'MeasurePsf.cpp')
 
@@ -81,7 +88,7 @@ multishear = env2.Program('multishear', 'MeasureMultiShear.cpp')
 
 fullpipe = env2.Program('fullpipe', 'FullPipeline.cpp')
 
-testwl = env2.Program('testwl', 'TestWL.cpp')
+testwl = env3.Program('testwl', 'TestWL.cpp')
 
 testnl = env2.Program('testnl', 'TestNL.cpp')
 

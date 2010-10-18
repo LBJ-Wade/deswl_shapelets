@@ -15,6 +15,7 @@
 #include "PsfCatalog.h"
 #include "FittedPsf.h"
 #include "ShearCatalog.h"
+#include "PsiHelper.h"
 
 #ifdef _OPENMP
 #include "omp.h"
@@ -31,12 +32,13 @@ std::ostream* dbgout = 0;
 bool XDEBUG = true;
 //bool XDEBUG = false;
 
-//#define TEST1
-//#define TEST2
-#define TEST3
-//#define TEST4
-//#define TEST5
-//#define TEST6
+//#define TEST1  // Basic measurements, ApplyZ/G/Mu
+//#define TEST2  // Deconvolving measurements, PsfConvolve
+//#define TEST3  // Solve for Ellipse -- single image
+//#define TEST4  // Solve for Ellipse -- multiple images
+//#define TEST5  // Use Ellipse's measure function
+//#define TEST6  // Test on real data images
+#define TEST7   // Compare with Gary's shapelet code
 
 #ifdef TEST1
 #define TEST12
@@ -63,10 +65,32 @@ bool XDEBUG = true;
 #define TEST12345
 #endif
 
+#ifdef TEST7
+#include "gary/Laguerre.h"
+
+template <class T>
+tmv::Vector<T> convertVector(const mv::Vector<T>& v1)
+{
+    tmv::Vector<T> v2(v1.size());
+    for(int i=0;i<int(v1.size());++i)
+        v2(i) = v1[i];
+    return v2;
+}
+template <class T>
+tmv::Matrix<T> convertMatrix(const mv::Matrix<T>& m1)
+{
+    tmv::Matrix<T,tmv::RowMajor> m2(m1.getM(),m1.getN());
+    for(int i=0;i<int(m1.getM());++i)
+        for(int j=0;j<int(m1.getN());++j) 
+            m2(i,j) = m1(i,j);
+    return m2;
+}
+#endif
+
 // The tests of the jacobians are pretty time consuming.
 // They are worth testing, but once the code is working, I usually turn
 // turn them off (by commenting out the next line) to save time.
-#define TESTJ
+//#define TESTJ
 
 inline void getFakePixList(
     PixelList& pix,
@@ -933,7 +957,7 @@ int main(int argc, char **argv) try
                 xdbg<<"b(predicted) = "<<b0.vec()<<std::endl;
                 dbg<<"diff for z = "<<z1<<" = "<<
                     (b0.vec()-b1.vec()).norm()<<std::endl;
-                test((b1.vec()-b0.vec()).norm() < EPS*b0.vec().norm(),"ApplyZ 1");
+                test((b1.vec()-b0.vec()).norm() < EPS*b0.vec().norm(),"applyZ 1");
                 x1 = x0;
                 x1[0] -= std::real(
                     z1 + g0*std::conj(z1))*exp(m0)/sqrt(1.-normg0);
@@ -944,7 +968,7 @@ int main(int argc, char **argv) try
                 applyZ(-z1,b0=b0save);
                 dbg<<"diff for z = "<<-z1<<" = "<<
                     (b0.vec()-b1.vec()).norm()<<std::endl;
-                test((b1.vec()-b0.vec()).norm() < EPS*b0.vec().norm(),"ApplyZ 2");
+                test((b1.vec()-b0.vec()).norm() < EPS*b0.vec().norm(),"applyZ 2");
 
                 double m1(0.2);
                 x1 = x0;
@@ -1097,11 +1121,11 @@ int main(int argc, char **argv) try
             }
         }
     }
-    std::cout<<"Passed tests of ApplyZ, G, Mu and basic measurements\n";
+    std::cout<<"Passed tests of applyZ, G, Mu and basic measurements\n";
 #endif
 
 #ifdef TEST2
-    // Next test calculatePSFConvolve
+    // Next test calculatePsfConvolve
     for(int stype = 0; stype<=1; ++stype) {
         dbg<<"Start stype = "<<stype<<std::endl;
         for(int ie = 0; ie < NELL; ++ie) {
@@ -1153,7 +1177,7 @@ int main(int argc, char **argv) try
                     BVec c0x(8,sigma_o);
                     DirectConvolveB(b0,bpsf,c0x);
                     test((c0.vec()-c0x.vec()).norm() < EPS*c0.vec().norm(),
-                         "PSFConvolve");
+                         "PsfConvolve");
 
                     // be is the galaxy in ell fram:
                     allpix.resize(1);
@@ -1352,7 +1376,7 @@ int main(int argc, char **argv) try
             }
         }
     }
-    std::cout<<"Passed tests of PSFConvolve and deconvolving measurements.\n";
+    std::cout<<"Passed tests of PsfConvolve and deconvolving measurements.\n";
 #endif
 
 #ifdef TEST3
@@ -2079,6 +2103,94 @@ int main(int argc, char **argv) try
     params["shear_ext"] = all_ext;
 
     std::cout<<"Passed full pipeline\n";
+#endif
+
+#ifdef TEST7
+    {
+        int order = 2;
+        int orderSize = (order+1)*(order+2)/2;
+
+        // First lets make sure we understand Gary's LVector class:
+        laguerre::LVector garyB(order);
+        garyB.set(0,0,1.);
+        garyB.set(1,0,std::complex<double>(0.4,0.7));
+        garyB.set(2,0,std::complex<double>(0.1,0.2));
+        garyB.set(1,1,0.3);
+        
+        BVec myB(order,1.);
+        myB(0) = 1.;
+        myB(1) = 0.4;
+        myB(2) = 0.7;
+        myB(3) = 0.1;
+        myB(4) = 0.2;
+        myB(5) = 0.3;
+
+        // Now check I(x,y)
+        double x = -0.23;
+        double y = 0.51;
+
+        mv::DVector garyPsi = garyB.realPsi(order,x,y,laguerre::Ellipse());
+        double garyIxy = garyPsi * garyB.rVector();
+        // Gary normalizes his shapelets by 1/2Pi rather than 1/sqrt(Pi).
+        garyIxy *= 2.*sqrtpi;
+        //std::cout<<"Gary's I("<<x<<','<<y<<") = "<<garyIxy<<std::endl;
+        //std::cout<<"psi = "<<garyPsi * (2.*sqrtpi)<<std::endl;
+        //std::cout<<"b = "<<garyB.rVector()<<std::endl;
+
+        tmv::Vector<double> myPsi(orderSize);
+        makePsi(myPsi,std::complex<double>(x,y),order);
+        double myIxy = myPsi * myB.vec();
+        //std::cout<<"My I("<<x<<','<<y<<") = "<<myIxy<<std::endl;
+        //std::cout<<"psi = "<<myPsi<<std::endl;
+        //std::cout<<"b = "<<myB.vec()<<std::endl;
+        test(Norm(myB.vec() - convertVector(garyB.rVector())) <= 1.e-5,
+             "compare makePsi with Gary's realPsi");
+
+        // Compare Gary's MakeLTransform to my calculateZTransform
+        std::complex<double> z(0.71,0.32);
+        laguerre::Position<double> garyZ(std::real(z),std::imag(z));
+        laguerre::LTransform garyZTransform = 
+            laguerre::MakeLTransform(garyZ,order,order,true);
+        mv::DMatrix garyZMatrix = garyZTransform.rMatrix();
+        std::cout<<"Gary's Z Transform = "<<
+            convertMatrix(garyZMatrix)<<std::endl;
+        tmv::Matrix<double> myZMatrix(orderSize,orderSize);
+        calculateZTransform(z,order,myZMatrix);
+        std::cout<<"My Z Transform = "<<myZMatrix<<std::endl;
+        std::cout<<"Norm(diff) = "<<
+            Norm(myZMatrix - convertMatrix(garyZMatrix))<<std::endl;
+   
+        // Compare Gary's MakeLTransform to my calculateMuTransform
+        double mu = 0.01;
+        laguerre::LTransform garyMuTransform = 
+            laguerre::MakeLTransform(mu,order,order,true);
+        mv::DMatrix garyMuMatrix = garyMuTransform.rMatrix();
+        std::cout<<"Gary's Mu Transform = "<<
+            convertMatrix(garyMuMatrix)<<std::endl;
+        tmv::Matrix<double> myMuMatrix(orderSize,orderSize);
+        calculateMuTransform(mu,order,myMuMatrix);
+        std::cout<<"My Mu Transform = "<<myMuMatrix<<std::endl;
+        std::cout<<"Norm(diff) = "<<
+            Norm(myMuMatrix - convertMatrix(garyMuMatrix))<<std::endl;
+
+        // Compare Gary's MakeLTransform to my calculateGTransform
+        std::complex<double> g(0.22,0.53);
+        // Gary's constructor takes distortions, not shears, so convert.
+        double gamma = std::abs(g);
+        double delta = tanh(2.*atanh(gamma));
+        double scale = delta/gamma;
+        laguerre::Shear garyG(std::real(g)*scale,std::imag(g)*scale);
+        laguerre::LTransform garyGTransform = 
+            laguerre::MakeLTransform(garyG,order,order,true);
+        mv::DMatrix garyGMatrix = garyGTransform.rMatrix();
+        std::cout<<"Gary's G Transform = "<<
+            convertMatrix(garyGMatrix)<<std::endl;
+        tmv::Matrix<double> myGMatrix(orderSize,orderSize);
+        calculateGTransform(g,order,myGMatrix);
+        std::cout<<"My G Transform = "<<myGMatrix<<std::endl;
+        std::cout<<"Norm(diff) = "<<
+            Norm(myGMatrix - convertMatrix(garyGMatrix))<<std::endl;
+    }
 #endif
 
     if (dbgout && dbgout != &std::cout) {delete dbgout; dbgout=0;}
