@@ -46,13 +46,13 @@ bool XDEBUG = true;
 #endif
 #ifdef TEST2
 #define TEST12
-#define TEST23
 #define TEST234
+#define TEST237
 #define TEST12345
 #endif
 #ifdef TEST3
-#define TEST23
 #define TEST234
+#define TEST237
 #define TEST12345
 #endif
 #ifdef TEST4
@@ -66,6 +66,7 @@ bool XDEBUG = true;
 #endif
 
 #ifdef TEST7
+#define TEST237
 #include "gary/Laguerre.h"
 
 template <class T>
@@ -92,6 +93,7 @@ tmv::Matrix<T> convertMatrix(const mv::Matrix<T>& m1)
 // turn them off (by commenting out the next line) to save time.
 //#define TESTJ
 
+#ifdef TEST12345
 inline void getFakePixList(
     PixelList& pix,
     double xcen, double ycen,
@@ -318,7 +320,9 @@ inline void getFakePixList(
         }
     }
 }
+#endif
 
+#ifdef TEST2
 inline void RtoC(const BVec& b, CDVector& bc)
 {
     const size_t border = b.getOrder();
@@ -749,6 +753,7 @@ inline void DirectConvolveB(const BVec& rbi, const BVec& rbp, BVec& rb)
     b *= twosqrtpi;
     CtoR(b,rb);
 }
+#endif
 
 #define EPS (stype == 0 ? 1.e-8 : 3.e-6)
 
@@ -826,7 +831,7 @@ int main(int argc, char **argv) try
     };
 #endif
 
-#ifdef TEST23
+#ifdef TEST237
     const int NPSF = 2;
     double bpsf_vecs[NPSF][15] = {
         //{1,0,0,0,0,0,0,0,0,0,0,0,0,0,0},
@@ -2107,8 +2112,9 @@ int main(int argc, char **argv) try
 
 #ifdef TEST7
     {
-        int order = 2;
+        int order = 8;
         int orderSize = (order+1)*(order+2)/2;
+        double sigma = 1.;
 
         // First lets make sure we understand Gary's LVector class:
         laguerre::LVector garyB(order);
@@ -2117,7 +2123,7 @@ int main(int argc, char **argv) try
         garyB.set(2,0,std::complex<double>(0.1,0.2));
         garyB.set(1,1,0.3);
         
-        BVec myB(order,1.);
+        BVec myB(order,sigma);
         myB(0) = 1.;
         myB(1) = 0.4;
         myB(2) = 0.7;
@@ -2133,16 +2139,10 @@ int main(int argc, char **argv) try
         double garyIxy = garyPsi * garyB.rVector();
         // Gary normalizes his shapelets by 1/2Pi rather than 1/sqrt(Pi).
         garyIxy *= 2.*sqrtpi;
-        //std::cout<<"Gary's I("<<x<<','<<y<<") = "<<garyIxy<<std::endl;
-        //std::cout<<"psi = "<<garyPsi * (2.*sqrtpi)<<std::endl;
-        //std::cout<<"b = "<<garyB.rVector()<<std::endl;
 
         tmv::Vector<double> myPsi(orderSize);
         makePsi(myPsi,std::complex<double>(x,y),order);
         double myIxy = myPsi * myB.vec();
-        //std::cout<<"My I("<<x<<','<<y<<") = "<<myIxy<<std::endl;
-        //std::cout<<"psi = "<<myPsi<<std::endl;
-        //std::cout<<"b = "<<myB.vec()<<std::endl;
         test(Norm(myB.vec() - convertVector(garyB.rVector())) <= 1.e-5,
              "compare makePsi with Gary's realPsi");
 
@@ -2152,26 +2152,21 @@ int main(int argc, char **argv) try
         laguerre::LTransform garyZTransform = 
             laguerre::MakeLTransform(garyZ,order,order,true);
         mv::DMatrix garyZMatrix = garyZTransform.rMatrix();
-        std::cout<<"Gary's Z Transform = "<<
-            convertMatrix(garyZMatrix)<<std::endl;
         tmv::Matrix<double> myZMatrix(orderSize,orderSize);
         calculateZTransform(z,order,myZMatrix);
-        std::cout<<"My Z Transform = "<<myZMatrix<<std::endl;
-        std::cout<<"Norm(diff) = "<<
-            Norm(myZMatrix - convertMatrix(garyZMatrix))<<std::endl;
+        test(Norm(myZMatrix - convertMatrix(garyZMatrix)) <= 1.e-5,
+             "compare ZTransform with Gary's MakeLTransform");
    
         // Compare Gary's MakeLTransform to my calculateMuTransform
-        double mu = 0.01;
+        double mu = 0.37;
         laguerre::LTransform garyMuTransform = 
             laguerre::MakeLTransform(mu,order,order,true);
         mv::DMatrix garyMuMatrix = garyMuTransform.rMatrix();
-        std::cout<<"Gary's Mu Transform = "<<
-            convertMatrix(garyMuMatrix)<<std::endl;
+        garyMuMatrix /= exp(2.*mu);
         tmv::Matrix<double> myMuMatrix(orderSize,orderSize);
         calculateMuTransform(mu,order,myMuMatrix);
-        std::cout<<"My Mu Transform = "<<myMuMatrix<<std::endl;
-        std::cout<<"Norm(diff) = "<<
-            Norm(myMuMatrix - convertMatrix(garyMuMatrix))<<std::endl;
+        test(Norm(myMuMatrix - convertMatrix(garyMuMatrix)) <= 1.e-5,
+             "compare MuTransform with Gary's MakeLTransform");
 
         // Compare Gary's MakeLTransform to my calculateGTransform
         std::complex<double> g(0.22,0.53);
@@ -2183,13 +2178,83 @@ int main(int argc, char **argv) try
         laguerre::LTransform garyGTransform = 
             laguerre::MakeLTransform(garyG,order,order,true);
         mv::DMatrix garyGMatrix = garyGTransform.rMatrix();
-        std::cout<<"Gary's G Transform = "<<
-            convertMatrix(garyGMatrix)<<std::endl;
         tmv::Matrix<double> myGMatrix(orderSize,orderSize);
         calculateGTransform(g,order,myGMatrix);
-        std::cout<<"My G Transform = "<<myGMatrix<<std::endl;
-        std::cout<<"Norm(diff) = "<<
-            Norm(myGMatrix - convertMatrix(garyGMatrix))<<std::endl;
+        test(Norm(myGMatrix - convertMatrix(garyGMatrix)) <= 1.e-5,
+             "compare GTransform with Gary's MakeLTransform");
+
+        // Compare Gary's MakeLTransform with my calculatePsfConvolve
+        // First do PSF's with b00 = 1 and a single element = (0.1,0.2) or 0.1.
+        for(int pplusq = 1, k=1; pplusq <= order; ++pplusq) {
+            for(int p=pplusq, q=0; p>=q; --p,++q,++k) {
+                dbg<<"p,q,k = "<<p<<','<<q<<','<<k<<std::endl;
+                laguerre::LVector garyBPsf(order);
+                garyBPsf.set(0,0,1.);
+                BVec myBPsf(order,sigmaPsf);
+                myBPsf(0) = 1.;
+                if (p == q) {
+                    garyBPsf.set(p,q,std::complex<double>(0.1,0.0));
+                    myBPsf(k) = 0.1;
+                } else {
+                    garyBPsf.set(p,q,std::complex<double>(0.1,0.2));
+                    myBPsf(k++) = 0.1;
+                    myBPsf(k) = 0.2;
+                }
+                double D = 1. / (1.+pow(sigmaPsf/sigma,2));
+                laguerre::LTransform garyPsfTransform = 
+                    laguerre::MakeLTransform(garyBPsf,D,order,order,order);
+                mv::DMatrix garyPsfMatrix = garyPsfTransform.rMatrix();
+                tmv::Matrix<double> myPsfMatrix(orderSize,orderSize);
+                calculatePsfConvolve(myBPsf,order,sigma,myPsfMatrix);
+                myPsfMatrix /= 2.*sqrtpi; // To Match Gary's normalization
+                dbg<<"Gary's convolution matrix = "<<
+                    convertMatrix(garyPsfMatrix)<<std::endl;
+                dbg<<"My convolution matrix/2sqrt(pi) = "<<
+                    myPsfMatrix<<std::endl;
+                dbg<<"Norm(diff) = "<<
+                    Norm(myPsfMatrix - convertMatrix(garyPsfMatrix))<<std::endl;
+                test(Norm(myPsfMatrix - convertMatrix(garyPsfMatrix)) <= 1.e-5,
+                     "compare PsfConvolve with Gary's MakeLTransform");
+            }
+        }
+        // Next do some PSF's with lots of values != 0:
+        // Also has mismatched orders (psf = 4, gal = order)
+        for(int ip = 0; ip < NPSF; ++ip) {
+            dbg<<"Start ip = "<<ip<<std::endl;
+            BVec myBPsf(4,sigmaPsf,bpsf_vecs[ip]);
+            dbg<<"bpsf = "<<myBPsf.vec()<<std::endl;
+            laguerre::LVector garyBPsf(4);
+            for(int pplusq = 0, k=0; pplusq <= 4; ++pplusq) {
+                for(int p=pplusq, q=0; p>=q; --p,++q,++k) {
+                    if (p == q) {
+                        garyBPsf.set(p,q,std::complex<double>(
+                                bpsf_vecs[ip][k],0.));
+                    } else {
+                        garyBPsf.set(p,q,std::complex<double>(
+                                bpsf_vecs[ip][k],bpsf_vecs[ip][k+1]));
+                        ++k;
+                    }
+                }
+            }
+            dbg<<"Gary's bpsf = "<<
+                convertVector(garyBPsf.rVector())<<std::endl;
+            double D = 1. / (1.+pow(sigmaPsf/sigma,2));
+            dbg<<"D = "<<D<<std::endl;
+            laguerre::LTransform garyPsfTransform = 
+                laguerre::MakeLTransform(garyBPsf,D,order,order,4);
+            mv::DMatrix garyPsfMatrix = garyPsfTransform.rMatrix();
+            tmv::Matrix<double> myPsfMatrix(orderSize,orderSize);
+            calculatePsfConvolve(myBPsf,order,sigma,myPsfMatrix);
+            myPsfMatrix /= 2.*sqrtpi; // To Match Gary's normalization
+            dbg<<"Gary's convolution matrix = "<<
+                convertMatrix(garyPsfMatrix)<<std::endl;
+            dbg<<"My convolution matrix/2sqrt(pi) = "<<
+                myPsfMatrix<<std::endl;
+            dbg<<"Norm(diff) = "<<
+                Norm(myPsfMatrix - convertMatrix(garyPsfMatrix))<<std::endl;
+            test(Norm(myPsfMatrix - convertMatrix(garyPsfMatrix)) <= 1.e-5,
+                 "compare PsfConvolve with Gary's MakeLTransform");
+        }
     }
 #endif
 
