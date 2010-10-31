@@ -16,6 +16,7 @@ public :
     virtual const BVec& getB() const = 0;
     virtual void callF(const DVector& x, DVector& f) const = 0;
     virtual void getBCov(DMatrix& bcov) const = 0;
+    virtual double getChiSq() const = 0;
 };
 
 class EllipseSolver : public BaseEllipseSolver
@@ -43,6 +44,9 @@ public :
     void getBCov(DMatrix& bcov) const;
     void getCovariance(DMatrix& cov) const;
     void getInverseCovariance(DMatrix& invcov) const;
+
+    // Calculate the chisq of the model with respect to the flux values.
+    double getChiSq() const;
 
     // CallF takes x and f of length 5, rather than whatever shorter
     // length that F takex (depending on if things are fixed).
@@ -91,6 +95,7 @@ public :
     void useNumericJ();
     const BVec& getB() const;
     void getBCov(DMatrix& bcov) const;
+    double getChiSq() const;
 
 private :
 

@@ -9,6 +9,8 @@
 #include "TestHelper.h"
 #endif
 
+//extern bool ingammafit;
+
 // 
 // EllipseSolver Implemetation
 //
@@ -29,6 +31,7 @@ struct EllipseSolver::ESImpl
 
     void calculateF(const DVector& x, DVector& f) const;
     void calculateJ(const DVector& x, const DVector& f, DMatrix& J) const;
+    double getChiSq() const;
 
     void doF(const DVector& x, DVector& f) const;
     void doJ(const DVector& x, const DVector& f, DMatrix& J) const;
@@ -103,6 +106,11 @@ void EllipseSolver::calculateJ(
 { 
     if (_pimpl->numeric_j) NLSolver::calculateJ(x,f,J);
     else _pimpl->calculateJ(x,f,J); 
+}
+
+double EllipseSolver::getChiSq() const
+{
+    return _pimpl->getChiSq();
 }
 
 static size_t calculateSumSize(const std::vector<PixelList>& v)
@@ -332,7 +340,17 @@ void EllipseSolver::ESImpl::doF(const DVector& x, DVector& f) const
         nx = n+pix[k].size();
         Z1.TMV_subVector(n,nx) /= sigma_obs[k];
     }
+#if 0
+    if (ingammafit) {
+        xdbg<<"Start doF\n";
+        xdbg<<"x = "<<x<<std::endl;
+        xdbg<<"Z1 = "<<Z1<<std::endl;
+        xdbg<<"b.order = "<<b.getOrder()<<std::endl;
+        xdbg<<"W = "<<W<<std::endl;
+    }
+#endif
     makePsi(A_aux,TMV_vview(Z1),b.getOrder(),&W);
+    //if (ingammafit) xdbg<<"A_aux = "<<A_aux<<std::endl;
 
     if (psf) {
         for(size_t k=0,n=0,nx;k<pix.size();++k,n=nx) {
@@ -341,12 +359,19 @@ void EllipseSolver::ESImpl::doF(const DVector& x, DVector& f) const
             const int psfsize = newpsf.size();
             DMatrixView S1 = TMV_colRange(S[k],0,psfsize);
             calculateGTransform(g,newpsf.getOrder(),S[k]);
+            //if (ingammafit) xdbg<<"S1 = "<<S1<<std::endl;
+            //if (ingammafit) xdbg<<"psf = "<<(*psf)[k].vec()<<std::endl;
             newpsf.vec() = S1 * (*psf)[k].vec();
+            //if (ingammafit) xdbg<<"newpsf = "<<newpsf.vec()<<std::endl;
             DMatrixView D1 = TMV_rowRange(D[k],0,psfsize);
             calculateMuTransform(mu,newpsf.getOrder(),D[k]);
+            //if (ingammafit) xdbg<<"D1 = "<<D1<<std::endl;
             newpsf.vec() = D1 * newpsf.vec();
+            //if (ingammafit) xdbg<<"newpsf => "<<newpsf.vec()<<std::endl;
             calculatePsfConvolve(newpsf,b.getOrder(),b.getSigma(),C[k]);
+            //if (ingammafit) xdbg<<"C = "<<C[k]<<std::endl;
             TMV_rowRange(AC,n,nx) = TMV_rowRange(A,n,nx) * C[k];
+            //if (ingammafit) xdbg<<"AC = "<<AC.rowRange(n,nx);
         }
 #ifdef USE_TMV
         AC.resetDiv();
@@ -357,6 +382,8 @@ void EllipseSolver::ESImpl::doF(const DVector& x, DVector& f) const
             throw tmv::Singular();
         }
         b.vec() = I/AC;
+        //if (ingammafit) xdbg<<"I = "<<I<<std::endl;
+        //if (ingammafit) xdbg<<"b = "<<b.vec()<<std::endl;
 #else
         Eigen::QR<DMatrix> AC_QR = AC.qr();
         if (!AC_QR.isInjective()) {
@@ -386,9 +413,20 @@ void EllipseSolver::ESImpl::doF(const DVector& x, DVector& f) const
     }
 
     f = b.vec().TMV_subVector(0,6);
+    //if (ingammafit) xdbg<<"f = "<<f<<std::endl;
     if (flux == 0.) flux = b(0);
     f /= flux;
     if (useflux) f(0) -= 1.;
+    //if (ingammafit) xdbg<<"f => "<<f<<std::endl;
+}
+
+double EllipseSolver::ESImpl::getChiSq() const
+{
+    if (psf) {
+        return NormSq(I - AC*b.vec()); 
+    } else {
+        return NormSq(I - A*b.vec()); 
+    }
 }
 
 void EllipseSolver::ESImpl::calculateF(const DVector& x, DVector& f) const

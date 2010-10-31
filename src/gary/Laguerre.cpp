@@ -374,7 +374,7 @@ LTransform::preRotation(double theta) {
 
 //----------------------------------------------------------------
 // Fill the object's b vector with the values of Laguerre polynomials.
-void laguerre::LVector::fillLaguerre(const double x) {
+void LVector::fillLaguerre(const double x) {
   double t0, t1, t2, tqmx, tqm;
   int N = *order;
   PQIndex pq(0,0);
@@ -650,7 +650,7 @@ LVector::realRHS() const {
 }
 
 DVector
-laguerre::LVector::realPsi(int maxN, double x, double y,
+LVector::realPsi(int maxN, double x, double y,
 			   const Ellipse& e) {
   int j;
   LVector lv(maxN);
@@ -659,7 +659,7 @@ laguerre::LVector::realPsi(int maxN, double x, double y,
 }
 
 void 
-laguerre::LVector::realPsi(int N, const DVector& xx, const DVector& yy, 
+LVector::realPsi(int N, const DVector& xx, const DVector& yy, 
 			   const Ellipse& e, 
 			   DMatrix* psi) {
   // This is a dumb implementation:
@@ -675,7 +675,7 @@ laguerre::LVector::realPsi(int N, const DVector& xx, const DVector& yy,
 }
 
 void
-laguerre::LVector::fillKPsi(double xunit, double yunit) {
+LVector::fillKPsi(double xunit, double yunit) {
   this->fillPsi(xunit, yunit, 1.);  // Fourier[Psi_pq] is unitless
   // rotate kvalues of Psi with (-i)^(p+q)
   for (PQIndex pq(0,0); !pq.pastOrder(*order); ++pq) {
@@ -690,7 +690,7 @@ laguerre::LVector::fillKPsi(double xunit, double yunit) {
 }
 
 CVector*
-laguerre::LVector::cVector() const {
+LVector::cVector() const {
   CVector *cv = new CVector(PQIndex::size(*order), 0.);
   for (PQIndex pq(0,0); !pq.pastOrder(*order); ++pq) {
     (*cv)[pq.cIndex()] = (*this)[pq];
@@ -699,7 +699,7 @@ laguerre::LVector::cVector() const {
 }
 
 CVector*
-laguerre::LVector::cVectorConjugate() const {
+LVector::cVectorConjugate() const {
   CVector *cv = new CVector(PQIndex::size(*order), 0.);
   DComplex c;
   for (PQIndex pq(0,0); !pq.pastOrder(*order); ++pq) {
@@ -709,7 +709,7 @@ laguerre::LVector::cVectorConjugate() const {
 }
 
 CVector*
-laguerre::LVector::kSpaceCVector() const {
+LVector::kSpaceCVector() const {
   CVector *cv = new CVector(PQIndex::size(*order), 0.);
   for (PQIndex pq(0,0); !pq.pastOrder(*order); ++pq) {
     if (!pq.needsConjugation())
@@ -724,7 +724,7 @@ laguerre::LVector::kSpaceCVector() const {
 }
 
 CVector*
-laguerre::LVector::kSpaceCVectorConjugate() const {
+LVector::kSpaceCVectorConjugate() const {
   CVector *cv = new CVector(PQIndex::size(*order), 0.);
   DComplex c;
   for (PQIndex pq(0,0); !pq.pastOrder(*order); ++pq) {
@@ -797,11 +797,11 @@ LVector::apertureFlux(double R_, int maxP) const {
 //---------------------------------------------------------------------------
 // I/O Routines
 
-ostream& laguerre::operator<<(ostream& os, const laguerre::LVector& lv) {
+ostream& operator<<(ostream& os, const LVector& lv) {
   lv.write(os); return os;
 }
 
-void laguerre::LVector::write(ostream& os, int maxorder) const
+void LVector::write(ostream& os, int maxorder) const
 {
   int oldprec = os.precision(8);
   std::ios::fmtflags oldf = os.setf(std::ios::scientific,std::ios::floatfield);
@@ -822,11 +822,11 @@ void laguerre::LVector::write(ostream& os, int maxorder) const
   os.flags(oldf);
 }
 
-istream& laguerre::operator>>(istream& is, laguerre::LVector& lv) {
+istream& operator>>(istream& is, LVector& lv) {
   lv.read(is); return is;
 }
 
-void laguerre::LVector::read(istream& is)
+void LVector::read(istream& is)
 {
   // get order
   int order;
@@ -848,7 +848,7 @@ void laguerre::LVector::read(istream& is)
     }
 }
 
-void laguerre::PQIndex::write(ostream& os) const
+void PQIndex::write(ostream& os) const
 {
   os << std::setw(2) << getP() 
      << "," << std::setw(2) << getQ() ;
@@ -1114,7 +1114,7 @@ private:
 };
 
 double
-laguerre::fluxRadius(const LVector& lv, double threshold, int maxP) {
+fluxRadius(const LVector& lv, double threshold, int maxP) {
   if (maxP<0) maxP= lv.getOrder()/2;
   if (maxP > lv.getOrder()/2) maxP=lv.getOrder()/2;
   FRSolve func(lv, threshold, maxP);

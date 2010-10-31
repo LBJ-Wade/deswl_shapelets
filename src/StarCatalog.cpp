@@ -193,74 +193,75 @@ void StarCatalog::splitInTwo(
     const std::string f1, const std::string f2) const
 {
 
-  // use a deterministic seed: number of objects in catalog plus number
-  // that are stars
-  unsigned int nstar=0;
-  for (unsigned int i=0;i<this->size();i++) {
-    if (this->isAStar(i)) {
-      nstar++;
+    // use a deterministic seed: number of objects in catalog plus number
+    // that are stars
+    unsigned int nstar=0;
+    for (unsigned int i=0;i<this->size();i++) {
+        if (this->isAStar(i)) {
+            nstar++;
+        }
     }
-  }
-  unsigned int seed = this->size() + nstar*100000;
-  this->splitInTwo(f1,f2,seed);
+    unsigned int seed = this->size() + nstar*100000;
+    this->splitInTwo(f1,f2,seed);
 }
 
 void StarCatalog::splitInTwo(
     const std::string f1, const std::string f2,
     const unsigned int seed) const
 {
-  srand(seed);
+    srand(seed);
 
-  std::vector<long> id1;
-  std::vector<long> id2;
+    std::vector<long> id1;
+    std::vector<long> id2;
 
-  double split_point = 0.5;
+    double split_point = 0.5;
 
 
-  for (size_t i=0; i<this->size(); i++) {
+    for (size_t i=0; i<this->size(); i++) {
 
-    // number between [0,1)
-    double r = ( (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
-    if (r > split_point) {
-      id1.push_back(i);
+        // number between [0,1)
+        double r = ( (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
+        if (r > split_point) {
+            id1.push_back(i);
+        } else {
+            id2.push_back(i);
+        }
+
+    }
+
+    StarCatalog cat1(*this, id1);
+    StarCatalog cat2(*this, id2);
+
+    cat1.writeFits(f1);
+    cat2.writeFits(f2);
+}
+
+#if 0
+std::string StarCatalog::getFitsName(std::string extra) 
+{
+    std::string file = makeName(_params, "stars",false,false);  
+
+    size_t fits_pos = file.rfind(".fits");
+    size_t dat_pos = file.rfind(".dat");
+
+    if (fits_pos != std::string::npos) {
+        if (extra != "") {
+            file.insert(fits_pos, extra);
+        }
+    } else if (dat_pos != std::string::npos) {
+        std::string e = extra+".fits";
+        file.replace(dat_pos, 4, e);
     } else {
-      id2.push_back(i);
+
+        // didn't find the expected ending .fits or .dat;  we will just tac it on
+        // the end
+        file += extra+".fits";
+
     }
 
-  }
-
-  StarCatalog cat1(*this, id1);
-  StarCatalog cat2(*this, id2);
-
-  cat1.writeFits(f1);
-  cat2.writeFits(f2);
+    return file;
 }
-
-/*
-std::string StarCatalog::getFitsName(std::string extra) {
-  std::string file = makeName(_params, "stars",false,false);  
-
-  size_t fits_pos = file.rfind(".fits");
-  size_t dat_pos = file.rfind(".dat");
-
-  if (fits_pos != std::string::npos) {
-    if (extra != "") {
-      file.insert(fits_pos, extra);
-    }
-  } else if (dat_pos != std::string::npos) {
-    std::string e = extra+".fits";
-    file.replace(dat_pos, 4, e);
-  } else {
-
-    // didn't find the expected ending .fits or .dat;  we will just tac it on
-    // the end
-    file += extra+".fits";
-
-  }
-
-  return file;
-}
-*/
+#endif
 
 int StarCatalog::findStars(FindStarsLog& log)
 {
@@ -723,53 +724,64 @@ void StarCatalog::read()
     dbg<<"Done Read StarCatalog\n";
 }
 
-void StarCatalog::printall(int i) {
-  if (int(_id.size()) > i) {
-    std::cout<<"  StarCatalog::printall id["<<i<<"]: "<<_id[i]<<"\n";
-  } else {
-    std::cout<<"  StarCatalog::printall index "<<i<<" is larger than id.size\n";
-  }
 
-  if (int(_pos.size()) > i) {
-    std::cout<<"  StarCatalog::printall pos["<<i<<"]: "<<_pos[i]<<"\n";
-  } else {
-    std::cout<<"  StarCatalog::printall index "<<i<<" is larger than pos.size\n";
-  }
+bool StarCatalog::isAStar(long id) const
+{
+    std::vector<long>::const_iterator p = find(_id.begin(),_id.end(),id);
+    if (p == _id.end()) return false;
+    int i = p - _id.begin();
+    Assert(i < _isAStar.size());
+    return _isAStar[i];
+}
 
-  if (int(_sky.size()) > i) {
-    std::cout<<"  StarCatalog::printall sky["<<i<<"]: "<<_sky[i]<<"\n";
-  } else {
-    std::cout<<"  StarCatalog::printall index "<<i<<" is larger than sky.size\n";
-  }
+void StarCatalog::printall(int i) 
+{
+    if (int(_id.size()) > i) {
+        std::cout<<"  StarCatalog::printall id["<<i<<"]: "<<_id[i]<<"\n";
+    } else {
+        std::cout<<"  StarCatalog::printall index "<<i<<" is larger than id.size\n";
+    }
 
-  if (int(_mag.size()) > i) {
-    std::cout<<"  StarCatalog::printall mag["<<i<<"]: "<<_mag[i]<<"\n";
-  } else {
-    std::cout<<"  StarCatalog::printall index "<<i<<" is larger than mag.size\n";
-  }
+    if (int(_pos.size()) > i) {
+        std::cout<<"  StarCatalog::printall pos["<<i<<"]: "<<_pos[i]<<"\n";
+    } else {
+        std::cout<<"  StarCatalog::printall index "<<i<<" is larger than pos.size\n";
+    }
 
-  if (int(_objSize.size()) > i) {
-    std::cout<<"  StarCatalog::printall objSize["<<i<<"]: "<<_objSize[i]<<"\n";
-  } else {
-    std::cout<<"  StarCatalog::printall index "<<i<<" is larger than objSize.size\n";
-  }
+    if (int(_sky.size()) > i) {
+        std::cout<<"  StarCatalog::printall sky["<<i<<"]: "<<_sky[i]<<"\n";
+    } else {
+        std::cout<<"  StarCatalog::printall index "<<i<<" is larger than sky.size\n";
+    }
 
-  if (int(_flags.size()) > i) {
-    std::cout<<"  StarCatalog::printall flags["<<i<<"]: "<<this->_flags[i]<<"\n";
-  } else {
-    std::cout<<"  StarCatalog::printall index "<<i<<" is larger than flags.size\n";
-  }
+    if (int(_mag.size()) > i) {
+        std::cout<<"  StarCatalog::printall mag["<<i<<"]: "<<_mag[i]<<"\n";
+    } else {
+        std::cout<<"  StarCatalog::printall index "<<i<<" is larger than mag.size\n";
+    }
 
-  if (int(_noise.size()) > i) {
-    std::cout<<"  StarCatalog::printall noise["<<i<<"]: "<<this->_noise[i]<<"\n";
-  } else {
-    std::cout<<"  StarCatalog::printall index "<<i<<" is larger than noise.size\n";
-  }
-if (int(_isAStar.size()) > i) {
-    std::cout<<"  StarCatalog::printall isAStar["<<i<<"]: "<<this->_isAStar[i]<<"\n";
-  } else {
-    std::cout<<"  StarCatalog::printall index "<<i<<" is larger than isAStar.size\n";
-  }
+    if (int(_objSize.size()) > i) {
+        std::cout<<"  StarCatalog::printall objSize["<<i<<"]: "<<_objSize[i]<<"\n";
+    } else {
+        std::cout<<"  StarCatalog::printall index "<<i<<" is larger than objSize.size\n";
+    }
+
+    if (int(_flags.size()) > i) {
+        std::cout<<"  StarCatalog::printall flags["<<i<<"]: "<<this->_flags[i]<<"\n";
+    } else {
+        std::cout<<"  StarCatalog::printall index "<<i<<" is larger than flags.size\n";
+    }
+
+    if (int(_noise.size()) > i) {
+        std::cout<<"  StarCatalog::printall noise["<<i<<"]: "<<this->_noise[i]<<"\n";
+    } else {
+        std::cout<<"  StarCatalog::printall index "<<i<<" is larger than noise.size\n";
+    }
+    if (int(_isAStar.size()) > i) {
+        std::cout<<"  StarCatalog::printall isAStar["<<i<<"]: "<<this->_isAStar[i]<<"\n";
+    } else {
+        std::cout<<"  StarCatalog::printall index "<<i<<" is larger than isAStar.size\n";
+    }
 
 
 }

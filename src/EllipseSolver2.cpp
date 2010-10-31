@@ -44,6 +44,8 @@ public :
         const DVector& x, const DVector& f,
         DMatrix& J) const;
 
+    double getChiSq() const;
+
     int nsize, np2size;
     mutable BVec b;
     const std::vector<PixelList>& pix;
@@ -108,6 +110,9 @@ EllipseSolver2::~EllipseSolver2()
 
 void EllipseSolver2::calculateF(const DVector& x, DVector& f) const
 { _pimpl->calculateF(x,f); }
+
+double EllipseSolver2::getChiSq() const
+{ return _pimpl->getChiSq(); }
 
 void EllipseSolver2::calculateJ(
     const DVector& x, const DVector& f, DMatrix& J) const
@@ -369,7 +374,20 @@ void EllipseSolver2::ESImpl2::calculateF(const DVector& x, DVector& f) const
     }
     // Leave this out of f, but get it right in case getB is called.
     b.vec() *= exp(-2.*mu);
-    b.conjugateSelf();
+    //b.conjugateSelf();
+}
+
+double EllipseSolver2::ESImpl2::getChiSq() const
+{
+    double chisq = 0.;
+    for(size_t k=0,n=0,nx;k<pix.size();++k,n=nx) {
+        nx = n+pix[k].size();
+        if (psf) {
+            chisq += NormSq(I.TMV_subVector(n,nx) - A[k] * C[k] * b.vec()); 
+        } else {
+            chisq += NormSq(I.TMV_subVector(n,nx) - A[k] * b.vec()); 
+        }
+    }
 }
 
 void EllipseSolver2::ESImpl2::calculateJ(

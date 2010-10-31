@@ -128,7 +128,7 @@ PsfCatalog::PsfCatalog(
     _pos.reserve(nStars);
     _flags.reserve(nStars);
     for (int i=0; i<nTot; ++i) {
-        if (starCat.isAStar(i)) {
+        if (isAStar[i]) {
             _id.push_back( starCat.getId(i) );
             _pos.push_back( starCat.getPos(i) );
             _sky.push_back( starCat.getSky(i) );

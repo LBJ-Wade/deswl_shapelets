@@ -10,9 +10,13 @@
 #include "Log.h"
 #include "MeasureShearAlgo.h"
 
-//#define SINGLEGAL 8146
+//#define SINGLEGAL 1
 //#define STARTAT 8000
 //#define ENDAT 200
+
+#ifdef SINGLEGAL
+#undef _OPENMP
+#endif
 
 int ShearCatalog::measureShears(
     const Image<double>& im,

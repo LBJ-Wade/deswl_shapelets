@@ -77,9 +77,7 @@ public:
 
     const ConfigFile& getParams() const { return _params; }
     template <typename T>
-    void setPar(const std::string key, const T& val) {
-     _params.add(key,val); 
-    }
+    void setPar(const std::string key, const T& val) { _params.add(key,val); }
 
     long     getId(int i)      const { return _id[i]; }
     Position getPos(int i)     const { return _pos[i]; }
@@ -88,8 +86,15 @@ public:
     long     getFlags(int i)   const { return _flags[i]; }
     float    getMag(int i)     const { return _mag[i]; }
     double   getObjSize(int i) const { return _objSize[i]; }
-    bool     isAStar(int i)    const { return _isAStar[i]; }
     bool     getIsAStar(int i) const { return _isAStar[i]; }
+
+    // This one looks for the given id.  
+    // If it is in the catalog _and_ it is marked as a star, it returns true.
+    // This way the StarCatalog may have a different number of objects than
+    // some other catalog that wants to use it, so the i's don't have to match.
+    // But the ID's should still refer to the same objects.
+    // If you know you have the same i values, getIsAStar is faster.
+    bool isAStar(long id) const;
 
     void printall(int i);
 
