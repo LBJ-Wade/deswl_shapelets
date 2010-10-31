@@ -12,6 +12,7 @@
     do { \
         solver.useDogleg(); \
         solver.setOutput(std::cout); \
+        solver.useVerboseOutput(); \
     } while (false)
 
 
@@ -48,6 +49,11 @@ public :
     void calculateJ(const tmv::Vector<double>& , const tmv::Vector<double>& ,
            tmv::Matrix<double>& j) const
     { j = A; }
+
+    void calculateH(
+        const tmv::Vector<double>& , const tmv::Vector<double>& , 
+        const tmv::Matrix<double>& j, tmv::SymMatrix<double>& h) const
+    { h = j.adjoint() * j; }
 
 protected:
 
@@ -283,7 +289,12 @@ int main() try
 
         // Check the covariance matrix:
         std::cout<<"Covariance matrix = \n"<<cov1<<std::endl;
+        tmv::Matrix<double> j(M,N);
+        lin.calculateJ(x,f,j);
+        lin.calculateH(x,f,j,h);
+        std::cout<<"exact h = "<<h<<std::endl;
         lin.calculateNumericH(x,f,h);
+        std::cout<<"numeric h = "<<h<<std::endl;
         tmv::SymMatrix<double> cov2 = h.inverse();
         if (!(Norm(cov1-cov2) <= 1.e-6*(1.+Norm(cov1)))) {
             std::cout<<"cov1 = "<<cov1<<std::endl;

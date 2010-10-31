@@ -132,6 +132,7 @@ void NLSolver::calculateNumericH(
         x2(i) = x(i) - dx;
         this->calculateF(x2,f2);
         double q2b = 0.5*f2.normSq();
+
         h(i,i) = (q2a + q2b - 2.*q0) / (dx*dx);
         x2(i) = x(i);
 
@@ -139,10 +140,12 @@ void NLSolver::calculateNumericH(
             x2(i) = x(i) + dx;
             x2(j) = x(j) + dx;
             this->calculateF(x2,f2);
+            q2a = 0.5*f2.normSq();
 
             x2(i) = x(i) + dx;
             x2(j) = x(j) - dx;
             this->calculateF(x2,f2);
+            q2b = 0.5*f2.normSq();
 
             x2(i) = x(i) - dx;
             x2(j) = x(j) + dx;
@@ -1114,6 +1117,11 @@ void NLSolver::getCovariance(tmv::Matrix<double>& cov) const
         J.svd().thresh(sqrtEps); 
     }
     J.makeInverseATA(cov);
+    //dbg<<"getCovariance:\n";
+    //dbg<<"J = "<<J<<std::endl;
+    //dbg<<"JtJ = "<<J.adjoint()*J<<std::endl;
+    //dbg<<"(JtJ)^-1 = "<<(J.adjoint()*J).inverse()<<std::endl;
+    //dbg<<"cov = "<<cov<<std::endl;
 }
 
 void NLSolver::getInverseCovariance(tmv::Matrix<double>& invCov) const
