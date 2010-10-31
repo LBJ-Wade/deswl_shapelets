@@ -598,21 +598,13 @@ def DoLibraryAndHeaderChecks(config):
             Exit(1)
         print '    ',tmv_link
 
-        # Use a clone so we can clear out the relevant values and then
-        # append the new values to the current values. 
-        # This is mostly necessary to get the things MergeFlags parses as 
-        # CCFLAGS into LINKFLAGS where they actually below.  
-        # But might as well do the same to LIBPATH and LIBS as well.
-        env1 = config.env.Clone()
-        env1.Replace(CCFLAGS=[])
-        env1.Replace(LINKFLAGS=[])
-        env1.Replace(LIBS=[])
-        env1.Replace(LIBPATH=[])
-        env1.MergeFlags(tmv_link)
-        config.env.PrependUnique(LINKFLAGS=env1['LINKFLAGS'])
-        config.env.PrependUnique(LINKFLAGS=env1['CCFLAGS'])
-        config.env.PrependUnique(LIBPATH=env1['LIBPATH'])
-        config.env.PrependUnique(LIBS=env1['LIBS'])
+        # ParseFlags doesn't know about -fopenmp being a LINKFLAG, so it
+        # puts it into CCFLAGS instead.  Move it over to LINKFLAGS before
+        # merging everything.
+        tmv_link_dict = config.env.ParseFlags(tmv_link)
+        tmv_link_dict['LINKFLAGS'] += tmv_link_dict['CCFLAGS']
+        tmv_link_dict['CCFLAGS'] = []
+        config.env.MergeFlags(tmv_link_dict)
 
         config.CheckTMV()
         config.env.Append(CPPDEFINES=['USE_TMV'])
