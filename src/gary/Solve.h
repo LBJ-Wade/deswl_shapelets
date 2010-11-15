@@ -54,8 +54,7 @@ namespace solve {
                 if (fmid <= 0.0) rtb=xmid;
                 if ( (std::abs(dx) < xTolerance) || fmid == 0.0) return rtb;
             }
-            throw SolveError("Too many bisections");
-            return 0.0;
+	    throw SolveError("Too many bisections");
         }
     };
 

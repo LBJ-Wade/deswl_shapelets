@@ -24,7 +24,11 @@
 
 #else
 
-#  error "Pgi compiler not configured - please reconfigure"
+// MJ: Added this.  Seems to work for pgCC 6.2.
+#define BOOST_FUNCTION_SCOPE_USING_DECLARATION_BREAKS_ADL 
+#define BOOST_NO_TWO_PHASE_NAME_LOOKUP
+#define BOOST_NO_SWPRINTF
+//#  error "Pgi compiler not configured - please reconfigure"
 
 #endif
 //

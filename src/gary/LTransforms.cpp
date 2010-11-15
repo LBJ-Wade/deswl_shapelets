@@ -585,7 +585,7 @@ void ConvolveFMatrix(mv::Cube<double>* &fptr,
   }
 
   // Now po>0:
-  double next;
+  //double next;
   for (po=1; po<=MIN(orderOut,orderIn+orderStar); po++) {
     // Do the pi=0 separately
     for (pstar=po; pstar<=orderStar; pstar++) {
@@ -646,7 +646,7 @@ MakeLTransform(const LVector psf,
   //Make the output transform
   LTransform result(orderOut, orderIn);
 
-  int po, qo, pi, qi, pstar, qstar, Delta;
+  //int po, qo, pi, qi, pstar, qstar, Delta;
   DComplex b;
 
   for (PQIndex pqi; pqi.N()<=orderIn; pqi.nextDistinct()) {

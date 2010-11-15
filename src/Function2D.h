@@ -196,7 +196,7 @@ public:
 
     virtual void linearPreTransform(
         double , double , double , double , double , double )
-    { Assert(false); return; }
+    { Assert(false); }
 
     virtual void operator+=(const Function2D& rhs);
 

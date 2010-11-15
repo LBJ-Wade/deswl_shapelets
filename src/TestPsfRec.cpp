@@ -68,13 +68,13 @@ int main(int argc, char **argv)
     const int nStars = psfCat.size();
     for (int i=0; i<nStars; ++i) {
 
-        double e1 = sqrt(2)*psfCat.getPsf(i)(3);
-        double e2 = sqrt(2)*psfCat.getPsf(i)(4);
+        double e1 = sqrt(2.)*psfCat.getPsf(i)(3);
+        double e2 = sqrt(2.)*psfCat.getPsf(i)(4);
 
         fitPsf.interpolate(psfCat.getPos(i), iPsf);
 
-        double ie1 = sqrt(2)*iPsf(3);
-        double ie2 = sqrt(2)*iPsf(4);
+        double ie1 = sqrt(2.)*iPsf(3);
+        double ie2 = sqrt(2.)*iPsf(4);
         std::cout<<psfCat.getId(i)
             <<" "<<psfCat.getFlags(i)
             <<" "<<psfCat.getPos(i).getX()

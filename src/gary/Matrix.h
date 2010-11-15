@@ -231,7 +231,7 @@ namespace mv {
 
     public:
         Matrix() : m(0),n(0),va(),svd(0),isAltered(false) {}
-        Matrix(size_t mm,size_t nn,T val=0) 
+        Matrix(size_t mm,size_t nn,T val=T(0)) 
             : m(mm),n(nn),va(val,m*n),svd(0),isAltered(false) {}
         Matrix(const Matrix& rhs)
             : m(rhs.m),n(rhs.n),va(rhs.va),svd(0),isAltered(false) {}
@@ -384,7 +384,7 @@ namespace mv {
         void Read(std::istream& fin,double minnonzero=1.e-30);
         void Zero() {zero();}	//backwards compatibility
         void zero()
-        { Changed(); va = 0; }
+        { Changed(); va = T(0); }
 
         Matrix& operator+=(const Matrix& rhs)
         {
@@ -464,8 +464,8 @@ namespace mv {
     public:
 
         SqMatrix() : Matrix<T>(),lud(0) {}
-        explicit SqMatrix(size_t nn,T val=0) : Matrix<T>(nn,nn,val),lud(0) {}
-        SqMatrix(size_t mm,size_t nn,T val=0) : Matrix<T>(mm,nn,val),lud(0)
+        explicit SqMatrix(size_t nn,T val=T(0)) : Matrix<T>(nn,nn,val),lud(0) {}
+        SqMatrix(size_t mm,size_t nn,T val=T(0)) : Matrix<T>(mm,nn,val),lud(0)
         { MVAssert(m==n); }
         SqMatrix(size_t nn, const valarray<T>& vv) : Matrix<T>(nn,nn,vv),lud(0) 
         { MVAssert(vv.size() == nn*nn); }
@@ -513,7 +513,7 @@ namespace mv {
         SqMatrix<T> operator=(T val)
         { 
             Changed();
-            this->va = 0; this->va[diag()] = val; 
+            this->va = T(0); this->va[diag()] = val; 
             return *this; 
         }
         SqMatrix<T> operator+=(T x)
@@ -580,7 +580,7 @@ namespace mv {
 
     public:
         Vector() : va() {}
-        explicit Vector(size_t n,T val=0) : va(val,n) {}
+        explicit Vector(size_t n,T val=T(0)) : va(val,n) {}
         Vector(const valarray<T>& vv) : va(vv) {}
         Vector(const vector<T>& vv) : va(vv.size()) 
         { for(size_t i=0;i<vv.size();i++) va[i] = vv[i]; }
@@ -637,7 +637,7 @@ namespace mv {
         void Write(std::ostream& fout,double minnonzero=0.) const;
         void Read(std::istream& fin,double minnonzero=0.);
         void Zero() {zero();}	//backwards compatibility
-        void zero() { va = 0; }
+        void zero() { va = T(0); }
 
         Vector<T>& operator*=(const Vector& rhs)
         { 
@@ -1140,7 +1140,7 @@ namespace mv {
     template <class T>
     inline double Norm(const Vector<complex<T> >& v)
     {
-        double sum=0;
+        double sum=0.;
         for(size_t i=0;i<v.size();i++) sum += norm(v[i]);
         return sum;
     }

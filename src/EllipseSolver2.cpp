@@ -388,6 +388,7 @@ double EllipseSolver2::ESImpl2::getChiSq() const
             chisq += NormSq(I.TMV_subVector(n,nx) - A[k] * b.vec()); 
         }
     }
+    return chisq;
 }
 
 void EllipseSolver2::ESImpl2::calculateJ(

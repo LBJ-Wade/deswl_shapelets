@@ -8,6 +8,10 @@
 #include <fitsio.h>
 
 template <typename T>
+Image<T>::~Image() 
+{}
+
+template <typename T>
 Image<T>::Image(
     const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm)
 {

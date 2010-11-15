@@ -127,14 +127,16 @@ def BasicCCFlags(env):
             if version >= 10:
                 env.Append(CCFLAGS=['-vec-report0'])
             if env['WARN']:
-                env.Append(CCFLAGS=['-Wall','-Werror','-wd383,810,981'])
+                env.Append(CCFLAGS=['-g','-Wall','-Werror','-wd383,810,981'])
                 if version >= 9:
                     env.Append(CCFLAGS=['-wd1572'])
                 if version >= 11:
                     env.Append(CCFLAGS=['-wd2259'])
 
         elif compiler == 'pgCC':
-            env.Replace(CCFLAGS=['-O2','-fast','-Mcache_align'])
+            env.Replace(CCFLAGS=['-O2','-fast'])
+            if env['WARN']:
+                env.Append(CCFLAGS=['-g'])
 
         elif compiler == 'cl':
             env.Replace(CCFLAGS=['/EHsc','/nologo','/O2','/Oi'])
@@ -641,8 +643,6 @@ def DoConfig(env):
     if not env['DEBUG']:
         print 'Debugging turned off'
         env.Append(CPPDEFINES=['NDEBUG'])
-    if env['MEM_TEST']:
-        env.Append(CPPDEFINES=['MEMTEST'])
     if env['STATIC'] :
         if env['CXXTYPE'] == 'pgCC':
             env.Append(LINKFLAGS=['-Bstatic'])
@@ -667,6 +667,13 @@ def DoConfig(env):
     if not env['CACHE_LIB']:
         SCons.SConf.SetCacheMode('auto')
 
+    # This one should be done after DoLibraryAndHeaderChecks
+    # otherwise the TMV link test fails, since TMV wasn't compiled
+    # with MEMTEST.  If you do want to test with a TMV library that
+    # uses MEMTEST, you might need to move this to before
+    # the DoLibraryAndHeaderChecks call.
+    if env['MEM_TEST']:
+        env.Append(CPPDEFINES=['MEM_TEST'])
 
 
 #

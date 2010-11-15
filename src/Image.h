@@ -63,7 +63,7 @@ public:
     Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm,
           const Bounds& b);
 
-    ~Image() {}
+    ~Image();
 
     // Copy image
     void operator=(const Image& rhs) { *_m = *rhs._m; }

@@ -36,7 +36,7 @@ LVector::LVector(const DVector& rhs, int order_):
 }
 
 LVector::LVector(const CVector& cv) {
-  int ord = floor(0.5*(sqrt(8*cv.size()+1)-3));
+  int ord = floor(0.5*(sqrt(8.*cv.size()+1.)-3.));
   if (PQIndex::size(ord) != cv.size()) 
     throw LaguerreError("CVector size incompatible with LVector");
   // ??? should also check for Hermiticity
@@ -178,11 +178,13 @@ LTransform::LTransform(const DMatrix& rhs, int orderOut_, int orderIn_):
   m(new DMatrix(rhs))  {
   if (m->getN()!=PQIndex::size(*orderIn)
       || m->getM()!=PQIndex::size(*orderOut)) {
-    /**cerr << "size desired: " << PQIndex::size(*orderIn)
+#if 0
+      cerr << "size desired: " << PQIndex::size(*orderIn)
 	     << " x " << PQIndex::size(*orderOut)
 	     << " size given: " << rhs.getN()
 	     << " x " << rhs.getM()
-	     << endl; //**/
+	     << endl;
+#endif
       delete m;
       delete pcount;
       delete orderIn;
@@ -652,7 +654,7 @@ LVector::realRHS() const {
 DVector
 LVector::realPsi(int maxN, double x, double y,
 			   const Ellipse& e) {
-  int j;
+  //int j;
   LVector lv(maxN);
   lv.fillPsi(x, y, e);
   return lv.realRHS();

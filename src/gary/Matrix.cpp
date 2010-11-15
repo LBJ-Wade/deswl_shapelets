@@ -281,9 +281,8 @@ namespace mv {
     }
   }
 
-  /*
+#if 0
   // ??? this code unchecked
-  /**
   template <class T>
   void Matrix<T>::Read(istream& fin, double minnonzero) 
   {
@@ -315,7 +314,8 @@ namespace mv {
       fin >> c;
     }
   }
-  **/
+#endif
+
   template <class T>
   SqMatrix<T> Matrix<T>::InverseATA() const
     // (AtA)^(-1)_ij = Sum_k v_ik v_jk / w_k^2
@@ -1069,7 +1069,8 @@ void svdcmp(DMatrix* a, SqDMatrix* v, DVector* w)
     throw mverror();
   }
 
-  double at,bt,ct,maxarg1,maxarg2;
+  //double at,bt,ct;
+  double maxarg1,maxarg2;
   double scale=0.0,anorm=0.0,g=0.0;
   valarray<double> rv1(n);
 
@@ -1583,9 +1584,9 @@ template Vector<T> operator/(const Vector<T>& v, const Matrix<T>& m);
 template T TraceAB(const Matrix<T>& A, const Matrix<T>& B);
 #undef T
 #define T complex<double>
-template class mv::Matrix<T>;
-template class mv::SqMatrix<T>;
-template class mv::Vector<T>;
+template class Matrix<T>;
+template class SqMatrix<T>;
+template class Vector<T>;
 template Matrix<T> operator*(const Matrix<T>& m1,const Matrix<T>& m2);
 template Vector<T> operator*(const Matrix<T>& m, const Vector<T>& v);
 template Vector<T> operator*(const Vector<T>& v, const Matrix<T>& m);
