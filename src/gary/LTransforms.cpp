@@ -30,7 +30,7 @@ void ShearFMatrix(CMatrix* &Fptr,
   *Fptr = DComplex(0.,0.);
 
   static valarray<double> sqrtp;	//commonly used vector of sqrt(p)
-  if (sqrtp.size() < sumOrder+1) {
+  if (int(sqrtp.size()) < sumOrder+1) {
     sqrtp.resize(sumOrder+1);
     for (int i=0; i<=sumOrder; i++) sqrtp[i]=sqrtn(i);
   }
@@ -48,12 +48,12 @@ void ShearFMatrix(CMatrix* &Fptr,
 
   // An array for powers of tanh
   static valarray<double> tanh_powers;
-  if (tanh_powers.size() < maxOrder/2+1) 
+  if (int(tanh_powers.size()) < maxOrder/2+1) 
     tanh_powers.resize(maxOrder/2+1);
   {
     double accum=1.;
     double tanheta = tanh(0.5*eta.getEta());
-    for (int i=0; i<tanh_powers.size(); i++) {
+    for (int i=0; i<int(tanh_powers.size()); i++) {
       tanh_powers[i] = accum;
       accum *= tanheta;
     }
@@ -185,7 +185,7 @@ TranslationFMatrix(CMatrix* &Fptr,
   DComplex zbar2 = 0.5*conj(z);
 
   static valarray<double> sqrtp;	//commonly used vector of sqrt(p)
-  if (sqrtp.size() < maxOrder+1) {
+  if (int(sqrtp.size()) < maxOrder+1) {
     sqrtp.resize(maxOrder+1);
     for (int i=0; i<=maxOrder; i++) sqrtp[i]=sqrtn(i); 
   }
@@ -271,7 +271,7 @@ MakeLTransform(double mu,
   LTransform D(orderOut, orderIn);
 
   if (coordShift) mu=-mu;	//invert for coord transformation
-  double tanhmu = tanh(mu);
+  //double tanhmu = tanh(mu);
   double cmu = cosh(mu);
   double smu = sinh(mu);
 
@@ -296,7 +296,7 @@ MakeLTransform(double mu,
   rowpqm1->Resize(maxQp+1);
 
   static valarray<double> sqrtp;	//commonly used vector of sqrt(p)
-  if (sqrtp.size() < sumOrder+1) {
+  if (int(sqrtp.size()) < sumOrder+1) {
     sqrtp.resize(sumOrder+1);
     for (int i=0; i<=sumOrder; i++) sqrtp[i]=sqrtn(i); 
   }
@@ -563,7 +563,7 @@ void ConvolveFMatrix(mv::Cube<double>* &fptr,
   static valarray<double> sqrtp;	//commonly used vector of sqrt(p)
   {
     int topSqrt = orderStar + orderIn;
-    if (sqrtp.size() < topSqrt+1) {
+    if (int(sqrtp.size()) < topSqrt+1) {
       sqrtp.resize(topSqrt+1);
       for (int i=0; i<=topSqrt; i++) sqrtp[i]=sqrtn(i); 
     }

@@ -24,11 +24,11 @@ namespace solve {
     class Solve 
     {
     private:
-        T	uBound;
+        const F&  func;
         T	lBound;
+        T	uBound;
         T	xTolerance;
         int	maxSteps;
-        const F&  func;
     public:
         Solve(const F& func_, T lb_=0., T ub_=1.):
             func(func_), lBound(lb_), uBound(ub_), xTolerance(defaultTolerance),

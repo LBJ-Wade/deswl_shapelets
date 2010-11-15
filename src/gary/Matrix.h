@@ -103,10 +103,11 @@ namespace mv {
     { MVAssert(i<s.size()); return va[s.start()+i*s.stride()]; }
 
     public:
-    Slice_ref(valarray<T>& vv, slice ss) : va(vv), s(ss), 
-    CSlice_ref<T>(vv,ss) {}
-    Slice_ref(Vector<T>& v) : va(v.GetValArray()), s(0,v.size(),1),
-    CSlice_ref<T>(v.GetValArray(), slice(0,v.size(),1)) {}
+    Slice_ref(valarray<T>& vv, slice ss) : 
+        CSlice_ref<T>(vv,ss), va(vv), s(ss) {}
+    Slice_ref(Vector<T>& v) : 
+        CSlice_ref<T>(v.GetValArray(), slice(0,v.size(),1)),
+        va(v.GetValArray()), s(0,v.size(),1) {}
     T& operator[](size_t i) const
     { MVAssert(i<s.size()); return ref(i); } 
     operator valarray<T>() const { return valarray<T>(va[s]); }
@@ -237,7 +238,7 @@ namespace mv {
             : m(rhs.m),n(rhs.n),va(rhs.va),svd(0),isAltered(false) {}
         template <class U> 
         explicit Matrix(const Matrix<U>& rhs) :
-            m(rhs.GetM()),n(rhs.GetN()),va(m*n),isAltered(false),svd(0)
+            m(rhs.GetM()),n(rhs.GetN()),va(m*n),svd(0),isAltered(false)
         { for(size_t i=0;i<va.size();i++) va[i] = T(rhs.GetValArray()[i]); }
         Matrix(size_t mm,size_t nn,const valarray<T>& vv) : 
             m(mm),n(nn),va(vv),svd(0),isAltered(false) 
@@ -557,7 +558,7 @@ namespace mv {
         }
         T Tr() const 
         {
-            T tr; 
+            T tr(0); 
             for(size_t i=0;i<this->n;i++) tr+=this->va[Matrix<T>::index(i,i)];
             return tr;
         }

@@ -351,7 +351,7 @@ namespace mv {
 
   void SVD::nonNegativeSVs()
   {
-    for (int i=0; i<w.size(); i++)
+    for (int i=0; i<int(w.size()); i++)
       if (w[i]<0.) {
 	// Flip the sign of the SV and the corresponding row of V
 	w[i] =-w[i];
@@ -362,7 +362,7 @@ namespace mv {
   bool SVD::symmetric()
   {
     MVAssert(u.GetM()==v.GetM());
-    for (int i=0; i<w.size(); i++) {
+    for (int i=0; i<int(w.size()); i++) {
       double sum = u.GetCol(i).dot(v.GetCol(i));
       if (sum<0.) {
 	// Flip the sign of the SV and the corresponding row of V
@@ -372,8 +372,8 @@ namespace mv {
     }
     DMatrix tmp = u - v;
     bool sym=true;
-    for (int i=0; i<tmp.GetM(); i++)
-      for (int j=0; j<tmp.GetN(); j++)
+    for (int i=0; i<int(tmp.GetM()); i++)
+      for (int j=0; j<int(tmp.GetN()); j++)
 	if (abs(tmp(i,j))>1e-6) {
 	  /**cerr << "i " << i << " j " << j
 		   << " u(i,j) " << u(i,j) 
@@ -1381,11 +1381,11 @@ template <class T>
 void 
 tred2(SqMatrix<T>& a, Vector<T>& d, Vector<T>& e)
 {
-  size_t k,j,i;
+  int k,j,i;
   int l;
   T scale,hh,h,g,f;
 
-  size_t n=a.GetN();
+  int n=a.GetN();
   d.Resize(n);
   e.Resize(n);
 
@@ -1473,9 +1473,9 @@ void tqli(Vector<T>& d, Vector<T>& e, SqMatrix<T>& z)
   int m,l,iter,i,k;
   T s,r,p,g,f,dd,c,b;
 
-  size_t n=d.size();
-  MVAssert (e.size()==n);
-  MVAssert (z.GetN()==n);
+  int n=d.size();
+  MVAssert (int(e.size())==n);
+  MVAssert (int(z.GetN())==n);
   for (i=1;i<n;i++) e[i-1]=e[i];
   e[n-1]=0.0;
   for (l=0;l<n;l++) {

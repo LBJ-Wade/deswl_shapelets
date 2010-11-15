@@ -175,8 +175,8 @@ namespace laguerre {
     {
     private:
         int *order;
-        DVector *v;
         mutable int	*pcount;
+        DVector *v;
 
         static DComplex getElement(DVector* v, PQIndex(pq)) 
         {
@@ -216,8 +216,8 @@ namespace laguerre {
             order(new int(ord_)), pcount(new int(1)),
             v(new DVector(PQIndex::size(*order),0.)) {}
         LVector(const LVector& rhs) : 
-            v(rhs.v), pcount(rhs.pcount), 
-            order(rhs.order) {(*pcount)++;}
+            order(rhs.order), pcount(rhs.pcount), 
+            v(rhs.v) {(*pcount)++;}
         LVector(const DVector& rhs, int order_);
         LVector(const CVector& cv);
         LVector& operator=(const LVector& rhs) 
@@ -395,8 +395,8 @@ namespace laguerre {
     public:
         LCovar(int ord_=0): order(new int(ord_)), pcount(new int(1)),
         m(new SqDMatrix(PQIndex::size(*order),0.)) {}
-        LCovar(const LCovar& rhs): m(rhs.m), pcount(rhs.pcount), 
-        order(rhs.order) {(*pcount)++;}
+        LCovar(const LCovar& rhs): 
+            order(rhs.order), pcount(rhs.pcount), m(rhs.m) {(*pcount)++;}
         // Build an LCovar from a SqDMatrix for the real degrees of freedom.
         // SqDMatrix must have same dimension as needed for LCovar of chosen order
         // **Note we are not checking for symmetry of input matrix.
@@ -472,8 +472,8 @@ namespace laguerre {
             m(new DMatrix(PQIndex::size(*orderOut),PQIndex::size(*orderIn),0.))
         {}
         LTransform(const LTransform& rhs): 
-            m(rhs.m), pcount(rhs.pcount), 
-            orderIn(rhs.orderIn), orderOut(rhs.orderOut) {(*pcount)++;}
+            orderIn(rhs.orderIn), orderOut(rhs.orderOut),
+            pcount(rhs.pcount), m(rhs.m) {(*pcount)++;}
         // Build an LTransform from a DMatrix for the real degrees of freedom.
         // Matrix must have correct dimensions.
         LTransform(const DMatrix& rhs, int orderOut_, int orderIn_);

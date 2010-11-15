@@ -27,7 +27,7 @@ LVector::LVector(const DVector& rhs, int order_):
   order(new int(order_)), 
   pcount(new int(1)),
   v(new DVector(rhs)) {
-  if (v->size()!=PQIndex::size(*order)) {
+  if (int(v->size())!=PQIndex::size(*order)) {
       delete v;
       delete pcount;
       delete order;
@@ -37,7 +37,7 @@ LVector::LVector(const DVector& rhs, int order_):
 
 LVector::LVector(const CVector& cv) {
   int ord = floor(0.5*(sqrt(8.*cv.size()+1.)-3.));
-  if (PQIndex::size(ord) != cv.size()) 
+  if (PQIndex::size(ord) != int(cv.size())) 
     throw LaguerreError("CVector size incompatible with LVector");
   // ??? should also check for Hermiticity
   //**/cerr << "order is: " << ord << endl;
@@ -72,7 +72,7 @@ LCovar::LCovar(const SqDMatrix& rhs, int order_):
   order(new int(order_)), 
   pcount(new int(1)),
   m(new SqDMatrix(rhs)) {
-  if (m->size()!=PQIndex::size(*order)) {
+  if (int(m->size())!=PQIndex::size(*order)) {
       delete m;
       delete pcount;
       delete order;
@@ -166,7 +166,7 @@ LCovar::set(PQIndex pq1, PQIndex pq2,
 void
 LTransform::identity() {
   *m = 0.;
-  for (int i=0; i<MIN(m->getM(), m->getN()); i++)
+  for (int i=0; i<int(MIN(m->getM(), m->getN())); i++)
     (*m)(i,i)=1.;
 }
 
@@ -176,8 +176,8 @@ LTransform::LTransform(const DMatrix& rhs, int orderOut_, int orderIn_):
   orderOut(new int(orderOut_)),
   pcount(new int(1)),
   m(new DMatrix(rhs))  {
-  if (m->getN()!=PQIndex::size(*orderIn)
-      || m->getM()!=PQIndex::size(*orderOut)) {
+  if (int(m->getN())!=PQIndex::size(*orderIn)
+      || int(m->getM())!=PQIndex::size(*orderOut)) {
 #if 0
       cerr << "size desired: " << PQIndex::size(*orderIn)
 	     << " x " << PQIndex::size(*orderOut)
@@ -446,7 +446,7 @@ LVector::fillPsi(double xunit, double yunit,
   // First set up the factorials[] vector, which is filled with 
   // (-1)^q sqrt(q!/p!) / 2 pi
   int N = *order;
-  if (factorials.size() < PQIndex::size(N)) {
+  if (int(factorials.size()) < PQIndex::size(N)) {
     factorials.resize(PQIndex::size(N));
     PQIndex pq;
     double accum;
@@ -531,7 +531,7 @@ LVector::fillPsi(double xunit, double yunit,
   // Now multiply in the factorial array
   vptr = &((*v)[0]);
   double* fptr = &(factorials[0]);
-  for (int i=0; i<v->size(); i++)
+  for (int i=0; i<int(v->size()); i++)
     *(vptr++) *= *(fptr++);
 }
 
@@ -636,7 +636,7 @@ double
 LVector::dot(const LVector& rhs) const {
   double sum=0.;
   checkDotVector(*order);
-  for (int j=0; j<v->size(); j++)
+  for (int j=0; j<int(v->size()); j++)
     sum += (*v)[j]* (*(rhs.v))[j] * dotVector[j];
   return sum;
 }
@@ -645,7 +645,7 @@ DVector
 LVector::realRHS() const {
   checkDotVector(*order);
   DVector X(rVector());	//new copy of the psi array
-  for (int j=0; j<v->size(); j++)
+  for (int j=0; j<int(v->size()); j++)
     // ??? speed this up!
     X[j] *= dotVector[j];
   return X;
@@ -668,10 +668,10 @@ LVector::realPsi(int N, const DVector& xx, const DVector& yy,
   assert(xx.size()==yy.size());
   psi->resize(PQIndex::size(N), xx.size());
   LVector lv(N);
-  for (int j=0; j<xx.size(); j++) {
+  for (int j=0; j<int(xx.size()); j++) {
     lv.fillPsi(xx[j], yy[j], e);
     DVector xx(lv.realRHS());
-    for (int i=0; i<xx.size(); i++)
+    for (int i=0; i<int(xx.size()); i++)
       (*psi)(i,j) = xx[i];
   }
 }
@@ -866,7 +866,7 @@ LVector::Generator(int iparam, int order) {
   static DMatrix ge2;
 
   if (iparam==iMu) {
-    if (gmu.getM()<PQIndex::size(order)) {
+    if (int(gmu.getM())<PQIndex::size(order)) {
       LTransform lt(order, order+2);
 
       for (PQIndex pq(0,0); !pq.pastOrder(order); pq.nextDistinct()) {
@@ -895,14 +895,14 @@ LVector::Generator(int iparam, int order) {
       }
       gmu = lt.rMatrix();
       LVector::checkDotVector(order+2);
-      for (int i=0; i<gmu.getM(); i++)
-	for (int j=0; j<gmu.getN(); j++)
+      for (int i=0; i<int(gmu.getM()); i++)
+	for (int j=0; j<int(gmu.getN()); j++)
 	  gmu(i,j) *= LVector::dotVector[i]/LVector::dotVector[j];
     }
     return gmu;
   }
   if (iparam==iX) {
-    if (gx.getM()<PQIndex::size(order)) {
+    if (int(gx.getM())<PQIndex::size(order)) {
       LTransform lt(order, order+2);
 
       for (PQIndex pq(0,0); !pq.pastOrder(order); pq.nextDistinct()) {
@@ -942,15 +942,15 @@ LVector::Generator(int iparam, int order) {
       }
       gx = lt.rMatrix();
       LVector::checkDotVector(order+2);
-      for (int i=0; i<gx.getM(); i++)
-	for (int j=0; j<gx.getN(); j++)
+      for (int i=0; i<int(gx.getM()); i++)
+	for (int j=0; j<int(gx.getN()); j++)
 	  gx(i,j) *= LVector::dotVector[i]/LVector::dotVector[j];
     }
     return gx;
   }
 
   if (iparam==iY) {
-    if (gy.getM()<PQIndex::size(order)) {
+    if (int(gy.getM())<PQIndex::size(order)) {
       LTransform lt(order, order+2);
 
       for (PQIndex pq(0,0); !pq.pastOrder(order); pq.nextDistinct()) {
@@ -990,15 +990,15 @@ LVector::Generator(int iparam, int order) {
       }
       gy = lt.rMatrix();
       LVector::checkDotVector(order+2);
-      for (int i=0; i<gy.getM(); i++)
-	for (int j=0; j<gy.getN(); j++)
+      for (int i=0; i<int(gy.getM()); i++)
+	for (int j=0; j<int(gy.getN()); j++)
 	  gy(i,j) *= LVector::dotVector[i]/LVector::dotVector[j];
     }
     return gy;
   }
 
   if (iparam==iE1) {
-    if (ge1.getM()<PQIndex::size(order)) {
+    if (int(ge1.getM())<PQIndex::size(order)) {
       LTransform lt(order, order+2);
 
       for (PQIndex pq(0,0); !pq.pastOrder(order); pq.nextDistinct()) {
@@ -1040,15 +1040,15 @@ LVector::Generator(int iparam, int order) {
       }
       ge1 = lt.rMatrix();
       LVector::checkDotVector(order+2);
-      for (int i=0; i<ge1.getM(); i++)
-	for (int j=0; j<ge1.getN(); j++)
+      for (int i=0; i<int(ge1.getM()); i++)
+	for (int j=0; j<int(ge1.getN()); j++)
 	  ge1(i,j) *= LVector::dotVector[i]/LVector::dotVector[j];
     }
     return ge1;
   }
 
   if (iparam==iE2) {
-    if (ge2.getM()<PQIndex::size(order)) {
+    if (int(ge2.getM())<PQIndex::size(order)) {
       LTransform lt(order, order+2);
 
       for (PQIndex pq(0,0); !pq.pastOrder(order); pq.nextDistinct()) {
@@ -1090,8 +1090,8 @@ LVector::Generator(int iparam, int order) {
       }
       ge2 = lt.rMatrix();
       checkDotVector(order+2);
-      for (int i=0; i<ge2.getM(); i++)
-	for (int j=0; j<ge2.getN(); j++)
+      for (int i=0; i<int(ge2.getM()); i++)
+	for (int j=0; j<int(ge2.getN()); j++)
 	  ge2(i,j) *= dotVector[i]/dotVector[j];
     }
     return ge2;
@@ -1111,8 +1111,8 @@ public:
   double operator()(double u) const {return lv.apertureFlux(u,maxP)-thresh;}
 private:
   const LVector& lv;
-  double thresh;
   int maxP;
+  double thresh;
 };
 
 double
