@@ -730,7 +730,7 @@ bool StarCatalog::isAStar(long id) const
     std::vector<long>::const_iterator p = find(_id.begin(),_id.end(),id);
     if (p == _id.end()) return false;
     int i = p - _id.begin();
-    Assert(i < _isAStar.size());
+    Assert(i < int(_isAStar.size()));
     return _isAStar[i];
 }
 

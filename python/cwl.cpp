@@ -356,7 +356,8 @@ void CWL::measure_shear(string shear_file) throw (const char*) {
 
   this->shearcat->flagStars(*this->starcat.get());
  
-  int n_shear = this->shearcat->measureShears(
+  //int n_shear = 
+  this->shearcat->measureShears(
       *this->image.get(),
       this->weight_image.get(),
       *this->shear_log);

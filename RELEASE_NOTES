@@ -1,4 +1,56 @@
 -------------------------------------------------------------------------
+
+v0.60  (2010-11-15)  Quite a few bug fixes and some structural changes
+  in the python framework.  I'll do these by topic rather than by file,
+  since there are a lot of them, and many span multiple files.
+
+--  Overwrite the psf catalog after running the interpolation module so 
+    we can access the new flags indicating which objects were removed
+    as outliers.
+
+--  Changed teh default shear_gal_order2 from 2 to 6.  This seems to 
+    be less susceptible to biases in the shear from model errors, but
+    we are still testing this.
+    
+--  Erin added a whole bunch of stuff for the python bindings.
+
+--  Added ability to make a shared library which is required when doing the 
+    python stuff.  Also need TMV compiled with a shared library.
+
+--  Updated the SConstruct script to work with the tmv-link file 
+    produced by the TMV installation.
+
+--  Fixed a bug where the centroids would end up biased in the direction
+    of the initial estimate.  Also fixed a discrepancy between the 
+    definition of the lower left pixel.  (Use cat_x_offset = 1 and
+    cat_y_offset = 1 for agreement with the SExtractor catalog.)
+    And, added a check to see if the centroids are consistently
+    needing to be adjusted in the same direction to help find similar
+    errors in the future.
+
+--  Fixed bug to not try to write the Log into the fits header when
+    the output is not a fits file.  
+
+--  Fixed bug where some galaxies were spuriously flagged with the 
+    SHEAR_LOCAL_MINIMUM flag.
+
+--  Flag objects that are thought to be stars with the TOO_SMALL flag,
+    and skip trying to compute a shear for them.
+
+--  Increased the shear_aperture from 3 to 4 and shear_max_aperture from
+    10 to 12 to try to reduce biases that occur with the smaller apertures.
+
+--  Added ability to split the StarCatalog into two random samples
+    for use with training and validation tests.
+
+--  Added ability in scons to explicitly set the locations of required
+    libraries: TMV, cfitsio, CCFits.
+    
+--  Added some functionality and some optional parameters that are 
+    useful for testing.  (Like psf_force_sigma_p, etc.)
+
+
+-------------------------------------------------------------------------
 v0.55  (2010-04-23)  One bug fix regarding centroiding, and added a couple
   features that are useful for testing.  Features in framework to simplify
   configurations and identify particilar wl.config with each run.
