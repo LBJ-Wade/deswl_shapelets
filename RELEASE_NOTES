@@ -49,6 +49,9 @@ v0.60  (2010-11-15)  Quite a few bug fixes and some structural changes
 --  Added some functionality and some optional parameters that are 
     useful for testing.  (Like psf_force_sigma_p, etc.)
 
+--  Changed the name of the isotropic signal-to-noise in the shear output 
+    files from nu to shear_signal_to_noise.
+
 
 -------------------------------------------------------------------------
 v0.55  (2010-04-23)  One bug fix regarding centroiding, and added a couple
