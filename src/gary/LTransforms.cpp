@@ -12,7 +12,7 @@ namespace laguerre {
 //-------------------------------------------------------------------
 
 // Make the F matrix for shear.  
-void ShearFMatrix(CMatrix* &Fptr,
+static void ShearFMatrix(CMatrix* &Fptr,
 		  const Shear eta, 
 		  int orderOut, int orderIn) {
 
@@ -170,7 +170,7 @@ LTransform MakeLTransform(Shear eta,
 // TRANSFORMATION MATRICES: Translation
 //-------------------------------------------------------------------
 
-void
+static void
 TranslationFMatrix(CMatrix* &Fptr,
 		   const Position<double> x0, 
 		   int orderOut, int orderIn) {
@@ -345,8 +345,8 @@ MakeLTransform(double mu,
       // generate [pprime qprime][pq] vector.  Recursion is
       // sqrt(q) D[p'q'][pq] = cosh(mu) sqrt(q') D[p' q'-1][p q-1]
       //		-sinh(mu) sqrt(p'+1) D[p'+1 q'][p q-1].
-      double factor1=cmu/sqrtp[q];
-      double factor2=-smu/sqrtp[q];
+      factor1=cmu/sqrtp[q];
+      factor2=-smu/sqrtp[q];
       PQIndex pqo(pqi.m(), 0);
       qprime=pqo.getQ();
       (*rowpq)[qprime] = factor2* sqrtp[pqo.getP()+1] * (*rowpqm1)[qprime];
@@ -542,7 +542,7 @@ RotationLTransform(double theta,
 // The 3d Array will be calculated only to the desired orders in the PSF,
 // intrinsic, and observed (Out) b vectors, but a cubic array will be
 // allocated for convenience.
-void ConvolveFMatrix(mv::Cube<double>* &fptr,
+static void ConvolveFMatrix(mv::Cube<double>* &fptr,
 		     const double D,
 		     const int orderOut,
 		     const int orderIn,

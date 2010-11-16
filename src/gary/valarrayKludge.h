@@ -12,12 +12,12 @@
 #include "valarray.icc"
 #define HAVE_VALARRAY_POINTERS
 
-#elif  GCC295
+#elif  defined(GCC295)
 // GCC 2.95
 #include "valarray.gcc295"
 #define HAVE_VALARRAY_POINTERS
 
-#elif  GCC3
+#elif  defined(GCC3)
 // GCC 3.x already does it our way:
 #include <valarray>
 #define HAVE_VALARRAY_POINTERS

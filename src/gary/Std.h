@@ -29,16 +29,16 @@ namespace laguerre {
 
     // Useful conventions:
     template <class T>
-    void SWAP(T& a,T& b) {T temp=a; a=b; b=temp;}
+    static void SWAP(T& a,T& b) {T temp=a; a=b; b=temp;}
 
     template <class T>
-    T SQR(const T& x) {return x*x;}
+    static T SQR(const T& x) {return x*x;}
 
     template <class T>
-    const T& MAX(const T& a, const T& b) {return a>b ? a : b;}
+    static const T& MAX(const T& a, const T& b) {return a>b ? a : b;}
 
     template <class T>
-    const T& MIN(const T& a, const T& b) {return a<b ? a : b;}
+    static const T& MIN(const T& a, const T& b) {return a<b ? a : b;}
 
     typedef unsigned int uint;
     typedef unsigned short ushort;

@@ -459,7 +459,7 @@ LVector::fillPsi(double xunit, double yunit,
       pq.incQ();
       for (int q=1; !pq.pastOrder(N) && p>=q; pq.incQ(), q++) {
 	accum *= -sqrtn(q);
-	int iR=pq.rIndex();
+	iR=pq.rIndex();
 	if (p!=q) factorials[iR++] = accum;
 	factorials[iR] = accum;
       }
@@ -502,11 +502,11 @@ LVector::fillPsi(double xunit, double yunit,
     double zi=zm.imag();
     pq.setPQ(m,0);
     t0 = prefactor;	//q=0
-    int iR = pq.rIndex();
+    iR = pq.rIndex();
     vptr = &((*v)[iR]);
     *(vptr++) = t0*zr;
     *vptr = t0*zi;
-    int iN = pq.N()+2;
+    iN = pq.N()+2;
     if (iN<=N) {
       tqm = m;
       tqmx = m+1.-x;	//q=1
@@ -670,9 +670,9 @@ LVector::realPsi(int N, const DVector& xx, const DVector& yy,
   LVector lv(N);
   for (int j=0; j<int(xx.size()); j++) {
     lv.fillPsi(xx[j], yy[j], e);
-    DVector xx(lv.realRHS());
-    for (int i=0; i<int(xx.size()); i++)
-      (*psi)(i,j) = xx[i];
+    DVector temp(lv.realRHS());
+    for (int i=0; i<int(temp.size()); i++)
+      (*psi)(i,j) = temp[i];
   }
 }
 

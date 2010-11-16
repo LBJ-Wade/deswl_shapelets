@@ -169,7 +169,7 @@ void Shear::read(istream& fin) {
 }
 
 istream& 
-operator<<(istream& is, Shear& s) {
+operator>>(istream& is, Shear& s) {
   s.read(is);
   return is;
 }

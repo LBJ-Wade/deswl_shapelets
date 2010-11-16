@@ -73,7 +73,7 @@ namespace mv {
         template <class U>
         friend class Slice_ref;
     private:
-        void operator=(const CSlice_ref& cs) {};  //preclude op=
+        void operator=(const CSlice_ref& ) {};  //preclude op=
     protected:
         const valarray<T>& va; 
         slice s;
@@ -857,7 +857,7 @@ namespace mv {
     { return v1 - CVector(v2); }
 
     inline CVector operator+(const DVector& v1,const CVector& v2)
-    { return CVector(v1) + v1; }
+    { return CVector(v1) + v2; }
 
     inline CVector operator-(const DVector& v1,const CVector& v2)
     { return CVector(v1) - v2; }

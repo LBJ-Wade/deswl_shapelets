@@ -185,10 +185,11 @@ void InputCatalog::read()
         int minRows = _params.read("cat_nrows",0);
         if (nRows <= minRows) {
             try {
+                std::string name = makeName(_params,"cat",true,false);
                 std::cout<<"STATUS3BEG Warning: Input catalog only has "
-                    <<nRows<<" rows for Name="<<makeName(_params,"cat",true,false)
+                    <<nRows<<" rows for Name="<<name
                     <<". STATUS3END"<<std::endl;
-            } catch (AssertFailureException& e) {
+            } catch (AssertFailureException& ) {
                 std::cout<<"STATUS3BEG Warning: Input catalog only has "
                     <<nRows<<" rows. STATUS3END"<<std::endl;
             }

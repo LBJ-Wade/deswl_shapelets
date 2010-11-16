@@ -9,6 +9,7 @@
 #include "PsfCatalog.h"
 #include "ShearCatalog.h"
 #include "Log.h"
+#include "Scripts.h"
 
 void doFindStars(
     ConfigFile& params, FindStarsLog& log,

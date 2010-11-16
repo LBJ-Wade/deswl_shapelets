@@ -9,17 +9,17 @@ namespace mv {
 
   // Declarations of functions (from Numerical Recipes) used herein:
   template <class T>
-  void ludcmp(SqMatrix<T>* a, valarray<size_t>* indx, T* d);
+  static void ludcmp(SqMatrix<T>* a, valarray<size_t>* indx, T* d);
   template <class T>
-  void lubksb(const SqMatrix<T>& a, const valarray<size_t>& indx, Vector<T>* b);
-  void svdcmp(DMatrix* u, SqDMatrix* v, DVector* w);
+  static void lubksb(const SqMatrix<T>& a, const valarray<size_t>& indx, Vector<T>* b);
+  static void svdcmp(DMatrix* u, SqDMatrix* v, DVector* w);
   template <class T>
-  void svbksb(const DMatrix& u, const SqDMatrix& v, const DVector& w,
+  static void svbksb(const DMatrix& u, const SqDMatrix& v, const DVector& w,
 	      const CSlice_ref<T>& b, Vector<T>* x);
   template <class T>
-  void tred2(SqMatrix<T>& a, Vector<T>& d, Vector<T>& e);
+  static void tred2(SqMatrix<T>& a, Vector<T>& d, Vector<T>& e);
   template <class T>
-  void tqli(Vector<T>& d, Vector<T>& e, SqMatrix<T>& a);
+  static void tqli(Vector<T>& d, Vector<T>& e, SqMatrix<T>& a);
 
 
   template <class T>
@@ -255,66 +255,37 @@ namespace mv {
   bool Matrix<T>::SVZero() const {return svd && svd->zero;}
 
   template <class T>
-  void Matrix<T>::Write(ostream& fout, double minnonzero) const
+  void Matrix<T>::Write(ostream& fout, double /*minnonzero*/) const
   {
     for(size_t i=0;i<GetM();i++) {
       fout << "[ ";
       for(size_t j=0;j<GetN();j++) {
 	T temp = Get(i,j);
-	//**	if (abs(temp)<minnonzero) fout << "0.0 ";
-	//else fout << temp << ' ';
+#if 0
+	if (abs(temp)<minnonzero) fout << "0.0 ";
+	else fout << temp << ' ';
+#else
 	fout << temp << ' ';
+#endif
       }
       fout << " ]\n";
     }
   }
 
   template <class T>
-  void Vector<T>::Write(ostream& fout,double minnonzero) const
+  void Vector<T>::Write(ostream& fout,double /*minnonzero*/) const
   {
     for(size_t i=0;i<size();i++) {
       fout << "[ ";
-      //**      if (abs(va[i])<minnonzero) fout << "0.0 ";
-      //else fout << va[i] << ' ';
+#if 0
+      if (abs(va[i])<minnonzero) fout << "0.0 ";
+      else fout << va[i] << ' ';
+#else
       fout << va[i] << ' ';
+#endif
       fout << " ]\n";
     }
   }
-
-#if 0
-  // ??? this code unchecked
-  template <class T>
-  void Matrix<T>::Read(istream& fin, double minnonzero) 
-  {
-    MVAssert(getM()>0 && getN()>0)
-    char c;
-    for(size_t i=0;i<GetM();i++) {
-      fin >> c;
-      for(size_t j=0;j<GetN();j++) {
-	T temp;
-	//**	if (abs(temp)<minnonzero) fin << "0.0 ";
-	//else fin << temp << ' ';
-	fin >> temp;
-	(*this)(i,j) = temp;
-      }
-      fin >> c;
-    }
-  }
-
-  template <class T>
-  void Vector<T>::Read(istream& fin,double minnonzero) 
-  {
-    MVAssert(va.size()>0);
-    char c;
-    for(size_t i=0;i<size();i++) {
-      fin >> c;
-      //**      if (abs(va[i])<minnonzero) fin << "0.0 ";
-      //else fin << va[i] << ' ';
-      fin >> va[i] ;
-      fin >> c;
-    }
-  }
-#endif
 
   template <class T>
   SqMatrix<T> Matrix<T>::InverseATA() const
@@ -432,7 +403,7 @@ namespace mv {
   //---------------------------------------------------------------------------
 
 template <class T>
-T RCMult(const CSlice_ref<T>& row, const CSlice_ref<T>& col)
+static T RCMult(const CSlice_ref<T>& row, const CSlice_ref<T>& col)
 {
   //  MVAssert(row.size() == col.size());
   //  T sum=0;
@@ -441,7 +412,7 @@ T RCMult(const CSlice_ref<T>& row, const CSlice_ref<T>& col)
   return row.dot(col);
 }
 
-complex<double> RCMult(const CSlice_ref<complex<double> >& row, 
+static complex<double> RCMult(const CSlice_ref<complex<double> >& row, 
     const CSlice_ref<double>& col)
 {
   MVAssert(row.size() == col.size());
@@ -451,7 +422,7 @@ complex<double> RCMult(const CSlice_ref<complex<double> >& row,
   return sum;
 }
 
-complex<double> RCMult(const CSlice_ref<double>& row,
+static complex<double> RCMult(const CSlice_ref<double>& row,
     const CSlice_ref<complex<double> >& col)
 { return RCMult(col,row); }
 
@@ -549,6 +520,7 @@ Vector<T> operator*(const Vector<T>& v, const Matrix<T>& m)
   return temp;
 }
 
+#if 0
 template <class T>
 Vector<T>& operator*=(Vector<T>& v, const SqMatrix<T>& m)
 {
@@ -557,6 +529,7 @@ Vector<T>& operator*=(Vector<T>& v, const SqMatrix<T>& m)
   v = temp;
   return v;
 }
+#endif
 
 CVector operator*(const CMatrix& m, const DVector& v)
 {
@@ -1593,7 +1566,7 @@ template Vector<T> operator*(const Vector<T>& v, const Matrix<T>& m);
 template T operator*(const Vector<T>& v1, const Vector<T>& v2);
 template Matrix<T> OuterProduct(const Vector<T>& v1, const Vector<T>& v2);
 template Matrix<T> operator/(const Matrix<T>& m1,const Matrix<T>& m2);
-template Vector<T>& operator*=(Vector<T>& v, const SqMatrix<T>& m);
+//template Vector<T>& operator*=(Vector<T>& v, const SqMatrix<T>& m);
 template Vector<T> operator/(const Vector<T>& v, const Matrix<T>& m);
 template SqMatrix<T> TruncateMul(const SqMatrix<T>& m1,const SqMatrix<T>& m2);
 template Vector<T> TruncateMul(const Vector<T>& v,const SqMatrix<T>& m);
