@@ -57,10 +57,6 @@
 #include "Params.h"
 #include "dbg.h"
 
-//
-// Errors that can be thrown by classes in this file:
-//
-
 #ifdef __INTEL_COMPILER
 #pragma warning (disable : 444)
 // Disable "destructor for base class ... is not virtual"
@@ -260,7 +256,7 @@ template <> inline ConvertibleString::operator bool() const
 
 class ConfigFile 
 {
-    // Methods
+
 public:
     // Create a blank config file with default values of delimter, etc.
     ConfigFile();
@@ -343,9 +339,7 @@ public:
     std::string setSentry( const std::string& s )
     { std::string old = _sentry;  _sentry = s;  return old; }  
 
-    size_t size() {
-      return _contents.size();
-    }
+    size_t size() { return _contents.size(); }
 
 protected:
 

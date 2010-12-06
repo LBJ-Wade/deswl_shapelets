@@ -33,7 +33,7 @@ public :
             bool _shouldUseFlux);
 
     ESImpl2(const std::vector<PixelList>& _pix,
-            const std::vector<BVec>& _psf, double _fp,
+            const std::vector<BVec>& _psf,
             int _order, double _sigma, double _pixScale,
             bool _isFixedCen, bool _isFixedGamma, bool _isFixedMu,
             bool _shouldUseFlux);
@@ -50,7 +50,6 @@ public :
     mutable BVec b;
     const std::vector<PixelList>& pix;
     const std::vector<BVec>* psf;
-    double f_psf;
     std::vector<double> sigma_obs;
     DVector I;
     CDVector Z;
@@ -96,12 +95,12 @@ EllipseSolver2::EllipseSolver2(
 
 EllipseSolver2::EllipseSolver2(
     const std::vector<PixelList>& pix,
-    const std::vector<BVec>& psf, double fp,
+    const std::vector<BVec>& psf,
     int order, double sigma, double pixScale,
     bool isFixedCen, bool isFixedGamma, bool isFixedMu, bool shouldUseFlux) :
     _pimpl(
         new EllipseSolver2::ESImpl2(
-            pix,psf,fp,order,sigma,pixScale,
+            pix,psf,order,sigma,pixScale,
             isFixedCen,isFixedGamma,isFixedMu,shouldUseFlux))
 {}
 
@@ -129,7 +128,7 @@ EllipseSolver2::ESImpl2::ESImpl2(
 
     nsize((_order+1)*(_order+2)/2),
     np2size((_order+3)*(_order+4)/2), b(_order,_sigma),
-    pix(_pix), psf(0), f_psf(1.), sigma_obs(pix.size(),_sigma), 
+    pix(_pix), psf(0), sigma_obs(pix.size(),_sigma), 
     I(calculateSumSize(pix)), Z(I.size()), Z1(I.size()),
     isFixedCen(_isFixedCen), isFixedGamma(_isFixedGamma),
     isFixedMu(_isFixedMu), shouldUseFlux(_shouldUseFlux),
@@ -190,13 +189,13 @@ EllipseSolver2::ESImpl2::ESImpl2(
 
 EllipseSolver2::ESImpl2::ESImpl2(
     const std::vector<PixelList>& _pix,
-    const std::vector<BVec>& _psf, double _fp, int _order, double _sigma, 
+    const std::vector<BVec>& _psf, int _order, double _sigma, 
     double _pixScale, bool _isFixedCen, bool _isFixedGamma,
     bool _isFixedMu, bool _shouldUseFlux) :
 
     nsize((_order+1)*(_order+2)/2),
     np2size((_order+3)*(_order+4)/2), b(_order,_sigma),
-    pix(_pix), psf(&_psf), f_psf(_fp), sigma_obs(pix.size()), 
+    pix(_pix), psf(&_psf), sigma_obs(pix.size()), 
     I(calculateSumSize(pix)), Z(I.size()), Z1(I.size()),
     isFixedCen(_isFixedCen), isFixedGamma(_isFixedGamma),
     isFixedMu(_isFixedMu), shouldUseFlux(_shouldUseFlux),
@@ -240,7 +239,7 @@ EllipseSolver2::ESImpl2::ESImpl2(
         D.push_back(DMatrix(psfsize2,psfsize));
         if ((*psf)[k].getOrder() > maxpsforder)
             maxpsforder = (*psf)[k].getOrder();
-        sigma_obs[k] = sqrt(pow(_sigma,2)+f_psf*pow((*psf)[k].getSigma(),2));
+        sigma_obs[k] = sqrt(pow(_sigma,2)+pow((*psf)[k].getSigma(),2));
 #ifdef USE_TMV
         C[k].saveDiv();
 #endif

@@ -10,7 +10,7 @@
 #include "Log.h"
 #include "MeasureShearAlgo.h"
 
-//#define SINGLEGAL 1
+//#define SINGLEGAL 632
 //#define STARTAT 8000
 //#define ENDAT 200
 
@@ -35,7 +35,7 @@ int ShearCatalog::measureShears(
           seed += i*_flags[i];
         }
         //srand ( time(NULL) );
-	//std::cout<<"using seed: "<<seed<<"\n";
+        //std::cout<<"using seed: "<<seed<<"\n";
         srand (seed);
         first = false;
     }
@@ -54,6 +54,8 @@ int ShearCatalog::measureShears(
     double gain = _params.read("image_gain",0.);
     double minGalSize = _params.read<double>("shear_min_gal_size");
     bool galFixCen = _params.read("shear_fix_centroid",false);
+    bool galFixSigma = _params.keyExists("shear_force_sigma");
+    double galFixSigmaValue = _params.read("shear_force_sigma",0.);
     double xOffset = _params.read("cat_x_offset",0.);
     double yOffset = _params.read("cat_y_offset",0.);
     bool shouldOutputDots = _params.read("output_dots",false);
@@ -66,14 +68,17 @@ int ShearCatalog::measureShears(
     OverallFitTimes allTimes;
 
 #ifdef ENDAT
+    for(int i=ENDAT; i<nGals; ++i) _flags[i] |= INPUT_FLAG;
     nGals = ENDAT;
 #endif
 
     log._nGals = nGals;
 #ifdef STARTAT
+    for(int i=0; i<STARTAT; ++i) _flags[i] |= INPUT_FLAG;
     log._nGals -= STARTAT;
 #endif
 #ifdef SINGLEGAL
+    for(int i=0; i<nGals; ++i) if (i != SINGLEGAL)  _flags[i] |= INPUT_FLAG;
     log._nGals = 1;
 #endif
     log._nGoodIn = std::count(_flags.begin(),_flags.end(),0);
@@ -127,6 +132,7 @@ int ShearCatalog::measureShears(
                     // Parameters:
                     galAperture, maxAperture, galOrder, galOrder2, 
                     fPsf, minGalSize, galFixCen, xOffset, yOffset,
+                    galFixSigma, galFixSigmaValue,
                     // Time stats if desired:
                     isTiming ? &times : 0, 
                     // Log information
@@ -142,6 +148,8 @@ int ShearCatalog::measureShears(
                     dbg<<"Successful shear measurement: "<<_shear[i]<<std::endl;
                 } else {
                     dbg<<"Unsuccessful shear measurement\n"; 
+                    dbg<<"flag = "<<flag1<<std::endl;
+                    dbg<<"shear = "<<_shear[i]<<std::endl;
                 }
 
                 if (isTiming) {

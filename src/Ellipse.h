@@ -17,17 +17,17 @@ public :
     Ellipse() :
         _cen(0.), _gamma(0.), _mu(0.),
         _isFixedCen(false), _isFixedGamma(false), _isFixedMu(false), 
-        _fPsf(1.0), _shouldDoTimings(false) {}
+        _shouldDoTimings(false) {}
 
     Ellipse(double x, double y, double g1, double g2, double mu) :
         _cen(x,y), _gamma(g1,g2), _mu(mu), 
         _isFixedCen(false), _isFixedGamma(false), _isFixedMu(false), 
-        _fPsf(1.0), _shouldDoTimings(false) {}
+        _shouldDoTimings(false) {}
 
     Ellipse(double vals[]) :
         _cen(vals[0],vals[1]), _gamma(vals[2],vals[3]), _mu(vals[4]),
         _isFixedCen(false), _isFixedGamma(false), _isFixedMu(false),
-        _fPsf(1.0), _shouldDoTimings(false) {}
+        _shouldDoTimings(false) {}
 
     bool measure(const std::vector<PixelList>& pix, 
                  const std::vector<BVec>& psf,
@@ -52,6 +52,14 @@ public :
     void measureShapelet(
         const std::vector<PixelList>& pix, 
         BVec& bret, int order, DMatrix* bcov=0) const;
+
+    void altMeasureShapelet(
+        const std::vector<PixelList>& pix, 
+        const std::vector<BVec>& psf, BVec& bret, int order,
+        double pixScale, DMatrix* bcov=0) const;
+    void altMeasureShapelet(
+        const std::vector<PixelList>& pix, 
+        BVec& bret, int order, double pixScale, DMatrix* bcov=0) const;
 
     void write(std::ostream& os) const
     { os << _cen<<" "<<_gamma<<" "<<_mu; }
@@ -80,9 +88,6 @@ public :
     bool isFixedGamma() const { return _isFixedGamma; }
     bool isFixedMu() const { return _isFixedMu; }
 
-    void setFP(double fp) { _fPsf = fp; }
-    double getFP() const { return _fPsf; }
-
     void doTimings() { _shouldDoTimings = true; }
     void resetTimes() { _times.reset(); }
     const EllipseTimes& getTimes() { return _times; }
@@ -94,17 +99,22 @@ private :
         const std::vector<BVec>* psf, int order, double sigma,
         bool shouldUseInteg, long& flag, DMatrix* cov=0, 
         BVec* bret=0, DMatrix* bcov=0);
+
     void doMeasureShapelet(
         const std::vector<PixelList>& pix, 
         const std::vector<BVec>* psf, BVec& bret, int order,
         DMatrix* bcov=0) const;
+
+    void doAltMeasureShapelet(
+        const std::vector<PixelList>& pix, 
+        const std::vector<BVec>* psf, BVec& bret, int order,
+        double pixScale, DMatrix* bcov=0) const;
 
     std::complex<double> _cen;
     std::complex<double> _gamma;
     double _mu; 
 
     bool _isFixedCen,_isFixedGamma,_isFixedMu;
-    double _fPsf;
 
     bool _shouldDoTimings;
 

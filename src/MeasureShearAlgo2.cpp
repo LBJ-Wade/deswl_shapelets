@@ -140,7 +140,6 @@ void measureMultiShear(
         if (sigma < 0.1*sigpsq) sigma = 0.1*sigpsq;
         sigma = sqrt(sigma);
         xdbg<<"sigma = sqrt(sigma^2) "<<sigma<<std::endl;
-        ell.setFP(fPsf);
         if (times) ell.resetTimes();
         flag1 = 0;
         if (ell.measure(pix,psf,go,sigma,false,flag1)) {

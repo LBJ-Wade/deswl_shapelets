@@ -11,8 +11,6 @@
 #define N_FLUX_ATTEMPTS 0
 #define MAXITER 4
 
-//bool ingammafit;
-
 static std::complex<double> addShears(
     const std::complex<double> g1, const std::complex<double> g2)
 {
@@ -42,7 +40,6 @@ bool Ellipse::doMeasure(
     int order, double sigma, bool shouldUseInteg, long& flag, 
     DMatrix* cov, BVec* bRet, DMatrix* bCov)
 {
-    //ingammafit = false;
     timeval tp;
     double t1=0.,t2=0.;
 
@@ -52,11 +49,12 @@ bool Ellipse::doMeasure(
         doMeasure(pix,psf,order-2,sigma,shouldUseInteg,flag);
         //doMeasure(pix,psf,2,sigma,shouldUseInteg,flag);
     }
-
+    
     xdbg<<"Start DoMeasure: order = "<<order<<", psf = "<<bool(psf)<<std::endl;
     xdbg<<"fix = "<<_isFixedCen<<"  "<<_isFixedGamma<<"  "<<_isFixedMu<<std::endl;
     xdbg<<"useInteg? "<<shouldUseInteg<<std::endl;
-    for(size_t i=0;i<pix.size();++i) xdbg<<"npix["<<i<<"] = "<<pix[i].size()<<std::endl;
+    for(size_t i=0;i<pix.size();++i) 
+        xdbg<<"npix["<<i<<"] = "<<pix[i].size()<<std::endl;
 
     std::auto_ptr<BaseEllipseSolver> solver;
 
@@ -68,6 +66,7 @@ bool Ellipse::doMeasure(
     DVector xinit = x;
     DVector f(5);
 
+#if 0
     // First get the centroid right before we allow the size or shape to vary.
     if (!_isFixedCen) {
         if (shouldUseInteg && order <= 3) {
@@ -76,7 +75,7 @@ bool Ellipse::doMeasure(
                 // pixscale doesn't really matter unless we want an accurate B in
                 // the end, so just use 1 here.
                 solver.reset(new EllipseSolver2(
-                        pix,*psf,_fPsf,order,sigma,1.,false,true,true));
+                        pix,*psf,order,sigma,1.,false,true,true));
             } else {
                 solver.reset(new EllipseSolver2(
                         pix,order,sigma,1.,false,true,true));
@@ -149,7 +148,7 @@ bool Ellipse::doMeasure(
             // the end, so just use 1 here.
             solver.reset(
                 new EllipseSolver2(
-                    pix,*psf,_fPsf,order,sigma,1.,
+                    pix,*psf,order,sigma,1.,
                     _isFixedCen,_isFixedGamma,_isFixedMu,true));
         } else {
             solver.reset(new EllipseSolver2(
@@ -184,7 +183,7 @@ bool Ellipse::doMeasure(
         if (psf) {
             solver.reset(
                 new EllipseSolver2(
-                    pix,*psf,_fPsf,order,sigma,1.,
+                    pix,*psf,order,sigma,1.,
                     _isFixedCen,_isFixedGamma,_isFixedMu));
         } else {
             solver.reset(new EllipseSolver2(
@@ -215,7 +214,6 @@ bool Ellipse::doMeasure(
         }
     }
 
-#if 0
     // We should be close enough for the exact solver to work.
     // But just to be safe, fit each of centroid, gamma, mu separately first:
     if (_shouldDoTimings) {
@@ -225,7 +223,7 @@ bool Ellipse::doMeasure(
     if (!_isFixedCen) {
         if (psf) {
             solver.reset(new EllipseSolver(
-                    pix,*psf,_fPsf,order,sigma,false,true,true));
+                    pix,*psf,order,sigma,false,true,true));
         } else {
             solver.reset(new EllipseSolver(
                     pix,order,sigma,false,true,true));
@@ -287,7 +285,7 @@ bool Ellipse::doMeasure(
 
         if (psf) {
             solver.reset(new EllipseSolver(
-                    pix,*psf,_fPsf,order,sigma,true,false,true));
+                    pix,*psf,order,sigma,true,false,true));
         } else {
             solver.reset(new EllipseSolver(
                     pix,order,sigma,true,false,true));
@@ -335,7 +333,7 @@ bool Ellipse::doMeasure(
     if (!_isFixedMu) {
         if (psf) {
             solver.reset(new EllipseSolver(
-                    pix,*psf,_fPsf,order,sigma,true,true,false));
+                    pix,*psf,order,sigma,true,true,false));
         } else {
             solver.reset(new EllipseSolver(
                     pix,order,sigma,true,true,false));
@@ -377,9 +375,10 @@ bool Ellipse::doMeasure(
     }
 #endif
 
-    // Now fit everything, but first time, try to maintain the flux level
-#ifdef N_FLUX_ATTEMPTS
 #if N_FLUX_ATTEMPTS > 0
+    // First, maintain the flux level:
+    // This is a bit more stable, especially if the initial flux isn't 
+    // a very good choice.  Flux estimate is reset on each FLUX_ATTEMPT
     xdbg<<"Do regular solve (fixed flux)\n";
     if (_shouldDoTimings) {
         gettimeofday(&tp,0);
@@ -387,7 +386,7 @@ bool Ellipse::doMeasure(
     }
     if (psf) {
         solver.reset(new EllipseSolver(
-                pix,*psf,_fPsf,order,sigma,
+                pix,*psf,order,sigma,
                 _isFixedCen,_isFixedGamma,_isFixedMu));
     } else {
         solver.reset(new EllipseSolver(
@@ -426,22 +425,17 @@ bool Ellipse::doMeasure(
         xdbg<<"This FixFlux time = "<<t2-t1<<std::endl;
     }
 #endif
-#endif
 
 #if 0
     if (!_isFixedGamma) {
-        //ingammafit = true;
         xdbg<<"Do gamma-only solve\n";
-        // MJ Reset to a given value.  One that should be the right answer.
-        x.setZero();
-        x(2) = -0.2;
         if (_shouldDoTimings) {
             gettimeofday(&tp,0);
             t1 = tp.tv_sec + tp.tv_usec/1.e6;
         }
         if (psf) {
             solver.reset(new EllipseSolver(
-                    pix,*psf,_fPsf,order,sigma,true,false,true));
+                    pix,*psf,order,sigma,true,false,true));
         } else {
             solver.reset(new EllipseSolver(
                     pix,order,sigma,true,false,true));
@@ -473,10 +467,8 @@ bool Ellipse::doMeasure(
             _times._tGamma += t2-t1;
             xdbg<<"This Final time = "<<t2-t1<<std::endl;
         }
-        ingammafit = false;
     }
 #endif
- 
 
     // Finally allow the flux change as needed.
     xdbg<<"Do regular solve with flux\n";
@@ -486,7 +478,7 @@ bool Ellipse::doMeasure(
     }
     if (psf) {
         solver.reset(new EllipseSolver(
-                pix,*psf,_fPsf,order,sigma,
+                pix,*psf,order,sigma,
                 _isFixedCen,_isFixedGamma,_isFixedMu));
     } else {
         solver.reset(new EllipseSolver(
@@ -560,12 +552,12 @@ bool Ellipse::doMeasure(
             }
         }
 #endif
-#if 0
+#if 1
         if (!_isFixedMu) {
             xdbg<<"Bump mu\n";
             dbg<<"Current mu = "<<x[4]<<std::endl;
             double m1 = -b1(5);
-            m1 /= b1[0] - (b1.getOrder() >= 4 ? 2.*b1(14) : 0.);
+            m1 /= b1(0) - (b1.getOrder() >= 4 ? 2.*b1(14) : 0.);
             if (std::abs(m1) < 1.) {
                 x[4] += m1; 
                 dbg<<"New mu = "<<x[4]<<std::endl;
@@ -576,7 +568,7 @@ bool Ellipse::doMeasure(
 
         if (psf) {
             solver.reset(new EllipseSolver(
-                    pix,*psf,_fPsf,order,sigma,
+                    pix,*psf,order,sigma,
                     _isFixedCen,_isFixedGamma,_isFixedMu));
         } else {
             solver.reset(new EllipseSolver(
@@ -606,41 +598,6 @@ bool Ellipse::doMeasure(
         solver->useSVD();
         solver->getCovariance(*cov);
         xdbg<<"cov = "<<*cov<<std::endl;
-    }
-
-    if (!_isFixedGamma) {
-        xdbg<<"chisq = "<<solver->getChiSq()<<std::endl;
-        xdbg<<"b = "<<solver->getB().vec()<<std::endl;
-        std::auto_ptr<BaseEllipseSolver> solver2;
-        if (psf) {
-            solver2.reset(new EllipseSolver(
-                    pix,*psf,_fPsf,order,sigma,
-                    _isFixedCen,true,_isFixedMu));
-        } else {
-            solver2.reset(new EllipseSolver(
-                    pix,order,sigma,
-                    _isFixedCen,true,_isFixedMu));
-        }
-        DVector x2 = x;
-        DVector f2 = f;
-        x2[2] = -0.2;
-        x2[3] = 0.;
-        xdbg<<"For gamma = (-0.2,0): \n";
-        solver2->useDogleg();
-#ifdef NOTHROW
-        solver2->noUseCholesky();
-#endif
-        solver2->setTol(1.e-8,1.e-25);
-        if (XDEBUG) solver2->setOutput(*dbgout);
-        //solver2->useVerboseOutput();
-        solver2->setDelta0(0.01);
-        solver2->setMinStep(1.e-15);
-        solver2->setMaxIter(50);
-        solver2->solve(x2,f2);
-        xdbg<<"x = "<<x2<<std::endl;
-        xdbg<<"f = "<<f2<<std::endl;
-        xdbg<<"chisq = "<<solver2->getChiSq()<<std::endl;
-        xdbg<<"b = "<<solver2->getB().vec()<<std::endl;
     }
 
     // Check for flags

@@ -479,7 +479,7 @@ void calculatePsfConvolve(
     Assert(int(C.TMV_colsize()) == (order+1)*(order+2)/2);
     Assert(int(C.TMV_rowsize()) == (order+1)*(order+2)/2);
 
-    // C(st,pq) = 2sqrt(pi) Sum_uv sqrt(p!u!q!v!/s!t!)/w! 
+    // C(st,pq) = 1/sqrt(pi) Sum_uv sqrt(p!u!q!v!/s!t!)/w! 
     //                               G(s,p,u) G(t,q,v) bpsf_uv
     // The sum is only over terms for which  p+u-s == q+v-t,
     // and w = p+u-s = q+v-t >= 0
@@ -499,7 +499,7 @@ void calculatePsfConvolve(
     //            = A sqrt(p)/sqrt(s+1) H(s,p-1,u) + 
     //              B sqrt(u)/sqrt(s+1) H(s,p,u-1)
     // 
-    const double twosqrtpi = 2.*sqrtpi;
+    const double invsqrtpi = 1./sqrtpi;
     // sigma^2 = exp(mu)
     // D = sigma_i^2 / (sigma_i^2 + sigma_psf^2) 
     //   = 1 / (1 + (sigma_psf/sigma_i)^2)
@@ -690,7 +690,7 @@ void calculatePsfConvolve(
         }
     }
     Assert(pq == int(C.TMV_rowsize()));
-    C *= twosqrtpi;
+    C *= invsqrtpi;
 }
 
 void applyPsf(const BVec& bpsf, BVec& b)

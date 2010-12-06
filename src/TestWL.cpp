@@ -846,7 +846,7 @@ int main(int argc, char **argv) try
         {1.0,0.0,0.0,-0.2,0.1,0.1,-0.2,0.3,0.1,-0.2,0.2,0.1,-0.1,-0.2,-0.1},
         {1.0,0.22,0.31,-0.28,0.12,0.11,-0.18,0.30,0.09,-0.28,0.23,0.14,-0.12,-0.20,-0.09}
     };
-    double sigmaPsf = 1.1;
+    double sigmaPsf = 1.5;
 #endif
 
 #ifdef TEST234
@@ -2114,7 +2114,7 @@ int main(int argc, char **argv) try
     {
         int order = 8;
         int orderSize = (order+1)*(order+2)/2;
-        double sigma = 1.;
+        double sigma = 5.;
 
         // First lets make sure we understand Gary's LVector class:
         laguerre::LVector garyB(order);
@@ -2183,6 +2183,21 @@ int main(int argc, char **argv) try
         test(Norm(myGMatrix - convertMatrix(garyGMatrix)) <= 1.e-5,
              "compare GTransform with Gary's MakeLTransform");
 
+        tmv::Vector<double> b_exp(45);
+        // This is the b vector for an exponential disk with scale size
+        // r0 = 5/1.67839, sheared by eta = arctanh(0.2), and measured
+        // with sigma_GAL = 5:
+        b_exp << 
+            17.43818299 ,
+            0, 0, 
+            0.9998995137, 0, -4.241349805, 
+            0, 0, 0, 0,
+            0.07587021059, 0, -0.2836021410, 0, 3.483311775,
+            0, 0, 0, 0, 0, 0, 
+            0.006287543586, 0, -0.02080316557, 0, 0.3276615409, 0, -1.963729233,
+            0, 0, 0, 0, 0, 0, 0, 0,
+            0.0005450606239, 0, -0.001621332707, 0, 0.02997036976, 0, -0.1823596723, 0, 1.607970421;
+
         // Compare Gary's MakeLTransform with my calculatePsfConvolve
         // First do PSF's with b00 = 1 and a single element = (0.1,0.2) or 0.1.
         for(int pplusq = 1, k=1; pplusq <= order; ++pplusq) {
@@ -2206,15 +2221,16 @@ int main(int argc, char **argv) try
                 mv::DMatrix garyPsfMatrix = garyPsfTransform.rMatrix();
                 tmv::Matrix<double> myPsfMatrix(orderSize,orderSize);
                 calculatePsfConvolve(myBPsf,order,sigma,myPsfMatrix);
-                myPsfMatrix /= 2.*sqrtpi; // To Match Gary's normalization
-                dbg<<"Gary's convolution matrix = "<<
+                garyPsfMatrix /= sqrtpi; // To Match my normalization
+                dbg<<"Gary's convolution matrix/sqrt(pi) = "<<
                     convertMatrix(garyPsfMatrix)<<std::endl;
-                dbg<<"My convolution matrix/2sqrt(pi) = "<<
+                dbg<<"My convolution matrix = "<<
                     myPsfMatrix<<std::endl;
                 dbg<<"Norm(diff) = "<<
                     Norm(myPsfMatrix - convertMatrix(garyPsfMatrix))<<std::endl;
                 test(Norm(myPsfMatrix - convertMatrix(garyPsfMatrix)) <= 1.e-5,
                      "compare PsfConvolve with Gary's MakeLTransform");
+                dbg<<"C*b_exp = "<<myPsfMatrix * b_exp<<std::endl;
             }
         }
         // Next do some PSF's with lots of values != 0:
@@ -2245,8 +2261,8 @@ int main(int argc, char **argv) try
             mv::DMatrix garyPsfMatrix = garyPsfTransform.rMatrix();
             tmv::Matrix<double> myPsfMatrix(orderSize,orderSize);
             calculatePsfConvolve(myBPsf,order,sigma,myPsfMatrix);
-            myPsfMatrix /= 2.*sqrtpi; // To Match Gary's normalization
-            dbg<<"Gary's convolution matrix = "<<
+            garyPsfMatrix /= sqrtpi; // To Match my normalization
+            dbg<<"Gary's convolution matrix/sqrt(pi) = "<<
                 convertMatrix(garyPsfMatrix)<<std::endl;
             dbg<<"My convolution matrix/2sqrt(pi) = "<<
                 myPsfMatrix<<std::endl;

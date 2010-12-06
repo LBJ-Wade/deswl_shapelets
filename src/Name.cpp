@@ -111,7 +111,7 @@ std::string makeName(
 
     if (params.keyExists((what+"_file"))) {
         xdbg<<(what+"_file")<<" parameter exists, so use that.\n";
-	xdbg<<"value = "<<params[what+"_file"];
+	xdbg<<"value = "<<params[what+"_file"]<<std::endl;
 	std::vector<std::string> multiname = params[what+"_file"];
 	xdbg<<"multiname.size = "<<multiname.size()<<std::endl;
 	if (multiname.size() == 0) {

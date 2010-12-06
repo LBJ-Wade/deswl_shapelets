@@ -30,7 +30,7 @@ public :
         bool useflux=false);
     EllipseSolver(
         const std::vector<PixelList>& pix, 
-        const std::vector<BVec>& psf, double fp,
+        const std::vector<BVec>& psf,
         int order, double sigma, 
         bool fixcen=false, bool fixgam=false, bool fixmu=false,
         bool useflux=false);
@@ -78,7 +78,7 @@ public :
         bool useflux=false);
     EllipseSolver2(
         const std::vector<PixelList>& pix,
-        const std::vector<BVec>& psf, double fp,
+        const std::vector<BVec>& psf,
         int order, double sigma, double pixscale,
         bool fixcen=false, bool fixgam=false, bool fixmu=false,
         bool useflux=false);
