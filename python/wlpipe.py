@@ -4,12 +4,15 @@
 
         For DC4 (dc5 things are a *little* easier)
 
-        Find the collated, newest versions of SE "red" images and catalogs
+            Find the collated, newest versions of SE "red" images and catalogs
 
-            deswl.wlpipe.find_collated_redfiles(dataset, band)
+                deswl.wlpipe.find_collated_redfiles_dc4(dataset, band)
+        For DC5
+                deswl.wlpipe.find_redfiles(dataset, band)
+            
 
         dataset is just a label, this command currently will look for all
-        such files. Files get put under
+        such files. The output gets put under
             $DESFILES_DIR/(dataset)/(dataset)-images-catalogs-(band).json
 
 
@@ -148,6 +151,7 @@ import sys
 from sys import stdout,stderr
 import platform
 import os
+import glob
 import subprocess
 import time
 import copy
@@ -292,7 +296,66 @@ def get_matched_red_image_catlist(band=None, combine=True):
         stdout.write('Matched %s\n' % len(outlist))
         return outlist
 
-def find_collated_redfiles(dataset, band):
+def find_redfiles(dataset, band):
+    """
+    This function gets a clue from $DESFILES_DIR/{dataset}/{dataset}-runfiles-stat.json
+
+    It loops through the "info" list, se being for single-epoch, and if the
+    "bnlhas" tag is "y" for both red and red_cat, the files are searched for on
+    disk.
+
+    If the counts do not match the expected, an exception is thrown.
+
+    """
+
+    rf = deswl.files.runfiles_stat_read(dataset, 'red')
+
+    stdout.write("Checking %s runs\n" % len(rf['info']))
+    infolist=[]
+
+    DESDATA=deswl.files.des_rootdir()
+    nccd = 62
+    for rf_info in rf['info']:
+        run = rf_info['run']
+        if rf_info['red']['bnlhas'] == 'y' and rf_info['red_cat']['bnlhas'] == 'y':
+            # search the path for the expected red and red_cat files
+            # we assume they are under the same directories for dc5b
+            subdir = deswl.files.filetype_dir('red',run,'red')
+
+            # there will be lots of pointing directories under here.  Search
+            # through them all
+
+
+            pattern = path_join(subdir, 'decam-*-*-%s-*' % band)
+            stdout.write("Searching pattern: %s\n" % pattern)
+            exposure_dirs = glob.glob(pattern)
+            stdout.write("Found: %d exposures\n" % len(exposure_dirs))
+            for exposure_dir in exposure_dirs:
+                exposure = os.path.basename(exposure_dir)
+                #stdout.write("    Exposure: %s\n" % exposure)
+
+                for ccd in xrange(1,nccd+1):
+                    imfile = deswl.files.red_image_path(run, exposure, ccd, check=True)
+                    catfile = deswl.files.red_cat_path(run, exposure, ccd, check=True)
+
+                    info=deswl.files.get_info_from_path(imfile, 'red') 
+
+
+                    imfile = imfile.replace(DESDATA,'$DESDATA')
+                    catfile = catfile.replace(DESDATA,'$DESDATA')
+
+                    info['imfile'] = imfile
+                    info['catfile'] = catfile
+
+                    infolist.append(info)
+
+        else:
+            stdout.write("* Skipping missing run: %s\n" % run)
+
+    deswl.files.collated_redfiles_write(dataset, band, infolist)
+
+
+def find_collated_redfiles_dc4(dataset, band):
     """
     Get the matched SE image and catalog lists and write to a file
 

@@ -339,13 +339,29 @@ def red_image_path(run, exposurename, ccd, fz=True, rootdir=None, check=False):
         if not os.path.exists(path):
             path += '.fz'
             if not os.path.exists(path):
-                stdout.write("SE image not found: %s(.fz)\n" % basic_path)
-                return None
+                raise RuntimeError("SE image not found: %s(.fz)\n" % basic_path)
     else:
         if fz:
             path=basic_path + '.fz'
         
     return path
+
+def red_cat_path(run, exposurename, ccd, rootdir=None, check=False):
+    fileclass='red'
+    filetype='red'
+    expdir = exposure_dir(fileclass, run, filetype, exposurename, 
+                          rootdir=rootdir)
+    imagename = '%s_%02i_cat.fits' % (exposurename, int(ccd))
+    path = os.path.join(expdir, imagename)
+
+    if check:
+        if not os.path.exists(path):
+            raise RuntimeError("SE catalog not found: %s\n" % path)
+        
+    return path
+
+
+
 
 def extract_image_exposure_names(flist):
     allinfo={}
@@ -490,7 +506,8 @@ def wlse_read(exposurename, ccd, ftype,
               rootdir=None, 
               fext=None,
               header=False, 
-              ext=0):
+              ext=0, 
+              verbose=False):
 
     fpath=wlse_path(exposurename, ccd, ftype, 
                     serun=serun,
@@ -499,7 +516,7 @@ def wlse_read(exposurename, ccd, ftype,
                     rootdir=rootdir, 
                     fext=fext)
 
-    return esutil.io.read(fpath, header=header, ext=ext)
+    return esutil.io.read(fpath, header=header, ext=ext, verbose=verbose)
 
 def generate_se_filenames(exposurename, ccd, serun=None,
                           rootdir=None, dir=None):
@@ -529,10 +546,14 @@ def wlse_coldir_open(serun):
     return cols
     
 
-def wlse_coldir(serun):
+def wlse_coldir(serun, fits=False):
     #dir=run_dir('wlbnl',serun)
     dir = wlse_collated_dir(serun)
-    dir=os.path.join(dir,serun+'.cols')
+    name = serun
+    if fits:
+        dir=os.path.join(dir,name+'-fits')
+    else:
+        dir=os.path.join(dir,name+'.cols')
     return dir
 
 def wlse_collated_dir(serun):
@@ -694,6 +715,15 @@ def generate_me_filenames(tilename, band,
 
 
 
+def runfiles_stat_read(dataset, type):
+    name=runfiles_stat_name(dataset, type)
+    stdout.write("Reading runfiles stat: %s\n" % name)
+    return esutil.io.read(name)
+
+def runfiles_stat_name(dataset, type):
+    dir=collated_redfiles_dir(dataset)
+    name = '%s-%s-runfiles-stat.json' % (dataset,type)
+    return path_join(dir, name)
 
 
 def collated_redfiles_dir(dataset, html=False):
@@ -748,9 +778,9 @@ def collated_redfiles_write(dataset, band, flist):
             'hostname': platform.node(),
             'flist':flist}
 
-    stdout.write('Writing tileinfo file: %s\n' % f)
+    stdout.write('Writing red info file: %s\n' % f)
     json_util.write(output, f)
-    stdout.write("    Don't forget to check it into SVN!!!!!")
+    stdout.write("    Don't forget to check it into SVN!!!!!\n")
 
 
 def collated_redfiles_write_web(dataset, band):
