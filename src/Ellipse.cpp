@@ -131,17 +131,17 @@ bool Ellipse::measure(
     const std::vector<PixelList>& pix,
     const std::vector<BVec>& psf,
     int order, double sigma, bool shouldUseInteg, long& flag,
-    DMatrix* cov, BVec* bRet, DMatrix* bCov)
+    DMatrix* cov, BVec* bRet, DMatrix* bCov, std::vector<PixelList>* pixels_model)
 { 
-    return doMeasure(pix,&psf,order,sigma,shouldUseInteg,flag,cov,bRet,bCov); 
+    return doMeasure(pix,&psf,order,sigma,shouldUseInteg,flag,cov,bRet,bCov, pixels_model); 
 }
 
 bool Ellipse::measure(
     const std::vector<PixelList>& pix,
     int order, double sigma, bool shouldUseInteg, long& flag, 
-    DMatrix* cov, BVec* bRet, DMatrix* bCov)
+    DMatrix* cov, BVec* bRet, DMatrix* bCov, std::vector<PixelList>* pixels_model)
 {
-    return doMeasure(pix,0,order,sigma,shouldUseInteg,flag,cov,bRet,bCov);
+    return doMeasure(pix,0,order,sigma,shouldUseInteg,flag,cov,bRet,bCov,pixels_model);
 }
 
 void Ellipse::doMeasureShapelet(

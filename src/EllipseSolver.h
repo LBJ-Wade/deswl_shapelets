@@ -37,6 +37,8 @@ public :
     void calculateF(const DVector& x, DVector& f) const;
     void calculateJ(const DVector& x, const DVector& f, DMatrix& df) const;
 
+    void getModelPixels (std::vector<PixelList>& pixel_list) const ; 
+
     void useNumericJ();
     const BVec& getB() const;
     void getBCov(DMatrix& bcov) const;

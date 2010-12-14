@@ -37,7 +37,8 @@ bool Ellipse::doMeasure(
     const std::vector<PixelList>& pix,
     const std::vector<BVec>* psf,
     int order, double sigma, bool shouldUseInteg, long& flag, 
-    DMatrix* cov, BVec* bRet, DMatrix* bCov)
+    DMatrix* cov, BVec* bRet, DMatrix* bCov, 
+    std::vector<PixelList>* pixels_model)
 {
 #if 0
     // The non-linear solver is pretty sensitive to having a good
@@ -414,12 +415,14 @@ bool Ellipse::doMeasure(
 #ifdef NOTHROW
     solver->noUseCholesky();
 #endif
-    solver->setTol(1.e-8,1.e-25);
+    const double FINAL_FTOL = 1.e-8; // AP Original: 1e-8 
+    
+    solver->setTol(FINAL_FTOL,1.e-25);
     if (XDEBUG) solver->setOutput(*dbgout);
     //solver->useVerboseOutput();
     solver->setDelta0(0.01);
     solver->setMinStep(1.e-15);
-    solver->setMaxIter(50);
+    solver->setMaxIter(50);  //solver->setMaxIter(50);
     xdbg<<"Final solver:\n";
     for(int iter = 1;iter<=MAXITER;++iter) {
         //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-6)) exit(1);
@@ -497,8 +500,9 @@ bool Ellipse::doMeasure(
             solver->setMinStep(1.e-15);
             solver->setMaxIter(50);
         } else {
-            solver->setTol(10.*solver->getFTol(),10.*solver->getGTol());
-        }
+            solver->setTol(10.*solver->getFTol(),10.*solver->getGTol()); //(9-20-2010) , original
+            //solver->setTol(0.5*solver->getFTol(),0.5*solver->getGTol()); //AP
+         }
     }
     xdbg<<"Done: Final solver pass successful: x = "<<EIGEN_Transpose(x)<<std::endl;
     xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
@@ -526,7 +530,7 @@ bool Ellipse::doMeasure(
         xdbg<<"flag SHEAR_LOCAL_MIN\n";
         flag |= SHEAR_LOCAL_MIN;
     }
-    if (solver->getFTol() > 1.e-8) {
+    if (solver->getFTol() > FINAL_FTOL) {
         xdbg<<"ftol was raised\n";
         xdbg<<"ftol = "<<solver->getFTol()<<std::endl;
         xdbg<<"flag SHEAR_POOR_FIT\n";

@@ -32,11 +32,11 @@ public :
                  const std::vector<BVec>& psf,
                  int order, double sigma, bool shouldUseInteg, long& flag, 
                  DMatrix* cov=0, 
-                 BVec* bret=0, DMatrix* bcov=0);
+                 BVec* bret=0, DMatrix* bcov=0, std::vector<PixelList>* pixels_model=0);
     bool measure(const std::vector<PixelList>& pix, 
                  int order, double sigma, bool shouldUseInteg, long& flag, 
                  DMatrix* cov=0, 
-                 BVec* bret=0, DMatrix* bcov=0);
+                 BVec* bret=0, DMatrix* bcov=0, std::vector<PixelList>* pixels_model=0);
 
     bool findRoundFrame(const BVec& b, int order, long& flag, DMatrix* cov=0);
 
@@ -104,7 +104,7 @@ private :
         const std::vector<PixelList>& pix, 
         const std::vector<BVec>* psf, int order, double sigma,
         bool shouldUseInteg, long& flag, DMatrix* cov=0, 
-        BVec* bret=0, DMatrix* bcov=0);
+        BVec* bret=0, DMatrix* bcov=0, std::vector<PixelList>* pixels_model=0);
 
     void doMeasureShapelet(
         const std::vector<PixelList>& pix, 

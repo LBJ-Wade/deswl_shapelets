@@ -791,11 +791,12 @@ const BVec& EllipseSolver3::getB() const { return _pimpl->bx; }
 
 void EllipseSolver3::getCovariance(DMatrix& cov) const 
 {
-    DMatrix cov1(_pimpl->x_short.size(),_pimpl->x_short.size());
-    NLSolver::getCovariance(cov1);
-    cov = _pimpl->U.transpose()*cov1*_pimpl->U;
     dbg<<"getCovariance:\n";
+    DMatrix cov1(_pimpl->x_short.size(),_pimpl->x_short.size());
     dbg<<"cov1 = "<<cov1<<std::endl;
+    NLSolver::getCovariance(cov1);
+    dbg<<"cov1 => "<<cov1<<std::endl;
+    cov = _pimpl->U.transpose()*cov1*_pimpl->U;
     dbg<<"full cov = "<<cov<<std::endl;
 }
 

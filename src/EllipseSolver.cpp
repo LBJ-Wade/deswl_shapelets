@@ -3,9 +3,9 @@
 #include "dbg.h"
 #include "PsiHelper.h"
 
-#define USE_CHIP_FRAME
+//#define USE_CHIP_FRAME
 //#define JTEST
-#define ALWAYS_NUMERIC_J
+//#define ALWAYS_NUMERIC_J
 #define EXTRA_ORDERS 4
 
 #ifdef JTEST
@@ -40,6 +40,7 @@ struct EllipseSolver::ESImpl
 
     void doF(const DVector& x, DVector& f) const;
     void doJ(const DVector& x, const DVector& f, DMatrix& J) const;
+    void getModelPixels (std::vector<PixelList>& pixel_list) const;  
 
     int nsize, np2size;
     mutable BVec b;
@@ -1212,6 +1213,19 @@ void EllipseSolver::getBCov(DMatrix& bcov) const
     //        = (Ct At A C)^-1
     //        = ((AC)t (AC))^-1
     // This is what Ax.makeInverseATA returns.
+    dbg<<"Ax size = "<<_pimpl->Ax.colsize()<<"  "<<_pimpl->Ax.rowsize()<<std::endl;
+    dbg<<"A size = "<<_pimpl->A.colsize()<<"  "<<_pimpl->A.rowsize()<<std::endl;
+    dbg<<"bcov size = "<<bcov.colsize()<<"  "<<bcov.rowsize()<<std::endl;
+#ifdef USE_CHIP_FRAME
+#ifdef USE_TMV
+    _pimpl->Ax.makeInverseATA(bcov);
+#else
+    Eigen::QR<DMatrix> QR_Solver_A = _pimpl->Ax.qr();
+    bcov.setIdentity();
+    QR_Solver_A.matrixR().transpose().solveTriangularInPlace(bcov); 
+    QR_Solver_A.matrixR().solveTriangularInPlace(bcov);
+#endif
+#else
 #ifdef USE_TMV
     if (_pimpl->psf) _pimpl->Ax.makeInverseATA(bcov);
     else _pimpl->A.makeInverseATA(bcov);
@@ -1222,6 +1236,8 @@ void EllipseSolver::getBCov(DMatrix& bcov) const
     QR_Solver_A.matrixR().transpose().solveTriangularInPlace(bcov); 
     QR_Solver_A.matrixR().solveTriangularInPlace(bcov);
 #endif
+#endif
+    dbg<<"bcov = "<<bcov<<std::endl;
 }
 
 void EllipseSolver::getCovariance(DMatrix& cov) const 
