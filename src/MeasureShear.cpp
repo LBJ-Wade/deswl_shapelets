@@ -4,7 +4,6 @@
 #include "Image.h"
 #include "InputCatalog.h"
 #include "FittedPsf.h"
-//#include "TimeVars.h"
 #include "ShearCatalog.h"
 #include "Log.h"
 #ifdef NEW

@@ -84,6 +84,9 @@ private :
 
 };
 
+inline std::ostream& operator<<(std::ostream& os, const BVec& b)
+{ os << b.getOrder()<<"  "<<b.getSigma()<<"  "<<b.vec(); return os; }
+
 void calculateZTransform(
     std::complex<double> z, int order, DMatrix& T);
 void applyZ(std::complex<double> z, BVec& b);

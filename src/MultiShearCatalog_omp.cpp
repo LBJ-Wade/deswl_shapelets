@@ -3,7 +3,6 @@
 #include "dbg.h"
 #include "Params.h"
 #include "Log.h"
-#include "TimeVars.h"
 #include "MultiShearCatalog.h"
 #include "Ellipse.h"
 #include "ShearCatalog.h"
@@ -20,14 +19,11 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
     double galAperture = _params.read<double>("shear_aperture");
     double maxAperture = _params.read("shear_max_aperture",0.);
     int galOrder = _params.read<int>("shear_gal_order");
-    int galOrder2 = _params.read("shear_gal_order2",galOrder);
+    int galOrder2 = _params.read<int>("shear_gal_order2");
     double fPsf = _params.read<double>("shear_f_psf");
     double minGalSize = _params.read<double>("shear_min_gal_size");
     bool galFixCen = _params.read("shear_fix_centroid",false);
     bool shouldOutputDots = _params.read("output_dots",false);
-    bool isTiming = _params.read("timing",false);
-
-    OverallFitTimes allTimes;
 
     int nSuccess = 0;
 
@@ -41,7 +37,6 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
     {
         try {
 #endif
-            OverallFitTimes times; // just for this thread
             ShearLog log1(_params); // just for this thread
             log1.noWriteLog();
 #ifdef _OPENMP
@@ -83,10 +78,8 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                     // Input data:
                     _skyPos[i], _pixList[i], _psfList[i],
                     // Parameters:
-                    galAperture, maxAperture, galOrder, galOrder2, 
+                    galAperture, maxAperture, galOrder, galOrder2,
                     fPsf, minGalSize, galFixCen,
-                    // Time stats if desired:
-                    isTiming ? &times : 0, 
                     // Log information
                     log1,
                     // Ouput values:
@@ -107,19 +100,11 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                 } else {
                     dbg<<"Unsuccessful shear measurement\n"; 
                 }
-
-                if (isTiming) {
-                    dbg<<"So far: ns = "<<times._nsGamma;
-                    dbg<<",  nf = "<<times._nfNative;
-                    dbg<<", "<<times._nfMu<<", "<<times._nfGamma<<std::endl;
-                }
-
             }
 #ifdef _OPENMP
 #pragma omp critical (add_log)
 #endif
             {
-                if (isTiming) allTimes += times;
                 log += log1;
             }
 #ifdef _OPENMP
@@ -138,13 +123,6 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
     dbg<<nSuccess<<" successful shear measurements in this pass.\n";
     dbg<<log._nsGamma<<" successful shear measurements so far.\n";
 
-    if (isTiming) {
-        dbg<<"From timing structure:\n";
-        dbg<<allTimes._nsGamma<<" successful shear measurements, ";
-        dbg<<allTimes._nfNative<<" + "<<allTimes._nfMu;
-        dbg<<" + "<<allTimes._nfGamma<<" unsuccessful\n";
-        std::cerr<<allTimes<<std::endl;
-    }
     xdbg<<log<<std::endl;
 
     return nSuccess;

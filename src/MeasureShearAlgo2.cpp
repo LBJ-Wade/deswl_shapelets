@@ -7,7 +7,6 @@
 #include "Pixel.h"
 #include "FittedPsf.h"
 #include "Log.h"
-#include "TimeVars.h"
 #include "MeasureShearAlgo.h"
 
 // TODO: This function is almost completely degenerage with the one in
@@ -24,8 +23,7 @@ void measureMultiShear(
     double galAperture, double maxAperture,
     int galOrder, int galOrder2,
     double fPsf, double minGalSize, bool fixCen,
-    OverallFitTimes* times, ShearLog& log,
-    std::complex<double>& shear, 
+    ShearLog& log, std::complex<double>& shear, 
     DSmallMatrix22& shearcov, BVec& shapelet,
     double& nu, long& flag)
 {
@@ -85,17 +83,14 @@ void measureMultiShear(
         int go = 2;
         int galSize = (go+1)*(go+2)/2;
 
-        if (times) ell.doTimings();
         long flag1=0;
 
         if (ell.measure(pix,go,sigmaObs,true,flag1)) {
-            if (times) times->successNative(ell.getTimes());
             ++log._nsNative;
             dbg<<"Successful native fit:\n";
             dbg<<"Z = "<<ell.getCen()<<std::endl;
             dbg<<"Mu = "<<ell.getMu()<<std::endl;
         } else {
-            if (times) times->failNative(ell.getTimes());
             ++log._nfNative;
             dbg<<"Native measurement failed\n";
             flag |= NATIVE_FAILED;
@@ -110,7 +105,6 @@ void measureMultiShear(
         if (sigmaObs < minGalSize*sigmaP) {
             dbg<<"skip: galaxy is too small -- "<<sigmaObs<<
                 " psf size = "<<sigmaP<<std::endl;
-            if (times) ++times->_nfSmall;
             ++log._nfSmall;
             flag |= TOO_SMALL;
             if (!fixCen) cen += ell.getCen();
@@ -140,10 +134,8 @@ void measureMultiShear(
         if (sigma < 0.1*sigpsq) sigma = 0.1*sigpsq;
         sigma = sqrt(sigma);
         xdbg<<"sigma = sqrt(sigma^2) "<<sigma<<std::endl;
-        if (times) ell.resetTimes();
         flag1 = 0;
         if (ell.measure(pix,psf,go,sigma,false,flag1)) {
-            if (times) times->successMu(ell.getTimes());
             ++log._nsMu;
             if (flag1) {
                 Assert((flag1 & ~(SHEAR_LOCAL_MIN | SHEAR_POOR_FIT)) == false);
@@ -156,7 +148,6 @@ void measureMultiShear(
             dbg<<"Successful deconvolving fit:\n";
             dbg<<"Mu = "<<ell.getMu()<<std::endl;
         } else {
-            if (times) times->failMu(ell.getTimes());
             ++log._nfMu;
             dbg<<"Deconvolving measurement failed\n";
             flag |= DECONV_FAILED;
@@ -195,13 +186,13 @@ void measureMultiShear(
         }
         shapelet.setSigma(sigma);
         std::complex<double> gale = 0.;
-        ell.measureShapelet(pix,psf,shapelet,go);
+        ell.measureShapelet(pix,psf,shapelet,go,galOrder2);
         xdbg<<"Measured b_gal = "<<shapelet.vec()<<std::endl;
 
         // Also measure the isotropic significance
         BVec flux(0,sigma);
         DMatrix fluxCov(1,1);
-        ell.measureShapelet(pix,psf,flux,0,&fluxCov);
+        ell.measureShapelet(pix,psf,flux,0,0,&fluxCov);
         nu = flux(0) / sqrt(fluxCov(0,0));
         dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<nu<<std::endl;
 
@@ -232,22 +223,19 @@ void measureMultiShear(
         // Finally, we calculate the shear in the deconvolved galaxy.
         //ell.fixMu();
         ell.unfixGam();
-        go = galOrder2;
+        go = galOrder;
         galSize = (go+1)*(go+2)/2;
         if (npix <= galSize) {
             while (npix <= galSize) { galSize -= go+1; --go; }
             dbg<<"Too few pixels ("<<npix<<") for given galOrder. \n";
             dbg<<"Reduced galOrder to "<<go<<" galSize = "<<galSize<<std::endl;
         }
-        if (times) ell.resetTimes();
         DMatrix cov(5,5);
         if (ell.measure(pix,psf,go,sigma,false,flag,&cov)) {
-            if (times) times->successGamma(ell.getTimes());
             ++log._nsGamma;
             dbg<<"Successful Gamma fit\n";
             dbg<<"Measured gamma = "<<ell.getGamma()<<std::endl;
         } else {
-            if (times) times->failGamma(ell.getTimes());
             ++log._nfGamma;
             dbg<<"Gamma measurement failed\n";
             flag |= SHEAR_FAILED;

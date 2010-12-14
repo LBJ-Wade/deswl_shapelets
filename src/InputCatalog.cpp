@@ -33,6 +33,7 @@ static void readGain(const std::string& file, int hdu, ConfigFile& params)
             fits.pHDU().readKey(gainKey[k],gain);
             break;
         } catch (CCfits::FitsException& e) {
+            xdbg<<"Caught FitsException: \n"<<e.message()<<std::endl;
             if (k == nGainKeys-1) {
                 throw ReadException(
                     "Error reading gain from Fits file "+file+
@@ -47,6 +48,7 @@ static void readGain(const std::string& file, int hdu, ConfigFile& params)
             fits.pHDU().readKey(readNoiseKey[k], readNoise);
             break;
         } catch (CCfits::FitsException& e) { 
+            xdbg<<"Caught FitsException: \n"<<e.message()<<std::endl;
             if (k == nReadNoiseKeys-1) {
                 throw ReadException(
                     "Error reading read_noise from Fits file "+file+
@@ -140,12 +142,15 @@ void InputCatalog::read()
             readAscii(file,delim);
         }
     } catch (CCfits::FitsException& e) {
+        xdbg<<"Caught FitsException: \n"<<e.message()<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.message());
     } catch (std::exception& e) {
+        xdbg<<"Caught std::exception: \n"<<e.what()<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.what());
     } catch (...) {
+        xdbg<<"Caught unknown exception: "<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught unknown error");
     }

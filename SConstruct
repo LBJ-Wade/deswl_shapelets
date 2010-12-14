@@ -118,6 +118,10 @@ def BasicCCFlags(env):
             env.Replace(CCFLAGS=['-O2'])
             if version <= 4.2:
                 env.Append(CCFLAGS=['-fno-strict-aliasing'])
+            if version == 4.4:
+                # Workaround for a bug in gcc 4.4
+                # I don't think it's needed in other versions.
+                env.Append(LIBS=['pthread'])
             if env['WARN']:
                 #env.Append(CCFLAGS=['-ggdb','-Wall','-Werror'])
                 env.Append(CCFLAGS=['-g','-Wall','-Werror'])
@@ -192,6 +196,7 @@ def AddOpenMPFlag(env):
         # Also add a #define to let program know that linking will use openmp
         # even for object files that don't.
         env.Append(CPPDEFINES=['OPENMP_LINK'])
+        #env.Append(CCFLAGS=['-fopenmp'])
     elif compiler == 'icpc':
         if version < openmp_minicpc_vers:
             print 'No OpenMP support for icpc versions before ',openmp_minicpc_vers
@@ -574,7 +579,7 @@ def DoLibraryAndHeaderChecks(config):
 
     if not config.CheckLibWithHeader('CCfits','CCfits/CCfits.h',
                                      language='C++'):
-        stdout.write('CCfits library or header not found\n')
+        print 'CCfits library or header not found'
         Exit(1)
 
     if config.env['WITH_TMV'] :
@@ -604,9 +609,13 @@ def DoLibraryAndHeaderChecks(config):
         # puts it into CCFLAGS instead.  Move it over to LINKFLAGS before
         # merging everything.
         tmv_link_dict = config.env.ParseFlags(tmv_link)
-        tmv_link_dict['LINKFLAGS'] += tmv_link_dict['CCFLAGS']
-        tmv_link_dict['CCFLAGS'] = []
-        config.env.MergeFlags(tmv_link_dict)
+        config.env.Append(LIBS=tmv_link_dict['LIBS'])
+        config.env.AppendUnique(LINKFLAGS=tmv_link_dict['LINKFLAGS'])
+        config.env.AppendUnique(LINKFLAGS=tmv_link_dict['CCFLAGS'])
+        config.env.AppendUnique(LIBPATH=tmv_link_dict['LIBPATH'])
+        #tmv_link_dict['LINKFLAGS'] += tmv_link_dict['CCFLAGS']
+        #tmv_link_dict['CCFLAGS'] = []
+        #config.env.MergeFlags(tmv_link_dict)
 
         config.CheckTMV()
         config.env.Append(CPPDEFINES=['USE_TMV'])

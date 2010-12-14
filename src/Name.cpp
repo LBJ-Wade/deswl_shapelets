@@ -35,12 +35,12 @@ static int findExtNum(
     const int nExt = extList.size();
     for(int i=0;i<nExt;++i) {
         std::string ext = extList[i];
-        dbg<<"ext = "<<ext<<std::endl;
+        xdbg<<"ext = "<<ext<<std::endl;
         if (ext.size() > name.size()) continue;
         int extPos = name.size() - ext.size();
-        dbg<<"ext_pos = "<<extPos<<std::endl;
+        xdbg<<"ext_pos = "<<extPos<<std::endl;
         std::string ext2 = std::string(name,extPos);
-        dbg<<"ext2 = "<<ext2<<std::endl;
+        xdbg<<"ext2 = "<<ext2<<std::endl;
         if (ext2 == ext) return i;
     }
     return -1;
@@ -111,17 +111,17 @@ std::string makeName(
 
     if (params.keyExists((what+"_file"))) {
         xdbg<<(what+"_file")<<" parameter exists, so use that.\n";
-	xdbg<<"value = "<<params[what+"_file"]<<std::endl;
-	std::vector<std::string> multiname = params[what+"_file"];
-	xdbg<<"multiname.size = "<<multiname.size()<<std::endl;
-	if (multiname.size() == 0) {
-	    throw ParameterException(
-		std::string("Name for ") + what + "_file " +
-		"parses as a vector with no elements");
-	}
-	std::string name = multiname[0];
-	xdbg<<"name = "<<name<<std::endl;
-	int extNum = findExtNum(extList,name);
+        xdbg<<"value = "<<params[what+"_file"]<<std::endl;
+        std::vector<std::string> multiname = params[what+"_file"];
+        xdbg<<"multiname.size = "<<multiname.size()<<std::endl;
+        if (multiname.size() == 0) {
+            throw ParameterException(
+                std::string("Name for ") + what + "_file " +
+                "parses as a vector with no elements");
+        }
+        std::string name = multiname[0];
+        xdbg<<"name = "<<name<<std::endl;
+        int extNum = findExtNum(extList,name);
         if (!mustExist || doesFileExist(name)) {
             // File exists or doesn't need to.
             xdbg<<"name = "<<name<<std::endl;
@@ -182,50 +182,50 @@ std::string makeFitsName(
     const ConfigFile& params, 
     const std::string& what) {
 
-  // Since we don't know what type the extension is, .fits, .dat, etc.  we will
-  // replace .dat with .fits
+    // Since we don't know what type the extension is, .fits, .dat, etc.  we will
+    // replace .dat with .fits
 
-  // Just get the first name and modify it if necessary
-  std::string file = makeName(params,what,false,false);  
+    // Just get the first name and modify it if necessary
+    std::string file = makeName(params,what,false,false);  
 
-  size_t fits_pos = file.rfind(".fits");
-  size_t fit_pos = file.rfind(".fit");
-  size_t dat_pos = file.rfind(".dat");
+    size_t fits_pos = file.rfind(".fits");
+    size_t fit_pos = file.rfind(".fit");
+    size_t dat_pos = file.rfind(".dat");
 
-  if (fits_pos==std::string::npos && fit_pos==std::string::npos) {
-    if (dat_pos != std::string::npos) {
-      // replace the .dat with .fits
-      std::string e = ".fits";
-      file.replace(dat_pos, 4, e);
-    } else {
-      // didn't find the .dat;  we will just tac it on the end
-      file += ".fits";
+    if (fits_pos==std::string::npos && fit_pos==std::string::npos) {
+        if (dat_pos != std::string::npos) {
+            // replace the .dat with .fits
+            std::string e = ".fits";
+            file.replace(dat_pos, 4, e);
+        } else {
+            // didn't find the .dat;  we will just tac it on the end
+            file += ".fits";
+        }
     }
-  }
 
-  return file;
+    return file;
 }
 
 std::string addExtraToName(
     const std::string& input_name, 
     const std::string extra) {
-  
-  std::string name = input_name;
 
-  if (extra == "") {
+    std::string name = input_name;
+
+    if (extra == "") {
+        return name;
+    }
+
+    size_t pos = name.rfind(".");
+    if (pos != std::string::npos) {
+        name.insert(pos, extra);
+    } else {
+        // didn't find the expected extension ending with a .ext;  we will just tac
+        // it on the end
+        name+= extra;
+    }
+
     return name;
-  }
-
-  size_t pos = name.rfind(".");
-  if (pos != std::string::npos) {
-    name.insert(pos, extra);
-  } else {
-    // didn't find the expected extension ending with a .ext;  we will just tac
-    // it on the end
-    name+= extra;
-  }
-
-  return name;
 }
 
 std::vector<std::string> makeMultiName(

@@ -104,7 +104,7 @@ EllipseSolver2::EllipseSolver2(
             isFixedCen,isFixedGamma,isFixedMu,shouldUseFlux))
 {}
 
-EllipseSolver2::~EllipseSolver2()
+EllipseSolver2::~EllipseSolver2() 
 { delete _pimpl; }
 
 void EllipseSolver2::calculateF(const DVector& x, DVector& f) const

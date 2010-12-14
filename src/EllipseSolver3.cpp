@@ -1,73 +1,30 @@
 
 #include "EllipseSolver.h"
 #include "dbg.h"
-#include "PsiHelper.h"
 
-#define USE_CHIP_FRAME
-//#define JTEST
 #define ALWAYS_NUMERIC_J
-#define EXTRA_ORDERS 4
 
-#ifdef JTEST
-#include "TestHelper.h"
-#endif
-
-#if defined(USE_CHIP_FRAME) && !defined(ALWAYS_NUMERIC_J)
-#define ALWAYS_NUMERIC_J
-#endif
-
-// 
-// EllipseSolver Implemetation
-//
-
-struct EllipseSolver::ESImpl 
+struct EllipseSolver3::ESImpl3
 {
 
-    ESImpl(const std::vector<PixelList>& pix,
-           int order, double sigma, 
-           bool isFixedCen, bool isFixedGamma, bool isFixedMu, 
-           bool shouldUseFlux);
-
-    ESImpl(const std::vector<PixelList>& pix,
-           const std::vector<BVec>& psf, 
-           int order, double sigma, 
-           bool isFixedCen, bool isFixedGamma, bool isFixedMu, 
-           bool shouldUseFlux);
+    ESImpl3(
+        const BVec& b0, int order,
+        bool isFixedCen, bool isFixedGamma, bool isFixedMu);
 
     void calculateF(const DVector& x, DVector& f) const;
     void calculateJ(const DVector& x, const DVector& f, DMatrix& J) const;
-    double getChiSq() const;
 
     void doF(const DVector& x, DVector& f) const;
     void doJ(const DVector& x, const DVector& f, DMatrix& J) const;
 
-    int nsize, np2size;
-    mutable BVec b;
-    const std::vector<PixelList>& pix;
-    const std::vector<BVec>* psf;
-    std::vector<double> sigma_obs;
-    DVector I;
-    CDVector Z;
-    mutable CDVector Z1;
-    DVector W;
-#ifdef USE_CHIP_FRAME
-    int bxorder, bxsize;
-    mutable DMatrix Ax;
+    mutable BVec b0;
+    mutable BVec bx;
     mutable DMatrix Dx;
     mutable DMatrix Sx;
     mutable DMatrix Tx;
     mutable DMatrix DSx;
     mutable DMatrix DSTx;
-    mutable DMatrix A;
-#else
-    mutable DMatrix A_aux;
-    mutable DMatrix Ax;
-    mutable DMatrixView A;
-#endif
-    mutable std::vector<DMatrix > C;
-    mutable std::vector<DMatrix > S;
-    mutable std::vector<DMatrix > D;
-    bool fixcen, fixgam, fixmu, useflux, numeric_j;
+    bool fixcen, fixgam, fixmu, numeric_j;
     DMatrix U;
     mutable DVector xinit;
     mutable DVector xx;
@@ -75,47 +32,30 @@ struct EllipseSolver::ESImpl
     mutable DMatrix jj;
     mutable DVector x_short;
     mutable DVector f_short;
-    mutable DVector Iresid;
-    mutable DVector Cb;
-    mutable DMatrix Gb;
-    mutable DMatrix dbdE;
-    mutable DMatrix dAdEb;
-    mutable DMatrix temp;
-    mutable DVector AtI;
-    mutable DMatrix dCdE;
-    mutable double fixuc,fixvc,fixg1,fixg2,fixm,flux;
-    int maxpsforder;
+    mutable double fixuc,fixvc,fixg1,fixg2,fixm;
+#if 0
     DMatrix _Gx;
     DMatrix _Gy;
     DMatrix _Gg1;
     DMatrix _Gg2;
     DMatrix _Gth;
     DMatrix _Gmu;
-    mutable DMatrix _dTdE;
+#endif
 };
 
-EllipseSolver::EllipseSolver(
-    const std::vector<PixelList>& pix,
-    int order, double sigma, 
-    bool fixcen, bool fixgam, bool fixmu, bool useflux) :
-    _pimpl(new ESImpl(pix,order,sigma,fixcen,fixgam,fixmu,useflux))
+EllipseSolver3::EllipseSolver3(
+    const BVec& b0, int order,
+    bool fixcen, bool fixgam, bool fixmu) :
+    _pimpl(new ESImpl3(b0,order,fixcen,fixgam,fixmu))
 {}
 
-EllipseSolver::EllipseSolver(
-    const std::vector<PixelList>& pix,
-    const std::vector<BVec>& psf,
-    int order, double sigma, 
-    bool fixcen, bool fixgam, bool fixmu, bool useflux) :
-    _pimpl(new ESImpl(pix,psf,order,sigma,fixcen,fixgam,fixmu,useflux))
-{}
-
-EllipseSolver::~EllipseSolver() 
+EllipseSolver3::~EllipseSolver3() 
 { delete _pimpl; }
 
-void EllipseSolver::calculateF(const DVector& x, DVector& f) const
+void EllipseSolver3::calculateF(const DVector& x, DVector& f) const
 { _pimpl->calculateF(x,f); }
 
-void EllipseSolver::calculateJ(
+void EllipseSolver3::calculateJ(
     const DVector& x, const DVector& f, DMatrix& J) const
 { 
 #ifdef ALWAYS_NUMERIC_J
@@ -126,443 +66,88 @@ void EllipseSolver::calculateJ(
 #endif
 }
 
-double EllipseSolver::getChiSq() const
-{
-    return _pimpl->getChiSq();
-}
-
-static size_t calculateSumSize(const std::vector<PixelList>& v)
-{
-    size_t sum = 0;
-    dbg<<"nPix = ";
-    for(size_t i=0;i<v.size();++i) {
-        dbg<< (i==0 ? "" : " + ") << v[i].size();
-        sum += v[i].size();
-    }
-    dbg<<" = "<<sum<<std::endl;
-    return sum;
-}
-
-EllipseSolver::ESImpl::ESImpl(
-    const std::vector<PixelList>& _pix, 
-    int order, double _sigma, 
-    bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux) :
-    nsize((order+1)*(order+2)/2),
-    np2size((order+3)*(order+4)/2), b(order,_sigma),
-    pix(_pix), psf(0), sigma_obs(pix.size(),_sigma),
-    I(calculateSumSize(pix)), Z(I.size()), Z1(I.size()), W(I.size()), 
-#ifdef USE_CHIP_FRAME
-    bxorder(order+EXTRA_ORDERS), bxsize((bxorder+1)*(bxorder+2)/2),
-    Ax(I.size(),nsize),
-    Dx(bxsize,bxsize), Sx(bxsize,bxsize), Tx(bxsize,bxsize),
-    DSx(bxsize,bxsize), DSTx(bxsize,nsize),
-    A(I.size(),bxsize),
-#else
-    A_aux(I.size(),np2size), 
-    Ax(1,1),
-    A(TMV_colRange(A_aux,0,nsize)),
-#endif
-    fixcen(_fixcen), fixgam(_fixgam), fixmu(_fixmu), useflux(_useflux),
+EllipseSolver3::ESImpl3::ESImpl3(
+    const BVec& _b0, int order,
+    bool _fixcen, bool _fixgam, bool _fixmu) :
+    b0(_b0), bx(order,b0.getSigma()),
+    Dx(bx.size(),bx.size()), Sx(bx.size(),bx.size()), Tx(bx.size(),bx.size()),
+    DSx(bx.size(),bx.size()), DSTx(bx.size(),bx.size()),
+    fixcen(_fixcen), fixgam(_fixgam), fixmu(_fixmu),
     numeric_j(false), U((fixcen?0:2)+(fixgam?0:2)+(fixmu?0:1),5), 
-    xinit(5), xx(5), ff(6), jj(6,5),
-    x_short(U.TMV_colsize()), f_short(U.TMV_colsize()+(useflux?1:0)),
-    Iresid(I.size()), Cb(1), Gb(np2size,5),
-    dbdE(nsize,5), dAdEb(I.size(),5), temp(nsize,5), AtI(np2size),
-    dCdE(1,1), flux(0), maxpsforder(0),
+    xinit(5), xx(5), ff(5), jj(5,5),
+    x_short(U.TMV_colsize()), f_short(U.TMV_colsize())
+#if 0
     _Gx(np2size,nsize), _Gy(np2size,nsize), 
     _Gg1(np2size,nsize), _Gg2(np2size,nsize), 
-    _Gth(np2size,nsize), _Gmu(np2size,nsize),
-    _dTdE(1,1)
+    _Gth(np2size,nsize), _Gmu(np2size,nsize)
+#endif
 {
+    xdbg<<"EllipseSolver3: \n";
+    xdbg<<"b0 = "<<b0.vec()<<std::endl;
+    xdbg<<"b0.order, sigma = "<<b0.getOrder()<<"  "<<b0.getSigma()<<std::endl;
+    xdbg<<"order = "<<order<<std::endl;
+    xdbg<<"bx.order, sigma = "<<bx.getOrder()<<"  "<<bx.getSigma()<<std::endl;
+    xdbg<<"fixcen,gam,mu = "<<fixcen<<"  "<<fixgam<<"  "<<fixmu<<std::endl;
     U.setZero();
     xinit.setZero();
-
-    int n=0;
-    for(size_t k=0;k<pix.size();++k) {
-        for(size_t i=0;i<pix[k].size();++i,++n) {
-            I(n) = pix[k][i].getFlux()*pix[k][i].getInverseSigma();
-            W(n) = pix[k][i].getInverseSigma();
-            Z(n) = pix[k][i].getPos();
-        }
-    }
-    Assert(n == int(I.size()));
-
-#ifdef USE_CHIP_FRAME
-    Z1 = Z;
-    for(size_t k=0,n=0,nx;k<pix.size();++k,n=nx) {
-        nx = n+pix[k].size();
-        Z1.TMV_subVector(n,nx) /= sigma_obs[k];
-    }
-    makePsi(A,TMV_vview(Z1),bxorder,&W);
-
-#ifdef USE_TMV
-    Ax.divideUsing(tmv::QR);
-    Ax.saveDiv();
-#endif
-#else
-    A_aux.setZero();
-#ifdef USE_TMV
-    A.divideUsing(tmv::QR);
-    A.saveDiv();
-#endif
-#endif
-
-    Assert(A.TMV_colsize() >= A.TMV_rowsize());
-    // Otherwise there are too few pixels to constrain model.
 
     int k=0;
     if (!fixcen) { U(k++,0) = 1.; U(k++,1) = 1.; }
     if (!fixgam) { U(k++,2) = 1.; U(k++,3) = 1.; }
     if (!fixmu) { U(k,4) = 1.; }
 
+#if 0
     setupGx(_Gx,order+2,order);
     setupGy(_Gy,order+2,order);
     setupGg1(_Gg1,order+2,order);
     setupGg2(_Gg2,order+2,order);
     setupGth(_Gth,order+2,order);
     setupGmu(_Gmu,order+2,order);
+#endif
 }
 
-static int calculateMaxPsfOrder(const std::vector<BVec>& psf)
-{
-    int maxpsforder = 0;
-    for(size_t k=0;k<psf.size();++k) 
-        if (psf[k].getOrder() > maxpsforder)
-            maxpsforder = psf[k].getOrder();
-    return maxpsforder;
-}
-
-#define ORDER_1 (std::max(maxpsforder,order))
-#define ORDER_2 (std::max(maxpsforder,order+2))
-#define ORDER_3 (std::max(maxpsforder+2,order))
-#define SIZE_1 (ORDER_1+1)*(ORDER_1+2)/2
-#define SIZE_1b (ORDER_1+3)*(ORDER_1+4)/2
-#define SIZE_2 (ORDER_2+1)*(ORDER_2+2)/2
-#define SIZE_3 (ORDER_3+1)*(ORDER_3+2)/2
-#define SIZE_4 (maxpsforder+1)*(maxpsforder+2)/2
-#define SIZE_5 (maxpsforder+3)*(maxpsforder+4)/2
-EllipseSolver::ESImpl::ESImpl(
-    const std::vector<PixelList>& _pix, 
-    const std::vector<BVec>& _psf,
-    int order, double _sigma, 
-    bool _fixcen, bool _fixgam, bool _fixmu, bool _useflux) :
-    nsize((order+1)*(order+2)/2),
-    np2size((order+3)*(order+4)/2), b(order,_sigma),
-    pix(_pix), psf(&_psf), sigma_obs(pix.size()),
-    I(calculateSumSize(pix)), Z(I.size()), Z1(I.size()), W(I.size()), 
-#ifdef USE_CHIP_FRAME
-    bxorder(order+EXTRA_ORDERS), bxsize((bxorder+1)*(bxorder+2)/2),
-    Ax(I.size(),nsize),
-    Dx(bxsize,bxsize), Sx(bxsize,bxsize), Tx(bxsize,bxsize),
-    DSx(bxsize,bxsize), DSTx(bxsize,nsize),
-    A(I.size(),bxsize),
-#else
-    A_aux(I.size(),np2size),
-    Ax(I.size(),nsize),
-    A(TMV_colRange(A_aux,0,nsize)), 
-#endif
-    fixcen(_fixcen), fixgam(_fixgam), fixmu(_fixmu), useflux(_useflux),
-    numeric_j(false), U((fixcen?0:2)+(fixgam?0:2)+(fixmu?0:1),5),
-    xinit(5), xx(5), ff(6), jj(6,5),
-    x_short(U.TMV_colsize()), f_short(U.TMV_colsize()+(useflux?1:0)),
-    Iresid(I.size()), Cb(nsize), Gb(np2size,5),
-    dbdE(nsize,5), dAdEb(I.size(),5), temp(nsize,5), AtI(np2size),
-    dCdE(nsize,nsize), flux(0), maxpsforder(calculateMaxPsfOrder(_psf)),
-    _Gx(np2size,nsize), _Gy(np2size,nsize),
-    _Gg1(SIZE_1b,SIZE_1), _Gg2(SIZE_1b,SIZE_1),
-    _Gth(SIZE_1b,SIZE_1), _Gmu(SIZE_2,SIZE_3),
-    _dTdE(SIZE_4,SIZE_4)
-{
-    U.setZero();
-    xinit.setZero();
-
-    for(size_t k=0,n=0;k<pix.size();++k) {
-        for(size_t i=0;i<pix[k].size();++i,++n) {
-            I(n) = pix[k][i].getFlux()*pix[k][i].getInverseSigma();
-            W(n) = pix[k][i].getInverseSigma();
-            Z(n) = pix[k][i].getPos();
-        }
-    }
-
-    int maxpsforder = 0;
-    C.reserve(pix.size());
-    S.reserve(pix.size());
-    D.reserve(pix.size());
-    for(size_t k=0;k<pix.size();++k) {
-        int psfsize = (*psf)[k].size();
-        int psfsize2 = ((*psf)[k].getOrder()+3)*((*psf)[k].getOrder()+4)/2;
-#ifdef USE_CHIP_FRAME
-        C.push_back(DMatrix(bxsize,bxsize));
-#else
-        C.push_back(DMatrix(nsize,nsize));
-#endif
-        S.push_back(DMatrix(psfsize,psfsize2));
-        D.push_back(DMatrix(psfsize2,psfsize));
-        if ((*psf)[k].getOrder() > maxpsforder)
-            maxpsforder = (*psf)[k].getOrder();
-        sigma_obs[k] = 
-            sqrt(pow(b.getSigma(),2)+pow((*psf)[k].getSigma(),2));
-    }
-
-#ifdef USE_CHIP_FRAME
-    Z1 = Z;
-    for(size_t k=0,n=0,nx;k<pix.size();++k,n=nx) {
-        nx = n+pix[k].size();
-        Z1.TMV_subVector(n,nx) /= sigma_obs[k];
-    }
-    makePsi(A,TMV_vview(Z1),bxorder,&W);
-
-    for(size_t k=0,n=0,nx;k<pix.size();++k,n=nx) {
-        nx = n+pix[k].size();
-        calculatePsfConvolve((*psf)[k],bxorder,b.getSigma(),C[k]);
-        TMV_rowRange(A,n,nx) *= C[k];
-    }
-#else
-    A_aux.setZero();
-#endif
-
-#ifdef USE_TMV
-    Ax.divideUsing(tmv::QR);
-    Ax.saveDiv();
-#endif
-    dbg<<"Ax.colsize = nPixels = "<<I.size()<<" = "<<Ax.TMV_colsize()<<std::endl;
-    dbg<<"Ax.rowsize = nModel("<<order<<") = "<<nsize<<" = "<<Ax.TMV_rowsize()<<std::endl;
-    Assert(Ax.TMV_colsize() >= Ax.TMV_rowsize());
-    // Otherwise there are too few pixels to constrain model.
-
-    int k=0;
-    if (!fixcen) { U(k++,0) = 1.; U(k++,1) = 1.; }
-    if (!fixgam) { U(k++,2) = 1.; U(k++,3) = 1.; }
-    if (!fixmu) { U(k,4) = 1.; }
-
-    setupGx(_Gx,order+2,order);
-    setupGy(_Gy,order+2,order);
-    setupGg1(_Gg1,ORDER_1+2,ORDER_1);
-    setupGg2(_Gg2,ORDER_1+2,ORDER_1);
-    setupGth(_Gth,ORDER_1+2,ORDER_1);
-    setupGmu(_Gmu,ORDER_2,ORDER_3);
-}
-#undef ORDER_1
-#undef ORDER_2
-#undef ORDER_3
-#undef SIZE_1
-#undef SIZE_1b
-#undef SIZE_2
-#undef SIZE_3
-
-void EllipseSolver::ESImpl::doF(const DVector& x, DVector& f) const
+void EllipseSolver3::ESImpl3::doF(const DVector& x, DVector& f) const
 {
     Assert(x.size() == 5);
-    Assert(f.size() == 6);
-
-    // x(0),x(1) = u_cen, v_cen
-    // x(2),x(3) = gamma_1, gamma_2
-    // x(4) = mu
-    //
-    // ( u )' = exp(-mu)/sqrt(1-gsq) ( 1-g1  -g2  ) ( u-uc )
-    // ( v )                         ( -g2   1+g1 ) ( v-vc )
-    // 
-    // z' = u' + I v' 
-    //    = exp(-mu)/sqrt(1-gsq)
-    //             [ (1-g1)(u-uc)-g2(v-vc)-Ig2(u-uc)+I(1+g1)(v-vc) ]
-    //    = exp(-mu)/sqrt(1-gsq) [ z-zc - g1(z-zc)* -Ig2(z-zc)* ]
-    //    = exp(-mu)/sqrt(1-gsq) ( z-zc - g (z-zc)* )
-
-    // Guard against dangerous z,g,mu values that you can sometimes get
-    // from the NLSolver.
-    // Typically, these large values end up with overflows, which 
-    // lead to nans and/or inf's in the resulting f.
-    // Use 2 x the previous value;
-    if ((x-xinit).TMV_normInf() > 4.) {
-        dbg<<"bad x-xinit: "<<(x-xinit)<<std::endl;
-        f = b.vec().TMV_subVector(0,6);
-        if (flux == 0.) flux = b(0);
-        f /= flux;
-        if (useflux) f(0) -= 1.;
-        f *= 2.;
-        return; 
-    }
-
-    std::complex<double> zc(x[0],x[1]);
-    std::complex<double> g(x[2],x[3]);
-    double gsq = std::norm(g);
-    double mu = x[4];
-    // Also guard against gsq > 1, since it leads to nan's with the sqrt(1-gsq)
-    // factor below.
-    if (gsq > 0.99 || (mu < -3. && (x-xinit).norm() > 0.3)) {
-        dbg<<"bad gsq = "<<gsq<<" or mu = "<<mu<<std::endl;
-        f = b.vec().TMV_subVector(0,6);
-        if (flux == 0.) flux = b(0);
-        f /= flux;
-        if (useflux) f(0) -= 1.;
-        f *= 2.;
-        return; 
-    }
+    Assert(f.size() == 5);
 
     xdbg<<"Start doF\n";
     xdbg<<"x = "<<x<<std::endl;
-    xdbg<<"b.order = "<<b.getOrder()<<std::endl;
+    std::complex<double> zc(x[0],x[1]);
+    std::complex<double> g(x[2],x[3]);
+    double mu = x[4];
+    int order = bx.getOrder();
 
-#ifdef USE_CHIP_FRAME
-    xdbg<<"bxorder = "<<bxorder<<std::endl;
-    calculateMuTransform(-mu,bxorder,Dx);
-    calculateGTransform(-g,bxorder,Sx);
-    calculateZTransform(-zc,bxorder,Tx);
-    DSx = Dx * Sx;
-    DSTx = DSx * Tx.colRange(0,nsize);
-    Ax = A * DSTx;
-#ifdef USE_TMV
-    Ax.resetDiv();
-    if (Ax.isSingular()) {
-        dbg<<"Found singular Ax.  Bail.\n";
-        throw tmv::Singular();
+    bx = b0;
+    xdbg<<"Start with b0 = "<<b0.vec()<<std::endl;
+    xdbg<<"bx = "<<bx.vec()<<std::endl;
+    if (!fixmu) {
+        calculateMuTransform(mu,order,Dx);
+        bx.vec() = Dx * bx.vec();
+        xdbg<<"mu = "<<mu<<" bx => "<<bx.vec()<<std::endl;
     }
-    b.vec() = I/Ax;
-#else
-    Eigen::QR<DMatrix> Ax_QR = Ax.qr();
-    if (!Ax_QR.isInjective()) {
-        dbg<<"Found singular Ax.  Bail.\n";
-        dbg<<"rank = "<<Ax_QR.rank()<<"  size = "<<Ax.TMV_colsize()<<"  "<<Ax.TMV_rowsize()<<std::endl;
-        throw std::runtime_error("Singular");
+    if (!fixgam) {
+        calculateGTransform(g,order,Sx);
+        bx.vec() = Sx * bx.vec();
+        xdbg<<"g = "<<g<<" bx => "<<bx.vec()<<std::endl;
     }
-    Ax_QR.solve(I,&b.vec());
-#endif
-    xdbg<<"b -> "<<b.vec()<<std::endl;
-#else
-    double m0 = exp(-mu)/sqrt(1.-gsq);
-    // z' = m*(z-zc) - m*g*conj(z-zc)
-    //    = m*z - m*g*conj(z) - m*zc + m*g*conj(zc);
-    Z1 = m0*Z;
-    Z1 -= m0*g*Z.conjugate();
-    Z1.TMV_addToAll(m0*(g*std::conj(zc)-zc));
-    for(size_t k=0,n=0,nx;k<pix.size();++k,n=nx) {
-        nx = n+pix[k].size();
-        Z1.TMV_subVector(n,nx) /= sigma_obs[k];
+    if (!fixcen) {
+        calculateZTransform(zc,order,Tx);
+        bx.vec() = Tx * bx.vec();
+        xdbg<<"zc = "<<zc<<" bx => "<<bx.vec()<<std::endl;
     }
-    makePsi(A_aux,TMV_vview(Z1),b.getOrder(),&W);
 
-    if (psf) {
-        for(size_t k=0,n=0,nx;k<pix.size();++k,n=nx) {
-            nx = n+pix[k].size();
-#if 1
-            const int psforder = (*psf)[k].getOrder();
-            const int psfsize = (*psf)[k].size();
-            const double psfsigma = (*psf)[k].getSigma();
-            BVec newpsf(psforder+4,psfsigma);
-            const int newpsfsize = newpsf.size();
-            DMatrix S1(newpsfsize,newpsfsize);
-            calculateGTransform(g,newpsf.getOrder(),S1);
-            dbg<<"sigma_psf = "<<psfsigma<<std::endl;
-            dbg<<"gamma = "<<g<<std::endl;
-            dbg<<"b_psf = "<<(*psf)[k].vec()<<std::endl;
-            newpsf.vec() = S1.colRange(0,psfsize) * (*psf)[k].vec();
-            dbg<<"S*b = "<<newpsf.vec()<<std::endl;
-            DMatrix D1(newpsfsize,newpsfsize);
-            calculateMuTransform(mu,newpsf.getOrder(),D1);
-            newpsf.vec() = D1 * newpsf.vec();
-            dbg<<"mu = "<<mu<<std::endl;
-            dbg<<"D*S*b = "<<newpsf.vec()<<std::endl;
-            calculatePsfConvolve(newpsf,b.getOrder(),b.getSigma(),C[k]);
-#else
-            BVec newpsf = (*psf)[k];
-            const int psfsize = newpsf.size();
-            DMatrixView S1 = TMV_colRange(S[k],0,psfsize);
-            calculateGTransform(g,newpsf.getOrder(),S[k]);
-            newpsf.vec() = S1 * (*psf)[k].vec();
-            DMatrixView D1 = TMV_rowRange(D[k],0,psfsize);
-            calculateMuTransform(mu,newpsf.getOrder(),D[k]);
-            newpsf.vec() = D1 * newpsf.vec();
-            calculatePsfConvolve(newpsf,b.getOrder(),b.getSigma(),C[k]);
-#endif
-            TMV_rowRange(Ax,n,nx) = TMV_rowRange(A,n,nx) * C[k];
-        }
-#ifdef USE_TMV
-        Ax.resetDiv();
-        if (Ax.isSingular()) {
-            // I used to keep going and just give an error. But these never 
-            // eventually work, so just bail on the whole calculation.
-            dbg<<"Found singular Ax.  Bail.\n";
-            throw tmv::Singular();
-        }
-        b.vec() = I/Ax;
-#else
-        Eigen::QR<DMatrix> Ax_QR = Ax.qr();
-        if (!Ax_QR.isInjective()) {
-            dbg<<"Found singular Ax.  Bail.\n";
-            dbg<<"rank = "<<Ax_QR.rank()<<"  size = "<<Ax.TMV_colsize()<<"  "<<Ax.TMV_rowsize()<<std::endl;
-            throw std::runtime_error("Singular");
-        }
-        Ax_QR.solve(I,&b.vec());
-#endif
-    } else {
-#ifdef USE_TMV
-        A.resetDiv();
-        if (A.isSingular()) {
-            dbg<<"Found singular A.  Bail.\n";
-            throw tmv::Singular();
-        }
-        b.vec() = I/A;
-#else
-        Eigen::QR<DMatrix> A_QR = A.qr();
-        if (!A_QR.isInjective()) {
-            dbg<<"Found singular A.  Bail.\n";
-            dbg<<"rank = "<<A_QR.rank()<<"  size = "<<A.TMV_colsize()<<"  "<<A.TMV_rowsize()<<std::endl;
-            throw std::runtime_error("Singular");
-        }
-        A_QR.solve(I,&b.vec());
-#endif
-    }
-#endif
-
-    f = b.vec().TMV_subVector(0,6);
-    if (flux == 0.) flux = b(0);
-    f /= flux;
-    if (useflux) f(0) -= 1.;
+    f = bx.vec().TMV_subVector(1,6);
+    f /= bx(0);
 }
 
-double EllipseSolver::ESImpl::getChiSq() const
-{
-#ifdef USE_CHIP_FRAME
-    return NormSq(I - Ax*b.vec()); 
-#else
-    if (psf) {
-        return NormSq(I - Ax*b.vec()); 
-    } else {
-        return NormSq(I - A*b.vec()); 
-    }
-#endif
-}
-
-void EllipseSolver::ESImpl::calculateF(const DVector& x, DVector& f) const
-{
-    Assert(x.size() == U.TMV_colsize());
-    if (useflux) Assert(f.size() == U.TMV_colsize()+1);
-    else Assert(f.size() == U.TMV_colsize());
-
-    Assert(xx.size() == U.TMV_rowsize());
-    EIGEN_Transpose(xx) = EIGEN_Transpose(x)*U;
-    if (fixcen) { xx[0] = fixuc;  xx[1] = fixvc; }
-    if (fixgam) { xx[2] = fixg1;  xx[3] = fixg2; }
-    if (fixmu) { xx[4] = fixm; }
-
-    doF(xx,ff);
-
-    if (useflux) {
-        f(0) = ff(0);
-        f.TMV_subVector(1,f.size()) = U*ff.TMV_subVector(1,6);
-    } else {
-        f = U*ff.TMV_subVector(1,6);
-    }
-}
-
-#ifdef USE_CHIP_FRAME
-void EllipseSolver::ESImpl::doJ(
+void EllipseSolver3::ESImpl3::doJ(
     const DVector& x, const DVector& , DMatrix& J) const
 {
     // TODO
 }
-#else
-void EllipseSolver::ESImpl::doJ(
+#if 0
+void EllipseSolver3::ESImpl3::doJ(
     const DVector& x, const DVector& , DMatrix& J) const
 {
     // A b = I
@@ -1159,7 +744,7 @@ void EllipseSolver::ESImpl::doJ(
     }
 #endif
     J = TMV_rowRange(dbdE,0,6);
-    J /= flux;
+    J /= b(0);
 
 #ifdef JTEST
     dbg<<"analytic: "<<J.clip(1.e-5)<<std::endl;
@@ -1168,16 +753,28 @@ void EllipseSolver::ESImpl::doJ(
 }
 #endif
 
-void EllipseSolver::ESImpl::calculateJ(
-    const DVector& x, const DVector& f, DMatrix& J) const
+void EllipseSolver3::ESImpl3::calculateF(const DVector& x, DVector& f) const
 {
     Assert(x.size() == U.TMV_colsize());
-    Assert(J.TMV_rowsize() == U.TMV_colsize());
-    if (useflux) {
-        Assert(J.TMV_colsize() == U.TMV_colsize()+1);
-    } else {
-        Assert(J.TMV_colsize() == U.TMV_colsize());
-    }
+    Assert(f.size() == U.TMV_colsize());
+
+    Assert(xx.size() == U.TMV_rowsize());
+    EIGEN_Transpose(xx) = EIGEN_Transpose(x)*U;
+    if (fixcen) { xx[0] = fixuc;  xx[1] = fixvc; }
+    if (fixgam) { xx[2] = fixg1;  xx[3] = fixg2; }
+    if (fixmu) { xx[4] = fixm; }
+
+    doF(xx,ff);
+
+    f = U*ff;
+}
+
+void EllipseSolver3::ESImpl3::calculateJ(
+    const DVector& x, const DVector& f, DMatrix& j) const
+{
+    Assert(x.size() == U.TMV_colsize());
+    Assert(j.TMV_rowsize() == U.TMV_colsize());
+    Assert(j.TMV_colsize() == U.TMV_colsize());
 
     EIGEN_Transpose(xx) = EIGEN_Transpose(x)*U;
     if (fixcen) { xx[0] = fixuc;  xx[1] = fixvc; }
@@ -1185,46 +782,14 @@ void EllipseSolver::ESImpl::calculateJ(
     if (fixmu) { xx[4] = fixm; }
 
     doJ(xx,f,jj);
-    if (useflux) {
-        J.row(0) = jj.row(0)*U.transpose();
-        TMV_rowRange(J,1,J.TMV_colsize()) = U*TMV_rowRange(jj,1,6)*U.transpose();
-    } else {
-        J = U*TMV_rowRange(jj,1,6)*U.transpose();
-    }
+    j = U*jj*U.transpose();
 }
 
-void EllipseSolver::useNumericJ() { _pimpl->numeric_j = true; }
+void EllipseSolver3::useNumericJ() { _pimpl->numeric_j = true; }
 
-const BVec& EllipseSolver::getB() const { return _pimpl->b; }
+const BVec& EllipseSolver3::getB() const { return _pimpl->bx; }
 
-void EllipseSolver::getBCov(DMatrix& bcov) const 
-{
-    // It's not completely obvious that the first one is correct.
-    // We find b as the solution of:
-    // A C b = I
-    // This means that 
-    // cov(Cb) = (At A)^-1
-    // But the propagation of covariance says that 
-    // cov(Cb) = C cov(b) Ct
-    // So we can solve for cov(b) as:
-    // cov(b) = C^-1 cov(Cb) Ct^-1 =
-    //        = C^-1 (At A)^-1 Ct^-1
-    //        = (Ct At A C)^-1
-    //        = ((AC)t (AC))^-1
-    // This is what Ax.makeInverseATA returns.
-#ifdef USE_TMV
-    if (_pimpl->psf) _pimpl->Ax.makeInverseATA(bcov);
-    else _pimpl->A.makeInverseATA(bcov);
-#else
-    Eigen::QR<DMatrix> QR_Solver_A = 
-        _pimpl->psf ? _pimpl->Ax.qr() : _pimpl->A.qr();
-    bcov.setIdentity();
-    QR_Solver_A.matrixR().transpose().solveTriangularInPlace(bcov); 
-    QR_Solver_A.matrixR().solveTriangularInPlace(bcov);
-#endif
-}
-
-void EllipseSolver::getCovariance(DMatrix& cov) const 
+void EllipseSolver3::getCovariance(DMatrix& cov) const 
 {
     DMatrix cov1(_pimpl->x_short.size(),_pimpl->x_short.size());
     NLSolver::getCovariance(cov1);
@@ -1234,7 +799,7 @@ void EllipseSolver::getCovariance(DMatrix& cov) const
     dbg<<"full cov = "<<cov<<std::endl;
 }
 
-void EllipseSolver::getInverseCovariance(DMatrix& invcov) const 
+void EllipseSolver3::getInverseCovariance(DMatrix& invcov) const 
 {
     DMatrix invcov1(_pimpl->x_short.size(),_pimpl->x_short.size());
     NLSolver::getInverseCovariance(invcov1);
@@ -1244,7 +809,7 @@ void EllipseSolver::getInverseCovariance(DMatrix& invcov) const
     dbg<<"full invcov = "<<invcov<<std::endl;
 }
 
-void EllipseSolver::callF(const DVector& x, DVector& f) const
+void EllipseSolver3::callF(const DVector& x, DVector& f) const
 {
     Assert(x.size() == 5);
     Assert(f.size() == 5);
@@ -1254,19 +819,13 @@ void EllipseSolver::callF(const DVector& x, DVector& f) const
     if (_pimpl->fixmu) { _pimpl->fixm = x[4]; }
 
     _pimpl->x_short = _pimpl->U * x;
-
-    _pimpl->flux = 0;
 
     calculateF(_pimpl->x_short,_pimpl->f_short);
 
-    if (_pimpl->useflux) 
-        EIGEN_Transpose(f) = 
-            EIGEN_Transpose(_pimpl->f_short.TMV_subVector(
-                    1,_pimpl->f_short.size())) * _pimpl->U;
-    else EIGEN_Transpose(f) = EIGEN_Transpose(_pimpl->f_short)*_pimpl->U;
+    EIGEN_Transpose(f) = EIGEN_Transpose(_pimpl->f_short)*_pimpl->U;
 }
 
-bool EllipseSolver::solve(DVector& x, DVector& f) const
+bool EllipseSolver3::solve(DVector& x, DVector& f) const
 {
     Assert(x.size() == 5);
     Assert(f.size() == 5);
@@ -1277,11 +836,11 @@ bool EllipseSolver::solve(DVector& x, DVector& f) const
 
     _pimpl->x_short = _pimpl->U * x;
 
-    _pimpl->flux = 0;
     bool ret;
     try {
         ret = NLSolver::solve(_pimpl->x_short,_pimpl->f_short);
     } catch (...) {
+        xdbg<<"Caught exception during NLSolver::solve"<<std::endl;
         ret = false;
     }
 
@@ -1289,44 +848,12 @@ bool EllipseSolver::solve(DVector& x, DVector& f) const
     if (_pimpl->fixcen) { x[0] = _pimpl->fixuc; x[1] = _pimpl->fixvc; }
     if (_pimpl->fixgam) { x[2] = _pimpl->fixg1; x[3] = _pimpl->fixg2; }
     if (_pimpl->fixmu) { x[4] = _pimpl->fixm; }
-    if (_pimpl->useflux) 
-        EIGEN_Transpose(f) = 
-            EIGEN_Transpose(_pimpl->f_short.TMV_subVector(
-                    1,_pimpl->f_short.size())) * _pimpl->U;
-    else EIGEN_Transpose(f) = EIGEN_Transpose(_pimpl->f_short)*_pimpl->U;
+    EIGEN_Transpose(f) = EIGEN_Transpose(_pimpl->f_short)*_pimpl->U;
 
     return ret;
 }
 
-#ifdef USE_TMV
-void EllipseSolver::calculateNumericH(
-    const DVector& x, const DVector& f, DSymMatrix& h) const
-{
-    Assert(x.size() == 5);
-    Assert(f.size() == 5);
-    Assert(h.size() == 5);
-    _pimpl->xinit = x;
-    if (_pimpl->fixcen) { _pimpl->fixuc = x[0]; _pimpl->fixvc = x[1]; }
-    if (_pimpl->fixgam) { _pimpl->fixg1 = x[2]; _pimpl->fixg2 = x[3]; }
-    if (_pimpl->fixmu) { _pimpl->fixm = x[4]; }
-
-    _pimpl->x_short = _pimpl->U * x;
-
-    DSymMatrix h_short(_pimpl->x_short.size());
-    h_short.setZero();
-
-    _pimpl->flux = 0;
-    NLSolver::calculateNumericH(_pimpl->x_short,_pimpl->f_short,h_short);
-
-    h = DSymMatrix(DMatrix(
-            _pimpl->U.transpose() * h_short * _pimpl->U));
-    if (_pimpl->fixcen) { h(0,0) = h(1,1) = 1.0; }
-    if (_pimpl->fixgam) { h(2,2) = h(3,3) = 1.0; }
-    if (_pimpl->fixmu) { h(4,4) = 1.0; }
-}
-#endif
-
-bool EllipseSolver::testJ(
+bool EllipseSolver3::testJ(
     const DVector& x, DVector& f,
     std::ostream* os, double relerr) const 
 {
@@ -1339,7 +866,6 @@ bool EllipseSolver::testJ(
 
     _pimpl->x_short = _pimpl->U * x;
 
-    _pimpl->flux = 0;
     return NLSolver::testJ(_pimpl->x_short,_pimpl->f_short,os,relerr);
 }
 

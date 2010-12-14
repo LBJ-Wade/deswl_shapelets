@@ -11,7 +11,7 @@ CoaddCatalog::CoaddCatalog(const ConfigFile& params) :
     _params(params)
 {}
 
-CoaddCatalog::~CoaddCatalog()
+CoaddCatalog::~CoaddCatalog() 
 {}
 
 
@@ -27,12 +27,15 @@ void CoaddCatalog::read()
         // No ASCII version currently.
         readFits(file);
     } catch (CCfits::FitsException& e) {
+        xdbg<<"Caught FitsException: \n"<<e.message()<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.message());
     } catch (std::exception& e) {
+        xdbg<<"Caught std::exception: \n"<<e.what()<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.what());
     } catch (...) {
+        xdbg<<"Caught unknown exception: "<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught unknown error");
     }

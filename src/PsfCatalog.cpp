@@ -54,7 +54,7 @@ void measureSinglePsf1(
     // an error if it is more than a factor of 3 different.)
     BVec flux(0,sigmaP);
     DMatrix fluxCov(1,1);
-    ell.measureShapelet(pix,flux,0,&fluxCov);
+    ell.measureShapelet(pix,flux,0,0,&fluxCov);
     nu = flux(0) / std::sqrt(fluxCov(0,0));
     dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<nu<<std::endl;
     dbg<<" or  "<<psf(0)<<" / sqrt("<<cov(0,0)<<") = "<<
@@ -98,8 +98,8 @@ void measureSinglePsf(
 
     try {
         measureSinglePsf1(
-	    cen,im,sky,trans,noise,gain,weightIm,
-	    sigmaP,psfAp,psfOrder,fixCen,xOffset,yOffset,log,psf,nu,flag);
+            cen,im,sky,trans,noise,gain,weightIm,
+            sigmaP,psfAp,psfOrder,fixCen,xOffset,yOffset,log,psf,nu,flag);
 #ifdef USE_TMV
     } catch (tmv::Error& e) {
         dbg<<"TMV Error thrown in MeasureSinglePSF\n";
@@ -298,8 +298,12 @@ void PsfCatalog::writeFits(std::string file) const
 
         table->column(colNames[7]).write(&bOrder,1,row);
         table->column(colNames[8]).write(&bSigma,1,row);
-        double* cptr = const_cast<double *>(TMV_cptr(_psf[i].vec()));
-        table->column(colNames[9]).write(cptr, nCoeff, 1, row);
+        // There is a bug in the CCfits Column::write function that the 
+        // first argument has to be S* rather than const S*, even though
+        // it is only read from. 
+        // Hence the const_cast.
+        double* ptr = const_cast<double*>(TMV_cptr(_psf[i].vec()));
+        table->column(colNames[9]).write(ptr, nCoeff, 1, row);
     }
 }
 
@@ -375,12 +379,15 @@ void PsfCatalog::write() const
                 writeAscii(file,delim);
             }
         } catch (CCfits::FitsException& e) {
+            xdbg<<"Caught FitsException: \n"<<e.message()<<std::endl;
             throw WriteException(
                 "Error writing to "+file+" -- caught error\n" + e.message());
         } catch (std::exception& e) {
+            xdbg<<"Caught std::exception: \n"<<e.what()<<std::endl;
             throw WriteException(
                 "Error writing to "+file+" -- caught error\n" + e.what());
         } catch (...) {
+            xdbg<<"Caught unknown exception"<<std::endl;
             throw WriteException(
                 "Error writing to "+file+" -- caught unknown error");
         }
@@ -570,12 +577,15 @@ void PsfCatalog::read(std::string file)
             readAscii(file,delim);
         }
     } catch (CCfits::FitsException& e) {
+        xdbg<<"Caught FitsException: \n"<<e.message()<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.message());
     } catch (std::exception& e) {
+        xdbg<<"Caught std::exception: \n"<<e.what()<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.what());
     } catch (...) {
+        xdbg<<"Caught unknown exception"<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught unknown error");
     }

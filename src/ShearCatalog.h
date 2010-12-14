@@ -12,7 +12,6 @@
 #include "StarCatalog.h"
 #include "Image.h"
 #include "Log.h"
-#include "TimeVars.h"
 #include "FittedPsf.h"
 
 class ShearCatalog 

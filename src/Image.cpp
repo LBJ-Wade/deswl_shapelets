@@ -1,5 +1,8 @@
 
+#include <sstream>
 #include <valarray>
+#include <CCfits/CCfits>
+
 #include "Image.h"
 #include "Function2D.h"
 #include "ConfigFile.h"
@@ -8,7 +11,7 @@
 #include <fitsio.h>
 
 template <typename T>
-Image<T>::~Image() 
+Image<T>::~Image()  
 {}
 
 template <typename T>
@@ -24,7 +27,14 @@ Image<T>::Image(
     if (params["noise_method"] == "WEIGHT_IMAGE") {
         std::string weightName = makeName(params,"weight",true,true);
         int weightHdu = getHdu(params,"weight",weightName,1);
-        weightIm.reset(new Image<T>(weightName,weightHdu));
+        try {
+            weightIm.reset(new Image<T>(weightName,weightHdu));
+        } catch (ReadException& e) {
+            xdbg<<"Caught ReadException: \n"<<e.what()<<std::endl;
+            throw ReadException(
+                "Error reading weight image for " + _fileName + "\n" +
+                e.what());
+        }
         dbg<<"Opened weight image.\n";
 
         // Make sure any bad pixels are marked with 0 variance.
@@ -33,13 +43,21 @@ Image<T>::Image(
             int badpixHdu = getHdu(params,"badpix",badpixName,1);
             dbg<<"badpix name = "<<badpixName<<std::endl;
             dbg<<"hdu = "<<badpixHdu<<std::endl;
-            Image<float> badpixIm(badpixName,badpixHdu);
-            dbg<<"Opened badpix image.\n";
+            try {
+                weightIm.reset(new Image<T>(weightName,weightHdu));
+                Image<float> badpixIm(badpixName,badpixHdu);
+                dbg<<"Opened badpix image.\n";
 
-            for(int i=0;i<=weightIm->getMaxI();++i) {
-                for(int j=0;j<=weightIm->getMaxJ();++j) {
-                    if (badpixIm(i,j) > 0.0) (*weightIm)(i,j) = 0.0;
+                for(int i=0;i<=weightIm->getMaxI();++i) {
+                    for(int j=0;j<=weightIm->getMaxJ();++j) {
+                        if (badpixIm(i,j) > 0.0) (*weightIm)(i,j) = 0.0;
+                    }
                 }
+            } catch (ReadException& e) {
+                xdbg<<"Caught ReadException: \n"<<e.what()<<std::endl;
+                throw ReadException(
+                    "Error reading badpix image for " + _fileName + "\n" +
+                    e.what());
             }
         }
     }
@@ -61,15 +79,16 @@ Image<T>::Image(std::string fileName, int hdu) :
     _fileName(fileName), _hdu(hdu)
 {
     readFits();
-  _loaded=true;
+    _loaded=true;
 }
 
 template <typename T> 
-void Image<T>::load(std::string fileName, int hdu) {
-  _fileName = fileName;
-  _hdu = hdu;
-  readFits();
-  _loaded=true;
+void Image<T>::load(std::string fileName, int hdu) 
+{
+    _fileName = fileName;
+    _hdu = hdu;
+    readFits();
+    _loaded=true;
 }
 
 template <typename T> 
@@ -93,10 +112,84 @@ inline int getDataType<float>() { return TFLOAT; }
 template <typename T> 
 void Image<T>::readFits()
 {
-    xdbg<<"Start read fitsimage"<<std::endl;
+    std::stringstream err_msg;
+
+    xdbg<<"Start Image::readFits"<<std::endl;
     xdbg<<"filename = "<<_fileName<<std::endl;
     xdbg<<"hdu = "<<_hdu<<std::endl;
-    // TODO: Use CCFits
+
+    if (!doesFileExist(_fileName)) {
+        throw FileNotFoundException(_fileName);
+    }
+
+#if 1
+    // New CCFits implementation
+    try {
+        CCfits::FITS fits(_fileName, CCfits::Read);
+        xdbg<<"Made fits object\n";
+        std::valarray<double> data;
+        if (_hdu == 1) {
+            CCfits::PHDU& image=fits.pHDU();
+            xdbg<<"Got primary hdu object"<<std::endl;
+            image.readAllKeys();
+            xdbg<<"read all keys:"<<std::endl;
+            xdbg<<image<<std::endl;
+            xdbg<<"axes = "<<image.axes()<<std::endl;
+            if (image.axes() != 2)
+                throw std::runtime_error("Number of axes != 2");
+            image.read(data);
+            xdbg<<"read data into valarray\n";
+            _xMax = image.axis(0);
+            _yMax = image.axis(1);
+        } else {
+            fits.read(_hdu-1);
+            xdbg<<"read extension"<<std::endl;
+            CCfits::ExtHDU& image=fits.extension(_hdu-1);
+            xdbg<<"Got extension hdu object"<<std::endl;
+            image.readAllKeys();
+            xdbg<<"read all keys:"<<std::endl;
+            xdbg<<image<<std::endl;
+            xdbg<<"axes = "<<image.axes()<<std::endl;
+            if (image.axes() != 2)
+                throw std::runtime_error("Number of axes != 2");
+            image.read(data);
+            xdbg<<"read data into valarray\n";
+            _xMax = image.axis(0);
+            _yMax = image.axis(1);
+        }
+        _xMin = 0;
+        _yMin = 0;
+        xdbg<<"size = "<<_xMax<<" , "<<_yMax<<std::endl;
+        _source.reset(new TMatrix(T)(_xMax,_yMax));
+        xdbg<<"done make matrix of image"<<std::endl;
+        xdbg<<"data.size = "<<data.size()<<" =? "<<_xMax*_yMax<<std::endl;
+        Assert(int(data.size()) == _xMax*_yMax);
+        std::copy(&data[0],&data[data.size()-1],TMV_ptr(*_source));
+        xdbg<<"done copy data to _source\n";
+        _m.reset(new TMatrixView(T)(TMV_view(*_source)));
+        xdbg<<"Done make matrixview"<<std::endl;
+    } catch (CCfits::FitsException& e) {
+        xdbg<<"Caught FitsException: "<<e.message()<<std::endl;
+        throw ReadException(
+            "Error reading from " + _fileName + 
+            " hdu " + ConvertibleString(_hdu) +
+            " -- caught error\n" + e.message());
+    } catch (std::exception& e) {
+        xdbg<<"Caught std::exception: "<<e.what()<<std::endl;
+        throw ReadException(
+            "Error reading from " + _fileName + 
+            " hdu " + ConvertibleString(_hdu) +
+            " -- caught error\n" + e.what());
+    } catch (...) {
+        xdbg<<"Caught other exception: "<<std::endl;
+        throw ReadException(
+            "Error reading from " + _fileName + 
+            " hdu " + ConvertibleString(_hdu) +
+            " -- caught unknown error\n");
+    }
+#else
+    // Old cfitsio implementation.
+    // Remove once above is confirmed to be working correctly.
     fitsfile *fPtr;
     int fitsErr=0;
 
@@ -147,7 +240,9 @@ void Image<T>::readFits()
     fits_close_file(fPtr, &fitsErr);
     if (fitsErr != 0) fits_report_error(stderr,fitsErr);
     Assert(fitsErr==0);
-    xdbg<<"Leaving Image ReadFits"<<std::endl;
+#endif
+
+    xdbg<<"Done Image ReadFits"<<std::endl;
 }
 
 // Load Subimage
@@ -272,8 +367,7 @@ Image<T>::Image(std::string fileName, int hdu, const Bounds& bounds) :
 }
 
 template <typename T> 
-void Image<T>::readFits(
-    int x1, int x2, int y1, int y2) 
+void Image<T>::readFits(int x1, int x2, int y1, int y2) 
 {
     xdbg<<"Start read fitsimage"<<std::endl;
     xdbg<<"filename = "<<_fileName<<std::endl;

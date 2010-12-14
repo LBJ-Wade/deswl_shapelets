@@ -6,7 +6,6 @@
 #include <ostream>
 #include "Pixel.h"
 #include "BVec.h"
-#include "TimeVars.h"
 #include "MyMatrix.h"
 
 class Ellipse 
@@ -39,27 +38,32 @@ public :
                  DMatrix* cov=0, 
                  BVec* bret=0, DMatrix* bcov=0);
 
+    bool findRoundFrame(const BVec& b, int order, long& flag, DMatrix* cov=0);
+
     void crudeMeasure(const PixelList& pix, double sigma);
     void crudeMeasure(
         const std::vector<PixelList>& pix, double sigma);
 
     void peakCentroid(const PixelList& pix, double maxr);
 
+    // order parameter is allowed to be less than the order of bret,
+    // in which case the rest of the vector is set to zeros.
+    // order2 is the order for the intermediate steps in the calculation.
     void measureShapelet(
         const std::vector<PixelList>& pix, 
-        const std::vector<BVec>& psf, BVec& bret, int order,
+        const std::vector<BVec>& psf, BVec& bret, int order, int order2,
         DMatrix* bcov=0) const;
     void measureShapelet(
-        const std::vector<PixelList>& pix, 
-        BVec& bret, int order, DMatrix* bcov=0) const;
+        const std::vector<PixelList>& pix, BVec& bret, int order, int order2,
+        DMatrix* bcov=0) const;
 
     void altMeasureShapelet(
         const std::vector<PixelList>& pix, 
-        const std::vector<BVec>& psf, BVec& bret, int order,
+        const std::vector<BVec>& psf, BVec& bret, int order, int order2,
         double pixScale, DMatrix* bcov=0) const;
     void altMeasureShapelet(
-        const std::vector<PixelList>& pix, 
-        BVec& bret, int order, double pixScale, DMatrix* bcov=0) const;
+        const std::vector<PixelList>& pix, BVec& bret, int order, int order2,
+        double pixScale, DMatrix* bcov=0) const;
 
     void write(std::ostream& os) const
     { os << _cen<<" "<<_gamma<<" "<<_mu; }
@@ -76,6 +80,10 @@ public :
     { _gamma = gamma; }
     void setMu(const double mu) { _mu = mu; }
 
+    void shiftBy(const std::complex<double>& cen,
+                 const std::complex<double>& gamma,
+                 const double mu);
+
     void fixCen() { _isFixedCen = true; }
     void fixGam() { _isFixedGamma = true; }
     void fixMu() { _isFixedMu = true; }
@@ -89,8 +97,6 @@ public :
     bool isFixedMu() const { return _isFixedMu; }
 
     void doTimings() { _shouldDoTimings = true; }
-    void resetTimes() { _times.reset(); }
-    const EllipseTimes& getTimes() { return _times; }
 
 private :
 
@@ -102,12 +108,12 @@ private :
 
     void doMeasureShapelet(
         const std::vector<PixelList>& pix, 
-        const std::vector<BVec>* psf, BVec& bret, int order,
+        const std::vector<BVec>* psf, BVec& bret, int order, int order2,
         DMatrix* bcov=0) const;
 
     void doAltMeasureShapelet(
         const std::vector<PixelList>& pix, 
-        const std::vector<BVec>* psf, BVec& bret, int order,
+        const std::vector<BVec>* psf, BVec& bret, int order, int order2,
         double pixScale, DMatrix* bcov=0) const;
 
     std::complex<double> _cen;
@@ -118,7 +124,6 @@ private :
 
     bool _shouldDoTimings;
 
-    EllipseTimes _times;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const Ellipse& s)

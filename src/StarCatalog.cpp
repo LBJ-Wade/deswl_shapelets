@@ -3,7 +3,6 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <valarray>
 #include <CCfits/CCfits>
 
 #include "StarCatalog.h"
@@ -33,7 +32,9 @@ static void calculateSigma1(
     try {
         getPixList(im, pix[0], pos, sky, noise, gain, weightIm, trans, 
                    psfAp, xOffset, yOffset, flag1);
-    } catch (RangeException) {
+    } catch (RangeException& e) {
+        dbg<<"distortion range error: \n";
+        xdbg<<"center = "<<pos<<", b = "<<e.getBounds()<<std::endl;
         flag1 |= TRANSFORM_EXCEPTION;
     }
     if (flag1) {
@@ -551,12 +552,15 @@ void StarCatalog::write() const
                 writeAscii(file,delim);
             }
         } catch (CCfits::FitsException& e) {
+            xdbg<<"Caught FitsException: \n"<<e.message()<<std::endl;
             throw WriteException(
                 "Error writing to "+file+" -- caught error\n" + e.message());
         } catch (std::exception& e) { 
+            xdbg<<"Caught std::exception: \n"<<e.what()<<std::endl;
             throw WriteException(
                 "Error writing to "+file+" -- caught error\n" + e.what());
         } catch (...) { 
+            xdbg<<"Caught unknown exception"<<std::endl;
             throw WriteException(
                 "Error writing to "+file+" -- caught unknown error");
         }
@@ -712,12 +716,15 @@ void StarCatalog::read()
             readAscii(file,delim);
         }
     } catch (CCfits::FitsException& e) {
+        xdbg<<"Caught FitsException: \n"<<e.message()<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.message());
     } catch (std::exception& e) { 
+        xdbg<<"Caught std::exception: \n"<<e.what()<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.what());
     } catch (...) { 
+        xdbg<<"Caught unknown exception"<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught unknown error");
     }

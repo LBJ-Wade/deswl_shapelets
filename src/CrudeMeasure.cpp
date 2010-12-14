@@ -10,6 +10,7 @@ public :
     CrudeSolver(
         const PixelList& pix, double sigma, double I1,
         DVector& xinit);
+    ~CrudeSolver() {}
 
     void calculateF(const DVector& x, DVector& f) const;
     void calculateJ(

@@ -19,17 +19,21 @@ BVec& BVec::operator=(const BVec& rhs)
 
 void BVec::assignTo(BVec& rhs) const
 {
-    Assert(rhs.getOrder() >= getOrder());
     rhs.setSigma(_sigma);
     rhs.setValues(_b);
 }
 
 void BVec::setValues(const DVector& v)
 {
-    Assert(_b.size() >= v.size());
-    _b.TMV_subVector(0,v.size()) = v;
-    if (_b.size() > v.size())
+    if (_b.size() == v.size()) {
+        _b = v;
+    } else if (_b.size() > v.size()) {
+        _b.TMV_subVector(0,v.size()) = v;
         _b.TMV_subVector(v.size(),_b.size()).setZero();
+    } else {
+        xdbg<<"Warning truncating information in BVec::setValues\n";
+        _b = v.TMV_subVector(0,_b.size());
+    }
 }
 
 void BVec::conjugateSelf()
@@ -129,12 +133,21 @@ void calculateMuTransform(double mu, int order, DMatrix& D)
 {
     Assert(int(D.TMV_colsize()) >= (order+1)*(order+2)/2);
     Assert(int(D.TMV_rowsize()) == (order+1)*(order+2)/2);
-    // The easiest recursion for the D_mu matrix is not actually
-    // the one found in BJ02.  Rather, I use the following:
-    // D(00,pq) = e^mu sech(mu) (-tanh(mu))^q delta_pq
+    // First I should point out an error in BJ02.  It lists
+    // D(pq,00) = e^mu sech(mu) tanh(mu)^p delta_pq
+    // This is wrong.
+    // This is the formula for D(00,pq).
+    //
+    // Second, the recursion suggested for calculating D(st,pq) 
+    // is a bit cumbersome since it has a q+1 on the rhs, so the 
+    // calculation of D(30,30) for example, would require knowledge 
+    // of D(00,33) which is a higher order than we really need.
+    // 
+    // An easier recursion is the following:
+    // D(00,pq) = e^mu sech(mu) tanh(mu)^p delta_pq
     // D(s0,pq) = 1/sqrt(s) sech(mu) sqrt(p) D(s-10,p-1q)
     // D(st,pq) = 1/sqrt(t) [ sech(mu) sqrt(q) D(st-1,pq-1)
-    //                        + tanh(mu) sqrt(s) D(s-1t-1,pq) ]
+    //                        - tanh(mu) sqrt(s) D(s-1t-1,pq) ]
     // Note: Only s-t = p-q terms are nonzero.
     //       This means that this can be significantly sped up
     //       by forming smaller matrices for each m, and using 
@@ -148,7 +161,6 @@ void calculateMuTransform(double mu, int order, DMatrix& D)
         return; 
     }
 
-    mu = -mu; 
     double tmu = tanh(mu);
     double smu = 1./cosh(mu);
 
@@ -166,7 +178,7 @@ void calculateMuTransform(double mu, int order, DMatrix& D)
             double* Dpq_n_2 = q>0?TMV_ptr(D.col(pq-n-2)):0;
             double* Dpq1 = p>q?TMV_ptr(D.col(pq+1)):0;
             if (p==q) {
-                if (p > 0) Dqq *= -tmu;
+                if (p > 0) Dqq *= tmu;
                 Dpq[0] = Dqq;  // D(0,pq)
             }
             for(int m=1,st=1;m<=order;++m) {
@@ -177,7 +189,7 @@ void calculateMuTransform(double mu, int order, DMatrix& D)
                             //temp = smu*sqrt(double(p))*D(st-m,pq-n)/sqrt(double(s));
                             temp = smu*isqrt[p]*Dpq_n[st-m]/isqrt[s];
                         } else {
-                            temp = tmu*isqrt[s]*Dpq[st-2*m-1];
+                            temp = -tmu*isqrt[s]*Dpq[st-2*m-1];
                             if (q > 0) {
                                 temp += smu*isqrt[q]*Dpq_n_2[st-m-2];
                             }
@@ -219,7 +231,6 @@ void augmentMuTransformRows(double mu, int order, DMatrix& D)
     //       However, I'll wait to implement this until such speed 
     //       is found to be necessary.
 
-    mu = -mu; 
     double tmu = tanh(mu);
     double smu = 1./cosh(mu);
     std::vector<double> isqrt(order+3);
@@ -238,7 +249,7 @@ void augmentMuTransformRows(double mu, int order, DMatrix& D)
                         if (t == 0) {
                             temp = smu*isqrt[p]*Dpq_n[st-m]/isqrt[s];
                         } else {
-                            temp = tmu*isqrt[s]*Dpq[st-2*m-1];
+                            temp = -tmu*isqrt[s]*Dpq[st-2*m-1];
                             if (q > 0) {
                                 temp += smu*isqrt[q]*Dpq_n_2[st-m-2];
                             }

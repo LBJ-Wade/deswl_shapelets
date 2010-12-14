@@ -1,3 +1,68 @@
+
+-------------------------------------------------------------------------
+
+v0.61  (2010-??-??) 
+
+The biggest development is to reconfigure the basic shear measurement 
+algorithm to address a bug we had seen where the shears come out up to 10%
+wrong when the psf has high order terms in it.  
+
+I had been shearing the psf to the coordinate system where the galaxy 
+is round and then measure the max likelihood galaxy shape there.
+It turns out that this can be improved somewhat by trying to keep mu
+as small as possible (by updating sigma whenever possible), and by
+increasing the order of the calculation of the intermediate matrices.
+
+However, I actually ended up abandoning this method in favor of a single
+deconvolution measurement, and then find the coordinate system where 
+this shapelet vector appears round.  (Then I redo this process one time
+to improve the results a bit more.)  
+
+This is much faster than the other method, since we aren't inverting a 
+large matrix (with all the pixel information) at every step in the 
+non-linear solver.  However, I still have some work to do on speeding
+up the specific implementation, since it doesn't calculate the jacobian
+analytically yet, for example.  But the accuracy is much improved on the
+test images I've been looking at (from Andres).  I'm getting a bias
+of less than 1.e-4, whereas it used to be around 10% on these galaxies.
+
+OK, now the list of other changes in this update:
+
+-- Updated stars_maxmag and stars_maxoutmag for latest GSN 
+   (to 17 and 16 respectively).
+
+-- Updated shear_gal_order2 for new algorithm.  The new meaning is that
+   gal_order = the measured order of the shapelet decomposition.
+   gal_order2 = the order for the intermediate matrices during the 
+                various steps of the calculation.
+   I think good values to use are 8 and 20.
+
+-- Switched over the Image class to using CCFits for reading the image.
+
+-- Added some better exception throwing withn the Image can't be read 
+   correctly.
+
+-- Added debug statements whenever an exception is caught to help follow
+   what the code is doing when an exception happens.
+
+-- Ignore any exceptions that happen when writing the Log.  This happens
+   after our normal exception handling stuff, so it tends to just be a 
+   problem if an exception is thrown then.
+
+-- Added a workaround for a bug in gcc 4.4 where it wouldn't catch
+   exceptions properly.  Need -lpthread before -lgcc_eh in lib list.
+
+-- Got rid of no-longer-used PSF_TRAINING and PSF_VALIDATION flags
+
+-- Added SHAPELET_NOT_DECONV flag to indicate when the returned shapelet
+   vector has not been deconvolved by the PSF.  This can happen if there
+   is some other error before we get to the point in the code where the
+   deconvolution happens.
+
+-- Removed some of the timing stuff that wasn't really useful anymore.
+
+-- Various non-substantive code cleanups.
+
 -------------------------------------------------------------------------
 
 v0.60  (2010-11-15)  Quite a few bug fixes and some structural changes

@@ -81,6 +81,7 @@ FittedPsf::FittedPsf(
         log);
 }
 
+#if 0
 // this is no longer used
 void FittedPsf::split_psf_stars(std::vector<long>& flags) {
     // split at this point.  If split_point = 0.5, we split
@@ -102,6 +103,7 @@ void FittedPsf::split_psf_stars(std::vector<long>& flags) {
         }
     }
 }
+#endif
 
 void FittedPsf::calculate(
     const std::vector<Position>& pos,
@@ -139,7 +141,6 @@ void FittedPsf::calculate(
         Assert(psfSize == int(_avePsf->size()));
         _avePsf->setZero();
         nGoodPsf = 0;
-        // check that only PSF_TRAINING is set
         for(int n=0;n<nStars;++n) if ( flags[n]==0 ) {
             Assert(psf[n].getSigma() == _sigma);
             *_avePsf += psf[n].vec();
@@ -414,12 +415,15 @@ void FittedPsf::write() const
                 writeAscii(file);
             }
         } catch (CCfits::FitsException& e) {
+            xdbg<<"Caught FitsException: \n"<<e.message()<<std::endl;
             throw WriteException(
                 "Error writing to "+file+" -- caught error\n" + e.message());
         } catch (std::exception& e) {
+            xdbg<<"Caught std::exception: \n"<<e.what()<<std::endl;
             throw WriteException(
                 "Error writing to "+file+" -- caught error\n" + e.what());
         } catch (...) {
+            xdbg<<"Caught unknown exception: "<<std::endl;
             throw WriteException(
                 "Error writing to "+file+" -- caught unknown error");
         }
@@ -455,12 +459,15 @@ void FittedPsf::read(std::string file)
             readAscii(file);
         }
     } catch (CCfits::FitsException& e) {
+        xdbg<<"Caught FitsException: \n"<<e.message()<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.message());
     } catch (std::exception& e) {
+        xdbg<<"Caught std::exception: \n"<<e.what()<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.what());
     } catch (...) {
+        xdbg<<"Caught unknown exception: "<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught unknown error");
     }
@@ -609,18 +616,18 @@ void FittedPsf::writeFits(std::string file) const
     table->column(colNames[6]).write(yMin, startRow);
     table->column(colNames[7]).write(yMax, startRow);
 
-    double* cptr;
+    double* ptr;
 
-    cptr = (double *) TMV_cptr(*_avePsf);
-    table->column(colNames[8]).write(cptr, nShapeletCoeff, nRows, startRow);
+    ptr = TMV_ptr(*_avePsf);
+    table->column(colNames[8]).write(ptr, nShapeletCoeff, nRows, startRow);
 #ifdef USE_TMV
-    cptr = (double *) _mV->cptr();
+    ptr = _mV->ptr();
 #else
-    cptr = (double *) TMV_cptr(*_mV_transpose);
+    ptr = TMV_ptr(*_mV_transpose);
 #endif
-    table->column(colNames[9]).write(cptr, nRotMatrix, nRows, startRow);
-    cptr = (double *) TMV_cptr(*_f);
-    table->column(colNames[10]).write(cptr, nInterpMatrix, nRows, startRow);
+    table->column(colNames[9]).write(ptr, nRotMatrix, nRows, startRow);
+    ptr = TMV_ptr(*_f);
+    table->column(colNames[10]).write(ptr, nInterpMatrix, nRows, startRow);
 }
 
 void FittedPsf::readFits(std::string file)
@@ -704,7 +711,7 @@ void FittedPsf::readFits(std::string file)
 
     dVec.resize(0);
     table.column(avePsfCol).read(dVec, 1);
-    dptr=(double*) TMV_cptr(*_avePsf);
+    dptr=TMV_ptr(*_avePsf);
     int dSize = dVec.size();
     Assert(dSize == nShapeletCoeff);
     for (int j=0; j<dSize; ++j) {
@@ -719,10 +726,10 @@ void FittedPsf::readFits(std::string file)
 #ifdef USE_TMV
     _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(_nPca,_avePsf->size()));
     Assert(int(_mV->linearView().size()) == nRotMatrix);
-    dptr=(double*) TMV_cptr(*_mV);
+    dptr=TMV_ptr(*_mV);
 #else
     _mV_transpose.reset(new DMatrix(_avePsf->size(),_nPca));
-    dptr=(double*) TMV_cptr(*_mV_transpose);
+    dptr=TMV_ptr(*_mV_transpose);
 #endif
     dSize = dVec.size();
     Assert(dSize == nRotMatrix);
@@ -742,7 +749,7 @@ void FittedPsf::readFits(std::string file)
 
     dVec.resize(0);
     table.column(interpMatrixCol).read(dVec, 1);
-    dptr=(double*) TMV_cptr(*_f);
+    dptr=TMV_ptr(*_f);
     dSize = dVec.size();
     Assert(dSize == nInterpMatrix);
     for (int j=0; j<dSize; ++j) {

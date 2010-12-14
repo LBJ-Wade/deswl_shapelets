@@ -381,6 +381,7 @@ T ConfigFile::read(const std::string& key) const
     try {
         ret = p->second;
     } catch (ParameterException& e) {
+        xdbg<<"Caught ParameterException: \n"<<e.what()<<std::endl;
         throw ParameterException(
             "ConfigFile error: Could not convert entry for key " +
             key2 +
@@ -406,6 +407,7 @@ T ConfigFile::read( const std::string& key, const T& value ) const
         try {
             ret = p->second;
         } catch (ParameterException& e) {
+            xdbg<<"Caught ParameterException: \n"<<e.what()<<std::endl;
             throw ParameterException(
                 "ConfigFile error: Could not convert entry for key " +
                 key2 +
@@ -431,6 +433,7 @@ bool ConfigFile::readInto( T& var, const std::string& key ) const
         try {
             var = p->second;
         } catch (ParameterException& e) {
+            xdbg<<"Caught ParameterException: \n"<<e.what()<<std::endl;
             throw ParameterException(
                 "ConfigFile error: Could not convert entry for key " +
                 key2 +
@@ -457,6 +460,7 @@ bool ConfigFile::readInto(
         try {
             var = p->second;
         } catch (ParameterException& e) {
+            xdbg<<"Caught ParameterException: \n"<<e.what()<<std::endl;
             throw ParameterException(
                 "ConfigFile error: Could not convert entry for key " +
                 key2 +

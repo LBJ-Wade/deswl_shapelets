@@ -328,8 +328,12 @@ void ShearCatalog::writeFits(std::string file) const
 
         table->column(colNames[14]).write(&bOrder,1,row);
         table->column(colNames[15]).write(&bSigma,1,row);
-        double* cptr = (double *) TMV_cptr(_shape[i].vec());
-        table->column(colNames[16]).write(cptr, nCoeff, 1, row);
+        // There is a bug in the CCfits Column::write function that the 
+        // first argument has to be S* rather than const S*, even though
+        // it is only read from. 
+        // Hence the const_cast.
+        double* ptr = const_cast<double*>(TMV_cptr(_shape[i].vec()));
+        table->column(colNames[16]).write(ptr, nCoeff, 1, row);
     }
 
     if (shouldOutputPsf) {
@@ -340,10 +344,10 @@ void ShearCatalog::writeFits(std::string file) const
 
             table->column(colNames[17]).write(&psfOrder,1,row);
             table->column(colNames[18]).write(&psfSigma,1,row);
-            double* cptr = (double *) TMV_cptr(interp_psf[i].vec());
+            double* ptr = TMV_ptr(interp_psf[i].vec());
             Assert(interp_psf[i].size() == interp_psf[0].size());
             int nPsfCoeff = interp_psf[i].size();
-            table->column(colNames[19]).write(cptr, nPsfCoeff, 1, row);
+            table->column(colNames[19]).write(ptr, nPsfCoeff, 1, row);
         }
     }
 }
@@ -443,12 +447,15 @@ void ShearCatalog::write() const
                 writeAscii(file,delim);
             }
         } catch (CCfits::FitsException& e) {
+            xdbg<<"Caught FitsException: \n"<<e.message()<<std::endl;
             throw WriteException(
                 "Error writing to "+file+" -- caught error\n" + e.message());
         } catch (std::exception& e) {
+            xdbg<<"Caught std::exception: \n"<<e.what()<<std::endl;
             throw WriteException(
                 "Error writing to "+file+" -- caught error\n" + e.what());
         } catch (...) {
+            xdbg<<"Caught unknown exception"<<std::endl;
             throw WriteException(
                 "Error writing to "+file+" -- caught unknown error");
         }
@@ -696,12 +703,15 @@ void ShearCatalog::read()
             readAscii(file,delim);
         }
     } catch (CCfits::FitsException& e) {
+        xdbg<<"Caught FitsException: \n"<<e.message()<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.message());
     } catch (std::exception& e) {
+        xdbg<<"Caught std::exception: \n"<<e.what()<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.what());
     } catch (...) {
+        xdbg<<"Caught unknown exception"<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught unknown error");
     }

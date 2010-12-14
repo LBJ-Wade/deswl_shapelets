@@ -11,7 +11,6 @@
 #include "Image.h"
 #include "FittedPsf.h"
 #include "Log.h"
-#include "TimeVars.h"
 #include "MultiShearCatalog.h"
 #include "ShearCatalog.h"
 #include "Form.h"
@@ -115,6 +114,13 @@ int MultiShearCatalog::getPixels(const Bounds& bounds)
             << "(Current value = "<<_params["multishear_section_size"]<<")";
         if (shouldOutputDesQa) std::cerr<<" STATUS5END";
         std::cerr<<std::endl;
+        dbg << "Memory exhausted in MultShearCatalog.\n"
+            << "Memory Usage in MultiShearCatalog = "
+            << calculateMemoryFootprint()<<" MB \n"
+            << "Lower the parameter \"multishear_section_size\".  "
+            << "(Current value = "<<_params["multishear_section_size"]<<")"
+            << std::endl;
+        exit(1);
     }
 
     _params["maxmem"] = calculateMemoryFootprint(true);
@@ -129,7 +135,7 @@ MultiShearCatalog::MultiShearCatalog(const ConfigFile& params) :
     _params(params)
 {}
 
-MultiShearCatalog::~MultiShearCatalog()
+MultiShearCatalog::~MultiShearCatalog() 
 {}
 
 // readFileLists reads the srclist file specified in params
@@ -179,9 +185,11 @@ void MultiShearCatalog::readFileLists()
             Assert(_skyMapFileList.size() == _imageFileList.size());
         }
     } catch (std::exception& e) {
+        xdbg<<"Caught std::exception: \n"<<e.what()<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.what());
     } catch (...) {
+        xdbg<<"Caught unknown exception"<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught unknown error");
     }
@@ -397,12 +405,15 @@ void MultiShearCatalog::write() const
                 writeAscii(file,delim);
             }
         } catch (CCfits::FitsException& e) {
+            xdbg<<"Caught FitsException: \n"<<e.message()<<std::endl;
             throw WriteException(
                 "Error writing to "+file+" -- caught error\n" + e.message());
         } catch (std::exception& e) {
+            xdbg<<"Caught std::exception: \n"<<e.what()<<std::endl;
             throw WriteException(
                 "Error writing to "+file+" -- caught error\n" + e.what());
         } catch (...) {
+            xdbg<<"Caught unknown exception"<<std::endl;
             throw WriteException(
                 "Error writing to "+file+" -- caught unknown error");
         }
@@ -572,8 +583,12 @@ void MultiShearCatalog::writeFits(std::string file) const
 
         table->column(colNames[orderColNum]).write(&bOrder,1,row);
         table->column(colNames[sigmaColNum]).write(&bSigma,1,row);
-        double* cptr = (double *) TMV_cptr(_shape[i].vec());
-        table->column(colNames[coeffsColNum]).write(cptr, nCoeff, 1, row);
+        // There is a bug in the CCfits Column::write function that the 
+        // first argument has to be S* rather than const S*, even though
+        // it is only read from. 
+        // Hence the const_cast.
+        double* ptr = const_cast<double*>(TMV_cptr(_shape[i].vec()));
+        table->column(colNames[coeffsColNum]).write(ptr, nCoeff, 1, row);
 
     }
 
@@ -657,12 +672,15 @@ void MultiShearCatalog::read()
             readAscii(file,delim);
         }
     } catch (CCfits::FitsException& e) {
+        xdbg<<"Caught FitsException: \n"<<e.message()<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.message());
     } catch (std::exception& e) {
+        xdbg<<"Caught std::exception: \n"<<e.what()<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught error\n" + e.what());
     } catch (...) {
+        xdbg<<"Caught unknown exception"<<std::endl;
         throw ReadException(
             "Error reading from "+file+" -- caught unknown error");
     }
@@ -766,7 +784,7 @@ void MultiShearCatalog::readFits(std::string file)
         std::valarray<double> coeffs;
         table.column(coeffsCol).read(coeffs, row);
 
-        double* ptri = (double* ) TMV_cptr(_shape[i].vec());
+        double* ptri = TMV_ptr(_shape[i].vec());
         for (int j=0; j<nCoeff; ++j) {
             ptri[i] = coeffs[i];
         }

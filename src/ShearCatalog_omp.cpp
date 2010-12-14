@@ -23,16 +23,17 @@ int ShearCatalog::measureShears(
     const Image<double>* weightIm, ShearLog& log)
 {
 
-// should we ramdomize the trajectory of the
-// centroid search?
-// see Params.h
+    // should we ramdomize the trajectory of the
+    // centroid search?
+    // see Params.h
 #ifdef RANDOMIZE_CENTER
     static bool first = true;
     if (first) {
         // initialize random seed:
+        // NB: This will only stay deterministic if not using openmp.
         unsigned int seed=0;
         for (size_t i=0;i<this->size(); i++) {
-          seed += i*_flags[i];
+            seed += i*_flags[i];
         }
         //srand ( time(NULL) );
         //std::cout<<"using seed: "<<seed<<"\n";
@@ -49,7 +50,7 @@ int ShearCatalog::measureShears(
     double galAperture = _params.read<double>("shear_aperture");
     double maxAperture = _params.read("shear_max_aperture",0.);
     int galOrder = _params.read<int>("shear_gal_order");
-    int galOrder2 = _params.read("shear_gal_order2",galOrder);
+    int galOrder2 = _params.read<int>("shear_gal_order2");
     double fPsf = _params.read<double>("shear_f_psf");
     double gain = _params.read("image_gain",0.);
     double minGalSize = _params.read<double>("shear_min_gal_size");
@@ -59,13 +60,10 @@ int ShearCatalog::measureShears(
     double xOffset = _params.read("cat_x_offset",0.);
     double yOffset = _params.read("cat_y_offset",0.);
     bool shouldOutputDots = _params.read("output_dots",false);
-    bool isTiming = _params.read("timing",false);
 
     // This need to have been set.
     Assert(_trans);
     Assert(_fitPsf);
-
-    OverallFitTimes allTimes;
 
 #ifdef ENDAT
     for(int i=ENDAT; i<nGals; ++i) _flags[i] |= INPUT_FLAG;
@@ -91,7 +89,6 @@ int ShearCatalog::measureShears(
     {
         try {
 #endif
-            OverallFitTimes times; // just for this thread
             ShearLog log1(_params); // just for this thread
             log1.noWriteLog();
 #ifdef _OPENMP
@@ -130,11 +127,9 @@ int ShearCatalog::measureShears(
                     // Noise variables:
                     _noise[i], gain, weightIm, 
                     // Parameters:
-                    galAperture, maxAperture, galOrder, galOrder2, 
+                    galAperture, maxAperture, galOrder, galOrder2,
                     fPsf, minGalSize, galFixCen, xOffset, yOffset,
                     galFixSigma, galFixSigmaValue,
-                    // Time stats if desired:
-                    isTiming ? &times : 0, 
                     // Log information
                     log1,
                     // Ouput values:
@@ -151,19 +146,11 @@ int ShearCatalog::measureShears(
                     dbg<<"flag = "<<flag1<<std::endl;
                     dbg<<"shear = "<<_shear[i]<<std::endl;
                 }
-
-                if (isTiming) {
-                    dbg<<"So far: ns = "<<times._nsGamma<<
-                        ",  nf = "<<times._nfNative;
-                    dbg<<", "<<times._nfMu<<", "<<times._nfGamma<<std::endl;
-                }
-
             }
 #ifdef _OPENMP
 #pragma omp critical (add_log)
 #endif
             {
-                if (isTiming) allTimes += times;
                 log += log1;
             }
 #ifdef _OPENMP
@@ -190,14 +177,6 @@ int ShearCatalog::measureShears(
             <<"Success rate: "<<log._nsGamma<<"/"<<log._nGoodIn
             <<"  # with no flags: "<<log._nGood
             <<std::endl;
-    }
-
-    if (isTiming) {
-        dbg<<"From timing structure:\n";
-        dbg<<allTimes._nsGamma<<" successful shear measurements, ";
-        dbg<<allTimes._nfNative<<" + "<<allTimes._nfMu;
-        dbg<<" + "<<allTimes._nfGamma<<" unsuccessful\n";
-        std::cerr<<allTimes<<std::endl;
     }
 
     // Check if the input positions are biased with respect to the 

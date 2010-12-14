@@ -14,13 +14,12 @@ void measureSingleShear(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans, const FittedPsf& fitPsf,
     double noise, double gain, const Image<double>* weightIm, 
-    double galAperture, double maxAperture,
+    double galAperture, double maxAperture, 
     int galOrder, int galOrder2,
     double fPsf, double minGalSize, bool fixCen,
     double xOffset, double yOffset,
     bool fixSigma, double fixSigmaValue,
-    OverallFitTimes* times, ShearLog& log,
-    std::complex<double>& shear, 
+    ShearLog& log, std::complex<double>& shear, 
     DSmallMatrix22& shearCov, BVec& shapelet,
     double& nu, long& flag);
 
@@ -28,13 +27,12 @@ void measureSingleShear1(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans, const std::vector<BVec>& psf,
     double noise, double gain, const Image<double>* weightIm, 
-    double galAperture, double maxAperture,
+    double galAperture, double maxAperture, 
     int galOrder, int galOrder2,
     double fPsf, double minGalSize, bool fixCen,
     double xOffset, double yOffset,
     bool fixSigma, double fixSigmaValue,
-    OverallFitTimes* times, ShearLog& log,
-    std::complex<double>& shear, 
+    ShearLog& log, std::complex<double>& shear, 
     DSmallMatrix22& shearCov, BVec& shapelet,
     double& nu, long& flag);
 
@@ -52,8 +50,7 @@ void measureMultiShear(
     double galAperture, double maxAperture,
     int galOrder, int galOrder2,
     double fPsf, double minGalSize, bool fixCen,
-    OverallFitTimes* times, ShearLog& log,
-    std::complex<double>& shear, 
+    ShearLog& log, std::complex<double>& shear, 
     DSmallMatrix22& shearCov, BVec& shapelet,
     double& nu, long& flag);
 

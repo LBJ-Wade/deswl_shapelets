@@ -2,7 +2,6 @@
 #include <valarray>
 #include "Image.h"
 #include "FittedPsf.h"
-#include "TimeVars.h"
 #include "Log.h"
 #include "CoaddCatalog.h"
 #include "MultiShearCatalog.h"

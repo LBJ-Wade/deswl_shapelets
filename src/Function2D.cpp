@@ -2,7 +2,6 @@
 #include <complex>
 #include <iostream>
 #include <vector>
-#include <sstream>
 
 #include "Function2D.h"
 #include "dbg.h"

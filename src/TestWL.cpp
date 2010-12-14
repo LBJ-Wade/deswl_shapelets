@@ -2130,6 +2130,8 @@ int main(int argc, char **argv) try
         myB(3) = 0.1;
         myB(4) = 0.2;
         myB(5) = 0.3;
+        test(Norm(myB.vec() - convertVector(garyB.rVector())) <= 1.e-5,
+             "compare my BVec with Gary's LVector");
 
         // Now check I(x,y)
         double x = -0.23;
@@ -2143,7 +2145,7 @@ int main(int argc, char **argv) try
         tmv::Vector<double> myPsi(orderSize);
         makePsi(myPsi,std::complex<double>(x,y),order);
         double myIxy = myPsi * myB.vec();
-        test(Norm(myB.vec() - convertVector(garyB.rVector())) <= 1.e-5,
+        test(std::abs(myIxy - garyIxy) <= 1.e-5,
              "compare makePsi with Gary's realPsi");
 
         // Compare Gary's MakeLTransform to my calculateZTransform

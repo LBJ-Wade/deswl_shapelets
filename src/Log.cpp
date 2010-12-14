@@ -124,13 +124,13 @@ void ShearLog::writeLogToFitsHeader() const
                      "# of MeasureShear failures calculating mu");
         table.addKey("nf_gamma", _nfGamma, 
                      "# of MeasureShear failures calculating shear");
-    } catch(...) {
-        // If we already have a Failure exit, then ignore any problems with
-        // writing the Log file.  There is already something else wrong, so 
-        // just leave it at that.
-        if (_exitCode == 0)
-            throw WriteException(
-                "Error writing ShearLog to the Fits file header info.");
+    } catch (std::exception& e) {
+        xdbg<<"Caught exception during Log write:\n";
+        xdbg<<e.what()<<std::endl;
+        xdbg<<"Ignoring, and moving on... "<<std::endl;
+    } catch (...) {
+        xdbg<<"Caught exception during Log write.\n";
+        xdbg<<"Ignoring, and moving on... "<<std::endl;
     }
 }
 
@@ -271,13 +271,13 @@ void PsfLog::writeLogToFitsHeader() const
                      "# chisq of fit");
         table.addKey("dof_fit", _dofFit,
                      "# degrees of freedom of fit");
+    } catch (std::exception& e) {
+        xdbg<<"Caught exception during Log write:\n";
+        xdbg<<e.what()<<std::endl;
+        xdbg<<"Ignoring, and moving on... "<<std::endl;
     } catch (...) {
-        // If we already have a Failure exit, then ignore any problems with
-        // writing the Log file.  There is already something else wrong, so 
-        // just leave it at that.
-        if (_exitCode == 0)
-            throw WriteException(
-                "Error writing PSFLog to the Fits file header info.");
+        xdbg<<"Caught exception during Log write.\n";
+        xdbg<<"Ignoring, and moving on... "<<std::endl;
     }
 }
 
@@ -384,13 +384,13 @@ void FindStarsLog::writeLogToFitsHeader() const
                      "# of total stars found by FindStars");
         table.addKey("fsnstars", _nStars, 
                      "# of good stars found by FindStars");
-    } catch(...) {
-        // If we already have a Failure exit, then ignore any problems with
-        // writing the Log file.  There is already something else wrong, so 
-        // just leave it at that.
-        if (_exitCode == 0)
-            throw WriteException(
-                "Error writing FindStarsLog to the Fits file header info.");
+    } catch (std::exception& e) {
+        xdbg<<"Caught exception during Log write:\n";
+        xdbg<<e.what()<<std::endl;
+        xdbg<<"Ignoring, and moving on... "<<std::endl;
+    } catch (...) {
+        xdbg<<"Caught exception during Log write.\n";
+        xdbg<<"Ignoring, and moving on... "<<std::endl;
     }
 }
 

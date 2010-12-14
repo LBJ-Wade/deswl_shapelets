@@ -34,12 +34,11 @@
 #define NO_SINGLE_EPOCH_IMAGES	0x200000
 #define BKG_NOPIX		        0x400000
 #define PSF_INTERP_OUTLIER	    0x800000
-#define SHAPE_BAD_FLUX          0x1000000
+#define SHEAR_BAD_FLUX          0x1000000
 #define PSF_BAD_FLUX            0x2000000
-#define CENTROID_FAILED         0x4000000
-#define SHEAR_BAD_FLUX          0x8000000
-#define PSF_TRAINING            0x10000000
-#define PSF_VALIDATION          0x20000000
+#define SHAPE_BAD_FLUX          0x4000000
+#define CENTROID_FAILED         0x8000000
+#define SHAPELET_NOT_DECONV     0x10000000
 
 
 #define RANDOMIZE_CENTER
@@ -60,7 +59,7 @@ struct ParameterException : public std::runtime_error
     {}
 };
 
-struct ReadException : public std::runtime_error 
+struct ReadException : public std::runtime_error
 {
     ReadException(const std::string& msg) throw() :
         std::runtime_error(msg) 
