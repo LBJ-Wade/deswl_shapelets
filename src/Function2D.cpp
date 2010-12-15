@@ -336,20 +336,18 @@ void Function2D::linearTransform(
     }
 #ifdef LEGENDRE2D_H
     if(dynamic_cast<Legendre2D*>(this)) {
-        const Legendre2D* lf = dynamic_cast<const Legendre2D*>(&f);
-        const Legendre2D* lg = dynamic_cast<const Legendre2D*>(&g);
-        Assert(lf);
-        Assert(lg);
-        Assert(lf->getBounds() == lg->getBounds());
+        Assert(dynamic_cast<const Legendre2D*>(&f));
+        Assert(dynamic_cast<const Legendre2D*>(&g));
+        Assert(dynamic_cast<const Legendre2D*>(&f)->getBounds() ==
+               dynamic_cast<const Legendre2D*>(&g)->getBounds());
     }
 #endif
 #ifdef CHEBY2D_H
     if(dynamic_cast<Cheby2D*>(this)) {
-        const Cheby2D* cf = dynamic_cast<const Cheby2D*>(&f);
-        const Cheby2D* cg = dynamic_cast<const Cheby2D*>(&g);
-        Assert(cf);
-        Assert(cg);
-        Assert(cf->getBounds() == cg->getBounds());
+        Assert(dynamic_cast<const Cheby2D*>(&f));
+        Assert(dynamic_cast<const Cheby2D*>(&g));
+        Assert(dynamic_cast<const Cheby2D*>(&f)->getBounds() ==
+               dynamic_cast<const Cheby2D*>(&g)->getBounds());
     }
 #endif
     Assert(f.getXOrder() == g.getXOrder());

@@ -10,6 +10,9 @@
 
 #ifdef JTEST
 #include "TestHelper.h"
+bool shouldShowTests;
+bool shouldThrow;
+std::string lastSuccess;
 #endif
 
 #if defined(USE_CHIP_FRAME) && !defined(ALWAYS_NUMERIC_J)

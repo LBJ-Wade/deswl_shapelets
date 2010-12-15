@@ -706,33 +706,28 @@ void FittedPsf::readFits(std::string file)
 
     const int psfSize = (_psfOrder+1)*(_psfOrder+2)/2;
     _avePsf.reset(new DVector(psfSize));
-    int nShapeletCoeff = (_psfOrder+1)*(_psfOrder+2)/2;
-    Assert(int(_avePsf->size()) == nShapeletCoeff);
 
     dVec.resize(0);
     table.column(avePsfCol).read(dVec, 1);
     dptr=TMV_ptr(*_avePsf);
     int dSize = dVec.size();
-    Assert(dSize == nShapeletCoeff);
+    Assert(dSize == psfSize);
     for (int j=0; j<dSize; ++j) {
         dptr[j] = dVec[j];
     }
 
-
-
-    int nRotMatrix = _nPca*nShapeletCoeff;
     dVec.resize(0);
     table.column(rotMatrixCol).read(dVec, 1);
 #ifdef USE_TMV
     _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(_nPca,_avePsf->size()));
-    Assert(int(_mV->linearView().size()) == nRotMatrix);
+    Assert(int(_mV->linearView().size()) == _nPca*psfSize);
     dptr=TMV_ptr(*_mV);
 #else
     _mV_transpose.reset(new DMatrix(_avePsf->size(),_nPca));
     dptr=TMV_ptr(*_mV_transpose);
 #endif
     dSize = dVec.size();
-    Assert(dSize == nRotMatrix);
+    Assert(dSize == _nPca*psfSize);
     for (int j=0; j<dSize; ++j) {
         dptr[j] = dVec[j];
     }
@@ -741,17 +736,16 @@ void FittedPsf::readFits(std::string file)
 
     _fitSize = (_fitOrder+1)*(_fitOrder+2)/2;
     xdbg<<"fitsize = "<<_fitSize<<std::endl;
-    int nInterpMatrix = _nPca*_fitSize;
     _f.reset(new DMatrix(_fitSize,_nPca));
 #ifdef USE_TMV
-    Assert(int(_f->linearView().size()) == nInterpMatrix);
+    Assert(int(_f->linearView().size()) == _nPca*_fitSize);
 #endif
 
     dVec.resize(0);
     table.column(interpMatrixCol).read(dVec, 1);
     dptr=TMV_ptr(*_f);
     dSize = dVec.size();
-    Assert(dSize == nInterpMatrix);
+    Assert(dSize == _nPca*_fitSize);
     for (int j=0; j<dSize; ++j) {
         dptr[j] = dVec[j];
     }

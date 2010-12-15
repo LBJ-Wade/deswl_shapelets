@@ -93,13 +93,15 @@ void calculateZTransform(std::complex<double> z, int order, DMatrix& T)
             double* Tpq1 = Tpq + TMV_stepj(T);
             for(int nn=0,st=0;nn<=order;++nn) {
                 for(int s=nn,t=0;s>=t;--s,++t,++st) {
-                    std::complex<double> t1 = f.TMV_cref(p,s) * std::conj(f.TMV_cref(q,t));
+                    std::complex<double> t1 = 
+                        f.TMV_cref(p,s) * std::conj(f.TMV_cref(q,t));
                     if (p==q) {
                         if (s==t) {
                             Tpq[st] = std::real(t1); // T(st,pq)
                         } else {
                             Tpq[st] = std::real(t1);
-                            Tpq[++st] = std::imag(t1);
+                            Tpq[st+1] = std::imag(t1);
+                            ++st;
                         }
                     } else if (s==t) {
                         // b_st = t_stpq b_pq + t_stqp b_qp
@@ -107,11 +109,13 @@ void calculateZTransform(std::complex<double> z, int order, DMatrix& T)
                         Tpq[st] = 2.*std::real(t1);
                         Tpq1[st] = -2.*std::imag(t1);
                     } else {
-                        std::complex<double> t2 = f.TMV_cref(q,s) * std::conj(f.TMV_cref(p,t));
+                        std::complex<double> t2 = 
+                            f.TMV_cref(q,s) * std::conj(f.TMV_cref(p,t));
                         Tpq[st] = std::real(t1) + std::real(t2);
+                        Tpq[st+1]= std::imag(t1) + std::imag(t2);
                         Tpq1[st] = -std::imag(t1) + std::imag(t2);
-                        Tpq[++st]= std::imag(t1) + std::imag(t2);
-                        Tpq1[st] = std::real(t1) - std::real(t2);
+                        Tpq1[st+1] = std::real(t1) - std::real(t2);
+                        ++st;
                     }
                 }
             }
@@ -355,7 +359,8 @@ void calculateGTransform(std::complex<double> g, int order, DMatrix& S)
                             Spq[st] = std::real(s1);
                         } else {
                             Spq[st] = std::real(s1);
-                            Spq[++st] = std::imag(s1);
+                            Spq[st+1] = std::imag(s1);
+                            ++st;
                         }
                     } else if (s==t) {
                         // b_st = t_stpq b_pq + t_stqp b_qp
@@ -368,9 +373,10 @@ void calculateGTransform(std::complex<double> g, int order, DMatrix& S)
                         std::complex<double> s2 = s0 *
                             (iphase >= 0 ? phase[iphase/2] : std::conj(phase[-iphase/2]));
                         Spq[st] = std::real(s1) + std::real(s2);
+                        Spq[st+1] = std::imag(s1) + std::imag(s2);
                         Spq1[st] = -std::imag(s1) + std::imag(s2);
-                        Spq[++st] = std::imag(s1) + std::imag(s2);
-                        Spq1[st] = std::real(s1) - std::real(s2);
+                        Spq1[st+1] = std::real(s1) - std::real(s2);
+                        ++st;
                     }
                 }
             }
@@ -444,7 +450,8 @@ void augmentGTransformCols(std::complex<double> g, int order, DMatrix& S)
                             Spq[st] = std::real(s1);
                         } else {
                             Spq[st] = std::real(s1);
-                            Spq[++st] = std::imag(s1);
+                            Spq[st+1] = std::imag(s1);
+                            ++st;
                         }
                     } else if (s==t) {
                         Spq[st] = 2.*std::real(s1);
@@ -456,8 +463,9 @@ void augmentGTransformCols(std::complex<double> g, int order, DMatrix& S)
                             (iphase >= 0 ? phase[iphase/2] : std::conj(phase[-iphase/2]));
                         Spq[st]= std::real(s1) + std::real(s2);
                         Spq1[st] = -std::imag(s1) + std::imag(s2);
-                        Spq[++st] = std::imag(s1) + std::imag(s2);
-                        Spq1[st] = std::real(s1) - std::real(s2);
+                        Spq[st+1] = std::imag(s1) + std::imag(s2);
+                        Spq1[st+1] = std::real(s1) - std::real(s2);
+                        ++st;
                     }
                 }
             }

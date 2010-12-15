@@ -1,29 +1,18 @@
 #!/bin/bash
 
 #root=decam--24--27-i-2_61
-#stardat=stars1.dat
-root=decam--24--37-i-14_06
-#stardat=stars2.dat
-#root=decam--25--30-i-3_51
-#stardat=stars3.dat
-#root=decam--25--38-i-12_01
-#stardat=stars4.dat
-#root=decam--25--38-i-8_01
-#stardat=stars5.dat
-#root=decam--27--31-i-2_16
-#stardat=stars6.dat
-#root=decam--27--9-i-3_20
-#stardat=stars7.dat
-config=../example_config/wl.config
+#root=decam--24--37-i-14_06
+root=decam--23--42-i-5_01
+config=wl.config
 #input=/home/mjarvis/des/wl/testdata/data
 #output=/home/mjarvis/des/wl/testdata/output2
 input=../../testdata/data
 output=../../testdata/output
 #input=/u/ac/jarvis/wl/testdata/data
 #output=/u/ac/jarvis/wl/testdata/output
-#dc4=
+dc4=
 #dc4='shear_dc4_input_format=true'
-dc4='+dc4.config shear_output_psf=true'
+#dc4='+dc4.config shear_output_psf=true'
 BINDIR=.
 #BINDIR=/home/mjarvis/bin
 #BINDIR=/Users/Mike/bin
@@ -31,7 +20,6 @@ vl=2
 
 echo $BINDIR/findstars $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fs.debug verbose=$vl output_dots=1 $dc4
 time $BINDIR/findstars $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fs.debug verbose=$vl output_dots=1 $dc4
-#/bin/cp $output${root}_stars.dat $output$stardat
 cp fs.debug $output
 
 echo MeasurePSF:

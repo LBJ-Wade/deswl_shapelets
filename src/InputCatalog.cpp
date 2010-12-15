@@ -497,11 +497,10 @@ void InputCatalog::readAscii(std::string file, std::string delim)
         // Convert line into vector of tokens
         std::vector<ConvertibleString> tokens;
         getTokens(delim,line,tokens);
-        const int nTokens = tokens.size();
 
         // ID
         if (idCol) {
-            Assert(idCol <= nTokens);
+            Assert(idCol <= int(tokens.size()));
             idVal = tokens[idCol-1];
         } else {
             // if not reading id, then just increment to get sequential values
@@ -510,8 +509,8 @@ void InputCatalog::readAscii(std::string file, std::string delim)
         _id.push_back(idVal);
 
         // Position
-        Assert(xCol <= nTokens);
-        Assert(yCol <= nTokens);
+        Assert(xCol <= int(tokens.size()));
+        Assert(yCol <= int(tokens.size()));
         double x = tokens[xCol-1];
         double y = tokens[yCol-1];
         _pos.push_back(Position(x,y));
@@ -522,7 +521,7 @@ void InputCatalog::readAscii(std::string file, std::string delim)
             // This is indicator to update with global given or median 
             // value later.
             double skyVal = 0.;
-            Assert(skyCol <= nTokens);
+            Assert(skyCol <= int(tokens.size()));
             skyVal = tokens[skyCol-1];
             _sky.push_back(skyVal);
         } 
@@ -530,7 +529,7 @@ void InputCatalog::readAscii(std::string file, std::string delim)
         // Magnitude
         if (magCol) {
             double magVal = 0.;
-            Assert(magCol <= nTokens);
+            Assert(magCol <= int(tokens.size()));
             magVal = tokens[magCol-1];
             _mag.push_back(magVal);
         } 
@@ -538,7 +537,7 @@ void InputCatalog::readAscii(std::string file, std::string delim)
         // Magnitude error
         if (magErrCol) {
             double magErrVal = 0.;
-            Assert(magErrCol <= nTokens);
+            Assert(magErrCol <= int(tokens.size()));
             magErrVal = tokens[magErrCol-1];
             _magErr.push_back(magErrVal);
         } 
@@ -546,10 +545,10 @@ void InputCatalog::readAscii(std::string file, std::string delim)
         // Size
         if (sizeCol) {
             double sizeVal = 0.;
-            Assert(sizeCol <= nTokens);
+            Assert(sizeCol <= int(tokens.size()));
             sizeVal = tokens[sizeCol-1];
             if (size2Col) {
-                Assert(size2Col <= nTokens);
+                Assert(size2Col <= int(tokens.size()));
                 sizeVal += double(tokens[size2Col-1]);
             } 
             _objSize.push_back(sizeVal);
@@ -558,7 +557,7 @@ void InputCatalog::readAscii(std::string file, std::string delim)
         // Flags
         if (flagCol) {
             long flagVal = 0;
-            Assert(flagCol <= nTokens);
+            Assert(flagCol <= int(tokens.size()));
             flagVal = tokens[flagCol-1];
             _flags.push_back(flagVal);
         } 
@@ -569,8 +568,8 @@ void InputCatalog::readAscii(std::string file, std::string delim)
                 throw ParameterException("cat_ra_col, but no cat_dec_col");
             double raVal = 0.;
             double declVal = 0.;
-            Assert(raCol <= nTokens);
-            Assert(declCol <= nTokens);
+            Assert(raCol <= int(tokens.size()));
+            Assert(declCol <= int(tokens.size()));
             raVal = tokens[raCol-1];
             declVal = tokens[declCol-1];
             Position skyPosVal(raVal,declVal);
@@ -583,7 +582,7 @@ void InputCatalog::readAscii(std::string file, std::string delim)
         // Noise
         if (noiseCol) {
             double noiseVal = 0.;
-            Assert(noiseCol <= nTokens);
+            Assert(noiseCol <= int(tokens.size()));
             noiseVal = tokens[noiseCol-1];
             _noise.push_back(noiseVal);
         }

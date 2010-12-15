@@ -415,14 +415,14 @@ bool Ellipse::doMeasure(
 #ifdef NOTHROW
     solver->noUseCholesky();
 #endif
-    const double FINAL_FTOL = 1.e-8; // AP Original: 1e-8 
+    const double FINAL_FTOL = 1.e-8;
     
     solver->setTol(FINAL_FTOL,1.e-25);
     if (XDEBUG) solver->setOutput(*dbgout);
     //solver->useVerboseOutput();
     solver->setDelta0(0.01);
     solver->setMinStep(1.e-15);
-    solver->setMaxIter(50);  //solver->setMaxIter(50);
+    solver->setMaxIter(50);  
     xdbg<<"Final solver:\n";
     for(int iter = 1;iter<=MAXITER;++iter) {
         //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-6)) exit(1);
@@ -500,8 +500,7 @@ bool Ellipse::doMeasure(
             solver->setMinStep(1.e-15);
             solver->setMaxIter(50);
         } else {
-            solver->setTol(10.*solver->getFTol(),10.*solver->getGTol()); //(9-20-2010) , original
-            //solver->setTol(0.5*solver->getFTol(),0.5*solver->getGTol()); //AP
+            solver->setTol(10.*solver->getFTol(),10.*solver->getGTol()); 
          }
     }
     xdbg<<"Done: Final solver pass successful: x = "<<EIGEN_Transpose(x)<<std::endl;
@@ -614,7 +613,7 @@ bool Ellipse::findRoundFrame(
         dbg<<"findRoundFrame solver failed:\n";
         dbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
         dbg<<"b = "<<EIGEN_Transpose(solver.getB().vec())<<std::endl;
-        //if (XDEBUG) if (!solver.testJ(x,f,dbgout,1.e-5)) exit(1);
+        if (XDEBUG) if (!solver.testJ(x,f,dbgout,1.e-5)) exit(1);
         return false;
     }
     dbg<<"Done: solver successful:\n";
