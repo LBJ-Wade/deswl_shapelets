@@ -6,8 +6,28 @@
 #include "PsiHelper.h"
 #include "Params.h"
 
-#define N_FLUX_ATTEMPTS 0
-#define MAXITER 4
+static std::complex<double> addShears(
+    const std::complex<double> g1, const std::complex<double> g2)
+{
+    double absg1 = std::abs(g1);
+    if (absg1 == 0.) return g2;
+    double absd1 = tanh(atanh(absg1)*2.);
+    std::complex<double> d1 = absd1 / absg1 * g1;
+    double absg2 = std::abs(g2);
+    if (absg2 == 0.) return g1;
+    double absd2 = tanh(atanh(absg2)*2.);
+    std::complex<double> d2 = absd2 / absg2 * g2;
+
+    double d2sq = absd2*absd2;
+    double x = (1.-std::sqrt(1.-d2sq))/d2sq;
+    std::complex<double> d3 = d1+d2*(1.+x*(std::real(d1)*d2-std::real(d2)*d1));
+    d3 /= 1. + std::real(d1*std::conj(d2));
+    double absd3 = std::abs(d3);
+    double absg3 = tanh(atanh(absd3)/2.);
+    std::complex<double> g3 = absg3/absd3*d3;
+    xdbg<<"GammaAdd: "<<g1<<" + "<<g2<<" = "<<g3<<std::endl;
+    return g3;
+}
 
 void Ellipse::shiftBy(
     const std::complex<double>& c2,
@@ -55,7 +75,8 @@ void Ellipse::shiftBy(
     // Next m3:
     // We have a factor of |1+g1 g2*| from the shears.
     // And we also have exp(-m1) and exp(-m2). 
-    // exp(-m3) = |1+g1 g2*| sqrt(1-g3^2) / sqrt(1-g1^2) / sqrt(1-g2^2)
+    // exp(-m3) = |1+g1 g2*| exp(-m1 - m2)
+    // m3 = m1 + m2 - ln(|1+g1 g2*|)
     //
     // The m1 and m2 parts add an extra exp(-m1) * exp(-m2).
     //
@@ -88,7 +109,7 @@ void Ellipse::shiftBy(
 
     std::complex<double> g12 = 
         (g1+g2) / sqrt(1.-norm(g1)) / sqrt(1.-norm(g2));
-    g12 /= abs(1.+conj(g1)*g2);
+    g12 /= abs(1.+conj(g2)*g1);
     // |g3|^2 / (1-|g3|^2) = |g12|^2
     // |g3|^2 = |g12|^2 - |g12|^2 |g3|^2
     // |g3|^2 = |g12|^2 / (1+|g12|^2)
@@ -97,20 +118,9 @@ void Ellipse::shiftBy(
     std::complex<double> g3 = g12 * sqrt(1.-g3sq);
     dbg<<"g3 = "<<g3<<", g3sq = "<<g3sq<<" = "<<norm(g3)<<std::endl;
 
-    if (XDEBUG && g3sq > 0) {
-        // Check with Miralda-Escude formula:
-        std::complex<double> d1 = g1 * 2./(1.+norm(g1));
-        std::complex<double> d2 = g2 * 2./(1.+norm(g2));
-        std::complex<double> d3 = 
-            d1 + d2 + 
-            (1.-sqrt(1.-norm(d2))) * d2/norm(d2) * (conj(d1)*d2 - d1*conj(d2))/2.;
-        d3 /= 1. + (real(d1)*real(d2) + imag(d1)*imag(d2));
-        xdbg<<"Miralda-Escude formula gives d3 = "<<d3<<std::endl;
-        xdbg<<"g3->d3 = "<<g3 * 2./(1.+norm(g3))<<std::endl;
-    }
+    xdbg<<"Miralda-Escude formula gives g3 = "<<addShears(g1,g2)<<std::endl;
 
-    double m3 = exp(-m1) * exp(-m2) * abs(1.+conj(g1)*g2);
-    m3 = -log(m3);
+    double m3 = m1 + m2 - log(abs(1.+conj(g2)*g1));
     dbg<<"m3 = "<<m3<<std::endl;
 
     std::complex<double> temp = -c1 - g1 * conj(-c1);
@@ -129,27 +139,27 @@ void Ellipse::shiftBy(
 bool Ellipse::measure(
     const std::vector<PixelList>& pix,
     const std::vector<BVec>& psf,
-    int order, double sigma, bool shouldUseInteg, long& flag,
+    int order, int order2, double sigma, long& flag, double thresh,
     DMatrix* cov, BVec* bRet, DMatrix* bCov,
     std::vector<PixelList>* pixels_model)
 { 
-    return doMeasure(pix,&psf,order,sigma,shouldUseInteg,flag,cov,bRet,bCov,
-                     pixels_model); 
+    return doMeasure(
+        pix,&psf,order,order2,sigma,flag,thresh,cov,bRet,bCov,pixels_model); 
 }
 
 bool Ellipse::measure(
     const std::vector<PixelList>& pix,
-    int order, double sigma, bool shouldUseInteg, long& flag, 
+    int order, int order2, double sigma, long& flag, double thresh,
     DMatrix* cov, BVec* bRet, DMatrix* bCov,
     std::vector<PixelList>* pixels_model)
 {
-    return doMeasure(pix,0,order,sigma,shouldUseInteg,flag,cov,bRet,bCov,
-                     pixels_model);
+    return doMeasure(
+        pix,0,order,order2,sigma,flag,thresh,cov,bRet,bCov,pixels_model);
 }
 
-void Ellipse::doMeasureShapelet(
+bool Ellipse::doMeasureShapelet(
     const std::vector<PixelList>& pix,
-    const std::vector<BVec>* psf, BVec& b, int order, int order2,
+    const std::vector<BVec>* psf, BVec& b, int& order, int order2,
     DMatrix* bCov) const
 {
     xdbg<<"Start MeasureShapelet: order = "<<order<<std::endl;
@@ -174,7 +184,7 @@ void Ellipse::doMeasureShapelet(
     int nTot = 0;
     const int nExp = pix.size();
     for(int i=0;i<nExp;++i) nTot += pix[i].size();
-    //dbg<<"ntot = "<<nTot<<" in "<<nExp<<" images\n";
+    dbg<<"ntot = "<<nTot<<" in "<<nExp<<" images\n";
 
     DVector I(nTot);
     DVector W(nTot);
@@ -185,6 +195,7 @@ void Ellipse::doMeasureShapelet(
             psf ?
             sqrt(pow(sigma,2)+pow((*psf)[k].getSigma(),2)) :
             sigma;
+        dbg<<"sigma_obs["<<k<<"] = "<<sigma_obs<<std::endl;
 
         const int nPix = pix[k].size();
         for(int i=0;i<nPix;++i,++n) {
@@ -199,7 +210,7 @@ void Ellipse::doMeasureShapelet(
     //xdbg<<"I = "<<I<<std::endl;
     //xdbg<<"W = "<<W<<std::endl;
 
-    const int bsize = (order+1)*(order+2)/2;
+    int bsize = (order+1)*(order+2)/2;
     xdbg<<"bsize = "<<bsize<<std::endl;
 
     DMatrix A(nTot,bsize);
@@ -236,26 +247,47 @@ void Ellipse::doMeasureShapelet(
     }
 #ifdef USE_TMV
     A.saveDiv();
-#if 1
-    // QRP should be good enough, even if A is singular.
-    // But also, A shouldn't really become singular here
-    // (unlike in EllipseSolver where it sometimes does).
-    A.divideUsing(tmv::QRP);
-#else
     A.divideUsing(tmv::SV);
-    const double sqrtEps = sqrt(std::numeric_limits<double>::epsilon());
-    A.svd().thresh(sqrtEps);
-    xdbg<<"For MeasureShapelet: svd = "<<A.svd().getS().diag()<<std::endl;
-    if (A.svd().getKMax() < int(A.rowsize()))
-        xdbg<<"Omitting last "<<A.rowsize()-A.svd().getKMax()<<" singular values\n";
-#endif
-    b.vec().subVector(0,bsize) = I/A;
+    std::auto_ptr<tmv::MatrixView<double> > A_use(
+        new tmv::MatrixView<double>(A.view()));
+    A_use->svd();
+    xdbg<<"svd = "<<A_use->svd().getS().diag()<<std::endl;
+    while (A_use->svd().isSingular() || A_use->svd().condition() > 1.e3) {
+        dbg<<"Poor condition in MeasureShapelet: \n";
+        xdbg<<"svd = "<<A_use->svd().getS().diag()<<std::endl;
+        xdbg<<"condition = "<<A_use->svd().condition()<<std::endl;
+        if (order > 2) {
+            bsize -= order+1; --order;
+            dbg<<"Reducing order to "<<order<<std::endl;
+            A_use.reset(new tmv::MatrixView<double>(A.colRange(0,bsize)));
+            continue;
+        } else {
+            dbg<<"Order is already only 2.  Unable to measure shapelet.\n";
+            return false;
+        }
+    }
+    b.vec().subVector(0,bsize) = I/(*A_use);
     xdbg<<"b = "<<b<<std::endl;
     xdbg<<"Norm(I) = "<<Norm(I)<<std::endl;
-    xdbg<<"Norm(A*b) = "<<Norm(A*b.vec().subVector(0,bsize))<<std::endl;
-    xdbg<<"Norm(I-A*b) = "<<Norm(I-A*b.vec().subVector(0,bsize))<<std::endl;
+    xdbg<<"Norm(A*b) = "<<Norm((*A_use)*b.vec().subVector(0,bsize))<<std::endl;
+    xdbg<<"Norm(I-A*b) = "<<Norm(I-(*A_use)*b.vec().subVector(0,bsize))<<std::endl;
+    while (!(b(0) > 0.)) {
+        dbg<<"Calculated b vector has negative b(0):\n";
+        dbg<<"b = "<<b<<std::endl;
+        if (order > 2) {
+            bsize -= order+1; --order;
+            dbg<<"Reducing order to "<<order<<std::endl;
+            A_use.reset(new tmv::MatrixView<double>(A.colRange(0,bsize)));
+            b.vec().subVector(0,bsize) = I/(*A_use);
+            continue;
+        } else {
+            dbg<<"Order is already only 2.  Unable to measure shapelet.\n";
+            return false;
+        }
+    }
     if (bCov) {
-        A.makeInverseATA(*bCov);
+        bCov->setZero();
+        A_use->makeInverseATA(bCov->subMatrix(0,bsize,0,bsize));
     }
 #else
     const double sqrtEps = sqrt(std::numeric_limits<double>::epsilon());
@@ -264,23 +296,41 @@ void Ellipse::doMeasureShapelet(
     const DVector& svd_s = svd.singularValues();
     const DMatrix& svd_v = svd.matrixV();
     double max = svd_s(0);
-    int kmax = 0;
-    double thresh = sqrtEps * max;
-    while (kmax < svd_s.size() && svd_s(kmax) > thresh) ++kmax;
-    xdbg<<"For MeasureShapelet: svd = "<<svd_s.transpose()<<std::endl;
-    if (kmax < svd_s.size())
-        xdbg<<"Omitting last "<<svd_s.size()-kmax<<" singular values\n";
+    double min = svd_s(svd_s.size()-1);
+    if (min < 1.e-6 * max) {
+        xdbg<<"Poor condition in MeasureShapelet: \n";
+        xdbg<<"svd = "<<svd_s.transpose()<<std::endl;
+        xdbg<<"condition = "<<max/min<<std::endl;
+        if (order > 2) {
+            dbg<<"Reducing order to "<<order-1<<std::endl;
+            return doMeasureShapelet(pix,psf,b,order-1,order2,bCov);
+        } else {
+            dbg<<"Order is already only 2.  Unable to measure shapelet.\n";
+            return false;
+        }
+    }
     // USVtb = I
     // b = VS^-1UtI
-    DVector temp = TMV_colRange(svd_u,0,kmax).transpose() * I;
-    temp = svd_s.TMV_subVector(0,kmax).cwise().inverse().asDiagonal() * temp;
-    b.vec().TMV_subVector(0,bsize) = TMV_colRange(svd_v,0,kmax) * temp;
+    DVector temp = svd_u.transpose() * I;
+    temp = svd_s.cwise().inverse().asDiagonal() * temp;
+    b.vec().TMV_subVector(0,bsize) = svd_v * temp;
+    if (!(b(0) > 0.)) {
+        dbg<<"Calculated b vector has negative b(0):\n";
+        dbg<<"b = "<<b<<std::endl;
+        if (order > 2) {
+            dbg<<"Reducing order to "<<order-1<<std::endl;
+            return doMeasureShapelet(pix,psf,b,order-1,order2,bCov);
+        } else {
+            dbg<<"Order is already only 2.  Unable to measure shapelet.\n";
+            return false;
+        }
+    }
     if (bCov) {
+        bCov->setZero();
         // (AtA)^-1 = (VSUt USVt)^-1 = (V S^2 Vt)^-1 = V S^-2 Vt
         DMatrix temp2 = 
-            svd_s.TMV_subVector(0,kmax).cwise().square().inverse().asDiagonal() *
-            TMV_colRange(svd_v,0,kmax).transpose();
-        *bCov = TMV_colRange(svd_v,0,kmax).transpose() * temp2;
+            svd_s.cwise().square().inverse().asDiagonal() * svd_v.transpose();
+        bCov->TMV_subMatrix(0,bsize,0,bsize) = svd_v.transpose() * temp2;
     }
 #endif
     if (order < b.getOrder()) {
@@ -291,9 +341,10 @@ void Ellipse::doMeasureShapelet(
     }
     xdbg<<"Done measure Shapelet\n";
     xdbg<<"b = "<<b.vec()<<std::endl;
+    return true;
 }
 
-void Ellipse::doAltMeasureShapelet(
+bool Ellipse::doAltMeasureShapelet(
     const std::vector<PixelList>& pix,
     const std::vector<BVec>* psf, BVec& b, int order, int order2,
     double pixScale, DMatrix* bCov) const
@@ -372,27 +423,28 @@ void Ellipse::doAltMeasureShapelet(
         b.vec().TMV_subVector(bsize,b.size()).setZero();
     }
     xdbg<<"Done measure Shapelet\n";
+    return true;
 }
 
-void Ellipse::measureShapelet(
+bool Ellipse::measureShapelet(
     const std::vector<PixelList>& pix,
-    const std::vector<BVec>& psf, BVec& b, int order, int order2,
+    const std::vector<BVec>& psf, BVec& b, int& order, int order2,
     DMatrix* bCov) const
-{ doMeasureShapelet(pix,&psf,b,order,order2,bCov); }
+{ return doMeasureShapelet(pix,&psf,b,order,order2,bCov); }
 
-void Ellipse::measureShapelet(
-    const std::vector<PixelList>& pix, BVec& b, int order, int order2,
+bool Ellipse::measureShapelet(
+    const std::vector<PixelList>& pix, BVec& b, int& order, int order2,
     DMatrix* bCov) const
-{ doMeasureShapelet(pix,0,b,order,order2,bCov); }
+{ return doMeasureShapelet(pix,0,b,order,order2,bCov); }
 
-void Ellipse::altMeasureShapelet(
+bool Ellipse::altMeasureShapelet(
     const std::vector<PixelList>& pix,
     const std::vector<BVec>& psf, BVec& b, int order, int order2,
     double pixScale, DMatrix* bCov) const
-{ doAltMeasureShapelet(pix,&psf,b,order,order2,pixScale,bCov); }
+{ return doAltMeasureShapelet(pix,&psf,b,order,order2,pixScale,bCov); }
 
-void Ellipse::altMeasureShapelet(
+bool Ellipse::altMeasureShapelet(
     const std::vector<PixelList>& pix, BVec& b, int order, int order2,
     double pixScale, DMatrix* bCov) const
-{ doAltMeasureShapelet(pix,0,b,order,order2,pixScale,bCov); }
+{ return doAltMeasureShapelet(pix,0,b,order,order2,pixScale,bCov); }
 

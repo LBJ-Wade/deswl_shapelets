@@ -21,16 +21,17 @@
 #include "omp.h"
 #endif
 
-bool shouldShowTests = false;
-bool shouldThrow = true;
-std::string lastSuccess = "";
-
 const double PI = 3.14159265359;
 const double sqrtpi = sqrt(PI);
 
 std::ostream* dbgout = 0;
 bool XDEBUG = true;
 //bool XDEBUG = false;
+
+bool shouldShowTests = false;
+bool shouldThrow = true;
+std::string lastSuccess = "";
+std::ostream* testout = &std::cout;
 
 //#define TEST1  // Basic measurements, ApplyZ/G/Mu
 //#define TEST2  // Deconvolving measurements, PsfConvolve

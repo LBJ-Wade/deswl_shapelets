@@ -7,656 +7,307 @@
 #include "PsiHelper.h"
 #include "Params.h"
 
-#define N_FLUX_ATTEMPTS 0
-#define MAXITER 4
-
-static std::complex<double> addShears(
-    const std::complex<double> g1, const std::complex<double> g2)
-{
-    double absg1 = std::abs(g1);
-    if (absg1 == 0.) return g2;
-    double absd1 = tanh(atanh(absg1)*2.);
-    std::complex<double> d1 = absd1 / absg1 * g1;
-    double absg2 = std::abs(g2);
-    if (absg2 == 0.) return g1;
-    double absd2 = tanh(atanh(absg2)*2.);
-    std::complex<double> d2 = absd2 / absg2 * g2;
-
-    double d2sq = absd2*absd2;
-    double x = (1.-std::sqrt(1.-d2sq))/d2sq;
-    std::complex<double> d3 = d1+d2*(1.+x*(std::real(d1)*d2-std::real(d2)*d1));
-    d3 /= 1. + std::real(d1*std::conj(d2));
-    double absd3 = std::abs(d3);
-    double absg3 = tanh(atanh(absd3)/2.);
-    std::complex<double> g3 = absg3/absd3*d3;
-    xdbg<<"GammaAdd: "<<g1<<" + "<<g2<<" = "<<g3<<std::endl;
-    return g3;
-}
+#define MAX_ITER 3
+#define MAX_START 0.1
+#define MAX_SHIFT 0.3
+//#define TRY_BUMP
+//#define TRY_HYBRID
 
 bool Ellipse::doMeasure(
     const std::vector<PixelList>& pix,
     const std::vector<BVec>* psf,
-    int order, double sigma, bool shouldUseInteg, long& flag, 
+    int galOrderInit, int galOrder2, double sigma, long& flag, double thresh,
     DMatrix* cov, BVec* bRet, DMatrix* bCov, 
     std::vector<PixelList>* pixels_model)
 {
-#if 0
-    // The non-linear solver is pretty sensitive to having a good
-    // initial estimate.  So start with a simple estimate.
-    if (order > 3) {
-        doMeasure(pix,psf,order-2,sigma,shouldUseInteg,flag);
-        //doMeasure(pix,psf,2,sigma,shouldUseInteg,flag);
-    }
+#ifdef TRY_BUMP
+    const int NBUMPS_MU = 8;
+    const int NBUMPS_GAMMA = 24;
+    const int NBUMPS_BOTH = 16;
+    const double x_bumps_mu[NBUMPS_MU][5] = {
+        { 0.0, 0.0, 0.0, 0.0, 0.02 },
+        { 0.0, 0.0, 0.0, 0.0, 0.05 },
+        { 0.0, 0.0, 0.0, 0.0, 0.1 },
+        { 0.0, 0.0, 0.0, 0.0, 0.2 },
+        { 0.0, 0.0, 0.0, 0.0, -0.02 },
+        { 0.0, 0.0, 0.0, 0.0, -0.05 },
+        { 0.0, 0.0, 0.0, 0.0, -0.1 },
+        { 0.0, 0.0, 0.0, 0.0, -0.2 } };
+    const double x_bumps_gamma[NBUMPS_GAMMA][5] = {
+        { 0.0, 0.0, 0.02, 0.0, 0.0 },
+        { 0.0, 0.0, 0.05, 0.0, 0.0 },
+        { 0.0, 0.0, 0.1, 0.0, 0.0 },
+        { 0.0, 0.0, 0.2, 0.0, 0.0 },
+        { 0.0, 0.0, -0.02, 0.0, 0.0 },
+        { 0.0, 0.0, -0.05, 0.0, 0.0 },
+        { 0.0, 0.0, -0.1, 0.0, 0.0 },
+        { 0.0, 0.0, -0.2, 0.0, 0.0 },
+        { 0.0, 0.0, 0.0, 0.02, 0.0 },
+        { 0.0, 0.0, 0.0, 0.05, 0.0 },
+        { 0.0, 0.0, 0.0, 0.1, 0.0 },
+        { 0.0, 0.0, 0.0, 0.2, 0.0 },
+        { 0.0, 0.0, 0.0, -0.02, 0.0 },
+        { 0.0, 0.0, 0.0, -0.05, 0.0 },
+        { 0.0, 0.0, 0.0, -0.1, 0.0 },
+        { 0.0, 0.0, 0.0, -0.2, 0.0 },
+        { 0.0, 0.0, 0.02, 0.02, 0.0 },
+        { 0.0, 0.0, 0.02, -0.02, 0.0 },
+        { 0.0, 0.0, -0.02, 0.02, 0.0 },
+        { 0.0, 0.0, -0.02, -0.02, 0.0 },
+        { 0.0, 0.0, 0.05, 0.05, 0.0 },
+        { 0.0, 0.0, 0.05, -0.05, 0.0 },
+        { 0.0, 0.0, -0.05, 0.05, 0.0 },
+        { 0.0, 0.0, -0.05, -0.05, 0.0 } };
+    const double x_bumps_both[NBUMPS_BOTH][5] = {
+        { 0.0, 0.0, 0.02, 0.02, 0.02 },
+        { 0.0, 0.0, 0.02, -0.02, 0.02 },
+        { 0.0, 0.0, -0.02, 0.02, 0.02 },
+        { 0.0, 0.0, -0.02, -0.02, 0.02 },
+        { 0.0, 0.0, 0.02, 0.02, -0.02 },
+        { 0.0, 0.0, 0.02, -0.02, -0.02 },
+        { 0.0, 0.0, -0.02, 0.02, -0.02 },
+        { 0.0, 0.0, -0.02, -0.02, -0.02 },
+        { 0.0, 0.0, 0.05, 0.05, 0.05 },
+        { 0.0, 0.0, 0.05, -0.05, 0.05 },
+        { 0.0, 0.0, -0.05, 0.05, 0.05 },
+        { 0.0, 0.0, -0.05, -0.05, 0.05 },
+        { 0.0, 0.0, 0.05, 0.05, -0.05 },
+        { 0.0, 0.0, 0.05, -0.05, -0.05 },
+        { 0.0, 0.0, -0.05, 0.05, -0.05 },
+        { 0.0, 0.0, -0.05, -0.05, -0.05 } };
 #endif
-    
-    xdbg<<"Start DoMeasure: order = "<<order<<", psf = "<<bool(psf)<<std::endl;
+
+    xdbg<<"Start DoMeasure: galOrder = "<<galOrderInit<<", psf = "<<bool(psf)<<std::endl;
     xdbg<<"fix = "<<_isFixedCen<<"  "<<_isFixedGamma<<"  "<<_isFixedMu<<std::endl;
-    xdbg<<"useInteg? "<<shouldUseInteg<<std::endl;
-    for(size_t i=0;i<pix.size();++i) 
+    xdbg<<"Initial flag = "<<flag<<std::endl;
+    int npix = 0;
+    for(size_t i=0;i<pix.size();++i) {
         xdbg<<"npix["<<i<<"] = "<<pix[i].size()<<std::endl;
+        npix += pix[i].size();
+    }
 
-    std::auto_ptr<BaseEllipseSolver> solver;
+    int galOrder = galOrderInit;
+    int galSize = (galOrder+1)*(galOrder+2)/2;
+    if (npix <= galSize) {
+        while (npix <= galSize) { galSize -= galOrder+1; --galOrder; }
+        dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
+        dbg<<"Reduced gal_order to "<<galOrder<<" gal_size = "<<galSize<<std::endl;
+    }
 
-    DVector x(5);
-    x(0) = std::real(_cen);  x(1) = std::imag(_cen); 
-    x(2) = std::real(_gamma); x(3) = std::imag(_gamma);
-    x(4) = _mu;
-    xdbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
-    DVector xinit = x;
-    DVector f(5);
+    BVec b(galOrder,sigma);
 
-#if 0
-    // First get the centroid right before we allow the size or shape to vary.
-    if (!_isFixedCen) {
-        if (shouldUseInteg && order <= 3) {
-            xdbg<<"Do Integrating centroid solve\n";
-            if (psf) {
-                // pixscale doesn't really matter unless we want an accurate B in
-                // the end, so just use 1 here.
-                solver.reset(new EllipseSolver2(
-                        pix,*psf,order,sigma,1.,false,true,true));
-            } else {
-                solver.reset(new EllipseSolver2(
-                        pix,order,sigma,1.,false,true,true));
-            }
-            xdbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
-            solver->useDogleg();
-#ifdef NOTHROW
-            solver->noUseCholesky();
-#endif
-            solver->setTol(1.e-3,1.e-8);
-            if (XDEBUG) solver->setOutput(*dbgout);
-            solver->setDelta0(0.01);
-            solver->setMinStep(1.e-12);
-            solver->setMaxIter(60);
-            xdbg<<"Integrating solver, centroid only:\n";
-            //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-5)) exit(1);
-            bool ret = solver->solve(x,f);
-            if (!ret) {
-                dbg<<"failed integrating solver, centroid - x = "<<EIGEN_Transpose(x)<<std::endl;
-                dbg<<"f = "<<EIGEN_Transpose(f)<<"  Norm(f) = "<<f.norm()<<std::endl;
-                dbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
-                return false;
-            }
-            xdbg<<"Done: x (Integ, centroid only) = "<<EIGEN_Transpose(x)<<std::endl;
-            xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
-            xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
-        }
-        xdbg<<"Do ML centroid solve\n";
-        if (psf) {
-            solver.reset(new EllipseSolver(pix,order,sigma,false,true,true));
-        } else {
-            solver.reset(new EllipseSolver(pix,order,sigma,false,true,true));
-        }
-        xdbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
-        solver->useDogleg();
-#ifdef NOTHROW
-        solver->noUseCholesky();
-#endif
-        solver->setTol(1.e-8,1.e-25);
-        if (XDEBUG) solver->setOutput(*dbgout);
-        solver->setDelta0(0.01);
-        solver->setMinStep(1.e-15);
-        solver->setMaxIter(50);
-        xdbg<<"ML solver, centroid only:\n";
-        //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-5)) exit(1);
-        bool ret = solver->solve(x,f);
-        if (!ret) {
-            dbg<<"failed ML solver, centroid - x = "<<EIGEN_Transpose(x)<<std::endl;
-            dbg<<"f = "<<EIGEN_Transpose(f)<<"  Norm(f) = "<<f.norm()<<std::endl;
-            dbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
+    // iterate until the shape is round.
+    for(int iter=1;iter<=MAX_ITER;++iter) {
+        dbg<<"iter = "<<iter<<std::endl;
+
+        DVector x(5,0.);
+        if (!doMeasureShapelet(pix,psf,b,galOrder,galOrder2,bCov)) {
+            xdbg<<"Could not measure a shapelet vector.\n";
             return false;
         }
-        xdbg<<"Done: x (ML, centroid only) = "<<EIGEN_Transpose(x)<<std::endl;
-        xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
-        xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
-    }
 
-    if (shouldUseInteg && order <= 3) {
-        // First we make the approximations the the galaxy is well-sampled
-        // and has uniform variance.
-#ifdef N_FLUX_ATTEMPTS
-#if N_FLUX_ATTEMPTS > 0
-        xdbg<<"Do Integrating regular solve (fixed flux)\n";
-        if (psf) {
-            // pixscale doesn't really matter unless we want an accurate B in
-            // the end, so just use 1 here.
-            solver.reset(
-                new EllipseSolver2(
-                    pix,*psf,order,sigma,1.,
-                    _isFixedCen,_isFixedGamma,_isFixedMu,true));
-        } else {
-            solver.reset(new EllipseSolver2(
-                    pix,order,sigma,1.,
-                    _isFixedCen,_isFixedGamma,_isFixedMu,true));
-        }
-        xdbg<<"xinit (integ) = "<<EIGEN_Transpose(x)<<std::endl;
-        solver->useHybrid();
-#ifdef NOTHROW
-        solver->noUseCholesky();
-        solver->noUseDirectH();
-#endif
-        solver->setTol(3.e-3,1.e-5);
-        solver->setTau(1.0);
-        if (XDEBUG) solver->setOutput(*dbgout);
-        solver->setMinStep(1.e-12);
-        solver->setMaxIter(10);
-        xdbg<<"Integrating solver:\n";
-        for(int iter = 0; iter < N_FLUX_ATTEMPTS; ++iter) {
-            xdbg<<"Attempt #"<<iter<<std::endl;
-            //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-5)) exit(1);
-            solver->solve(x,f);
-            xdbg<<"x => "<<EIGEN_Transpose(x)<<std::endl;
-            xdbg<<"f => "<<EIGEN_Transpose(f)<<"  Norm(f) = "<<f.norm()<<std::endl;
-            xdbg<<"b => "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
-            if (f.norm() < 1.e-2) break;
-        } 
-#endif
-#endif
-        // Repeat, but allow flux to change.
-        xdbg<<"Do Integrating regular solve with flux\n";
-        if (psf) {
-            solver.reset(
-                new EllipseSolver2(
-                    pix,*psf,order,sigma,1.,
-                    _isFixedCen,_isFixedGamma,_isFixedMu));
-        } else {
-            solver.reset(new EllipseSolver2(
-                    pix,order,sigma,1.,
-                    _isFixedCen,_isFixedGamma,_isFixedMu));
-        }
-        xdbg<<"xinit (integ) = "<<EIGEN_Transpose(x)<<std::endl;
-        solver->useDogleg();
-#ifdef NOTHROW
-        solver->noUseCholesky();
-#endif
-        solver->setTol(1.e-3,1.e-8);
-        if (XDEBUG) solver->setOutput(*dbgout);
-        solver->setDelta0(0.01);
-        solver->setMinStep(1.e-12);
-        solver->setMaxIter(10);
-        xdbg<<"Final Integrating solver:\n";
-        //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-5)) exit(1);
-        solver->solve(x,f);
-        xdbg<<"Done: x (Integrating) = "<<EIGEN_Transpose(x)<<std::endl;
-        xdbg<<"f (integ) = "<<EIGEN_Transpose(f)<<std::endl;
-        xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
-    }
+        xdbg<<"b = "<<b<<std::endl;
 
-    // We should be close enough for the exact solver to work.
-    // But just to be safe, fit each of centroid, gamma, mu separately first:
-    if (!_isFixedCen) {
-        if (psf) {
-            solver.reset(new EllipseSolver(
-                    pix,*psf,order,sigma,false,true,true));
-        } else {
-            solver.reset(new EllipseSolver(
-                    pix,order,sigma,false,true,true));
-        }
-        xdbg<<"xinit = "<<EIGEN_Transpose(x)<<std::endl;
-        solver->useDogleg();
-#ifdef NOTHROW
-        solver->noUseCholesky();
-#endif
-        solver->setTol(1.e-8,1.e-12);
-        if (XDEBUG) solver->setOutput(*dbgout);
-        solver->setDelta0(0.01);
-        solver->setMinStep(1.e-12);
-        solver->setMaxIter(50);
-        xdbg<<"ML solver centroid:\n";
-        bool ret = solver->solve(x,f);
-        if (!ret) {
-            dbg<<"ML solver, centroid, failed - x = "<<EIGEN_Transpose(x)<<std::endl;
-            dbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
-            dbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
-            if (XDEBUG) solver->testJ(x,f,dbgout,1.e-5);
-            return false;
-        }
-        xdbg<<"Done: x (ML centroid only) = "<<EIGEN_Transpose(x)<<std::endl;
-        xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
-        xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
-    }
-
-    if (!_isFixedGamma) {
-        // start with an initial guess from the latest b vector:
-        if (solver.get()) {
-            BVec b1 = solver->getB();
-            std::complex<double> g1(b1(3)/b1(0)*sqrt(2.),-b1(4)/b1(0)*sqrt(2.));
-            dbg<<"g1 = "<<g1<<std::endl;
-            if (std::abs(g1) < 1.) {
-                std::complex<double> g0(x[2],x[3]);
-                std::complex<double> g = addShears(g0,g1);
-                dbg<<"Initial gamma = "<<g<<std::endl;
-                x[2] = std::real(g);
-                x[3] = std::imag(g);
-            }
-        }
-
-        if (psf) {
-            solver.reset(new EllipseSolver(
-                    pix,*psf,order,sigma,true,false,true));
-        } else {
-            solver.reset(new EllipseSolver(
-                    pix,order,sigma,true,false,true));
-        }
-        xdbg<<"xinit = "<<EIGEN_Transpose(x)<<std::endl;
-        solver->useDogleg();
-#ifdef NOTHROW
-        solver->noUseCholesky();
-#endif
-        solver->setTol(1.e-3,1.e-8);
-        if (XDEBUG) solver->setOutput(*dbgout);
-        solver->setDelta0(0.01);
-        solver->setMinStep(1.e-12);
-        solver->setMaxIter(50);
-        xdbg<<"ML solver gamma:\n";
-        bool ret = solver->solve(x,f);
-        if (!ret) {
-            dbg<<"ML solver, gamma, failed - x = "<<EIGEN_Transpose(x)<<std::endl;
-            dbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
-            dbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
-            //if (XDEBUG) solver->testJ(x,f,dbgout,1.e-5);
-            return false;
-        }
-        xdbg<<"Done: x (ML gamma only) = "<<EIGEN_Transpose(x)<<std::endl;
-        xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
-        xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
-    }
-    if (!_isFixedMu) {
-        if (psf) {
-            solver.reset(new EllipseSolver(
-                    pix,*psf,order,sigma,true,true,false));
-        } else {
-            solver.reset(new EllipseSolver(
-                    pix,order,sigma,true,true,false));
-        }
-        xdbg<<"xinit = "<<EIGEN_Transpose(x)<<std::endl;
-        solver->useDogleg();
-#ifdef NOTHROW
-        solver->noUseCholesky();
-#endif
-        solver->setTol(1.e-3,1.e-8);
-        if (XDEBUG) solver->setOutput(*dbgout);
-        solver->setDelta0(0.01);
-        solver->setMinStep(1.e-12);
-        solver->setMaxIter(50);
-        xdbg<<"ML solver mu:\n";
-        bool ret = solver->solve(x,f);
-        if (!ret) {
-            dbg<<"ML solver, mu, failed - x = "<<EIGEN_Transpose(x)<<std::endl;
-            dbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
-            dbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
-            //if (XDEBUG) solver->testJ(x,f,dbgout,1.e-5);
-            return false;
-        }
-        xdbg<<"Done: x (ML mu only) = "<<EIGEN_Transpose(x)<<std::endl;
-        xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
-        xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
-    }
-#endif
-
-#if N_FLUX_ATTEMPTS > 0
-    // First, maintain the flux level:
-    // This is a bit more stable, especially if the initial flux isn't 
-    // a very good choice.  Flux estimate is reset on each FLUX_ATTEMPT
-    xdbg<<"Do regular solve (fixed flux)\n";
-    if (psf) {
-        solver.reset(new EllipseSolver(
-                pix,*psf,order,sigma,
-                _isFixedCen,_isFixedGamma,_isFixedMu));
-    } else {
-        solver.reset(new EllipseSolver(
-                pix,order,sigma,
-                _isFixedCen,_isFixedGamma,_isFixedMu));
-    }
-    xdbg<<"xinit = "<<EIGEN_Transpose(x)<<std::endl;
-    solver->useHybrid();
-#ifdef NOTHROW
-    solver->noUseCholesky();
-    solver->noUseDirectH();
-#endif
-    solver->setTol(3.e-3,1.e-5);
-    solver->setTau(1.0);
-    if (XDEBUG) solver->setOutput(*dbgout);
-    solver->setMinStep(1.e-12);
-    solver->setMaxIter(10);
-    solver->setDelta0(0.01);
-    xdbg<<"ML solver use flux:\n";
-    for(int iter = 0; iter < N_FLUX_ATTEMPTS; ++iter) {
-        xdbg<<"Attempt #"<<iter<<std::endl;
-        //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-5)) exit(1);
-        solver->solve(x,f);
-        xdbg<<"x => "<<EIGEN_Transpose(x)<<std::endl;
-        xdbg<<"f => "<<EIGEN_Transpose(f)<<"  Norm(f) = "<<f.norm()<<std::endl;
-        xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
-        if (f.norm() < 1.e-2) break;
-    }
-    xdbg<<"Done: x (ML fixed flux) = "<<EIGEN_Transpose(x)<<std::endl;
-    xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
-    xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
-#endif
-
-#if 0
-    if (!_isFixedGamma) {
-        xdbg<<"Do gamma-only solve\n";
-        if (psf) {
-            solver.reset(new EllipseSolver(
-                    pix,*psf,order,sigma,true,false,true));
-        } else {
-            solver.reset(new EllipseSolver(
-                    pix,order,sigma,true,false,true));
-        }
-        xdbg<<"xinit = "<<EIGEN_Transpose(x)<<std::endl;
-        solver->useDogleg();
-        if (psf && order <= 4) solver->useNumericJ();
-#ifdef NOTHROW
-        solver->noUseCholesky();
-#endif
-        solver->setTol(1.e-3,1.e-8);
-        if (XDEBUG) solver->setOutput(*dbgout);
-        solver->useVerboseOutput();
-        solver->setDelta0(0.01);
-        solver->setMinStep(1.e-15);
-        solver->setMaxIter(50);
-        xdbg<<"Final solver:\n";
-        if (solver->solve(x,f)) {
-            dbg<<"gamma-only solver pass succeeded\n";
-        } else {
-            dbg<<"gamma-only solver pass failed\n";
-        }
-        xdbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
-        xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
-        xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
-    }
-#endif
-
-    // Finally allow the flux change as needed.
-    xdbg<<"Do regular solve with flux\n";
-    if (psf) {
-        solver.reset(new EllipseSolver(
-                pix,*psf,order,sigma,
-                _isFixedCen,_isFixedGamma,_isFixedMu));
-    } else {
-        solver.reset(new EllipseSolver(
-                pix,order,sigma,
-                _isFixedCen,_isFixedGamma,_isFixedMu));
-    }
-    xdbg<<"xinit = "<<EIGEN_Transpose(x)<<std::endl;
-    solver->useDogleg();
-    // MJ: It used to be the case that numeric J was faster,
-    // but now it's not.  We made two changes that might be relevant:
-    // We upped the order to 8 (from 4).
-    // And we increased the number of pixels by increasing the 
-    // shear_aperture parameter.
-    // So for now, I'll say to use the numeric jacobian if order <= 4,
-    // but it probably deserves some more checking to see how the 
-    // time is affected by the number of pixels.
-    if (psf && order <= 4) solver->useNumericJ();
-#ifdef NOTHROW
-    solver->noUseCholesky();
-#endif
-    const double FINAL_FTOL = 1.e-8;
-    
-    solver->setTol(FINAL_FTOL,1.e-25);
-    if (XDEBUG) solver->setOutput(*dbgout);
-    //solver->useVerboseOutput();
-    solver->setDelta0(0.01);
-    solver->setMinStep(1.e-15);
-    solver->setMaxIter(50);  
-    xdbg<<"Final solver:\n";
-    for(int iter = 1;iter<=MAXITER;++iter) {
-        //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-6)) exit(1);
-        bool ret = solver->solve(x,f);
-        if (ret) break;
-        else if (iter == MAXITER) {
-            return false;
-        }
-        dbg<<"Final solver pass failed - x = "<<EIGEN_Transpose(x)<<std::endl;
-        dbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
-        //if (XDEBUG) if (!solver->testJ(x,f,dbgout,1.e-5)) exit(1);
-#if 1 
-        // Try bumping it to get out of a local well and continue:
-        BVec b1 = solver->getB();
+        // Initial estimates from b:
         if (!_isFixedCen) {
-            xdbg<<"Bump z\n";
-            dbg<<"Current z = "<<std::complex<double>(x[0],x[1])<<std::endl;
-            std::complex<double> z1(2.*b1(1),-2.*b1(2));
-            z1 /= b1(0) - b1(5);
-            if (std::abs(z1) < 1.) {
-                dbg<<"Add "<<z1<<std::endl;
-                x[0] += std::real(z1); x[1] += std::imag(z1); 
-                dbg<<"New z = "<<std::complex<double>(x[0],x[1])<<std::endl;
-            }
+            // b10/b00 ~= conj(zc)/2
+            x(0) = b(1)/b(0)*2.;
+            x(1) = -b(2)/b(0)*2.;
         }
-#endif
-#if 1
         if (!_isFixedGamma) {
-            xdbg<<"Bump gamma\n";
-            std::complex<double> g0(x[2],x[3]);
-            dbg<<"Current gamma = "<<g0<<std::endl;
-            std::complex<double> g1(std::sqrt(2.)*b1(3),-std::sqrt(2.)*b1(4));
-            g1 /= b1(0) - (b1.getOrder() >= 4 ? b1(14) : 0.);
-            if (std::abs(g1) < 1.) {
-                dbg<<"Add "<<g1<<std::endl;
-                g0 = addShears(g1,g0);
-                x[2] = std::real(g0); x[3] = std::imag(g0); 
-                dbg<<"New gamma = "<<std::complex<double>(x[2],x[3])<<std::endl;
-            }
+            // b20/b00 ~= conj(gamma)/sqrt(2)
+            x(2) = b(3)/b(0)*sqrt(2.); 
+            x(3) = -b(4)/b(0)*sqrt(2.); 
         }
-#endif
-#if 1
         if (!_isFixedMu) {
-            xdbg<<"Bump mu\n";
-            dbg<<"Current mu = "<<x[4]<<std::endl;
-            double m1 = -b1(5);
-            m1 /= b1(0) - (b1.getOrder() >= 4 ? 2.*b1(14) : 0.);
-            if (std::abs(m1) < 1.) {
-                x[4] += m1; 
-                dbg<<"New mu = "<<x[4]<<std::endl;
+            // b11/b00 ~= mu
+            x(4) = b(5)/b(0);
+        }
+
+        // Don't start with more that 0.1 in any element.
+        DVector xinit = x;
+        for(int k=0;k<5;++k) {
+            if (x[k] > MAX_START) {
+                xdbg<<"Adjusting x["<<k<<"] from "<<x[k];
+                x[k] = MAX_START;
+                xdbg<<" to "<<x[k]<<std::endl;
+            } else if (x[k] < -MAX_START) {
+                xdbg<<"Adjusting x["<<k<<"] from "<<x[k];
+                x[k] = -MAX_START;
+                xdbg<<" to "<<x[k]<<std::endl;
             }
         }
-        dbg<<"New x = "<<EIGEN_Transpose(x)<<std::endl;
-#endif
 
-        if (psf) {
-            solver.reset(new EllipseSolver(
-                    pix,*psf,order,sigma,
-                    _isFixedCen,_isFixedGamma,_isFixedMu));
-        } else {
-            solver.reset(new EllipseSolver(
-                    pix,order,sigma,
-                    _isFixedCen,_isFixedGamma,_isFixedMu));
-        }
+        xdbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
+        DVector f(5);
 
-        solver->useHybrid();
+        EllipseSolver3 solver(b,galOrder2,_isFixedCen,_isFixedGamma,_isFixedMu);
+
+        //solver.useDogleg();
+        solver.useHybrid();
 #ifdef NOTHROW
-        solver->noUseCholesky();
-        solver->noUseDirectH();
+        solver.noUseCholesky();
 #endif
-        if (iter == 1) {
-            solver->setTol(1.e-8,1.e-10);
-            if (XDEBUG) solver->setOutput(*dbgout);
-            solver->setDelta0(0.01);
-            solver->setMinStep(1.e-15);
-            solver->setMaxIter(50);
-        } else {
-            solver->setTol(10.*solver->getFTol(),10.*solver->getGTol()); 
-         }
-    }
-    xdbg<<"Done: Final solver pass successful: x = "<<EIGEN_Transpose(x)<<std::endl;
-    xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
-    xdbg<<"b = "<<EIGEN_Transpose(solver->getB().vec())<<std::endl;
-    if (cov) {
-        solver->useSVD();
-        solver->getCovariance(*cov);
-        xdbg<<"cov = "<<*cov<<std::endl;
-    }
-
-    // Check for flags
-    xdbg<<"Checking for possible problems\n";
-    if (solver->getB()(0) < 0.) {
-        xdbg<<"getB = "<<solver->getB().vec()<<", negative flux.\n";
-        xdbg<<"flag SHEAR_BAD_FLUX\n";
-        flag |= SHEAR_BAD_FLUX;
-    }
-    //solver->callF(x,f);
-    if (f.normInf() > solver->getFTol()) {
-        xdbg<<"Local minimum\n";
-        xdbg<<"x = "<<x<<std::endl;
-        xdbg<<"f = "<<f<<std::endl;
-        xdbg<<"f.norm = "<<f.norm()<<std::endl;
-        xdbg<<"ftol = "<<solver->getFTol()<<std::endl;
-        xdbg<<"flag SHEAR_LOCAL_MIN\n";
-        flag |= SHEAR_LOCAL_MIN;
-    }
-    if (solver->getFTol() > FINAL_FTOL) {
-        xdbg<<"ftol was raised\n";
-        xdbg<<"ftol = "<<solver->getFTol()<<std::endl;
-        xdbg<<"flag SHEAR_POOR_FIT\n";
-        flag |= SHEAR_POOR_FIT;
-    }
-
-    if (XDEBUG && psf) {
-        for(size_t k=0;k<pix.size();++k) {
-            double sig_psf = (*psf)[k].getSigma();
-            double D = sigma*sigma / (sig_psf*sig_psf);
-            xdbg<<"D = "<<D<<std::endl;
-        }
-    }
-
-    setCen(std::complex<double>(x(0),x(1)));
-    setGamma(std::complex<double>(x(2),x(3))); 
-    setMu(x(4));
-    if (bRet) {
-        *bRet = solver->getB();
-        xdbg<<"bret = "<<EIGEN_Transpose(bRet->vec())<<std::endl;
-        if (bCov) static_cast<EllipseSolver*>(solver.get())->getBCov(*bCov);
-    }
-
-    return true;
-}
-
-bool Ellipse::findRoundFrame(
-    const BVec& b, int order, long& flag, DMatrix* cov)
-{
-    xdbg<<"Start findRoundFrame: b = "<<b<<std::endl;
-    xdbg<<"fix = "<<_isFixedCen<<"  "<<_isFixedGamma<<"  "<<_isFixedMu<<std::endl;
-     
-    DVector x(5,0.);
-
-    // Initial estimates from b:
-    if (!_isFixedCen) {
-        // b10/b00 ~= conj(zc)/2
-        x(0) = b(1)/b(0)*2.;
-        x(1) = b(2)/b(0)*2.;
-        double csq = x(0)*x(0) + x(1)*x(1);
-        if (csq > 0.3) {
-            x(0) /= csq/0.3;
-            x(1) /= csq/0.3;
-        }
-    }
-    if (!_isFixedGamma) {
-        // b20/b00 ~= conj(gamma)/sqrt(2)
-        x(2) = b(3)/b(0)*sqrt(2.); 
-        x(3) = -b(4)/b(0)*sqrt(2.); 
-        double gsq = x(2)*x(2)+x(3)*x(3);
-        if (gsq > 0.3) {
-            x(2) /= gsq/0.3;
-            x(3) /= gsq/0.3;
-        }
-    }
-    if (!_isFixedMu) {
-        // b11/b00 ~= mu
-        x(4) = b(5)/b(0);
-        if (std::abs(x(4)) > 0.3) x(4) /= x(4)/0.3;
-    }
-
-    xdbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
-    DVector xinit = x;
-    DVector f(5);
-
-    EllipseSolver3 solver(b,order,_isFixedCen,_isFixedGamma,_isFixedMu);
-
-    xdbg<<"xinit = "<<EIGEN_Transpose(x)<<std::endl;
-    solver.useDogleg();
-#ifdef NOTHROW
-    solver.noUseCholesky();
-#endif
-    solver.setTol(1.e-8,1.e-25);
-    if (XDEBUG) solver.setOutput(*dbgout);
-    //solver.useVerboseOutput();
-    solver.setDelta0(0.01);
-    solver.setMinStep(1.e-15);
-    solver.setMaxIter(50);
-    //if (XDEBUG) if (!solver.testJ(x,f,dbgout,1.e-6)) exit(1);
-    if (!solver.solve(x,f)) {
-        dbg<<"findRoundFrame solver failed:\n";
-        dbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
-        dbg<<"b = "<<EIGEN_Transpose(solver.getB().vec())<<std::endl;
-        if (XDEBUG) if (!solver.testJ(x,f,dbgout,1.e-5)) exit(1);
-        return false;
-    }
-    dbg<<"Done: solver successful:\n";
-    dbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
-    xdbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
-    xdbg<<"b = "<<EIGEN_Transpose(solver.getB().vec())<<std::endl;
-    if (cov) {
+        double ftol = thresh*thresh;
+        double gtol = thresh*ftol;
+        solver.setTol(ftol,gtol);
+        if (XDEBUG) solver.setOutput(*dbgout);
+        //solver.useVerboseOutput();
+        solver.setDelta0(0.01);
+        solver.setMinStep(1.e-6*gtol);
+        solver.setMaxIter(200);
         solver.useSVD();
-        solver.getCovariance(*cov);
-        xdbg<<"cov = "<<*cov<<std::endl;
+        if (solver.solve(x,f)) {
+            dbg<<"Found good round frame:\n";
+            dbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
+            dbg<<"b = "<<EIGEN_Transpose(solver.getB().vec())<<std::endl;
+        } else {
+            dbg<<"findRoundFrame solver failed:\n";
+            dbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
+            dbg<<"b = "<<EIGEN_Transpose(solver.getB().vec())<<std::endl;
+            //if (XDEBUG) if (!solver.testJ(x,f,dbgout,1.e-5)) exit(1);
+#ifdef TRY_HYBRID
+            dbg<<"Try Hybrid method.\n";
+            solver.useHybrid();
+            if (solver.solve(x,f)) {
+                dbg<<"Found good round frame using Hybrid:\n";
+                dbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
+                dbg<<"b = "<<EIGEN_Transpose(solver.getB().vec())<<std::endl;
+            } else {
+                dbg<<"findRoundFrame solver failed again with Hybrid:\n";
+                dbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
+                dbg<<"b = "<<EIGEN_Transpose(solver.getB().vec())<<std::endl;
+#endif
+#ifdef TRY_BUMP
+                bool found_better = false;
+                if (iter < MAX_ITER) {
+                    dbg<<"Try bumping:\n";
+                    DVector x0 = x;
+                    double best_f_norminf = f.normInf();
+                    if (!_isFixedMu) for(int k=0;k<NBUMPS_MU;++k) {
+                        DVector x1 = x0 + tmv::VectorViewOf(x_bumps_mu[k],5);
+                        dbg<<"Try "<<x1<<std::endl;
+                        solver.callF(x1,f);
+                        double f_norminf = f.normInf();
+                        dbg<<"f_norminf = "<<f_norminf<<std::endl;
+                        if (f_norminf < best_f_norminf) {
+                            dbg<<"Found a better x = "<<x1<<std::endl;
+                            x = x1;  best_f_norminf = f_norminf; found_better=true;
+                        }
+                    }
+                    if (!_isFixedGamma) for(int k=0;k<NBUMPS_GAMMA;++k) {
+                        DVector x1 = x0 + tmv::VectorViewOf(x_bumps_gamma[k],5);
+                        dbg<<"Try "<<x1<<std::endl;
+                        solver.callF(x1,f);
+                        double f_norminf = f.normInf();
+                        dbg<<"f_norminf = "<<f_norminf<<std::endl;
+                        if (f_norminf < best_f_norminf) {
+                            dbg<<"Found a better x = "<<x1<<std::endl;
+                            x = x1;  best_f_norminf = f_norminf; found_better=true;
+                        }
+                    }
+
+                    if (!_isFixedMu && !_isFixedGamma) for(int k=0;k<NBUMPS_BOTH;++k) {
+                        DVector x1 = x0 + tmv::VectorViewOf(x_bumps_both[k],5);
+                        dbg<<"Try "<<x1<<std::endl;
+                        solver.callF(x1,f);
+                        double f_norminf = f.normInf();
+                        dbg<<"f_norminf = "<<f_norminf<<std::endl;
+                        if (f_norminf < best_f_norminf) {
+                            dbg<<"Found a better x = "<<x1<<std::endl;
+                            x = x1;  best_f_norminf = f_norminf; found_better=true;
+                        }
+                    }
+                    if (!found_better) {
+                        dbg<<"Couldn't find something better by bumping.\n";
+                        return false;
+                    }
+                } else {
+                    dbg<<"Last iteration, so don't try bumping.\n";
+                    return false; 
+                }
+#else
+                return false;
+#endif
+#ifdef TRY_HYBRID
+            }
+#endif
+        }
+        dbg<<"x = "<<x<<std::endl;
+        if (iter < MAX_ITER) {
+            // Don't shift by more that 0.3 in any element.
+            for(int k=0;k<5;++k) {
+                if (x[k] > MAX_SHIFT) {
+                    xdbg<<"Adjusting x["<<k<<"] from "<<x[k];
+                    x[k] = MAX_SHIFT;
+                    xdbg<<" to "<<x[k]<<std::endl;
+                } else if (x[k] < -MAX_SHIFT) {
+                    xdbg<<"Adjusting x["<<k<<"] from "<<x[k];
+                    x[k] = -MAX_SHIFT;
+                    xdbg<<" to "<<x[k]<<std::endl;
+                }
+            }
+        }
+
+        shiftBy(std::complex<double>(x(0),x(1))*sigma,
+                std::complex<double>(x(2),x(3)),
+                x(4));
+
+        dbg<<"ell => "<<*this<<std::endl;
+        double normx = Norm(x);
+
+        if (normx < thresh) {
+            dbg<<"norm(x) = "<<normx<<" < "<<thresh<<
+                ", so good enough to stop.\n";
+            if (cov) {
+                solver.useSVD();
+                solver.getCovariance(*cov);
+                xdbg<<"cov = "<<*cov<<std::endl;
+            }
+            // Check for flags
+            xdbg<<"Checking for possible problems\n";
+            if (!(b(0) > 0.)) {
+                xdbg<<"getB = "<<solver.getB().vec()<<", negative flux.\n";
+                xdbg<<"flag SHEAR_BAD_FLUX\n";
+                flag |= SHEAR_BAD_FLUX;
+            }
+            double f_normInf = f.normInf();
+            if (f_normInf < solver.getFTol()) {
+                xdbg<<"Good solution\n";
+            } else if (f_normInf < thresh) {
+                xdbg<<"f is near solution, but above tolerance\n";
+                xdbg<<"f.normInf = "<<f_normInf<<std::endl;
+                xdbg<<"ftol = "<<solver.getFTol()<<std::endl;
+                xdbg<<"flag SHEAR_POOR_FIT\n";
+                flag |= SHEAR_POOR_FIT;
+            } else {
+                xdbg<<"Local minimum\n";
+                xdbg<<"x = "<<x<<std::endl;
+                xdbg<<"f = "<<f<<std::endl;
+                xdbg<<"f.norm = "<<f.norm()<<std::endl;
+                xdbg<<"f.normInf = "<<f_normInf<<std::endl;
+                xdbg<<"ftol = "<<solver.getFTol()<<std::endl;
+                xdbg<<"flag SHEAR_LOCAL_MIN\n";
+                flag |= SHEAR_LOCAL_MIN;
+            }
+            break;
+        } else if (iter == MAX_ITER) {
+            dbg<<"norm(x) = "<<normx<<" > 1.e-4, but maxiter reached.\n";
+        } else {
+            dbg<<"norm(x) = "<<normx<<" > 1.e-4, so try again.\n";
+        }
     }
 
-    // Check for flags
-    xdbg<<"Checking for possible problems\n";
-    if (solver.getB()(0) < 0.) {
-        xdbg<<"getB = "<<solver.getB().vec()<<", negative flux.\n";
-        xdbg<<"flag SHEAR_BAD_FLUX\n";
-        flag |= SHEAR_BAD_FLUX;
+    if (bRet) {
+        if (galOrder < galOrderInit) {
+            xdbg<<"flag SHAPE_REDUCED_ORDER\n";
+            flag |= SHAPE_REDUCED_ORDER;
+        }
+        *bRet = b;
+        xdbg<<"bret = "<<*bRet<<std::endl;
     }
-    double f_normInf = f.normInf();
-    if (f_normInf < solver.getFTol()) {
-        xdbg<<"Good solution\n";
-    } else if (f_normInf < 1.e-5) {
-        xdbg<<"f is near solution, but above tolerance\n";
-        xdbg<<"f.normInf = "<<f_normInf<<std::endl;
-        xdbg<<"ftol = "<<solver.getFTol()<<std::endl;
-        xdbg<<"flag SHEAR_POOR_FIT\n";
-        flag |= SHEAR_POOR_FIT;
-    } else {
-        xdbg<<"Local minimum\n";
-        xdbg<<"x = "<<x<<std::endl;
-        xdbg<<"f = "<<f<<std::endl;
-        xdbg<<"f.norm = "<<f.norm()<<std::endl;
-        xdbg<<"f.normInf = "<<f_normInf<<std::endl;
-        xdbg<<"ftol = "<<solver.getFTol()<<std::endl;
-        xdbg<<"flag SHEAR_LOCAL_MIN\n";
-        flag |= SHEAR_LOCAL_MIN;
-    }
-
-    shiftBy(std::complex<double>(x(0),x(1)),
-            std::complex<double>(x(2),x(3)),
-            x(4));
 
     return true;
 }
+
 

@@ -85,7 +85,7 @@ void measureMultiShear(
 
         long flag1=0;
 
-        if (ell.measure(pix,go,sigmaObs,true,flag1)) {
+        if (ell.measure(pix,go,galOrder2,sigmaObs,flag1,0.1)) {
             ++log._nsNative;
             dbg<<"Successful native fit:\n";
             dbg<<"Z = "<<ell.getCen()<<std::endl;
@@ -114,12 +114,6 @@ void measureMultiShear(
         if (maxAperture > 0. && galAp > maxAperture) galAp = maxAperture;
         ell.setMu(0);
 
-        // Check - mu should now be zero:
-        // This one works
-        //ell.measure(pix,go,sigmaObs,true,flag1);
-        xxdbg<<"After native fit #2:\n";
-        xxdbg<<"Mu = "<<ell.getMu()<<std::endl;
-
         npix = 0;
         for(int i=0;i<nExp;++i) {
             getSubPixList(pix[i],allpix[i],galAp,flag);
@@ -135,7 +129,7 @@ void measureMultiShear(
         sigma = sqrt(sigma);
         xdbg<<"sigma = sqrt(sigma^2) "<<sigma<<std::endl;
         flag1 = 0;
-        if (ell.measure(pix,psf,go,sigma,false,flag1)) {
+        if (ell.measure(pix,psf,go,galOrder2,sigma,flag1,0.1)) {
             ++log._nsMu;
             if (flag1) {
                 Assert((flag1 & ~(SHEAR_LOCAL_MIN | SHEAR_POOR_FIT)) == false);
@@ -152,23 +146,6 @@ void measureMultiShear(
             dbg<<"Deconvolving measurement failed\n";
             flag |= DECONV_FAILED;
         }
-
-#if 0
-        // This doesn't work.  So for now, keep mu, sigma the same
-        // I'd rather have mu = 0 and the right sigma.
-        // Maybe I need to change to fit to solve for sigma directly
-        // rather than solve for mu.
-        sigma *= exp(ell.getMu());
-        ell.setMu(0);
-
-        // Check - mu should now be zero:
-        b_gal.setSigma(sigma);
-        dbg<<"Meausre with sigma = "<<sigma<<std::endl;
-        ell.measure(pix,psf,go,sigma,false,flag1,&b_gal);
-        dbg<<"After deconvolving fit #2:\n";
-        dbg<<"Mu = "<<ell.getMu()<<std::endl;
-        dbg<<"b_gal = "<<b_gal<<std::endl;
-#endif
 
         // Measure the galaxy shape at the full order
         go = galOrder;
@@ -192,7 +169,8 @@ void measureMultiShear(
         // Also measure the isotropic significance
         BVec flux(0,sigma);
         DMatrix fluxCov(1,1);
-        ell.measureShapelet(pix,psf,flux,0,0,&fluxCov);
+        int order0 = 0;
+        ell.measureShapelet(pix,psf,flux,order0,0,&fluxCov);
         nu = flux(0) / sqrt(fluxCov(0,0));
         dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<nu<<std::endl;
 
@@ -231,7 +209,7 @@ void measureMultiShear(
             dbg<<"Reduced galOrder to "<<go<<" galSize = "<<galSize<<std::endl;
         }
         DMatrix cov(5,5);
-        if (ell.measure(pix,psf,go,sigma,false,flag,&cov)) {
+        if (ell.measure(pix,psf,go,galOrder2,sigma,flag,1.e-4,&cov)) {
             ++log._nsGamma;
             dbg<<"Successful Gamma fit\n";
             dbg<<"Measured gamma = "<<ell.getGamma()<<std::endl;

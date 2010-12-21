@@ -10,9 +10,9 @@
 #include "Log.h"
 #include "MeasureShearAlgo.h"
 
-//#define SINGLEGAL 632
+//#define SINGLEGAL 13
 //#define STARTAT 8000
-//#define ENDAT 200
+//#define ENDAT 14
 
 #ifdef SINGLEGAL
 #undef _OPENMP

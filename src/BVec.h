@@ -87,12 +87,13 @@ private :
 inline std::ostream& operator<<(std::ostream& os, const BVec& b)
 { os << b.getOrder()<<"  "<<b.getSigma()<<"  "<<b.vec(); return os; }
 
-void calculateZTransform(
-    std::complex<double> z, int order, DMatrix& T);
+void calculateZTransform(std::complex<double> z, int order, DMatrix& T);
+void augmentZTransformCols(std::complex<double> z, int order, DMatrix& T);
 void applyZ(std::complex<double> z, BVec& b);
 
 void calculateMuTransform(double mu, int order, DMatrix& D);
 void augmentMuTransformRows(double mu, int order, DMatrix& D);
+void augmentMuTransformCols(double mu, int order, DMatrix& D);
 void applyMu(double mu, BVec& b);
 
 void calculateGTransform(std::complex<double> g, int order, DMatrix& S);

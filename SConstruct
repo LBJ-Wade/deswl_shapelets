@@ -123,8 +123,7 @@ def BasicCCFlags(env):
                 # I don't think it's needed in other versions.
                 env.Append(LIBS=['pthread'])
             if env['WARN']:
-                #env.Append(CCFLAGS=['-ggdb','-Wall','-Werror'])
-                env.Append(CCFLAGS=['-g','-Wall','-Werror'])
+                env.Append(CCFLAGS=['-g3','-Wall','-Werror'])
     
         elif compiler == 'icpc':
             env.Replace(CCFLAGS=['-O2'])

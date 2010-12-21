@@ -51,13 +51,12 @@ void BVec::conjugateSelf()
 
 void calculateZTransform(std::complex<double> z, int order, DMatrix& T)
 {
-    Assert(int(T.TMV_colsize()) == (order+1)*(order+2)/2);
-    Assert(int(T.TMV_rowsize()) == (order+1)*(order+2)/2);
-    //Assert(T.iscm());
-    //Assert(!T.isconj());
+    const int size1 = (order+1)*(order+2)/2;
+    Assert(int(T.TMV_colsize()) >= size1);
+    Assert(int(T.TMV_rowsize()) >= size1);
 
     if (z == 0.0) { 
-        T.TMV_setToIdentity();
+        T.subMatrix(0,size1,0,size1).TMV_setToIdentity();
         return; 
     }
 
@@ -124,6 +123,73 @@ void calculateZTransform(std::complex<double> z, int order, DMatrix& T)
     }
 }
 
+void augmentZTransformCols(std::complex<double> z, int order, DMatrix& T)
+{
+    const int size1 = (order+1)*(order+2)/2;
+    const int size2 = (order+3)*(order+4)/2;
+    Assert(int(T.TMV_colsize()) >= size1);
+    Assert(int(T.TMV_rowsize()) >= size2);
+
+    TMV_colRange(T,size1,size2).setZero();
+    if (z == 0.0) return; 
+
+    std::complex<double> zo2 = -z/2.;
+    CDMatrix f(order+3,order+3);
+    std::complex<double>* fcols = TMV_ptr(f);
+    std::vector<double> isqrt(order+3);
+
+    fcols[0] = exp(-std::norm(z)/8.); 
+    isqrt[0] = 0.;
+    for(int p=1;p<=order+2;++p) {
+        isqrt[p] = sqrt(double(p));
+        fcols[p] = fcols[p-1]*(-zo2)/isqrt[p]; 
+    }
+    std::complex<double>* fcolsp1 = fcols+TMV_stepj(f);
+    for(int s=0;s<order+2;++s) {
+        fcolsp1[0] = std::conj(zo2)*fcols[0]/isqrt[s+1]; 
+        for(int p=1;p<=order+2;++p) {
+            fcolsp1[p] = (isqrt[p]*fcols[p-1] + std::conj(zo2)*fcols[p])/
+                isqrt[s+1]; 
+        }
+        fcols = fcolsp1;
+        fcolsp1 += TMV_stepj(f);
+    }
+
+    for(int n=order+1,pq=size1;n<=order+2;++n) {
+        for(int p=n,q=0;p>=q;--p,++q,++pq) {
+            double* Tpq = TMV_ptr(T.col(pq));
+            double* Tpq1 = Tpq + TMV_stepj(T);
+            for(int nn=0,st=0;nn<=order;++nn) {
+                for(int s=nn,t=0;s>=t;--s,++t,++st) {
+                    std::complex<double> t1 = 
+                        f.TMV_cref(p,s) * std::conj(f.TMV_cref(q,t));
+                    if (p==q) {
+                        if (s==t) {
+                            Tpq[st] = std::real(t1); 
+                        } else {
+                            Tpq[st] = std::real(t1);
+                            Tpq[st+1] = std::imag(t1);
+                            ++st;
+                        }
+                    } else if (s==t) {
+                        Tpq[st] = 2.*std::real(t1);
+                        Tpq1[st] = -2.*std::imag(t1);
+                    } else {
+                        std::complex<double> t2 = 
+                            f.TMV_cref(q,s) * std::conj(f.TMV_cref(p,t));
+                        Tpq[st] = std::real(t1) + std::real(t2);
+                        Tpq[st+1]= std::imag(t1) + std::imag(t2);
+                        Tpq1[st] = -std::imag(t1) + std::imag(t2);
+                        Tpq1[st+1] = std::real(t1) - std::real(t2);
+                        ++st;
+                    }
+                }
+            }
+            if (p!=q) ++pq;
+        }
+    }
+}
+
 void applyZ(std::complex<double> z, BVec& b)
 {
     if (z != 0.0) {
@@ -135,8 +201,9 @@ void applyZ(std::complex<double> z, BVec& b)
 
 void calculateMuTransform(double mu, int order, DMatrix& D)
 {
-    Assert(int(D.TMV_colsize()) >= (order+1)*(order+2)/2);
-    Assert(int(D.TMV_rowsize()) == (order+1)*(order+2)/2);
+    const int size1 = (order+1)*(order+2)/2;
+    Assert(int(D.TMV_colsize()) >= size1);
+    Assert(int(D.TMV_rowsize()) >= size1);
     // First I should point out an error in BJ02.  It lists
     // D(pq,00) = e^mu sech(mu) tanh(mu)^p delta_pq
     // This is wrong.
@@ -160,8 +227,10 @@ void calculateMuTransform(double mu, int order, DMatrix& D)
     //       However, I'll wait to implement this until such speed 
     //       is found to be necessary.
 
+
+    D.setZero();
     if (mu == 0.0) { 
-        TMV_rowRange(D,0,D.TMV_rowsize()).TMV_setToIdentity(); 
+        D.diag(0,0,size1).setAllTo(1.0);
         return; 
     }
 
@@ -171,7 +240,6 @@ void calculateMuTransform(double mu, int order, DMatrix& D)
     std::vector<double> isqrt(order+1);
     for(int i=0;i<=order;++i) isqrt[i] = sqrt(double(i));
 
-    D.setZero();
     double Dqq = exp(mu)*smu;
     // Dqq = exp(mu) sech(mu) (-tanh(mu))^q
     // This variable keeps the latest Dqq value:
@@ -210,30 +278,66 @@ void calculateMuTransform(double mu, int order, DMatrix& D)
     }
 }
 
+void augmentMuTransformCols(double mu, int order, DMatrix& D)
+{
+    const int size1 = (order+1)*(order+2)/2;
+    const int size2 = (order+3)*(order+4)/2;
+    Assert(int(D.TMV_colsize()) >= size1);
+    Assert(int(D.TMV_rowsize()) >= size2);
+
+    TMV_colRange(D,size1,size2).setZero();
+    if (mu == 0.0) return;
+
+    double tmu = tanh(mu);
+    double smu = 1./cosh(mu);
+    std::vector<double> isqrt(order+3);
+    for(int i=0;i<=order+2;++i) isqrt[i] = sqrt(double(i));
+
+    double Dqq = exp(mu)*smu;
+    for(int q=order/2;q>0;--q) Dqq *= tmu;
+    for(int n=order+1,pq=size1;n<=order+2;++n) {
+        for(int p=n,q=0;p>=q;--p,++q,++pq) {
+            double* Dpq = TMV_ptr(D.col(pq));
+            double* Dpq_n = TMV_ptr(D.col(pq-n));
+            double* Dpq_n_2 = q>0?TMV_ptr(D.col(pq-n-2)):0;
+            double* Dpq1 = p>q?TMV_ptr(D.col(pq+1)):0;
+            if (p==q) {
+                if (p > 0) Dqq *= tmu;
+                Dpq[0] = Dqq;  // D(0,pq)
+            }
+            for(int m=1,st=1;m<=order;++m) {
+                for(int s=m,t=0;s>=t;--s,++t,++st) {
+                    if (p-q==s-t) {
+                        double temp;
+                        if (t == 0) {
+                            temp = smu*isqrt[p]*Dpq_n[st-m]/isqrt[s];
+                        } else {
+                            temp = -tmu*isqrt[s]*Dpq[st-2*m-1];
+                            if (q > 0) {
+                                temp += smu*isqrt[q]*Dpq_n_2[st-m-2];
+                            }
+                            temp /= isqrt[t];
+                        }
+                        Dpq[st] = temp; 
+                        if (s!=t) Dpq1[st+1] = temp; 
+                    }
+                    if (s!=t) ++st;
+                }
+            }
+            if (p!=q) ++pq;
+        }
+    }
+}
+
 void augmentMuTransformRows(double mu, int order, DMatrix& D)
 {
-    Assert(int(D.TMV_colsize()) == (order+3)*(order+4)/2);
-    Assert(int(D.TMV_rowsize()) == (order+1)*(order+2)/2);
-
-    const int size1 = D.TMV_rowsize();
-    const int size2 = D.TMV_colsize();
+    const int size1 = (order+1)*(order+2)/2;
+    const int size2 = (order+3)*(order+4)/2;
+    Assert(int(D.TMV_colsize()) == size2);
+    Assert(int(D.TMV_rowsize()) == size1);
 
     TMV_rowRange(D,size1,size2).setZero();
     if (mu == 0.0) return;
-
-    // The easiest recursion for the D_mu matrix is not actually
-    // the one found in BJ02.  Rather, I use the following:
-    // D(00,pq) = e^mu sech(mu) (-tanh(mu))^q delta_pq
-    // D(s0,pq) = 1/sqrt(s) sech(mu) sqrt(p) D(s-10,p-1q)
-    // D(st,pq) = 1/sqrt(t) [ sech(mu) sqrt(q) D(st-1,pq-1)
-    //                        + tanh(mu) sqrt(s) D(s-1t-1,pq) ]
-    // Note: Only s-t = p-q terms are nonzero.
-    //       This means that this can be significantly sped up
-    //       by forming smaller matrices for each m, and using 
-    //       permutations to rotabe b so that these elements are
-    //       continuous and then rotate back after multiplying.
-    //       However, I'll wait to implement this until such speed 
-    //       is found to be necessary.
 
     double tmu = tanh(mu);
     double smu = 1./cosh(mu);
@@ -281,8 +385,9 @@ void applyMu(double mu, BVec& b)
 
 void calculateGTransform(std::complex<double> g, int order, DMatrix& S)
 {
-    Assert(int(S.TMV_colsize()) == (order+1)*(order+2)/2);
-    Assert(int(S.TMV_rowsize()) >= (order+1)*(order+2)/2);
+    const int size1 = (order+1)*(order+2)/2;
+    Assert(int(S.TMV_colsize()) >= size1);
+    Assert(int(S.TMV_rowsize()) >= size1);
     // S(st,pq) = f(p,s) f(q,t) (eta/|eta|)^(s-t-p+q)
     // f(p,0) = sqrt(p!)/(p/2)! sqrt(sech(|eta|/2)) (-tanh(|eta|/2)/2)^p/2
     // f(p,s+1) = (sqrt(p) sech(|eta|/2) f(p-1,s) +
@@ -296,7 +401,7 @@ void calculateGTransform(std::complex<double> g, int order, DMatrix& S)
     // I'll wait until the speedup is found to be necessary.
 
     if (g == 0.0) { 
-        TMV_colRange(S,0,S.TMV_colsize()).TMV_setToIdentity(); 
+        S.subMatrix(0,size1,0,size1).TMV_setToIdentity();
         return; 
     }
 
@@ -352,7 +457,9 @@ void calculateGTransform(std::complex<double> g, int order, DMatrix& S)
 
                     int iphase = s-t-p+q;
                     std::complex<double> s1 = s0 * 
-                        (iphase >= 0 ? phase[iphase/2] : std::conj(phase[-iphase/2]));
+                        (iphase >= 0 ?
+                         phase[iphase/2] :
+                         std::conj(phase[-iphase/2]));
 
                     if (p==q) {
                         if (s==t) {
@@ -371,7 +478,9 @@ void calculateGTransform(std::complex<double> g, int order, DMatrix& S)
                         s0 = f.TMV_cref(q,s) * f.TMV_cref(p,t);
                         iphase = s-t-q+p;
                         std::complex<double> s2 = s0 *
-                            (iphase >= 0 ? phase[iphase/2] : std::conj(phase[-iphase/2]));
+                            (iphase >= 0 ?
+                             phase[iphase/2] :
+                             std::conj(phase[-iphase/2]));
                         Spq[st] = std::real(s1) + std::real(s2);
                         Spq[st+1] = std::imag(s1) + std::imag(s2);
                         Spq1[st] = -std::imag(s1) + std::imag(s2);
@@ -387,14 +496,13 @@ void calculateGTransform(std::complex<double> g, int order, DMatrix& S)
 
 void augmentGTransformCols(std::complex<double> g, int order, DMatrix& S)
 {
-    Assert(int(S.TMV_colsize()) == (order+1)*(order+2)/2);
-    Assert(int(S.TMV_rowsize()) == (order+3)*(order+4)/2);
-
     const int size1 = S.TMV_colsize();
     const int size2 = S.TMV_rowsize();
+    Assert(int(S.TMV_colsize()) == size1);
+    Assert(int(S.TMV_rowsize()) == size2);
 
     TMV_colRange(S,size1,size2).setZero();
-    if (g == 0.0) { return; }
+    if (g == 0.0) return; 
 
     double absg = std::abs(g);
     double normg = std::norm(g);
@@ -409,9 +517,9 @@ void augmentGTransformCols(std::complex<double> g, int order, DMatrix& S)
     double se = sqrt(1.-normg);
 
     double* fcols = TMV_ptr(f);
-    fcols[0] = sqrt(se); // f(0,0)
+    fcols[0] = sqrt(se); 
     for(int p=2;p<=order+2;p+=2) {
-        fcols[p] = fcols[p-2]*(-te/2.)*sqrt(double(p*(p-1)))/double(p/2); // f(p,0)
+        fcols[p] = fcols[p-2]*(-te/2.)*sqrt(double(p*(p-1)))/double(p/2); 
     }
     double* fcolsm1 = 0;
     double* fcolsp1 = fcols + TMV_stepj(f);
@@ -420,13 +528,13 @@ void augmentGTransformCols(std::complex<double> g, int order, DMatrix& S)
 
     for(int s=0;s<order;++s) {
         if (s%2==1) {
-            fcolsp1[0] = isqrt[s]*te*fcolsm1[0]/isqrt[s+1]; // f(0,s+1)
+            fcolsp1[0] = isqrt[s]*te*fcolsm1[0]/isqrt[s+1];
         }
         for(int p=s%2+1;p<=order+2;p+=2) {
             double temp = isqrt[p]*se*fcols[p-1]; 
             if (s>0) temp += isqrt[s]*te*fcolsm1[p];
             temp /= isqrt[s+1]; 
-            fcolsp1[p] = temp; // f(p,s+1)
+            fcolsp1[p] = temp;
         }
         fcolsm1 = fcols;
         fcols = fcolsp1;
@@ -443,7 +551,9 @@ void augmentGTransformCols(std::complex<double> g, int order, DMatrix& S)
                     double s0 = f.TMV_cref(p,s) * f.TMV_cref(q,t);
                     int iphase = s-t-p+q;
                     std::complex<double> s1 = s0 *
-                        (iphase >= 0 ? phase[iphase/2] : std::conj(phase[-iphase/2]));
+                        (iphase >= 0 ?
+                         phase[iphase/2] :
+                         std::conj(phase[-iphase/2]));
 
                     if (p==q) {
                         if (s==t) {
@@ -460,7 +570,9 @@ void augmentGTransformCols(std::complex<double> g, int order, DMatrix& S)
                         s0 = f.TMV_cref(q,s) * f.TMV_cref(p,t);
                         iphase = s-t-q+p;
                         std::complex<double> s2 = s0 *
-                            (iphase >= 0 ? phase[iphase/2] : std::conj(phase[-iphase/2]));
+                            (iphase >= 0 ?
+                             phase[iphase/2] :
+                             std::conj(phase[-iphase/2]));
                         Spq[st]= std::real(s1) + std::real(s2);
                         Spq1[st] = -std::imag(s1) + std::imag(s2);
                         Spq[st+1] = std::imag(s1) + std::imag(s2);

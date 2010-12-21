@@ -40,11 +40,12 @@ void measureSinglePsf1(
     DMatrix cov(psf.size(),psf.size());
 
     long flag1=0;
-    if (ell.measure(pix,psfOrder,sigmaP,false,flag1,0,&psf,&cov)) {
+    if (ell.measure(pix,psfOrder,psfOrder+4,sigmaP,flag1,1.e-4,0,&psf,&cov)) {
         ++log._nsPsf;
     } else {
         xdbg<<"Measurement failed\n";
         ++log._nfPsf;
+        xdbg<<"flag MEASURE_PSF_FAILED\n";
         flag |= MEASURE_PSF_FAILED;
     }
 
@@ -54,7 +55,15 @@ void measureSinglePsf1(
     // an error if it is more than a factor of 3 different.)
     BVec flux(0,sigmaP);
     DMatrix fluxCov(1,1);
-    ell.measureShapelet(pix,flux,0,0,&fluxCov);
+    int order0 = 0; 
+    // order is passed by reference, since it may be changed. 
+    // Won't ever happen when input is 0.
+    if (!ell.measureShapelet(pix,flux,order0,0,&fluxCov)) {
+        xdbg<<"Measurement of flux failed.\n";
+        ++log._nfPsf;
+        xdbg<<"flag PSF_BAD_FLUX\n";
+        flag |= PSF_BAD_FLUX;
+    }
     nu = flux(0) / std::sqrt(fluxCov(0,0));
     dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<nu<<std::endl;
     dbg<<" or  "<<psf(0)<<" / sqrt("<<cov(0,0)<<") = "<<
@@ -65,6 +74,7 @@ void measureSinglePsf1(
         dbg<<"Bad flux value: \n";
         dbg<<"flux = "<<flux(0)<<std::endl;
         dbg<<"psf = "<<psf.vec()<<std::endl;
+        xdbg<<"flag PSF_BAD_FLUX\n";
         flag |= PSF_BAD_FLUX;
     }
 
@@ -92,6 +102,7 @@ void measureSinglePsf(
         xdbg<<"skip: transformation range error: \n";
         xdbg<<"p = "<<cen<<", b = "<<e.getBounds()<<std::endl;
         ++log._nfRange;
+        xdbg<<"flag TRANSFORM_EXCEPTION\n";
         flag |= TRANSFORM_EXCEPTION;
         return;
     }
@@ -105,11 +116,13 @@ void measureSinglePsf(
         dbg<<"TMV Error thrown in MeasureSinglePSF\n";
         dbg<<e<<std::endl;
         ++log._nfTmvError;
+        xdbg<<"flag TMV_EXCEPTION\n";
         flag |= TMV_EXCEPTION;
 #endif
     } catch (...) {
         dbg<<"unkown exception in MeasureSinglePSF\n";
         ++log._nfOtherError;
+        xdbg<<"flag UNKNOWN_EXCEPTION\n";
         flag |= UNKNOWN_EXCEPTION;
     }
 }

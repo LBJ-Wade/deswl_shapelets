@@ -35,6 +35,7 @@ static void calculateSigma1(
     } catch (RangeException& e) {
         dbg<<"distortion range error: \n";
         xdbg<<"center = "<<pos<<", b = "<<e.getBounds()<<std::endl;
+        xdbg<<"flag TRANSFORM_EXCEPTION\n";
         flag1 |= TRANSFORM_EXCEPTION;
     }
     if (flag1) {
@@ -50,10 +51,11 @@ static void calculateSigma1(
     xdbg<<"Crude Measure: centroid = "<<ell.getCen();
     xdbg<<", mu = "<<ell.getMu()<<std::endl;
     if (shouldUseShapeletSigma) {
-        if (ell.measure(pix,2,sigma,true,flag1)) { // true means use integ first
+        if (ell.measure(pix,2,6,sigma,flag1,0.01)) {
             xdbg<<"Successful 2nd order measure.\n";
             xdbg<<"mu = "<<ell.getMu()<<std::endl;
         } else {
+            xdbg<<"flag NATIVE_FAILED\n";
             flag |= NATIVE_FAILED;
             xdbg<<"Ellipse measure returned flag "<<flag1<<std::endl;
             sigma = DEFVALNEG;
@@ -85,15 +87,18 @@ void calculateSigma(
     } catch (tmv::Error& e) {
         dbg<<"Caught: "<<e<<std::endl;
         sigma = DEFVALNEG;
+        xdbg<<"flag TMV_EXCEPTION\n";
         flag |= TMV_EXCEPTION;
 #endif
     } catch (std::exception& e) {
         dbg<<"Caught: "<<e.what()<<std::endl;
         sigma = DEFVALNEG;
+        xdbg<<"flag STD_EXCEPTION\n";
         flag |= STD_EXCEPTION;
     } catch (...) {
         dbg<<"Caught unknown exception"<<std::endl;
         sigma = DEFVALNEG;
+        xdbg<<"flag UNKNOWN_EXCEPTION\n";
         flag |= UNKNOWN_EXCEPTION;
     }
 }

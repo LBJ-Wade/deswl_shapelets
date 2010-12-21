@@ -10,7 +10,8 @@
 #include <limits>
 #include <algorithm>
 #define dbg if(_nlOut) (*_nlOut)
-#define xdbg if(_isVerbose && _nlOut) (*_nlOut)
+#define xdbg if(_verbose >= 1 && _nlOut) (*_nlOut)
+#define xxdbg if(_verbose >= 2 && _nlOut) (*_nlOut)
 
 #ifdef USE_TMV
 
@@ -18,7 +19,7 @@ NLSolver::NLSolver() :
     _method(NEWTON),
     _fTol(1.e-8), _gTol(1.e-8), _minStep(1.e-8), _maxIter(200),
     _tau(1.e-3), _delta0(1.), 
-    _nlOut(0), _isVerbose(false),
+    _nlOut(0), _verbose(0),
     _hasDirectH(false), _shouldUseCh(true), _shouldUseSvd(false) 
 {}
 
@@ -61,7 +62,7 @@ bool NLSolver::testJ(
     if (!relErr) relErr = 10.*sqrtEps;
     if (os) {
         *os << "TestJ:\n";
-        if (_isVerbose) {
+        if (_verbose >= 1) {
             *os << "x = "<<x<<std::endl;
             *os << "f = "<<f<<std::endl;
             *os << "Direct J = "<<J<<std::endl;
@@ -462,6 +463,8 @@ bool NLSolver::solveDogleg(
     dbg<<"iter   |f|inf   Q   |g|inf   delta\n";
     for(int k=0;k<_maxIter;++k) {
         dbg<<k<<"   "<<f.normInf()<<"   "<<Q<<"   "<<g.normInf()<<"   "<<delta<<std::endl;
+        xxdbg<<"f = "<<f<<std::endl;
+        xxdbg<<"J = "<<J<<std::endl;
         if (_shouldUseSvd && nsing == maxnsing && J.isSingular() && nsing > 1) {
             dbg<<"Singular J, so try lowering number of singular values.\n";
             nsing = J.svd().getKMax();
@@ -469,7 +472,7 @@ bool NLSolver::solveDogleg(
             dbg<<"nsing -> "<<nsing<<std::endl;
         }
         h = -f/J;
-        xdbg<<"h = "<<h<<std::endl;
+        xdbg<<"h_newton = "<<h<<std::endl;
 
         double normsqg = g.normSq();
         double normH = h.norm();
@@ -482,11 +485,13 @@ bool NLSolver::solveDogleg(
             xdbg<<"rhodenom = "<<rhoDenom<<std::endl;
         } else {
             double alpha = normsqg / (J*g).normSq();
+            xdbg<<"alpha = "<<alpha<<std::endl;
             double normG = sqrt(normsqg);
+            xxdbg<<"normG = "<<normG<<std::endl;
             if (normG >= delta / alpha) {
                 xdbg<<"|g| > delta/alpha\n";
                 h = -(delta / normG) * g;
-                xdbg<<"h = "<<h<<std::endl;
+                xdbg<<"h_gradient = "<<h<<std::endl;
                 rhoDenom = delta*(2.*alpha*normG-delta)/(2.*alpha);
                 xdbg<<"rhodenom = "<<rhoDenom<<std::endl;
             } else {
@@ -500,10 +505,9 @@ bool NLSolver::solveDogleg(
                 double beta = (b <= 0) ?
                     (-b + sqrt(b*b - a*c)) / a :
                     -c / (b + sqrt(b*b - a*c));
-                xdbg<<"alpha = "<<alpha<<std::endl;
                 xdbg<<"beta = "<<beta<<std::endl;
                 h = -alpha*g + beta*temp;
-                xdbg<<"h = "<<h<<std::endl;
+                xdbg<<"h_dogleg = "<<h<<std::endl;
                 xdbg<<"h.norm() = "<<h.norm()<<"  delta = "<<delta<<std::endl;
                 rhoDenom = 
                     0.5*alpha*std::pow((1.-beta)*normG,2) +
@@ -1140,7 +1144,7 @@ NLSolver::NLSolver() :
     _method(HYBRID),
     _fTol(1.e-8), _gTol(1.e-8), _minStep(1.e-8), _maxIter(200),
     _tau(1.e-3), _delta0(1.), 
-    _nlOut(0), _isVerbose(false)
+    _nlOut(0), _verbose(0)
 {}
 
 void NLSolver::calculateJ(
@@ -1182,7 +1186,7 @@ bool NLSolver::testJ(
     if (!relErr) relErr = 10.*sqrtEps;
     if (os) {
         *os << "TestJ:\n";
-        if (_isVerbose) {
+        if (_verbose >= 1) {
             *os << "x = "<<x<<std::endl;
             *os << "f = "<<f<<std::endl;
             *os << "Direct J = "<<J<<std::endl;

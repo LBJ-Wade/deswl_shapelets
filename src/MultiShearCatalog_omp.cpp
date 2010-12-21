@@ -64,6 +64,7 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
 
                 if (_pixList[i].size() == 0) {
                     dbg<<"no valid single epoch images.\n";
+                    xdbg<<"flag NO_SINGLE_EPOCH_IMAGES\n";
                     _flags[i] = NO_SINGLE_EPOCH_IMAGES;
                     continue;
                 }

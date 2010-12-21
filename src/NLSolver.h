@@ -292,7 +292,9 @@ public :
     virtual double getDelta0() { return _delta0; }
 
     virtual void setOutput(std::ostream& os) { _nlOut = &os; }
-    virtual void useVerboseOutput() { _isVerbose = true; }
+    virtual void useVerboseOutput() { _verbose = 1; }
+    virtual void useExtraVerboseOutput() { _verbose = 2; }
+    virtual void noUseVerboseOutput() { _verbose = 0; }
 
     virtual void useDirectH() { _hasDirectH = true; }
     virtual void useSVD() { _shouldUseSvd = true; }
@@ -313,7 +315,7 @@ private :
     double _tau;
     double _delta0;
     std::ostream* _nlOut;
-    bool _isVerbose;
+    int _verbose;
     bool _hasDirectH;
     bool _shouldUseCh;
     bool _shouldUseSvd;
@@ -394,7 +396,9 @@ public :
     virtual double getDelta0() { return _delta0; }
 
     virtual void setOutput(std::ostream& os) { _nlOut = &os; }
-    virtual void useVerboseOutput() { _isVerbose = true; }
+    virtual void useVerboseOutput() { _verbose = 1; }
+    virtual void useExtraVerboseOutput() { _verbose = 2; }
+    virtual void noUseVerboseOutput() { _verbose = 0; }
 
     virtual void useDirectH() {}
     virtual void useSVD() {}
@@ -415,7 +419,7 @@ private :
     double _tau;
     double _delta0;
     std::ostream* _nlOut;
-    bool _isVerbose;
+    int _verbose;
     bool _hasDirectH;
     bool _shouldUseCh;
     bool _shouldUseSvd;

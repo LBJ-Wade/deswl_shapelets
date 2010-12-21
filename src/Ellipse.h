@@ -28,17 +28,17 @@ public :
         _isFixedCen(false), _isFixedGamma(false), _isFixedMu(false),
         _shouldDoTimings(false) {}
 
-    bool measure(const std::vector<PixelList>& pix, 
-                 const std::vector<BVec>& psf,
-                 int order, double sigma, bool shouldUseInteg, long& flag, 
-                 DMatrix* cov=0, 
-                 BVec* bret=0, DMatrix* bcov=0, std::vector<PixelList>* pixels_model=0);
-    bool measure(const std::vector<PixelList>& pix, 
-                 int order, double sigma, bool shouldUseInteg, long& flag, 
-                 DMatrix* cov=0, 
-                 BVec* bret=0, DMatrix* bcov=0, std::vector<PixelList>* pixels_model=0);
-
-    bool findRoundFrame(const BVec& b, int order, long& flag, DMatrix* cov=0);
+    bool measure(
+        const std::vector<PixelList>& pix, 
+        const std::vector<BVec>& psf,
+        int order, int order2, double sigma, long& flag, double thresh,
+        DMatrix* cov=0, BVec* bret=0, DMatrix* bcov=0,
+        std::vector<PixelList>* pixels_model=0);
+    bool measure(
+        const std::vector<PixelList>& pix, 
+        int order, int order2, double sigma, long& flag, double thresh,
+        DMatrix* cov=0, BVec* bret=0, DMatrix* bcov=0,
+        std::vector<PixelList>* pixels_model=0);
 
     void crudeMeasure(const PixelList& pix, double sigma);
     void crudeMeasure(
@@ -49,19 +49,19 @@ public :
     // order parameter is allowed to be less than the order of bret,
     // in which case the rest of the vector is set to zeros.
     // order2 is the order for the intermediate steps in the calculation.
-    void measureShapelet(
+    bool measureShapelet(
         const std::vector<PixelList>& pix, 
-        const std::vector<BVec>& psf, BVec& bret, int order, int order2,
+        const std::vector<BVec>& psf, BVec& bret, int& order, int order2,
         DMatrix* bcov=0) const;
-    void measureShapelet(
-        const std::vector<PixelList>& pix, BVec& bret, int order, int order2,
+    bool measureShapelet(
+        const std::vector<PixelList>& pix, BVec& bret, int& order, int order2,
         DMatrix* bcov=0) const;
 
-    void altMeasureShapelet(
+    bool altMeasureShapelet(
         const std::vector<PixelList>& pix, 
         const std::vector<BVec>& psf, BVec& bret, int order, int order2,
         double pixScale, DMatrix* bcov=0) const;
-    void altMeasureShapelet(
+    bool altMeasureShapelet(
         const std::vector<PixelList>& pix, BVec& bret, int order, int order2,
         double pixScale, DMatrix* bcov=0) const;
 
@@ -102,16 +102,16 @@ private :
 
     bool doMeasure(
         const std::vector<PixelList>& pix, 
-        const std::vector<BVec>* psf, int order, double sigma,
-        bool shouldUseInteg, long& flag, DMatrix* cov=0, 
+        const std::vector<BVec>* psf, int order, int order2, double sigma,
+        long& flag, double thresh, DMatrix* cov=0, 
         BVec* bret=0, DMatrix* bcov=0, std::vector<PixelList>* pixels_model=0);
 
-    void doMeasureShapelet(
+    bool doMeasureShapelet(
         const std::vector<PixelList>& pix, 
-        const std::vector<BVec>* psf, BVec& bret, int order, int order2,
+        const std::vector<BVec>* psf, BVec& bret, int& order, int order2,
         DMatrix* bcov=0) const;
 
-    void doAltMeasureShapelet(
+    bool doAltMeasureShapelet(
         const std::vector<PixelList>& pix, 
         const std::vector<BVec>* psf, BVec& bret, int order, int order2,
         double pixScale, DMatrix* bcov=0) const;
