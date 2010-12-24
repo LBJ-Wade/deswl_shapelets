@@ -183,8 +183,7 @@ void doMeasureShear(
     ConfigFile& params, ShearLog& log,
     const Image<double>& im, const Image<double>* weightIm,
     const Transformation& trans, 
-    const InputCatalog& inCat, const StarCatalog& starCat,
-    const FittedPsf& fitPsf,
+    const InputCatalog& inCat, const FittedPsf& fitPsf,
     std::auto_ptr<ShearCatalog>& shearCat)
 {
     dbg<<"Starting MeasurePsf script\n";
@@ -208,23 +207,13 @@ void doMeasureShear(
         t1 = t2;
     }
 
-    // Flag known stars as too small to bother trying to measure the shear.
-    shearCat->flagStars(starCat);
-
-    if (isTiming) {
-        gettimeofday(&tp,0);
-        t2 = tp.tv_sec + tp.tv_usec/1.e6;
-        std::cout<<"Time: Flag stars = "<<t2-t1<<std::endl;
-        t1 = t2;
-    }
-
     // Measure shears and shapelet vectors
     int nShear = shearCat->measureShears(im,weightIm,log);
 
     if (isTiming) {
         gettimeofday(&tp,0);
         t2 = tp.tv_sec + tp.tv_usec/1.e6;
-        std::cout<<"Time: Flag stars = "<<t2-t1<<std::endl;
+        std::cout<<"Time: Measure Shears = "<<t2-t1<<std::endl;
         t1 = t2;
     }
 
@@ -290,8 +279,7 @@ void doSplitStars(
 
     doMeasureShear(
         params1, static_cast<ShearLog&>(*log),
-        im, weightIm, trans, inCat, starCat1,
-        *fitPsf1, shearCat1);
+        im, weightIm, trans, inCat, *fitPsf1, shearCat1);
 
     // set 2
     dbg<<"\nDoing PSF/Shear for Set2\n";
@@ -315,7 +303,6 @@ void doSplitStars(
 
     doMeasureShear(
         params2, static_cast<ShearLog&>(*log),
-        im, weightIm, trans, inCat, starCat2,
-        *fitPsf2, shearCat2);
+        im, weightIm, trans, inCat, *fitPsf2, shearCat2);
 }
 

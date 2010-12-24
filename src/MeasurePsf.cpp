@@ -1,133 +1,14 @@
 
-//#include <valarray>
 #include <sys/time.h>
 #include "Image.h"
 #include "Transformation.h"
 #include "PsfCatalog.h"
+#include "InputCatalog.h"
 #include "FittedPsf.h"
 #include "Log.h"
 #include "BVec.h"
 #include "Scripts.h"
 #include "BasicSetup.h"
-
-#if 0
-static void doMeasurePsf(ConfigFile& params, PsfLog& log) 
-{
-    bool isTiming = params.read("timing",false);
-    timeval tp;
-    double t1=0.,t2=0.;
-
-    if (isTiming) {
-        gettimeofday(&tp,0);
-        t1 = tp.tv_sec + tp.tv_usec/1.e6;
-    }
-
-    // Load image:
-    std::auto_ptr<Image<double> > weightIm;
-    Image<double> im(params,weightIm);
-
-    if (isTiming) {
-        gettimeofday(&tp,0);
-        t2 = tp.tv_sec + tp.tv_usec/1.e6;
-        std::cout<<"Time: Open imgae = "<<t2-t1<<std::endl;
-        t1 = t2;
-    }
-
-    // Read distortion function
-    Transformation trans(params);
-
-    if (isTiming) {
-        gettimeofday(&tp,0);
-        t2 = tp.tv_sec + tp.tv_usec/1.e6;
-        std::cout<<"Time: Read Transformation = "<<t2-t1<<std::endl;
-        t1 = t2;
-    }
-
-    // Read star catalog info
-    StarCatalog starCat(params);
-    starCat.read();
-
-    if (isTiming) {
-        gettimeofday(&tp,0);
-        t2 = tp.tv_sec + tp.tv_usec/1.e6;
-        std::cout<<"Time: Read StarCatalog = "<<t2-t1<<std::endl;
-        t1 = t2;
-    }
-
-    // Create PSFCatalog from StarCatalog
-    PsfCatalog psfCat(starCat,params);
-
-    if (isTiming) {
-        gettimeofday(&tp,0);
-        t2 = tp.tv_sec + tp.tv_usec/1.e6;
-        std::cout<<"Time: Create PSFCatalog = "<<t2-t1<<std::endl;
-        t1 = t2;
-    }
-
-    // Estimate the scale size to use for shapelet decompositions
-    double sigmaP = psfCat.estimateSigma(im,weightIm.get(),trans);
-
-    if (isTiming) {
-        gettimeofday(&tp,0);
-        t2 = tp.tv_sec + tp.tv_usec/1.e6;
-        std::cout<<"Time: Estimate Sigma = "<<t2-t1<<std::endl;
-        t1 = t2;
-    }
-
-    // Do the actual PSF measurements
-    int nPsf = psfCat.measurePsf(im,weightIm.get(),trans,sigmaP,log);
-
-    if (isTiming) {
-        gettimeofday(&tp,0);
-        t2 = tp.tv_sec + tp.tv_usec/1.e6;
-        std::cout<<"Time: Measure PSF = "<<t2-t1<<std::endl;
-        t1 = t2;
-    }
-
-    // Write PSF catalog to file
-    psfCat.write();
-
-    if (isTiming) {
-        gettimeofday(&tp,0);
-        t2 = tp.tv_sec + tp.tv_usec/1.e6;
-        std::cout<<"Time: Write PSFCatalog = "<<t2-t1<<std::endl;
-        t1 = t2;
-    }
-
-    if (nPsf == 0) {
-        throw ProcessingException(
-            "No successful PSF measurements");
-    }
-
-    // Fit the PSF with a polynomial:
-    FittedPsf fitPsf(psfCat,params,log);
-
-    if (isTiming) {
-        gettimeofday(&tp,0);
-        t2 = tp.tv_sec + tp.tv_usec/1.e6;
-        std::cout<<"Time: Fit PSF = "<<t2-t1<<std::endl;
-        t1 = t2;
-    }
-
-    // Write fitted psf to file
-    fitPsf.write();
-
-    // Re-write the PSF catalog, since the interpolation may have changed
-    // the flags.
-    // TODO: It may be worth having a new routine that just updates the 
-    // flags.  More efficient, since don't need to re-write everything.
-    psfCat.write();
-
-    if (isTiming) {
-        gettimeofday(&tp,0);
-        t2 = tp.tv_sec + tp.tv_usec/1.e6;
-        std::cout<<"Time: Write FittedPSF = "<<t2-t1<<std::endl;
-        t1 = t2;
-    }
-
-    xdbg<<"Log: \n"<<log<<std::endl;
-}
-#endif
 
 int main(int argc, char **argv) try 
 {
@@ -173,9 +54,17 @@ int main(int argc, char **argv) try
             t1 = t2;
         }
 
-        // Read star catalog info
-        StarCatalog starCat(params);
-        starCat.read();
+        std::auto_ptr<StarCatalog> starCat;
+        if (params.read("cat_all_stars",false)) {
+            // Read input catalog
+            InputCatalog inCat(params,&im);
+            inCat.read();
+            starCat.reset(new StarCatalog(inCat,params));
+        } else {
+            // Read star catalog info
+            starCat.reset(new StarCatalog(params));
+            starCat->read();
+        }
 
         if (isTiming) {
             gettimeofday(&tp,0);
@@ -188,7 +77,7 @@ int main(int argc, char **argv) try
         std::auto_ptr<FittedPsf> fitPsf;
         double sigmaP = 0.;
         doMeasurePsf(
-            params,*log,im,weightIm.get(),trans,starCat,
+            params,*log,im,weightIm.get(),trans,*starCat,
             psfCat,fitPsf,sigmaP);
     }
 #if 0

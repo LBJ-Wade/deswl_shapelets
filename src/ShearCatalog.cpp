@@ -120,22 +120,6 @@ ShearCatalog::ShearCatalog(const ConfigFile& params) : _params(params)
     Assert(_shape.size() == size());
 }
 
-void ShearCatalog::flagStars(const StarCatalog& starCat)
-{
-    const int nGals = _id.size();
-    for (int i=0; i<nGals; ++i) {
-        xdbg<<"i = "<<i<<", id[i] = "<<_id[i]<<std::endl;
-        // It doesn't seem worth making a separate flag for this.
-        // If it's considered a star, let's just admit that it's too small 
-        // to bother trying to measure a shear for it.
-        if (starCat.isAStar(_id[i])) {
-            xdbg<<"Flag this one as a star\n";
-            _flags[i] |= TOO_SMALL;
-            xdbg<<i<<" is a star: flag -> "<<_flags[i]<<std::endl;
-        }
-    }
-}
-
 void ShearCatalog::writeFits(std::string file) const
 {
     Assert(_id.size() == size());
@@ -735,4 +719,6 @@ void ShearCatalog::read()
 
     dbg<<"Done Read ShearCatalog\n";
 }
+
+
 

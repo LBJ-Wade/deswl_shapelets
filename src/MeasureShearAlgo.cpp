@@ -119,8 +119,6 @@ void measureSingleShear1(
             return;
         }
 
-// see Params.h
-#ifdef RANDOMIZE_CENTER
         // The centroid doesn't necessarily get all the way to the perfect
         // centroid, so if the input guess is consistently biased in some 
         // direction (e.g. by a different convention for the (0,0) or (1,1) 
@@ -130,7 +128,6 @@ void measureSingleShear1(
         // centroid value by 0.1 pixel in a random direction, and resolve for
         // the centroid.  This is all pretty fast, so it's worth doing to
         // avoid the subtle bias that can otherwise result.
-
         std::complex<double> cen1 = ell.getCen();
         // get a offset of 0.1 pixels in a random direction.
         double x_offset, y_offset, rsq_offset;
@@ -161,9 +158,7 @@ void measureSingleShear1(
         dbg<<"After second centroid pass: cen = "<<cen1+ell.getCen()<<std::endl;
         dbg<<"Which is now considered "<<ell.getCen()<<" relative to the new "
             "center value of "<<cen<<std::endl;
-#else
-        ell.setCen(std::complex<double>(0.,0.));
-#endif
+
         ++log._nsCentroid;
     }
 
@@ -172,7 +167,6 @@ void measureSingleShear1(
     //
     if (!fixSigma) {
         ell.unfixMu();
-        ell.fixCen();
         if (ell.measure(pix,2,2,sigmaObs,flag1,0.1)) {
             ++log._nsNative;
             dbg<<"Successful native fit:\n";
@@ -205,15 +199,18 @@ void measureSingleShear1(
         galAp *= exp(ell.getMu());
         if (maxAperture > 0. && galAp > maxAperture) galAp = maxAperture;
         ell.setMu(0.);
-
     }
 
     //
     // Update deconvolved sigma
     //
-    sigma = pow(sigmaObs,2) - sigpsq;
+    // The sigma to use is 
+    // sigma_s^2 = sigma_i^2 + fpsf sigma_p^2
+    // And sigma_i^2 = sigma_o^2 - sigma_p^2
+    // So sigma_s^2 = sigma_o^2 + (fpsf-1) sigma_p^2
+    sigma = pow(sigmaObs,2) + (fPsf-1.) * sigpsq;
     xdbg<<"sigmaP^2 = "<<sigpsq<<std::endl;
-    xdbg<<"sigma^2 = sigmaObs^2 - sigmap^2 = "<<sigma<<std::endl;
+    xdbg<<"sigma^2 = sigmaObs^2 + (fPsf-1) * sigmap^2 = "<<sigma<<std::endl;
     if (sigma < 0.1*sigpsq) sigma = 0.1*sigpsq;
     sigma = sqrt(sigma);
     xdbg<<"sigma = "<<sigma<<std::endl;
@@ -234,44 +231,25 @@ void measureSingleShear1(
         return;
     }
 
-    //
-    // Now do deconvolving measurement, letting only mu vary.
-    //
-    if (!fixSigma) {
-        ell.unfixMu();
-        if (ell.measure(pix,psf,4,4,sigma,flag1,0.1)) {
-            dbg<<"Successful deconvolving fit -- mu only:\n";
-            xdbg<<"Mu = "<<ell.getMu()<<std::endl;
-        } else {
-            ++log._nfMu;
-            dbg<<"Deconvolving measurement failed\n";
-            xdbg<<"flag DECONV_FAILED\n";
-            flag |= DECONV_FAILED;
-            if (!fixCen) cen += ell.getCen();
-            return;
-        }
-    }
-
     // 
-    // Adjust sigma based on the mu value found from the above measurement
-    // and remeasure.  Now also let centroid vary.
+    // Measure a deconvolving fit, still keeping gamma fixed.
     // Also, this time we care about being accurate, so use galOrder2 for
     // the intermediate calculations.
     //
-    sigma *= exp(ell.getMu());
-    ell.setMu(0.);
-    //if (!fixCen) ell.unfixCen();
-    if (ell.measure(pix,psf,galOrder,galOrder2,sigma,flag,1.e-4,0,&shapelet)) {
+    flag1 = 0;
+    if (ell.measure(pix,psf,galOrder,galOrder2,sigma,flag1,1.e-4,0,&shapelet)) {
         dbg<<"Successful deconvolving fit:\n";
         xdbg<<"Mu = "<<ell.getMu()<<std::endl;
         xdbg<<"Cen = "<<ell.getCen()<<std::endl;
         // Convert flags to corresponding SHAPE version if necessary:
         xdbg<<"flag1 = "<<flag1<<std::endl;
-        if (flag & SHEAR_BAD_FLUX) { 
+        if (flag1 & SHEAR_BAD_FLUX) { 
             xdbg<<"flag SHAPE_BAD_FLUX\n";
             flag |= SHAPE_BAD_FLUX;
-            flag &= ~SHEAR_BAD_FLUX;
         }
+#if 0
+        // I don't think I actually care about these.
+        // It's ok for the deconvolution to have a b11 term.
         if (flag & SHEAR_POOR_FIT) { 
             xdbg<<"flag SHAPE_POOR_FIT\n";
             flag |= SHAPE_POOR_FIT;
@@ -282,6 +260,7 @@ void measureSingleShear1(
             flag |= SHAPE_LOCAL_MIN;
             flag &= ~SHEAR_LOCAL_MIN;
         }
+#endif
         xdbg<<"flag => "<<flag<<std::endl;
         ++log._nsMu;
     } else {
@@ -299,7 +278,6 @@ void measureSingleShear1(
     dbg<<"Measured deconvolved b_gal = "<<shapelet.vec()<<std::endl;
     sigma *= exp(ell.getMu());
     ell.setMu(0.);
-    ell.fixMu();
     dbg<<"sigma => "<<sigma<<std::endl;
 
     //
@@ -327,8 +305,6 @@ void measureSingleShear1(
     // Next, we find the shear where the galaxy looks round.
     //
     ell.unfixGam();
-    ell.fixMu();
-    ell.fixCen();
     if (ell.measure(pix,psf,galOrder,galOrder,sigma,flag1,1.e-4)) {
         dbg<<"Successful Gamma fit\n";
         xdbg<<"Measured gamma = "<<ell.getGamma()<<std::endl;

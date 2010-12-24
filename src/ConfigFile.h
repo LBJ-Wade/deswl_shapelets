@@ -179,35 +179,35 @@ public:
 #else
                 throw ParameterException(err);
 #endif
-	    }
-	    if ((*this)[i1] == '}') {
-	        // string is empty: "{ }"
-	        return std::vector<T>();
-	    }
+        }
+        if ((*this)[i1] == '}') {
+            // string is empty: "{ }"
+            return std::vector<T>();
+        }
 
-	    int nComma = std::count(this->begin(),this->end(),',');
-	    std::vector<T> ret(nComma+1);
+        int nComma = std::count(this->begin(),this->end(),',');
+        std::vector<T> ret(nComma+1);
 
-	    int i2 = this->find_first_of("},",i1);
-	    int j = 0;
+        int i2 = this->find_first_of("},",i1);
+        int j = 0;
 
-	    while ((*this)[i2] != '}') {
-	        std::string s = this->substr(i1,i2-i1);
+        while ((*this)[i2] != '}') {
+            std::string s = this->substr(i1,i2-i1);
                 std::stringstream ss(s);
                 ss >> ret[j++];
-		i1 = i2+1;
-		i2 = this->find_first_of("},",i1);
-	    }
-	    {
-	        // Do last element
-	        std::string s = this->substr(i1,i2-i1);
+        i1 = i2+1;
+        i2 = this->find_first_of("},",i1);
+        }
+        {
+            // Do last element
+            std::string s = this->substr(i1,i2-i1);
                 std::stringstream ss(s);
                 ss >> ret[j];
-	    }
-	    if (j != nComma) {
-		throw ParameterException(err);
-	    }
-	    return ret;
+        }
+        if (j != nComma) {
+        throw ParameterException(err);
+        }
+        return ret;
         } else {
             // Using "1. 2. 3." syntax
             std::stringstream ss(*this);

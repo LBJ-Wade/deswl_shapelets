@@ -26,8 +26,7 @@ void doMeasureShear(
     ConfigFile& params, ShearLog& log,
     const Image<double>& im, const Image<double>* weightIm,
     const Transformation& trans, 
-    const InputCatalog& inCat, const StarCatalog& starCat,
-    const FittedPsf& fitPsf,
+    const InputCatalog& inCat, const FittedPsf& fitPsf,
     std::auto_ptr<ShearCatalog>& shearCat);
 
 void doSplitStars(

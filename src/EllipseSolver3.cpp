@@ -43,7 +43,7 @@ struct EllipseSolver3::ESImpl3
     mutable DVector SDb0;
     mutable DVector GDb0;
     mutable DVector GthDb0;
-    bool fixcen, fixgam, fixmu, numeric_j;
+    bool fixcen, fixgam, fixmu, numeric_j, zerob11;
     DMatrix U;
     mutable DVector xinit;
     mutable DVector xx;
@@ -96,7 +96,8 @@ EllipseSolver3::ESImpl3::ESImpl3(
     T(Taug.colRange(0,bxsize)),
     dbdE(6), Db0(bxsize), SDb0(bxsize), GDb0(bxsizep2), GthDb0(bxsizep2),
     fixcen(_fixcen), fixgam(_fixgam), fixmu(_fixmu),
-    numeric_j(false), U((fixcen?0:2)+(fixgam?0:2)+(fixmu?0:1),5), 
+    numeric_j(false), zerob11(true),
+    U((fixcen?0:2)+(fixgam?0:2)+(fixmu?0:1),5), 
     xinit(5), xx(5), ff(5), jj(5,5),
     x_short(U.TMV_colsize()), f_short(U.TMV_colsize()),
     Gx(bxsizep2,bxsize), Gy(bxsizep2,bxsize), 
@@ -201,6 +202,8 @@ void EllipseSolver3::ESImpl3::doF(const DVector& x, DVector& f) const
     }
 
     f = bx.vec().TMV_subVector(1,6) / bx(0);
+
+    if (!zerob11) f(4) = 0.;
 }
 
 void EllipseSolver3::ESImpl3::doJ(
@@ -216,10 +219,9 @@ void EllipseSolver3::ESImpl3::doJ(
     // df/dE = dbx/dE(1:6) / bx(0) - (1/bx(0)^2) (dbx(0)/dE) bx(1:6)
     //       = ( dbx/dE(1:6) - dbx/dE(0) f ) / bx(0)
 
-    //xdbg<<"Start doJ\n";
-    //xdbg<<"x = "<<x<<std::endl;
-    //xdbg<<"f = "<<f<<std::endl;
-    //xdbg<<"J = "<<J<<std::endl;
+    xdbg<<"Start doJ\n";
+    xdbg<<"x = "<<x<<std::endl;
+    xdbg<<"f = "<<f<<std::endl;
 
     Assert(x.size() == 5);
     Assert(J.TMV_rowsize() == 5);
@@ -304,7 +306,8 @@ void EllipseSolver3::ESImpl3::doJ(
         //dbg<<"J(4) = "<<J.col(4)<<std::endl;
     }
     J /= bx(0);
-    //dbg<<"J = "<<J<<std::endl;
+    if (!zerob11) J.row(4).setZero();
+    xdbg<<"J = "<<J<<std::endl;
 
 #ifdef JTEST
     int order = bx.getOrder();
@@ -606,6 +609,8 @@ void EllipseSolver3::ESImpl3::calculateJ(
 
 void EllipseSolver3::useNumericJ() { _pimpl->numeric_j = true; }
 
+void EllipseSolver3::dontZeroB11() { _pimpl->zerob11 = false; this->useSVD(); }
+
 const BVec& EllipseSolver3::getB() const { return _pimpl->bx; }
 
 void EllipseSolver3::getCovariance(DMatrix& cov) const 
@@ -650,6 +655,7 @@ bool EllipseSolver3::solve(DVector& x, DVector& f) const
     Assert(x.size() == 5);
     Assert(f.size() == 5);
     _pimpl->xinit = x;
+    _pimpl->bx.vec().setAllTo(1.); // In case we bail out with f = 2*bx/b(0)
     if (_pimpl->fixcen) { _pimpl->fixuc = x[0]; _pimpl->fixvc = x[1]; }
     if (_pimpl->fixgam) { _pimpl->fixg1 = x[2]; _pimpl->fixg2 = x[3]; }
     if (_pimpl->fixmu) { _pimpl->fixm = x[4]; }

@@ -30,12 +30,15 @@ static std::complex<double> addShears(
 }
 
 void Ellipse::shiftBy(
-    const std::complex<double>& c2,
-    const std::complex<double>& g2,
-    const double m2)
+    const std::complex<double>& c1,
+    const std::complex<double>& g1,
+    const double m1)
 {
-    // Current values are c1, g1, m1.
-    // These effect a transformation:
+    // Current values are c2, g2, m2.
+    // The model is that a round galaxy is first transformed by (c1,g1,m1).
+    // And then by the current values of (c2,g2,m2).
+    //
+    // The first set (c1,g1,m1) effect a transformation:
     //
     // z' = exp(-m1)/sqrt(1-|g1|^2) ( z-c1 - g1 (z-c1)* )
     //
@@ -67,16 +70,18 @@ void Ellipse::shiftBy(
     // This means it is both a dilation and a rotation.
     // But we aren't modelling rotations.  So we need to take it out.
     // We do this by multiplying z by (1+g1* g2)/|1+g1* g2| before
-    // doing the rest of the stuff.
+    // doing the rest of the stuff.  This is allowed because we are 
+    // modelling the galaxy to be initially round, so a rotation doesn't
+    // change that.
     //
     // So the real equation for g3 is:
     // g3/sqrt(1-|g3|^2) = (g1+g2)/|1+g1* g2| / sqrt(1-|g1|^2) / sqrt(1-|g2|^2)
     // 
     // Next m3:
-    // We have a factor of |1+g1 g2*| from the shears.
+    // We have a factor of |1+g1* g2| from the shears.
     // And we also have exp(-m1) and exp(-m2). 
-    // exp(-m3) = |1+g1 g2*| exp(-m1 - m2)
-    // m3 = m1 + m2 - ln(|1+g1 g2*|)
+    // exp(-m3) = |1+g1* g2| exp(-m1 - m2)
+    // m3 = m1 + m2 - ln(|1+g1* g2|)
     //
     // The m1 and m2 parts add an extra exp(-m1) * exp(-m2).
     //
@@ -99,9 +104,9 @@ void Ellipse::shiftBy(
     // c3 = (X + g3 X*) / (1-|g3|^2)
     //
 
-    std::complex<double> c1 = _cen;
-    std::complex<double> g1 = _gamma;
-    double m1 = _mu;
+    std::complex<double> c2 = _cen;
+    std::complex<double> g2 = _gamma;
+    double m2 = _mu;
 
     dbg<<"Start Ellipse::shiftBy\n";
     dbg<<"c1,g1,m1 = "<<c1<<"  "<<g1<<"  "<<m1<<std::endl;
@@ -109,7 +114,7 @@ void Ellipse::shiftBy(
 
     std::complex<double> g12 = 
         (g1+g2) / sqrt(1.-norm(g1)) / sqrt(1.-norm(g2));
-    g12 /= abs(1.+conj(g2)*g1);
+    g12 /= abs(1.+conj(g1)*g2);
     // |g3|^2 / (1-|g3|^2) = |g12|^2
     // |g3|^2 = |g12|^2 - |g12|^2 |g3|^2
     // |g3|^2 = |g12|^2 / (1+|g12|^2)
@@ -119,8 +124,9 @@ void Ellipse::shiftBy(
     dbg<<"g3 = "<<g3<<", g3sq = "<<g3sq<<" = "<<norm(g3)<<std::endl;
 
     xdbg<<"Miralda-Escude formula gives g3 = "<<addShears(g1,g2)<<std::endl;
+    xdbg<<"Reverse Miralda-Escude formula gives g3 = "<<addShears(g2,g1)<<std::endl;
 
-    double m3 = m1 + m2 - log(abs(1.+conj(g2)*g1));
+    double m3 = m1 + m2 - log(abs(1.+conj(g1)*g2));
     dbg<<"m3 = "<<m3<<std::endl;
 
     std::complex<double> temp = -c1 - g1 * conj(-c1);

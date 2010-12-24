@@ -81,30 +81,6 @@ FittedPsf::FittedPsf(
         log);
 }
 
-#if 0
-// this is no longer used
-void FittedPsf::split_psf_stars(std::vector<long>& flags) {
-    // split at this point.  If split_point = 0.5, we split
-    // the sample in half
-    double split_point = _params.read("fitpsf_split_point",0.5);
-    for (int i=0; i<int(flags.size()); i++) {
-        // this must already be a good PSF star
-        if (flags[i] == 0) {
-
-            // number between [0,1)
-            double r = ( (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
-
-            if (r > split_point) {
-                flags[i] |= PSF_VALIDATION;
-            } else {
-                flags[i] |= PSF_TRAINING;
-            }
-
-        }
-    }
-}
-#endif
-
 void FittedPsf::calculate(
     const std::vector<Position>& pos,
     const std::vector<BVec>& psf,

@@ -96,9 +96,16 @@ test_psfrec = env2.Program('test-psfrec', 'TestPsfRec.cpp')
 
 #test_scat_split = env2.Program('test-scat-split', 'test-scat-split.cpp')
 
+# These next few don't need the wl library, so they use env
+
+shearave = env.Program('shearave', 'ShearAverage.cpp')
+
+calcq = env.Program('calcq', 'CalcQ.cpp')
+
+g08setup = env.Program('g08setup', 'G08Setup.cpp')
 
 bin_targets = [measurepsf, measureshear, findstars, multishear, fullpipe, 
-               test_psfrec]
+               test_psfrec, shearave, calcq, g08setup]
 
 if 'install' in COMMAND_LINE_TARGETS:
 

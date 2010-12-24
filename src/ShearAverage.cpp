@@ -6,6 +6,15 @@
 #include <algorithm>
 #include <cstdlib>
 
+#include "Params.h"
+
+static const long ok_flags = (
+    SHAPE_REDUCED_ORDER | 
+    SHAPE_POOR_FIT |
+    SHAPE_LOCAL_MIN |
+    SHAPE_BAD_FLUX );
+
+
 // Weight() calculates an appropriate weight for each galaxy.
 // The important part of the weight function is really the dr parameter.
 // The responsivity will be Sum(dr) / Sum(w).
@@ -24,13 +33,13 @@ static double Weight(
     double k0 = f*vare;
     double k1 = f*f;
 
-#if 1
+#if 0
     // No Weight
     double w = 1.;
     double edwde = 0.;
 #endif
 
-#if 0
+#if 1
     // Simple inverse variance weight
     double w = 1./vare;
     double edwde = 0.;
@@ -69,7 +78,7 @@ static void ReadData(
             // id  x  y  sky  noise  flag  ra  dec  g1  g2  nu ...
             id >> x >> y >> junk >> junk >> 
             flag >> ra >> dec >> g1 >> g2 >> nu;
-        if (flag & ~0xf8000) continue;
+        if (flag & ~ok_flags) continue;
         idVec.push_back(id);
         xVec.push_back(x);
         yVec.push_back(y);
@@ -85,8 +94,14 @@ static void ReadData(
 
 int main(int argc, char **argv)
 {
-    if (argc != 3) {
-        std::cerr<<"Usage: shearave infile outfile\n";
+    if (!(argc == 3 || argc == 5)) {
+        std::cerr<<"Usage: shearave inFile outFile\n";
+        std::cerr<<"or     shearave inFile outFile fileId answerslist\n";
+        std::cerr<<"The first version merely converts the standard ouput\n";
+        std::cout<<"from measureshears into numbers that can be used for\n";
+        std::cout<<"computing averages.\n";
+        std::cout<<"The second version also computes the averages and writes\n";
+        std::cout<<"them to a file (appended) along with a fileId string.\n";
         exit(1);
     }
 
@@ -94,18 +109,25 @@ int main(int argc, char **argv)
     // Open files
     //
 
-    std::string infile = argv[1];
-    std::string outfile = argv[2];
-    std::ifstream fin(infile.c_str());
+    std::string inFile = argv[1];
+    std::string outFile = argv[2];
+    std::ifstream fin(inFile.c_str());
     if (!fin) {
-        std::cerr<<"Unable to open input file "<<infile<<std::endl;
+        std::cerr<<"Unable to open input file "<<inFile<<std::endl;
         exit(1);
     }
-    std::ofstream fout(outfile.c_str());
+    std::ofstream fout(outFile.c_str());
     if (!fout) {
-        std::cerr<<"Unable to open output file "<<outfile<<std::endl;
+        std::cerr<<"Unable to open output file "<<outFile<<std::endl;
         exit(1);
     }
+    std::string fileId;
+    std::string answersFile;
+    if (argc == 5) {
+        fileId = argv[3];
+        answersFile = argv[4];
+    }
+
 
     //
     // Read data
@@ -188,10 +210,11 @@ int main(int argc, char **argv)
     // Now convert back to gamma:
     double abse = std::abs(e);
     double eta = atanh(abse);
-    double absgamma = tanh(eta/2);
+    double absgamma = tanh(eta/2.);
     std::complex<double> gamma = absgamma/abse * e;
+    double siggamma = tanh(atanh(sige)/2.);
     std::cout<<"e = "<<e<<" +- "<<sige<<std::endl;
-    std::cout<<"gamma = "<<gamma<<std::endl;
+    std::cout<<"gamma = "<<gamma<<" +- "<<siggamma<<std::endl;
 
     //
     // Write out responsivity-corrected catalog
@@ -202,12 +225,19 @@ int main(int argc, char **argv)
         fout<<
             xVec[i]<<"  "<<yVec[i]<<"  "<<
             raVec[i]<<"  "<<decVec[i]<<"  ";
-        fout.precision(4);
+        fout.precision(6);
         fout<<
             real(gVec[i])/resp<<"  "<<imag(gVec[i])/resp<<"  "<<
             sqrt(vargVec[i])/resp<<std::endl;
     }
     fout.close();
+
+    if (argc == 5) {
+        std::ofstream answersout(answersFile.c_str(),std::ios_base::app);
+        fout.precision(6);
+        answersout << fileId<<"  "<<real(gamma)<<"  "<<imag(gamma)<<"  ";
+        answersout << siggamma<<"  "<<siggamma<<std::endl;
+    }
 
     return 0;
 }

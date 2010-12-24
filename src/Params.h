@@ -2,46 +2,81 @@
 #define PARAMS_H
 
 #include <stdexcept>
+#include <vector>
+#include <ostream>
 
-// Default value for 
+// Default value for various measured quantities
 #define DEFVALPOS 9999
 #define DEFVALNEG -9999
 
 //
 // Flags 
 //
-#define INPUT_FLAG              0x1
-#define TRANSFORM_EXCEPTION     0x2
-#define FITTEDPSF_EXCEPTION     0x4
-#define TMV_EXCEPTION           0x8
-#define STD_EXCEPTION           0x10
-#define UNKNOWN_EXCEPTION       0x20
-#define EDGE                    0x40
-#define LT10PIX                 0x80
-#define MEASURE_PSF_FAILED      0x100
-#define NATIVE_FAILED           0x200
-#define TOO_SMALL               0x400
-#define DECONV_FAILED           0x800
-#define SHEAR_FAILED            0x1000
-#define SHAPELET_FAILED         0x2000
-#define UNKNOWN_FAILURE         0x4000
-#define SHAPE_REDUCED_ORDER     0x8000
-#define SHEAR_LOCAL_MIN         0x10000
-#define SHEAR_POOR_FIT          0x20000
-#define SHAPE_LOCAL_MIN         0x40000
-#define SHAPE_POOR_FIT          0x80000
-#define SHEAR_BAD_COVAR         0x100000
-#define NO_SINGLE_EPOCH_IMAGES	0x200000
-#define BKG_NOPIX		        0x400000
-#define PSF_INTERP_OUTLIER	    0x800000
-#define SHEAR_BAD_FLUX          0x1000000
-#define PSF_BAD_FLUX            0x2000000
-#define SHAPE_BAD_FLUX          0x4000000
-#define CENTROID_FAILED         0x8000000
-#define SHAPELET_NOT_DECONV     0x10000000
+static const long INPUT_FLAG              = 0x1;
+static const long TRANSFORM_EXCEPTION     = 0x2;
+static const long FITTEDPSF_EXCEPTION     = 0x4;
+static const long TMV_EXCEPTION           = 0x8;
+static const long STD_EXCEPTION           = 0x10;
+static const long UNKNOWN_EXCEPTION       = 0x20;
+static const long EDGE                    = 0x40;
+static const long LT10PIX                 = 0x80;
+static const long MEASURE_PSF_FAILED      = 0x100;
+static const long NATIVE_FAILED           = 0x200;
+static const long TOO_SMALL               = 0x400;
+static const long DECONV_FAILED           = 0x800;
+static const long SHEAR_FAILED            = 0x1000;
+static const long SHAPELET_FAILED         = 0x2000;
+static const long UNKNOWN_FAILURE         = 0x4000;
+static const long SHAPE_REDUCED_ORDER     = 0x8000;
+static const long SHEAR_LOCAL_MIN         = 0x10000;
+static const long SHEAR_POOR_FIT          = 0x20000;
+static const long SHAPE_LOCAL_MIN         = 0x40000;
+static const long SHAPE_POOR_FIT          = 0x80000;
+static const long SHEAR_BAD_COVAR         = 0x100000;
+static const long NO_SINGLE_EPOCH_IMAGES  = 0x200000;
+static const long BKG_NOPIX               = 0x400000;
+static const long PSF_INTERP_OUTLIER      = 0x800000;
+static const long SHEAR_BAD_FLUX          = 0x1000000;
+static const long PSF_BAD_FLUX            = 0x2000000;
+static const long SHAPE_BAD_FLUX          = 0x4000000;
+static const long CENTROID_FAILED         = 0x8000000;
+static const long SHAPELET_NOT_DECONV     = 0x10000000;
 
+static const long NFLAGS = 29;
 
-#define RANDOMIZE_CENTER
+static const char* flagName[NFLAGS] = {
+    "INPUT_FLAG",
+    "TRANSFORM_EXCEPTION",
+    "FITTEDPSF_EXCEPTION",
+    "TMV_EXCEPTION",
+    "STD_EXCEPTION",
+    "UNKNOWN_EXCEPTION",
+    "EDGE",
+    "LT10PIX",
+    "MEASURE_PSF_FAILED",
+    "NATIVE_FAILED",
+    "TOO_SMALL",
+    "DECONV_FAILED",
+    "SHEAR_FAILED",
+    "SHAPELET_FAILED",
+    "UNKNOWN_FAILURE",
+    "SHAPE_REDUCED_ORDER",
+    "SHEAR_LOCAL_MIN",
+    "SHEAR_POOR_FIT",
+    "SHAPE_LOCAL_MIN",
+    "SHAPE_POOR_FIT",
+    "SHEAR_BAD_COVAR",
+    "NO_SINGLE_EPOCH_IMAGES",
+    "BKG_NOPIX",
+    "PSF_INTERP_OUTLIER",
+    "SHEAR_BAD_FLUX",
+    "PSF_BAD_FLUX",
+    "SHAPE_BAD_FLUX",
+    "CENTROID_FAILED",
+    "SHAPELET_NOT_DECONV" 
+};
+
+void PrintFlags(const std::vector<long>& flags, std::ostream& os);
 
 // Errors specific to the weak lensing code
 

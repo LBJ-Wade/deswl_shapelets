@@ -2,6 +2,31 @@
 #include "Params.h"
 #include "ConfigFile.h"
 
+void PrintFlags(const std::vector<long>& flags, std::ostream& os)
+{
+    const int nObj = flags.size();
+
+    std::vector<long> nFlagCount(NFLAGS,0);
+    long nNoFlag = 0;
+
+    for(int i=0;i<nObj;++i) {
+        long flag = flags[i];
+        if (!flag) ++nNoFlag;
+        for(long flagNum = 0; flagNum < NFLAGS; ++flagNum) {
+            if (flag & (1 << flagNum)) ++nFlagCount[flagNum];
+        }
+    }
+    os<<"Total N = "<<nObj<<std::endl;
+    os<<"N with no flags = "<<nNoFlag<<std::endl;
+    for(long flagNum = 0; flagNum < NFLAGS; ++flagNum) {
+        if (nFlagCount[flagNum]) {
+            os<<"N with "<<flagName[flagNum]<<" = "<<
+                nFlagCount[flagNum]<<std::endl;
+        }
+    }
+}
+
+// Errors specific to the weak lensing code
 const char* Text(const ExitCode& code)
 {
     switch (code) {

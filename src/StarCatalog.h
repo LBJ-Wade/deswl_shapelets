@@ -29,13 +29,11 @@ public:
         const ConfigFile& params, std::string fsPrefix = "stars_");
 
     // copy the input StarCatalog
-    StarCatalog(
-        const StarCatalog& inStarCat);
+    StarCatalog(const StarCatalog& inStarCat);
 
     // In this version, we take a subset of the input star catalog.
     // note indices must be sorted!
-    StarCatalog(
-        const StarCatalog& inStarCat, const std::vector<long> indices);
+    StarCatalog(const StarCatalog& inStarCat, const std::vector<long> indices);
 
     // Setup the parameters.  Normally followed by read() or similar.
     StarCatalog(const ConfigFile& params, std::string fsPrefix = "stars_");

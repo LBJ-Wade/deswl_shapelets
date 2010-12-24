@@ -107,9 +107,9 @@ void CrudeSolver::calculateJ(
     // dfi/dmu = Wi I0 Ei (x1 dx1/dxc + y1 dy1/dxc) 
     // likewise for the other 4
     //
-    // dx1/dxc = -m 		dy1/dxc = 0
-    // dx1/dyc = 0 		dy1/dyc = -m
-    // dx1/dmu = -x1		dy1/dmu = -y1
+    // dx1/dxc = -m         dy1/dxc = 0
+    // dx1/dyc = 0          dy1/dyc = -m
+    // dx1/dmu = -x1        dy1/dmu = -y1
     //
 
 #ifdef USE_TMV
@@ -196,14 +196,6 @@ void Ellipse::crudeMeasure(const PixelList& pix, double sigma)
         Irr += wt * pix[i].getFlux() * std::norm(pix[i].getPos()-zc);
         I += wt * pix[i].getFlux();
         W += wt;
-#if 0
-        if (std::abs(wt * pix[i].getFlux() * std::norm(pix[i].getPos()-zc)) > 1.) {
-            dbg<<"pix.getFlux() = "<<pix[i].getFlux()<<std::endl;
-            dbg<<"pix.getPos() = "<<pix[i].getPos()<<std::endl;
-            dbg<<"pix.getInverseSigma() = "<<pix[i].getInverseSigma()<<std::endl;
-            dbg<<"wt = "<<wt<<std::endl;
-        }
-#endif
     }
     xdbg<<"Iz = "<<Iz<<", Irr = "<<Irr<<", I = "<<I<<", W = "<<W<<std::endl;
 

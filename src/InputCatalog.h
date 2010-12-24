@@ -7,6 +7,8 @@
 #include "ConfigFile.h"
 #include "Image.h"
 
+class StarCatalog;
+
 class InputCatalog 
 {
 
@@ -21,23 +23,25 @@ public :
     // It is usually followed by read() or something similar.
     InputCatalog(ConfigFile& params, const Image<double>* im=0);
 
-
-    // ESS Factor the code a bit.  This allows empty constructor and delayed
-    // load of params and data
     InputCatalog() {};
-    //void init(ConfigFile& params);
+
+    // These next few allow for the above empty constructor with
+    // delayed loading of the catalog.
     void init(ConfigFile& params, const Image<double>* im=0);
-    void loadParams(std::string file) {
-      _params.load(file);
-    }
+    void loadParams(std::string file) { _params.load(file); }
     void loadParams(const ConfigFile& params) {
-      // ESS I don't know how else to do this
-      std::stringstream s;
-      s<<params;
-      _params.read(s);
+#if 1
+        _params = params;
+#else
+        // ESS I don't know how else to do this
+        std::stringstream s;
+        s<<params;
+        _params.read(s);
+#endif
     }
     void determineNoiseMethod();
 
+    void flagStars(const StarCatalog& starCat);
 
     size_t size() const { return _pos.size(); }
 

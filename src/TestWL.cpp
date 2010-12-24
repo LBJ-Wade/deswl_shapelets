@@ -33,13 +33,13 @@ bool shouldThrow = true;
 std::string lastSuccess = "";
 std::ostream* testout = &std::cout;
 
-//#define TEST1  // Basic measurements, ApplyZ/G/Mu
+#define TEST1  // Basic measurements, ApplyZ/G/Mu
 //#define TEST2  // Deconvolving measurements, PsfConvolve
 //#define TEST3  // Solve for Ellipse -- single image
 //#define TEST4  // Solve for Ellipse -- multiple images
 //#define TEST5  // Use Ellipse's measure function
 //#define TEST6  // Test on real data images
-#define TEST7   // Compare with Gary's shapelet code
+//#define TEST7   // Compare with Gary's shapelet code
 
 #ifdef TEST1
 #define TEST12
@@ -872,14 +872,14 @@ int main(int argc, char **argv) try
 
 #ifdef TEST12345
     double aperture = 15.;
-    const int NELL = 2;
+    const int NELL = 8;
     double ell_vecs[NELL][5] = {
-        //{0.0,0.0,0.0,0.0,0.0},
-        //{0.3,0.0,0.0,0.0,0.0},
-        //{0.0,0.3,0.0,0.0,0.0},
-        //{0.0,0.0,0.3,0.0,0.0},
-        //{0.0,0.0,0.0,0.3,0.0},
-        //{0.0,0.0,0.0,0.0,0.3},
+        {0.0,0.0,0.0,0.0,0.0},
+        {0.3,0.0,0.0,0.0,0.0},
+        {0.0,0.3,0.0,0.0,0.0},
+        {0.0,0.0,0.3,0.0,0.0},
+        {0.0,0.0,0.0,0.3,0.0},
+        {0.0,0.0,0.0,0.0,0.3},
         {0.1,-0.2,0.1,0.2,-0.2},
         {-0.11,0.24,-0.18,0.15,-0.14}
     };
@@ -894,6 +894,7 @@ int main(int argc, char **argv) try
 #ifdef TEST1
     // First test the applyZ, G, Mu routines along with basic b vector 
     // measurements.
+#if 0
     for(int stype = 0; stype<=1; ++stype) {
         dbg<<"stype = "<<stype<<std::endl;
         for(int ie = 0; ie < NELL; ++ie) {
@@ -1126,6 +1127,39 @@ int main(int argc, char **argv) try
                 }
             }
         }
+    }
+#endif
+    // Also test the Ellipse shiftBy function:
+    for(int ie = 0; ie < NELL; ++ie) {
+        Ellipse ell(ell_vecs[ie]);
+        dbg<<"ell = "<<ell<<std::endl;
+        std::complex<double> z0 = ell.getCen();
+        std::complex<double> g0 = ell.getGamma();
+        double m0 = ell.getMu();
+        Ellipse e1 = ell;
+        e1.shiftBy(0.0,std::complex<double>(0.01,0.0),0.0);
+        e1 = ell;
+        e1.shiftBy(0.0,std::complex<double>(0.1,0.0),0.0);
+        e1 = ell;
+        e1.shiftBy(0.0,std::complex<double>(0.2,0.0),0.0);
+        e1 = ell;
+        e1.shiftBy(0.0,std::complex<double>(0.3,0.0),0.0);
+        e1 = ell;
+        e1.shiftBy(0.0,std::complex<double>(0.9,0.0),0.0);
+        e1 = ell;
+        e1.shiftBy(0.0,std::complex<double>(0.0,0.01),0.0);
+        e1 = ell;
+        e1.shiftBy(0.0,std::complex<double>(0.0,0.1),0.0);
+        e1 = ell;
+        e1.shiftBy(0.0,std::complex<double>(0.0,0.3),0.0);
+        e1 = ell;
+        e1.shiftBy(0.0,std::complex<double>(0.0,0.9),0.0);
+        e1 = ell;
+        e1.shiftBy(0.0,std::complex<double>(0.1,0.1),0.0);
+        e1 = ell;
+        e1.shiftBy(0.0,std::complex<double>(0.3,0.9),0.0);
+        e1 = ell;
+        e1.shiftBy(0.0,std::complex<double>(0.8,0.2),0.0);
     }
     std::cout<<"Passed tests of applyZ, G, Mu and basic measurements\n";
 #endif

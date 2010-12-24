@@ -119,6 +119,7 @@ public :
     void calculateJ(const DVector& x, const DVector& f, DMatrix& df) const;
 
     void useNumericJ();
+    void dontZeroB11();
     const BVec& getB() const;
     void getBCov(DMatrix& bcov) const;
     void getCovariance(DMatrix& cov) const;
@@ -130,6 +131,7 @@ public :
     bool solve(DVector& x, DVector& f) const;
     bool testJ(const DVector& x, DVector& f,
                std::ostream* os=0, double relerr=0.) const;
+
 private :
 
     struct ESImpl3;

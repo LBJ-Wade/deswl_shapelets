@@ -20,7 +20,7 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
     double maxAperture = _params.read("shear_max_aperture",0.);
     int galOrder = _params.read<int>("shear_gal_order");
     int galOrder2 = _params.read<int>("shear_gal_order2");
-    double fPsf = _params.read<double>("shear_f_psf");
+    double fPsf = _params.read("shear_f_psf",1.);
     double minGalSize = _params.read<double>("shear_min_gal_size");
     bool galFixCen = _params.read("shear_fix_centroid",false);
     bool shouldOutputDots = _params.read("output_dots",false);

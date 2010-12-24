@@ -22,11 +22,6 @@ int ShearCatalog::measureShears(
     const Image<double>& im,
     const Image<double>* weightIm, ShearLog& log)
 {
-
-    // should we ramdomize the trajectory of the
-    // centroid search?
-    // see Params.h
-#ifdef RANDOMIZE_CENTER
     static bool first = true;
     if (first) {
         // initialize random seed:
@@ -35,13 +30,10 @@ int ShearCatalog::measureShears(
         for (size_t i=0;i<this->size(); i++) {
             seed += i*_flags[i];
         }
-        //srand ( time(NULL) );
-        //std::cout<<"using seed: "<<seed<<"\n";
+        dbg<<"using seed: "<<seed<<"\n";
         srand (seed);
         first = false;
     }
-#endif
-
 
     int nGals = size();
     dbg<<"ngals = "<<nGals<<std::endl;
@@ -51,7 +43,7 @@ int ShearCatalog::measureShears(
     double maxAperture = _params.read("shear_max_aperture",0.);
     int galOrder = _params.read<int>("shear_gal_order");
     int galOrder2 = _params.read<int>("shear_gal_order2");
-    double fPsf = _params.read<double>("shear_f_psf");
+    double fPsf = _params.read<double>("shear_f_psf",1.);
     double gain = _params.read("image_gain",0.);
     double minGalSize = _params.read<double>("shear_min_gal_size");
     bool galFixCen = _params.read("shear_fix_centroid",false);
@@ -170,6 +162,8 @@ int ShearCatalog::measureShears(
     dbg<<nGals-log._nsGamma<<" unsuccessful\n";
     log._nGood = std::count(_flags.begin(),_flags.end(),0);
     dbg<<log._nGood<<" with no flags\n";
+    dbg<<"Breakdown of flags:\n";
+    if (dbgout) PrintFlags(_flags,*dbgout);
 
     if (shouldOutputDots) {
         std::cerr

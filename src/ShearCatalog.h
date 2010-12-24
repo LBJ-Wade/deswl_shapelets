@@ -9,7 +9,6 @@
 #include "MyMatrix.h"
 #include "Transformation.h"
 #include "InputCatalog.h"
-#include "StarCatalog.h"
 #include "Image.h"
 #include "Log.h"
 #include "FittedPsf.h"
@@ -28,7 +27,6 @@ public :
 
     void setTrans(const Transformation& trans) { _trans = &trans; }
     void setFittedPsf(const FittedPsf& fitPsf) { _fitPsf = &fitPsf; }
-    void flagStars(const StarCatalog& starCat);
 
     size_t size() const { return _id.size(); }
 

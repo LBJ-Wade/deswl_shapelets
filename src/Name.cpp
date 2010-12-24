@@ -139,6 +139,7 @@ std::string makeName(
     } else {
         // Determine the name from the root, prefix, and ext.
         Assert(params.keyExists("root"));
+        Assert(params.keyExists(what+"_ext"));
         Assert(extList.size() > 0);
         std::string root = params["root"];
         xdbg<<"No "<<(what+"_file")<<" parameter, so use root.\n";

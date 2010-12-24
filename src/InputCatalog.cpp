@@ -3,10 +3,27 @@
 #include <CCfits/CCfits>
 
 #include "InputCatalog.h"
+#include "StarCatalog.h"
 #include "dbg.h"
 #include "Name.h"
 #include "Params.h"
 #include "Image.h"
+
+void InputCatalog::flagStars(const StarCatalog& starCat)
+{
+    const int nGals = _id.size();
+    for (int i=0; i<nGals; ++i) {
+        xdbg<<"i = "<<i<<", id[i] = "<<_id[i]<<std::endl;
+        // It doesn't seem worth making a separate flag for this.
+        // If it's considered a star, let's just admit that it's too small 
+        // to bother trying to measure a shear for it.
+        if (starCat.isAStar(_id[i])) {
+            xdbg<<"Flag this one as a star\n";
+            _flags[i] |= TOO_SMALL;
+            xdbg<<i<<" is a star: flag -> "<<_flags[i]<<std::endl;
+        }
+    }
+}
 
 
 static void readGain(const std::string& file, int hdu, ConfigFile& params)
@@ -167,8 +184,8 @@ void InputCatalog::read()
     if (_sky.size() == 0) _sky.resize(_id.size(),badSkyVal);
     if (std::find(_sky.begin(), _sky.end(), badSkyVal) != _sky.end()) {
         double globSky = 0.;
-        if (_params.keyExists("cat_globalsky")) {
-            globSky = _params["cat_globalsky"];
+        if (_params.keyExists("cat_global_sky")) {
+            globSky = _params["cat_global_sky"];
         } else {
             if (_im) {
                 globSky = _im->median();
