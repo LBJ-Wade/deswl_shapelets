@@ -122,11 +122,25 @@ void Image<T>::readFits()
         throw FileNotFoundException(_fileName);
     }
 
-#if 1
+#if 0
     // New CCFits implementation
+    // This isn't working for me.  
+    // I think it is because all three extensions have the same name:
+    // COMPRESSED_IMAGE.
+    // I've sent email to the CCfits help desk to see if they can help
+    // me figure out the right way to do this.
+    // But for now, stick with cfitsio commands.
     try {
         CCfits::FITS fits(_fileName, CCfits::Read);
         xdbg<<"Made fits object\n";
+        if (XDEBUG) {
+            typedef std::multimap<std::string, CCfits::ExtHDU*> extmap_type;
+            const extmap_type& extmap = const_cast<const CCfits::FITS&>(fits).extension();
+            for(extmap_type::const_iterator i=extmap.begin();i!=extmap.end();++i) {
+                xdbg<<"Extension "<<i->first<<" = "<<i->second<<std::endl;
+            }
+        }
+
         std::valarray<double> data;
         if (_hdu == 1) {
             CCfits::PHDU& image=fits.pHDU();
@@ -189,19 +203,26 @@ void Image<T>::readFits()
     }
 #else
     // Old cfitsio implementation.
-    // Remove once above is confirmed to be working correctly.
+    // Remove once above is working correctly.
     fitsfile *fPtr;
     int fitsErr=0;
 
     fits_open_file(&fPtr,_fileName.c_str(),READONLY,&fitsErr);
     xdbg<<"Done open"<<std::endl;
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw ReadException(
+            "Error opening fits file " + _fileName);
+    }
 
     fits_movabs_hdu(fPtr,_hdu,0,&fitsErr);
     xdbg<<"Moved to hdu "<<_hdu<<std::endl;
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw ReadException(
+            "Error reading from " + _fileName + 
+            " moving to hdu " + ConvertibleString(_hdu));
+    }
 
     int bitPix, nAxes;
     long sizes[2];
@@ -210,9 +231,19 @@ void Image<T>::readFits()
     xdbg<<"naxes = "<<nAxes<<std::endl;
     xdbg<<"bitpix = "<<bitPix<<std::endl;
     xdbg<<"FLOAT_IMG = "<<FLOAT_IMG<<std::endl;
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
-    Assert(nAxes == 2);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw ReadException(
+            "Error reading from " + _fileName + 
+            " hdu " + ConvertibleString(_hdu) +
+            " reading image parameters");
+    }
+    if (nAxes != 2) {
+        throw ReadException(
+            "Error reading from " + _fileName + 
+            " hdu " + ConvertibleString(_hdu) +
+            " Number of axes != 2");
+    }
     xdbg<<"sizes = "<<sizes[0]<<"  "<<sizes[1]<<std::endl;
 
     _xMin = 0;
@@ -228,18 +259,25 @@ void Image<T>::readFits()
     Assert(getDataType<T>());
     fits_read_pix(fPtr,getDataType<T>(),fPixel,long(_xMax*_yMax),0,
                   TMV_ptr(*_source),&anynul,&fitsErr);
-    xdbg<<"done readpix  "<<fitsErr<<std::endl;
+    xdbg<<"done readpix\n";
     xdbg<<"anynul = "<<anynul<<std::endl;
-    xdbg<<"fitserr = "<<fitsErr<<std::endl;
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw ReadException(
+            "Error reading from " + _fileName + 
+            " hdu " + ConvertibleString(_hdu) +
+            " reading pixel data");
+    }
 
     _m.reset(new TMatrixView(T)(TMV_view(*_source)));
     xdbg<<"Done make matrixview"<<std::endl;
 
     fits_close_file(fPtr, &fitsErr);
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw ReadException(
+            "Error closing fits file " + _fileName);
+    }
 #endif
 
     xdbg<<"Done Image ReadFits"<<std::endl;
@@ -378,13 +416,21 @@ void Image<T>::readFits(int x1, int x2, int y1, int y2)
 
     fits_open_file(&fPtr,_fileName.c_str(),READONLY,&fitsErr);
     xdbg<<"Done open"<<std::endl;
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw ReadException(
+            "Error opening fits file " + _fileName);
+    }
+
 
     fits_movabs_hdu(fPtr,_hdu,0,&fitsErr);
     xdbg<<"Moved to hdu "<<_hdu<<std::endl;
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw ReadException(
+            "Error reading from " + _fileName + 
+            " moving to hdu " + ConvertibleString(_hdu));
+    }
 
     int bitPix, nAxes;
     long sizes[2];
@@ -393,9 +439,19 @@ void Image<T>::readFits(int x1, int x2, int y1, int y2)
     xdbg<<"naxes = "<<nAxes<<std::endl;
     xdbg<<"bitpix = "<<bitPix<<std::endl;
     xdbg<<"FLOAT_IMG = "<<FLOAT_IMG<<std::endl;
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
-    Assert(nAxes == 2);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw ReadException(
+            "Error reading from " + _fileName + 
+            " hdu " + ConvertibleString(_hdu) +
+            " getting image parameters");
+    }
+    if (nAxes != 2) {
+        throw ReadException(
+            "Error reading from " + _fileName + 
+            " hdu " + ConvertibleString(_hdu) +
+            " number of axes != 2");
+    }
     xdbg<<"sizes = "<<sizes[0]<<"  "<<sizes[1]<<std::endl;
 
     _xMin = 0;
@@ -418,18 +474,25 @@ void Image<T>::readFits(int x1, int x2, int y1, int y2)
     Assert(getDataType<T>());
     fits_read_subset(fPtr,getDataType<T>(),fPixel,lPixel,inc,
                      0,TMV_ptr(*_source),&anynul,&fitsErr);
-    xdbg<<"done read_subset "<<fitsErr<<std::endl;
+    xdbg<<"done read_subset\n";
     xdbg<<"anynul = "<<anynul<<std::endl;
-    xdbg<<"fitserr = "<<fitsErr<<std::endl;
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw ReadException(
+            "Error reading from " + _fileName + 
+            " hdu " + ConvertibleString(_hdu) +
+            " reading pixel data");
+    }
 
     _m.reset(new TMatrixView(T)(TMV_view(*_source)));
     xdbg<<"Done make matrixview"<<std::endl;
 
     fits_close_file(fPtr, &fitsErr);
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw ReadException(
+            "Error closing fits file " + _fileName);
+    }
     xdbg<<"Leaving Image ReadFits"<<std::endl;
 }
 
@@ -449,26 +512,41 @@ void Image<T>::flush() const
     fitsfile *fPtr;
     int fitsErr=0;
     fits_open_file(&fPtr,_fileName.c_str(),READWRITE,&fitsErr);
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw WriteException(
+            "Error opening fits file " + _fileName);
+    }
 
     if (_hdu != 1) {
         int hduType;
         fits_movabs_hdu(fPtr,_hdu,&hduType,&fitsErr);
-        if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-        Assert(fitsErr==0);
+        if (fitsErr != 0) {
+            fits_report_error(stderr,fitsErr);
+            throw WriteException(
+                "Error reading from " + _fileName + 
+                " moving to hdu " + ConvertibleString(_hdu));
+        }
     }
 
     long fPixel[2] = {1,1};
     Assert(getDataType<T>());
     fits_write_pix(fPtr,getDataType<T>(),fPixel,long(_xMax*_yMax),
                    TMV_ptr(*_m),&fitsErr);
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw WriteException(
+            "Error reading from " + _fileName + 
+            " hdu " + ConvertibleString(_hdu) +
+            " writing pixel data");
+    }
 
     fits_close_file(fPtr, &fitsErr);
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw WriteException(
+            "Error closing fits file " + _fileName);
+    }
 }
 
 template <typename T> 
@@ -480,27 +558,41 @@ void Image<T>::write(std::string fileName) const
     fitsfile *fPtr;
     int fitsErr=0;
     fits_create_file(&fPtr,("!"+_fileName).c_str(),&fitsErr);
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw WriteException(
+            "Error creating fits file " + _fileName);
+    }
 
     Assert(getBitPix<T>());
     int bitPix = getBitPix<T>();
     int nAxes = 2;
     long sizes[2] = { _m->TMV_colsize(), _m->TMV_rowsize() };
     fits_create_img(fPtr, bitPix, nAxes, sizes, &fitsErr);
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw WriteException(
+            "Error writing " + _fileName + 
+            " creating image");
+    }
 
     long fPixel[2] = {1,1};
     Assert(getDataType<T>());
     fits_write_pix(fPtr,getDataType<T>(),fPixel,long(_xMax*_yMax),
                    TMV_ptr(*_m),&fitsErr);
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw WriteException(
+            "Error reading from " + _fileName + 
+            " writing pixel data");
+    }
 
     fits_close_file(fPtr, &fitsErr);
-    if (fitsErr != 0) fits_report_error(stderr,fitsErr);
-    Assert(fitsErr==0);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw WriteException(
+            "Error closing fits file " + _fileName);
+    }
 }
 
 template <typename T> 

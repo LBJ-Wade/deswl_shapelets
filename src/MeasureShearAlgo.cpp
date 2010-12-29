@@ -306,7 +306,10 @@ void measureSingleShear1(
             dbg<<"Bad flux value: \n";
             dbg<<"flux = "<<flux(0)<<std::endl;
             dbg<<"shapelet = "<<shapelet.vec()<<std::endl;
-            if (!lastfpsf) continue;
+            if (!lastfpsf) {
+                --log._nsMu;
+                continue;
+            }
             xdbg<<"flag SHAPE_BAD_FLUX\n";
             flag |= SHAPE_BAD_FLUX;
         }
@@ -322,9 +325,17 @@ void measureSingleShear1(
             dbg<<"Measured gamma = "<<ell.getGamma()<<std::endl;
             dbg<<"Mu  = "<<ell.getMu()<<std::endl;
             dbg<<"Cen  = "<<ell.getCen()<<std::endl;
+            if (flag1 && !lastfpsf) {
+                dbg<<"However, flag = "<<flag1<<", so try larger fPsf\n";
+                --log._nsMu;
+                continue;
+            }
         } else {
             dbg<<"Measurement failed (1st pass)\n";
-            if (!lastfpsf) continue;
+            if (!lastfpsf) {
+                --log._nsMu;
+                continue;
+            }
             ++log._nfGamma;
             xdbg<<"flag SHEAR_FAILED\n";
             flag |= SHEAR_FAILED;
@@ -344,7 +355,10 @@ void measureSingleShear1(
         dbg<<"npix = "<<npix<<std::endl;
         if (npix < 10) {
             dbg<<"Too few pixels to continue: "<<npix<<std::endl;
-            if (!lastfpsf) continue;
+            if (!lastfpsf) {
+                --log._nsMu;
+                continue;
+            }
             xdbg<<"flag SHAPELET_NOT_DECONV\n";
             flag |= SHAPELET_NOT_DECONV;
             if (!fixCen) cen += ell.getCen();
@@ -361,14 +375,22 @@ void measureSingleShear1(
         ell.setMu(0.);
         DMatrix cov5(5,5);
         if (ell.measure(pix,psf,galOrder,galOrder2,sigma,flag,1.e-4,&cov5)) {
-            ++log._nsGamma;
             dbg<<"Successful Gamma fit (2nd pass)\n";
             dbg<<"Measured gamma = "<<ell.getGamma()<<std::endl;
             dbg<<"Mu  = "<<ell.getMu()<<std::endl;
             dbg<<"Cen  = "<<ell.getCen()<<std::endl;
+            if (flag && !lastfpsf) {
+                dbg<<"However, flag = "<<flag<<", so try larger fPsf\n";
+                --log._nsMu;
+                continue;
+            }
+            ++log._nsGamma;
         } else {
             dbg<<"Measurement failed (2nd pass)\n";
-            if (!lastfpsf) continue;
+            if (!lastfpsf) {
+                --log._nsMu;
+                continue;
+            }
             ++log._nfGamma;
             xdbg<<"flag SHEAR_FAILED\n";
             flag |= SHEAR_FAILED;
@@ -385,7 +407,11 @@ void measureSingleShear1(
             dbg<<"cov2 has bad determinant: "<<cov2.TMV_det()<<std::endl;
             dbg<<"cov2 = "<<cov2<<std::endl;
             dbg<<"Full cov = "<<cov5<<std::endl;
-            if (!lastfpsf) continue;
+            if (!lastfpsf) {
+                --log._nsMu;
+                --log._nsGamma;
+                continue;
+            }
             xdbg<<"flag SHEAR_BAD_COVAR\n";
             flag |= SHEAR_BAD_COVAR;
         } else {
