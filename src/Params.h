@@ -44,7 +44,7 @@ static const long SHAPELET_NOT_DECONV     = 0x10000000;
 
 static const long NFLAGS = 29;
 
-static const char* flagName[NFLAGS] = {
+static const char*const flagName[NFLAGS] = {
     "INPUT_FLAG",
     "TRANSFORM_EXCEPTION",
     "FITTEDPSF_EXCEPTION",

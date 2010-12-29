@@ -68,7 +68,7 @@ public:
     const std::vector<double>& getSkyList() const { return _sky; }
     const std::vector<double>& getNoiseList() const { return _noise; }
     const std::vector<long>& getFlagsList() const { return _flags; }
-    const std::vector<float>& getMagList() const { return _mag; }
+    const std::vector<double>& getMagList() const { return _mag; }
     const std::vector<double>& getObjSizeList() const { return _objSize; }
     const std::vector<bool>& getIsAStarList() const { return _isAStar; }
 
@@ -82,7 +82,7 @@ public:
     double   getSky(int i)     const { return _sky[i]; }
     double   getNoise(int i)   const { return _noise[i]; }
     long     getFlags(int i)   const { return _flags[i]; }
-    float    getMag(int i)     const { return _mag[i]; }
+    double   getMag(int i)     const { return _mag[i]; }
     double   getObjSize(int i) const { return _objSize[i]; }
     bool     getIsAStar(int i) const { return _isAStar[i]; }
 
@@ -104,7 +104,7 @@ private :
     std::vector<double> _noise;
     std::vector<long> _flags;
 
-    std::vector<float> _mag;
+    std::vector<double> _mag;
     std::vector<double> _objSize;
     std::vector<bool> _isAStar;
 

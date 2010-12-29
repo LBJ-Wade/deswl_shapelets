@@ -22,7 +22,7 @@ void measureMultiShear(
     const std::vector<BVec>& psf,
     double galAperture, double maxAperture,
     int galOrder, int galOrder2,
-    double fPsf, double minGalSize, bool fixCen,
+    double minFPsf, double maxFPsf, double minGalSize, bool fixCen,
     ShearLog& log, std::complex<double>& shear, 
     DSmallMatrix22& shearcov, BVec& shapelet,
     double& nu, long& flag)

@@ -892,11 +892,80 @@ int main(int argc, char **argv) try
 #endif
 
 #ifdef TEST1
-    // First test the applyZ, G, Mu routines along with basic b vector 
+    // First test the Ellipse shiftBy function:
+    for(int ie2 = 0; ie2 < NELL; ++ie2) {
+        dbg<<"ie2 = "<<ie2<<std::endl;
+        Ellipse e2(ell_vecs[ie2]);
+        dbg<<"e2 = "<<e2<<std::endl;
+        std::complex<double> c2 = e2.getCen();
+        std::complex<double> g2 = e2.getGamma();
+        double m2 = e2.getMu();
+        for(int ie1 = 0; ie1 < NELL; ++ie1) {
+            dbg<<"ie1 = "<<ie1<<std::endl;
+            Ellipse e1(ell_vecs[ie1]);
+            dbg<<"e1 = "<<e1<<std::endl;
+            std::complex<double> c1 = e1.getCen();
+            std::complex<double> g1 = e1.getGamma();
+            double m1 = e1.getMu();
+            Ellipse e3 = e2;
+            e3.shiftBy(c1,g1,m1);
+            dbg<<"e3 -> "<<e3<<std::endl;
+            std::complex<double> c3 = e3.getCen();
+            std::complex<double> g3 = e3.getGamma();
+            double m3 = e3.getMu();
+            // We don't test the values of z directly, since there is
+            // also a rotation that Ellipse doesn't model.
+            // However, the moments produced from the final Ellipse
+            // should match the moments from doing one at a time.
+            double Ix=0., Iy=0., Ixx=0., Ixy=0., Iyy=0.;
+            double Ix2=0., Iy2=0., Ixx2=0., Ixy2=0., Iyy2=0.;
+            double Ix3=0., Iy3=0., Ixx3=0., Ixy3=0., Iyy3=0.;
+            //dbg<<"z      z1,z2,      z3\n";
+            for(double t = 0.; t < 360.; t+= 1.) {
+                double t_rad = t * 3.141592653589793 / 180.;
+                double x = cos(t_rad);
+                double y = sin(t_rad);
+                std::complex<double> z(x,y);
+                std::complex<double> z1 = exp(-m1)/sqrt(1.-norm(g1)) *
+                    ( z-c1 - g1 * conj(z-c1) );
+                std::complex<double> z2 = exp(-m2)/sqrt(1.-norm(g2)) *
+                    ( z1-c2 - g2 * conj(z1-c2) );
+                std::complex<double> z3 = exp(-m3)/sqrt(1.-norm(g3)) *
+                    ( z-c3 - g3 * conj(z-c3) );
+                //dbg<<z<<"  "<<z2<<"  "<<z3<<std::endl;
+                Ix += x;
+                Iy += y;
+                Ixx += x*x;
+                Ixy += x*y;
+                Iyy += y*y;
+                x = real(z2); y = imag(z2);
+                Ix2 += x;
+                Iy2 += y;
+                Ixx2 += x*x;
+                Ixy2 += x*y;
+                Iyy2 += y*y;
+                x = real(z3); y = imag(z3);
+                Ix3 += x;
+                Iy3 += y;
+                Ixx3 += x*x;
+                Ixy3 += x*y;
+                Iyy3 += y*y;
+            }
+            dbg<<"Ix = "<<Ix<<"  "<<Ix2<<"  "<<Ix3<<std::endl;
+            dbg<<"Iy = "<<Iy<<"  "<<Iy2<<"  "<<Iy3<<std::endl;
+            dbg<<"Ixx = "<<Ixx<<"  "<<Ixx2<<"  "<<Ixx3<<std::endl;
+            dbg<<"Ixy = "<<Ixy<<"  "<<Ixy2<<"  "<<Ixy3<<std::endl;
+            dbg<<"Iyy = "<<Iyy<<"  "<<Iyy2<<"  "<<Iyy3<<std::endl;
+            test(std::abs(Ix2-Ix3) < 1.e-3, "shiftBy: Ix");
+            test(std::abs(Iy2-Iy3) < 1.e-3, "shiftBy: Iy");
+            test(std::abs(Ixx2-Ixx3) < 1.e-3, "shiftBy: Ixx");
+            test(std::abs(Ixy2-Ixy3) < 1.e-3, "shiftBy: Ixy");
+            test(std::abs(Iyy2-Iyy3) < 1.e-3, "shiftBy: Iyy");
+        }
+    }
+    // Now test the applyZ, G, Mu routines along with basic b vector 
     // measurements.
-#if 0
     for(int stype = 0; stype<=1; ++stype) {
-        dbg<<"stype = "<<stype<<std::endl;
         for(int ie = 0; ie < NELL; ++ie) {
             Ellipse ell(ell_vecs[ie]);
             dbg<<"ell = "<<ell<<std::endl;
@@ -1127,39 +1196,6 @@ int main(int argc, char **argv) try
                 }
             }
         }
-    }
-#endif
-    // Also test the Ellipse shiftBy function:
-    for(int ie = 0; ie < NELL; ++ie) {
-        Ellipse ell(ell_vecs[ie]);
-        dbg<<"ell = "<<ell<<std::endl;
-        std::complex<double> z0 = ell.getCen();
-        std::complex<double> g0 = ell.getGamma();
-        double m0 = ell.getMu();
-        Ellipse e1 = ell;
-        e1.shiftBy(0.0,std::complex<double>(0.01,0.0),0.0);
-        e1 = ell;
-        e1.shiftBy(0.0,std::complex<double>(0.1,0.0),0.0);
-        e1 = ell;
-        e1.shiftBy(0.0,std::complex<double>(0.2,0.0),0.0);
-        e1 = ell;
-        e1.shiftBy(0.0,std::complex<double>(0.3,0.0),0.0);
-        e1 = ell;
-        e1.shiftBy(0.0,std::complex<double>(0.9,0.0),0.0);
-        e1 = ell;
-        e1.shiftBy(0.0,std::complex<double>(0.0,0.01),0.0);
-        e1 = ell;
-        e1.shiftBy(0.0,std::complex<double>(0.0,0.1),0.0);
-        e1 = ell;
-        e1.shiftBy(0.0,std::complex<double>(0.0,0.3),0.0);
-        e1 = ell;
-        e1.shiftBy(0.0,std::complex<double>(0.0,0.9),0.0);
-        e1 = ell;
-        e1.shiftBy(0.0,std::complex<double>(0.1,0.1),0.0);
-        e1 = ell;
-        e1.shiftBy(0.0,std::complex<double>(0.3,0.9),0.0);
-        e1 = ell;
-        e1.shiftBy(0.0,std::complex<double>(0.8,0.2),0.0);
     }
     std::cout<<"Passed tests of applyZ, G, Mu and basic measurements\n";
 #endif

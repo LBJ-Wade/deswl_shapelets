@@ -654,10 +654,10 @@ void FittedPsf::readFits(std::string file)
     _nPca=nPcaV[0];
     xdbg<<"npca = "<<_nPca<<std::endl;
 
-    std::vector<float> xMin;
-    std::vector<float> xMax;
-    std::vector<float> yMin;
-    std::vector<float> yMax;
+    std::vector<double> xMin;
+    std::vector<double> xMax;
+    std::vector<double> yMin;
+    std::vector<double> yMax;
 
     table.column(xMinCol).read(xMin, start, end);
     xdbg<<"xmin = "<<xMin[0]<<std::endl;

@@ -195,8 +195,8 @@ void CoaddCatalog::readFits(const std::string& file)
 
     dbg<<"  "<<raCol<<"  "<<declCol<<std::endl;
     _skyPos.resize(nRows);
-    std::vector<float> ra;
-    std::vector<float> decl;
+    std::vector<double> ra;
+    std::vector<double> decl;
     table.column(raCol).read(ra, start, end);
     table.column(declCol).read(decl, start, end);
 

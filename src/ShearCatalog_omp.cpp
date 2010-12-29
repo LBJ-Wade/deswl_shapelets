@@ -43,7 +43,8 @@ int ShearCatalog::measureShears(
     double maxAperture = _params.read("shear_max_aperture",0.);
     int galOrder = _params.read<int>("shear_gal_order");
     int galOrder2 = _params.read<int>("shear_gal_order2");
-    double fPsf = _params.read<double>("shear_f_psf",1.);
+    double minFPsf = _params.read("shear_f_psf",1.);
+    double maxFPsf = _params.read("shear_max_f_psf",minFPsf);
     double gain = _params.read("image_gain",0.);
     double minGalSize = _params.read<double>("shear_min_gal_size");
     bool galFixCen = _params.read("shear_fix_centroid",false);
@@ -120,7 +121,7 @@ int ShearCatalog::measureShears(
                     _noise[i], gain, weightIm, 
                     // Parameters:
                     galAperture, maxAperture, galOrder, galOrder2,
-                    fPsf, minGalSize, galFixCen, xOffset, yOffset,
+                    minFPsf, maxFPsf, minGalSize, galFixCen, xOffset, yOffset,
                     galFixSigma, galFixSigmaValue,
                     // Log information
                     log1,

@@ -20,7 +20,8 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
     double maxAperture = _params.read("shear_max_aperture",0.);
     int galOrder = _params.read<int>("shear_gal_order");
     int galOrder2 = _params.read<int>("shear_gal_order2");
-    double fPsf = _params.read("shear_f_psf",1.);
+    double minFPsf = _params.read("shear_f_psf",1.);
+    double maxFPsf = _params.read("shear_max_f_psf",minFPsf);
     double minGalSize = _params.read<double>("shear_min_gal_size");
     bool galFixCen = _params.read("shear_fix_centroid",false);
     bool shouldOutputDots = _params.read("output_dots",false);
@@ -80,7 +81,7 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                     _skyPos[i], _pixList[i], _psfList[i],
                     // Parameters:
                     galAperture, maxAperture, galOrder, galOrder2,
-                    fPsf, minGalSize, galFixCen,
+                    minFPsf, maxFPsf, minGalSize, galFixCen,
                     // Log information
                     log1,
                     // Ouput values:
@@ -145,7 +146,7 @@ static void getImagePixList(
     const Image<double>*const weightIm,
     const double noise, const double gain,
     const std::string& skyMethod, const double meanSky, 
-    const Image<float>*const skyMap,
+    const Image<double>*const skyMap,
     double galAperture, double maxAperture, double xOffset, double yOffset)
 {
     Assert(psfList.size() == pixList.size());
@@ -323,7 +324,7 @@ void MultiShearCatalog::getImagePixelLists(
     std::string skyMethod = _params.get("multishear_sky_method");
     Assert(skyMethod=="MEAN" || skyMethod=="NEAREST" || skyMethod=="MAP");
     double meanSky=0.;
-    std::auto_ptr<Image<float> > skyMap(0);
+    std::auto_ptr<Image<double> > skyMap(0);
     if (skyMethod == "MEAN") {
         const int nGals = shearCat.size();
         for(int i=0;i<nGals;++i) meanSky += shearCat.getSky(i);
@@ -332,7 +333,7 @@ void MultiShearCatalog::getImagePixelLists(
     if (skyMethod == "MAP") {
         std::string skyMapName = makeName(_params,"skymap",true,true);
         int skyMapHdu = getHdu(_params,"skymap",skyMapName,1);
-        skyMap.reset(new Image<float>(skyMapName,skyMapHdu));
+        skyMap.reset(new Image<double>(skyMapName,skyMapHdu));
     }
 
     BVec psf(fitPsf.getPsfOrder(), fitPsf.getSigma());

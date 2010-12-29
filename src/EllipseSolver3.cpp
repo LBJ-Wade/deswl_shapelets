@@ -102,7 +102,7 @@ EllipseSolver3::ESImpl3::ESImpl3(
     x_short(U.TMV_colsize()), f_short(U.TMV_colsize()),
     Gx(bxsizep2,bxsize), Gy(bxsizep2,bxsize), 
     Gg1(bxsizep2,bxsize), Gg2(bxsizep2,bxsize), 
-    Gth(bxsizep2,bxsize), Gmu(bxsize,bxsizep2)
+    Gth(bxsizep2,bxsize), Gmu(bxsizep2,bxsize)
 {
     //xdbg<<"EllipseSolver3: \n";
     //xdbg<<"b0 = "<<b0.vec()<<std::endl;
@@ -123,7 +123,7 @@ EllipseSolver3::ESImpl3::ESImpl3(
     setupGg1(Gg1,bxorderp2,bxorder);
     setupGg2(Gg2,bxorderp2,bxorder);
     setupGth(Gth,bxorderp2,bxorder);
-    setupGmu(Gmu,bxorder,bxorderp2);
+    setupGmu(Gmu,bxorderp2,bxorder);
 
     if (fixcen) { 
         T.setToIdentity();
@@ -219,9 +219,9 @@ void EllipseSolver3::ESImpl3::doJ(
     // df/dE = dbx/dE(1:6) / bx(0) - (1/bx(0)^2) (dbx(0)/dE) bx(1:6)
     //       = ( dbx/dE(1:6) - dbx/dE(0) f ) / bx(0)
 
-    xdbg<<"Start doJ\n";
-    xdbg<<"x = "<<x<<std::endl;
-    xdbg<<"f = "<<f<<std::endl;
+    //xdbg<<"Start doJ\n";
+    //xdbg<<"x = "<<x<<std::endl;
+    //xdbg<<"f = "<<f<<std::endl;
 
     Assert(x.size() == 5);
     Assert(J.TMV_rowsize() == 5);
@@ -292,9 +292,9 @@ void EllipseSolver3::ESImpl3::doJ(
     }
 
     if (!fixmu) {
-        // dD/dmu = -D GmuT
+        // dD/dmu = D Gmu
         augmentMuTransformCols(mu,bxorder,Daug);
-        GDb0 = -Gmu.transpose().colRange(0,b0size) * b0.vec();
+        GDb0 = Gmu.colRange(0,b0size) * b0.vec();
         Db0 = Daug * GDb0;
         SDb0 = S * Db0; 
         dbdE = T.rowRange(0,6) * SDb0;
@@ -307,7 +307,7 @@ void EllipseSolver3::ESImpl3::doJ(
     }
     J /= bx(0);
     if (!zerob11) J.row(4).setZero();
-    xdbg<<"J = "<<J<<std::endl;
+    //xdbg<<"J = "<<J<<std::endl;
 
 #ifdef JTEST
     int order = bx.getOrder();
@@ -331,16 +331,12 @@ void EllipseSolver3::ESImpl3::doJ(
     calculateMuTransform(mu,order,D0);
     calculateMuTransform(mu-dE,order,D1);
     calculateMuTransform(mu+dE,order,D2);
-    DMatrix Gmubig(bxsize,bxsizep2);
-    setupGmu(Gmubig,order,orderp2);
+    DMatrix Gmubig(bxsizep2,bxsize);
+    setupGmu(Gmubig,orderp2,order);
 
     DMatrix dDdmu_num = (D2-D1)/(2.*dE);
     DMatrix d2D_num = (D2+D1-2.*D0)/(dE*dE);
-    // The - and transpose are really to change the diagonal of Gmu
-    // from -1 to +1.  dD/dmu is really D Gmu + 2D.
-    // But because of the structure of Gmu (being anti-symmetric with -1's
-    // on the diagonal), this is equivalent to -D Gmu.transpose().
-    DMatrix dDdmu = -Dbig.rowRange(0,bxsize) * Gmubig.transpose();
+    DMatrix dDdmu = Dbig.rowRange(0,bxsize) * Gmubig;
     dbg<<"Gmu = "<<Gmubig.subMatrix(0,6,0,6)<<std::endl;
     dbg<<"D = "<<Dbig.subMatrix(0,6,0,6)<<std::endl;
     dbg<<"dDdmu = "<<dDdmu.subMatrix(0,6,0,6)<<std::endl;
@@ -528,7 +524,7 @@ void EllipseSolver3::ESImpl3::doJ(
                   dbg<<"dbdg2 = T dSdg2 D b0 = "<<
                       T.rowRange(0,6) * dSdg2 * Db0<<std::endl;
                   break;
-          case 4: GDb0 = -Gmu.transpose().colRange(0,b0size) * b0.vec();
+          case 4: GDb0 = Gmu.colRange(0,b0size) * b0.vec();
                   dbg<<"GDb0 = "<<GDb0<<std::endl;
                   Db0 = Dbig.rowRange(0,bxsize) * GDb0;
                   dbg<<"Db0 = "<<Db0<<std::endl;

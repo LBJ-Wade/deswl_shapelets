@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #root=decam--24--27-i-2_61
-root=decam--24--37-i-14_06
-#root=decam--23--42-i-5_01
+#root=decam--24--37-i-14_06
+root=decam--23--42-i-5_01
 config=wl.config
 #input=/home/mjarvis/des/wl/testdata/data
 #output=/home/mjarvis/des/wl/testdata/output2
@@ -10,9 +10,9 @@ input=../../testdata/data
 output=../../testdata/output
 #input=/u/ac/jarvis/wl/testdata/data
 #output=/u/ac/jarvis/wl/testdata/output
-#dc4=
+dc4=
 #dc4='shear_dc4_input_format=true'
-dc4='+dc4.config shear_output_psf=true'
+#dc4='+dc4.config shear_output_psf=true'
 BINDIR=.
 #BINDIR=/home/mjarvis/bin
 #BINDIR=/Users/Mike/bin

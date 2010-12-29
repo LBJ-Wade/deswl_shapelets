@@ -510,8 +510,8 @@ static void readTANFits(
                     pvstr[5] = '0'+(k%10);
                     pvstr[6] = '\0'; 
                 }
-                float temp;
-                if (fits_read_key(fitsptr,TFLOAT,pvstr,&temp,NULL,&status))
+                double temp;
+                if (fits_read_key(fitsptr,TDOUBLE,pvstr,&temp,NULL,&status))
                     dbg<<"Problem reading key: "<<pvstr<<" for n,i,j,k = "<<
                         n<<','<<i<<','<<j<<','<<k<<std::endl;
                 if (status) break;
@@ -606,7 +606,7 @@ static Function2D* convertTNX(
     TNXFUNC functype;
     int xorder,yorder;
     TNXCROSS crossterms;
-    float x;
+    double x;
 
     wcsin >> x;
     functype = TNXFUNC(int(x+0.5));
@@ -690,7 +690,7 @@ void Transformation::readWCS(std::string fitsfile, int hdu)
             double dec = -10.3365593;
 
             DVector xy(2); xy(0) = x; xy(1) = y;
-            xdbg.precision(10);
+            dbgout->precision(10);
             xdbg<<"xy0 = "<<xy<<std::endl;
             xdbg<<"xy1 = "<<xy-crpix<<std::endl;
             xy = cd * (xy - crpix);

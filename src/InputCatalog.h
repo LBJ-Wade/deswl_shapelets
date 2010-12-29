@@ -53,8 +53,8 @@ public :
     const std::vector<long>& getIdList() const { return _id; }
     const std::vector<Position>& getPosList() const { return _pos; }
     const std::vector<double>& getSkyList() const { return _sky; }
-    const std::vector<float>& getMagList() const { return _mag; }
-    const std::vector<float>& getMagErrList() const { return _magErr; }
+    const std::vector<double>& getMagList() const { return _mag; }
+    const std::vector<double>& getMagErrList() const { return _magErr; }
     const std::vector<double>& getObjSizeList() const { return _objSize; }
     const std::vector<long>& getFlagsList() const { return _flags; }
     const std::vector<Position>& getSkyPosList() const { return _skyPos; }
@@ -83,8 +83,8 @@ private :
     std::vector<long> _id;
     std::vector<Position> _pos;
     std::vector<double> _sky;
-    std::vector<float> _mag;
-    std::vector<float> _magErr;
+    std::vector<double> _mag;
+    std::vector<double> _magErr;
     std::vector<double> _objSize;
     std::vector<long> _flags;
     std::vector<Position> _skyPos;

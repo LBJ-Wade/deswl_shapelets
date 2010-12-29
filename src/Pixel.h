@@ -90,10 +90,21 @@ void getPixList(
     const Image<double>& im, PixelList& pix,
     const Position cen, double sky, double noise, double gain,
     const Image<double>* weightImage, const Transformation& trans,
-    double aperture, double xOffset, double yOffset, long& flag);
+    double aperture, std::complex<double> shear,
+    double xOffset, double yOffset, long& flag);
+
+static inline void getPixList(
+    const Image<double>& im, PixelList& pix,
+    const Position cen, double sky, double noise, double gain,
+    const Image<double>* weightImage, const Transformation& trans,
+    double aperture, double xOffset, double yOffset, long& flag)
+{
+    getPixList(im,pix,cen,sky,noise,gain,weightImage,trans,
+               aperture,0.,xOffset,yOffset,flag);
+}
 
 double getLocalSky(
-    const Image<float>& bkg, 
+    const Image<double>& bkg, 
     const Position cen, const Transformation& trans,
     double aperture, double xOffset, double yOffset, long& flag);
 

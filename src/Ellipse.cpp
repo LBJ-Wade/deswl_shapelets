@@ -25,7 +25,7 @@ static std::complex<double> addShears(
     double absd3 = std::abs(d3);
     double absg3 = tanh(atanh(absd3)/2.);
     std::complex<double> g3 = absg3/absd3*d3;
-    xdbg<<"GammaAdd: "<<g1<<" + "<<g2<<" = "<<g3<<std::endl;
+    //xdbg<<"GammaAdd: "<<g1<<" + "<<g2<<" = "<<g3<<std::endl;
     return g3;
 }
 
@@ -61,12 +61,10 @@ void Ellipse::shiftBy(
     //                        / sqrt(1-|g1|^2) / sqrt(1-|g2|^2)
     // 
     // So we have an equation for g3:
-    // g3/sqrt(1-|g3|^2) = (g1+g2)/(1+g1* g2) / sqrt(1-|g1|^2) / sqrt(1-|g2|^2)
+    // g3 = (g1+g2)/(1+g1* g2)
     //
-    // This isn't too hard to solve.  First do |g3|^2.  Then g3.
-    // 
     // But look again at the above equation for z''. 
-    // The first term is (1+g1* g2) which is complex.
+    // The first factor is (1+g1* g2) which is complex.
     // This means it is both a dilation and a rotation.
     // But we aren't modelling rotations.  So we need to take it out.
     // We do this by multiplying z by (1+g1* g2)/|1+g1* g2| before
@@ -75,15 +73,14 @@ void Ellipse::shiftBy(
     // change that.
     //
     // So the real equation for g3 is:
-    // g3/sqrt(1-|g3|^2) = (g1+g2)/|1+g1* g2| / sqrt(1-|g1|^2) / sqrt(1-|g2|^2)
+    // g3 = (g1+g2) (1+g1* g2)/|1+g1* g2|^2
+    //    = (g1+g2))/(1+g1 g2*)
     // 
     // Next m3:
-    // We have a factor of |1+g1* g2| from the shears.
-    // And we also have exp(-m1) and exp(-m2). 
-    // exp(-m3) = |1+g1* g2| exp(-m1 - m2)
-    // m3 = m1 + m2 - ln(|1+g1* g2|)
-    //
-    // The m1 and m2 parts add an extra exp(-m1) * exp(-m2).
+    // exp(-m3) / sqrt(1-|g3|^2) = exp(-m1-m2) |1+g1* g2| /
+    //                                sqrt(1-|g1|^2) / sqrt(1-|g2|^2)
+    // m3 = m1 + m2 - 
+    //       ln( |1+g1* g2| sqrt(1-|g3|^2) / sqrt(1-|g1|^2) / sqrt(1-|g2|^2) )
     //
     // Finally, the translation terms are a bit messy.
     // The translation terms in the equation for z'' are:
@@ -112,29 +109,25 @@ void Ellipse::shiftBy(
     dbg<<"c1,g1,m1 = "<<c1<<"  "<<g1<<"  "<<m1<<std::endl;
     dbg<<"c2,g2,m2 = "<<c2<<"  "<<g2<<"  "<<m2<<std::endl;
 
-    std::complex<double> g12 = 
-        (g1+g2) / sqrt(1.-norm(g1)) / sqrt(1.-norm(g2));
-    g12 /= abs(1.+conj(g1)*g2);
-    // |g3|^2 / (1-|g3|^2) = |g12|^2
-    // |g3|^2 = |g12|^2 - |g12|^2 |g3|^2
-    // |g3|^2 = |g12|^2 / (1+|g12|^2)
-    double g12sq = norm(g12);
-    double g3sq = g12sq / (1.+g12sq);
-    std::complex<double> g3 = g12 * sqrt(1.-g3sq);
-    dbg<<"g3 = "<<g3<<", g3sq = "<<g3sq<<" = "<<norm(g3)<<std::endl;
+    double normg1 = norm(g1);
+    double normg2 = norm(g2);
+    std::complex<double> g3 = (g1+g2) / (1.+g1*conj(g2));
+    dbg<<"g3 = "<<g3<<std::endl;
 
     xdbg<<"Miralda-Escude formula gives g3 = "<<addShears(g1,g2)<<std::endl;
-    xdbg<<"Reverse Miralda-Escude formula gives g3 = "<<addShears(g2,g1)<<std::endl;
 
-    double m3 = m1 + m2 - log(abs(1.+conj(g1)*g2));
+    // m3 = m1 + m2 - 
+    //       ln( |1+g1* g2| sqrt(1-|g3|^2) / sqrt(1-|g1|^2) / sqrt(1-|g2|^2) )
+    double normg3 = norm(g3);
+    double m3 = m1 + m2 - log(abs(1.+conj(g1)*g2) * 
+                              sqrt( (1.-normg3)/(1.-normg1)/(1.-normg2) ) );
     dbg<<"m3 = "<<m3<<std::endl;
 
-    std::complex<double> temp = -c1 - g1 * conj(-c1);
-    temp = exp(-m1)/sqrt(1.-norm(g1)) * temp - c2;
-    temp = exp(-m2)/sqrt(1.-norm(g2)) * (temp - g2 * conj(temp));
-    temp /= -exp(-m3)/sqrt(1.-norm(g3));
-    std::complex<double> c3 = temp + g3*conj(temp) / (1.+g3sq);
-
+    std::complex<double> X = -c1 - g1 * conj(-c1);
+    X = exp(-m1)/sqrt(1.-normg1) * X - c2;
+    X = exp(-m2)/sqrt(1.-normg2) * (X - g2 * conj(X));
+    X /= -exp(-m3)/sqrt(1.-normg3);
+    std::complex<double> c3 = (X + g3*conj(X)) / (1.-normg3);
     dbg<<"c3 = "<<c3<<std::endl;
 
     _cen = c3;

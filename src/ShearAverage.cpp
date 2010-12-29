@@ -9,6 +9,9 @@
 #include "Params.h"
 
 static const long ok_flags = (
+    EDGE |
+    SHEAR_LOCAL_MIN |
+    SHEAR_POOR_FIT |
     SHAPE_REDUCED_ORDER | 
     SHAPE_POOR_FIT |
     SHAPE_LOCAL_MIN |
@@ -39,13 +42,13 @@ static double Weight(
     double edwde = 0.;
 #endif
 
-#if 1
+#if 0
     // Simple inverse variance weight
     double w = 1./vare;
     double edwde = 0.;
 #endif
 
-#if 0
+#if 1
     // Better weight if lensing shear is small 
     double w = 1./sqrt(esq + 2.25 * vare);
     //if (vare > 1.) w = 0.;

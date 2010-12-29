@@ -25,8 +25,8 @@ public :
     const std::vector<Position>& getSkyPosList() const { return _skyPos; }
     const std::vector<double>& getSkyList() const { return _sky; }
     const std::vector<long>& getFlagsList() const { return _flags; }
-    const std::vector<float>& getMagList() const { return _mag; }
-    const std::vector<float>& getMagErrList() const { return _magErr; }
+    const std::vector<double>& getMagList() const { return _mag; }
+    const std::vector<double>& getMagErrList() const { return _magErr; }
 
     long getId(int i) const { return _id[i]; }
     Position getPos(int i) const { return _pos[i]; }
@@ -48,8 +48,8 @@ private :
 
     std::vector<long> _flags;
 
-    std::vector<float> _mag;
-    std::vector<float> _magErr;
+    std::vector<double> _mag;
+    std::vector<double> _magErr;
 
     Bounds _skyBounds;
 

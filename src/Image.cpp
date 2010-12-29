@@ -45,7 +45,7 @@ Image<T>::Image(
             dbg<<"hdu = "<<badpixHdu<<std::endl;
             try {
                 weightIm.reset(new Image<T>(weightName,weightHdu));
-                Image<float> badpixIm(badpixName,badpixHdu);
+                Image<double> badpixIm(badpixName,badpixHdu);
                 dbg<<"Opened badpix image.\n";
 
                 for(int i=0;i<=weightIm->getMaxI();++i) {
@@ -274,7 +274,7 @@ Image<T>::Image(
             int badpixHdu = getHdu(params,"badpix",badpixName,1);
             dbg<<"badpix name = "<<badpixName<<std::endl;
             dbg<<"hdu = "<<badpixHdu<<std::endl;
-            Image<float> badpixIm(badpixName,badpixHdu,x1,x2,y1,y2);
+            Image<double> badpixIm(badpixName,badpixHdu,x1,x2,y1,y2);
             dbg<<"Opened badpix image.\n";
 
             for(int i=0;i<=weightIm->getMaxI();++i) {
@@ -312,7 +312,7 @@ Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm,
             int badpixHdu = getHdu(params,"badpix",badpixName,1);
             dbg<<"badpix name = "<<badpixName<<std::endl;
             dbg<<"hdu = "<<badpixHdu<<std::endl;
-            Image<float> badpixIm(badpixName,badpixHdu,bounds);
+            Image<double> badpixIm(badpixName,badpixHdu,bounds);
             dbg<<"Opened badpix image.\n";
 
             for(int i=0;i<=weightIm->getMaxI();++i) {
@@ -652,4 +652,4 @@ T Image<T>::median() const
 }
 
 template class Image<double>;
-template class Image<float>;
+//template class Image<float>;

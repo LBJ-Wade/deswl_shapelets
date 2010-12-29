@@ -464,7 +464,10 @@ bool NLSolver::solveDogleg(
     for(int k=0;k<_maxIter;++k) {
         dbg<<k<<"   "<<f.normInf()<<"   "<<Q<<"   "<<g.normInf()<<"   "<<delta<<std::endl;
         xxdbg<<"f = "<<f<<std::endl;
+        xxdbg<<"g = "<<g<<std::endl;
         xxdbg<<"J = "<<J<<std::endl;
+        if (_shouldUseSvd)
+            xxdbg<<"J.svd = "<<J.svd().getS().diag()<<std::endl;
         if (_shouldUseSvd && nsing == maxnsing && J.isSingular() && nsing > 1) {
             dbg<<"Singular J, so try lowering number of singular values.\n";
             nsing = J.svd().getKMax();
@@ -484,6 +487,9 @@ bool NLSolver::solveDogleg(
             rhoDenom = Q;
             xdbg<<"rhodenom = "<<rhoDenom<<std::endl;
         } else {
+            xxdbg<<"normsqg = "<<normsqg<<std::endl;
+            xxdbg<<"(J*g) = "<<J*g<<std::endl;
+            xxdbg<<"normsq = "<<(J*g).normSq()<<std::endl;
             double alpha = normsqg / (J*g).normSq();
             xdbg<<"alpha = "<<alpha<<std::endl;
             double normG = sqrt(normsqg);

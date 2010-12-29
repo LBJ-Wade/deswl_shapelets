@@ -7,7 +7,8 @@ void getPixList(
     const Image<double>& im, PixelList& pix,
     const Position cen, double sky, double noise, double gain,
     const Image<double>* weightImage, const Transformation& trans,
-    double aperture, double xOffset, double yOffset, long& flag)
+    double aperture, std::complex<double> shear,
+    double xOffset, double yOffset, long& flag)
 {
     xdbg<<"Start GetPixList\n";
     if (weightImage) {
@@ -19,17 +20,45 @@ void getPixList(
 
     DSmallMatrix22 localD;
     trans.getDistortion(cen,localD);
-
+    // This gets us from chip coordinates to sky coordinates:
+    // ( u ) = D ( x )
+    // ( v )     ( y )
+    xdbg<<"localD = "<<localD<<std::endl;
     double det = std::abs(localD.TMV_det());
-    double pixScale = sqrt(det); // arcsec/pixel
+    double pixScale = sqrt(det); // arsec/pixel
     xdbg<<"pixscale = "<<pixScale<<std::endl;
 
+    // If we are provided a shear, then we need to go a step further
+    // and go to the coordinate system where the object is round.
+    // This is
+    // ( u' ) = (1/sqrt(1-|g|^2)) ( 1-g1  -g2  ) ( u )
+    // ( v' )                     ( -g2   1+g1 ) ( v )
+    // We only use this coordinate system for the aperture radius though.
+    // u'^2 + v'^2 < r_ap^2
+    // ((1-g1) u - g2 v)^2 + ((1+g1) v - g2 u)^2
+    // (u - g1 u - g2 v)^2 + (v + g1 v - g2 u)^2
+    // u^2 + g1^2 u^2 + g2^2 v^2 + v^2 + g1^2 v^2 + g2^2 u^2
+    //   -2g1 u^2 -2g2 uv + 2g1 g2 uv + 2g1 v^2 - 2g2 uv - 2g1 g2 uv
+    // (1 + |g|^2) (u^2+v^2) - 2g1 (u^2-v^2) - 2g2 (2uv)
+    //
+    // Technically, we also need the 1/sqrt(1-|g|^2) factor too, 
+    // but we omit this.  This has the effect of using more pixels for 
+    // more elliptical galaxies, which are the ones that are harder to
+    // converge, so the extra pixels are helpful.
+    double normg = norm(shear);
+    double g1 = real(shear);
+    double g2 = imag(shear);
+    DSmallMatrix22 S;
+    S(0,0) = 1.-real(shear);
+    S(0,1) = S(1,0) = -imag(shear);
+    S(1,1) = 1.+real(shear);
+    DSmallMatrix22 SD = S*localD;
+    double detSD = std::abs(localD.TMV_det());
+
     // xAp,yAp are the maximum deviation from the center in x,y
-    // such that u^2+v^2 = aperture^2
-    double xAp = aperture / det * 
-        sqrt(localD(0,0)*localD(0,0) + localD(0,1)*localD(0,1));
-    double yAp = aperture / det * 
-        sqrt(localD(1,0)*localD(1,0) + localD(1,1)*localD(1,1));
+    // such that u'^2+v'^2 = aperture^2
+    double xAp = aperture / detSD * sqrt(SD(0,0)*SD(0,0) + SD(0,1)*SD(0,1));
+    double yAp = aperture / detSD * sqrt(SD(1,0)*SD(1,0) + SD(1,1)*SD(1,1));
     xdbg<<"aperture = "<<aperture<<std::endl;
     xdbg<<"xap = "<<xAp<<", yap = "<<yAp<<std::endl;
 
@@ -82,8 +111,11 @@ void getPixList(
         double u = localD(0,0)*chipX+localD(0,1)*chipY;
         double v = localD(1,0)*chipX+localD(1,1)*chipY;
         for(int j=j1;j<=j2;++j,u+=localD(0,1),v+=localD(1,1)) {
+            // (1 + |g|^2) (u^2+v^2) - 2g1 (u^2-v^2) - 2g2 (2uv)
             // u,v are in arcsec
-            double rsq = u*u + v*v;
+            double usq = u*u;
+            double vsq = v*v;
+            double rsq = (1.+normg)*(usq+vsq) - 2.*g1*(usq-vsq) - 4.*g2*u*v;
             if (rsq <= apsq) {
                 shouldUsePix[i-i1][j-j1] = true;
                 ++nPix;
@@ -132,7 +164,7 @@ void getPixList(
 }
 
 double getLocalSky(
-    const Image<float>& bkg, 
+    const Image<double>& bkg, 
     const Position cen, const Transformation& trans, double aperture,
     double xOffset, double yOffset, long& flag)
 {

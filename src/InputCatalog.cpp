@@ -35,7 +35,7 @@ static void readGain(const std::string& file, int hdu, ConfigFile& params)
     CCfits::FITS fits(file, CCfits::Read);
     if (hdu > 1) fits.read(hdu-1);
 
-    float gain, readNoise;
+    double gain, readNoise;
 
     std::vector<std::string> gainKey = 
         params.read<std::vector<std::string> >("image_gain_key");
@@ -340,8 +340,8 @@ void InputCatalog::readFits(std::string file, int hdu)
     Assert(int(_id.size()) == nRows);
 
     // Position (on chip)
-    std::vector<float> posX;
-    std::vector<float> posY;
+    std::vector<double> posX;
+    std::vector<double> posY;
     _pos.resize(nRows);
     std::string xCol=_params.get("cat_x_col");
     std::string yCol=_params.get("cat_y_col");
@@ -407,8 +407,8 @@ void InputCatalog::readFits(std::string file, int hdu)
         std::string raCol=_params["cat_ra_col"];
         std::string declCol=_params["cat_dec_col"];
 
-        std::vector<float> ra;
-        std::vector<float> decl;
+        std::vector<double> ra;
+        std::vector<double> decl;
         dbg<<"  "<<raCol<<std::endl;
         table.column(raCol).read(ra, start, end);
         dbg<<"  "<<declCol<<std::endl;

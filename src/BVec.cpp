@@ -209,13 +209,21 @@ void calculateMuTransform(double mu, int order, DMatrix& D)
     // This is wrong.
     // This is the formula for D(00,pq).
     //
-    // Second, the recursion suggested for calculating D(st,pq) 
+    // Second, this formula has a different normalization than what we 
+    // want.  This gives the transformation I(x,y) -> I(exp(-mu)x,exp(-mu)y).
+    // However, we want the transformation for the same I, but measured in
+    // a different coordinate system.  The difference is in the fact that
+    // the flux scales as sigma^2, so this gives another factor of exp(-2mu).
+    // So the formula we need is:
+    // D(00,pq) = e^-mu sech(mu) tanh(mu)^p delta_pq
+    //
+    // Third, the recursion suggested for calculating D(st,pq) 
     // is a bit cumbersome since it has a q+1 on the rhs, so the 
     // calculation of D(30,30) for example, would require knowledge 
     // of D(00,33) which is a higher order than we really need.
     // 
     // An easier recursion is the following:
-    // D(00,pq) = e^mu sech(mu) tanh(mu)^p delta_pq
+    // D(00,pq) = e^-mu sech(mu) tanh(mu)^p delta_pq
     // D(s0,pq) = 1/sqrt(s) sech(mu) sqrt(p) D(s-10,p-1q)
     // D(st,pq) = 1/sqrt(t) [ sech(mu) sqrt(q) D(st-1,pq-1)
     //                        - tanh(mu) sqrt(s) D(s-1t-1,pq) ]
@@ -240,8 +248,8 @@ void calculateMuTransform(double mu, int order, DMatrix& D)
     std::vector<double> isqrt(order+1);
     for(int i=0;i<=order;++i) isqrt[i] = sqrt(double(i));
 
-    double Dqq = exp(mu)*smu;
-    // Dqq = exp(mu) sech(mu) (-tanh(mu))^q
+    double Dqq = exp(-mu)*smu;
+    // Dqq = exp(-mu) sech(mu) (-tanh(mu))^q
     // This variable keeps the latest Dqq value:
     for(int n=0,pq=0;n<=order;++n) {
         for(int p=n,q=0;p>=q;--p,++q,++pq) {
@@ -293,7 +301,7 @@ void augmentMuTransformCols(double mu, int order, DMatrix& D)
     std::vector<double> isqrt(order+3);
     for(int i=0;i<=order+2;++i) isqrt[i] = sqrt(double(i));
 
-    double Dqq = exp(mu)*smu;
+    double Dqq = exp(-mu)*smu;
     for(int q=order/2;q>0;--q) Dqq *= tmu;
     for(int n=order+1,pq=size1;n<=order+2;++n) {
         for(int p=n,q=0;p>=q;--p,++q,++pq) {
