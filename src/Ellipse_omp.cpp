@@ -38,13 +38,18 @@ bool Ellipse::doMeasure(
     }
 
     BVec b(galOrder,sigma);
+    int galOrder3 = galOrder2;
+    // galOrder3 is what we use for measuring the shapelet decomposition.
+    // Typically, if the iterations are not converging, it is because we
+    // need a higher order in the measurement routine.  So start with 
+    // galOrder2, but increase by 4 each iteration.
 
     // iterate until the shape is round.
-    for(int iter=1;iter<=MAX_ITER;++iter) {
+    for(int iter=1;iter<=MAX_ITER;++iter, galOrder3 += 4) {
         dbg<<"iter = "<<iter<<std::endl;
 
         DVector x(5,0.);
-        if (!doMeasureShapelet(pix,psf,b,galOrder,galOrder2,bCov)) {
+        if (!doMeasureShapelet(pix,psf,b,galOrder,galOrder3,bCov)) {
             xdbg<<"Could not measure a shapelet vector.\n";
             return false;
         }
@@ -187,11 +192,11 @@ bool Ellipse::doMeasure(
             dbg<<"norm(x) = "<<normx<<" < "<<thresh<<
                 ", so good enough to stop.\n";
         } else if (iter == MAX_ITER) {
-            dbg<<"norm(x) = "<<normx<<" > 1.e-4, but maxiter reached.\n";
+            dbg<<"norm(x) = "<<normx<<" > "<<thresh<<", but maxiter reached.\n";
             xdbg<<"flag SHEAR_DIDNT_CONVERGE\n";
             flag |= SHEAR_DIDNT_CONVERGE;
         } else {
-            dbg<<"norm(x) = "<<normx<<" > 1.e-4, so try again.\n";
+            dbg<<"norm(x) = "<<normx<<" > "<<thresh<<", so try again.\n";
             continue;
         }
 

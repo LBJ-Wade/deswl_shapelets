@@ -59,6 +59,12 @@ static double Weight(
     double edwde = -w*w*w*esq;
 #endif
 
+#if 0
+    // De-weight large e
+    double w = exp(-esq/2.e-2);
+    double edwde = -w*esq/1.e-2;
+#endif
+
     dr = w * (1-k0-0.5*k1*esq) + 0.5*edwde*(1.-k0-k1*esq);
     return w;
 }

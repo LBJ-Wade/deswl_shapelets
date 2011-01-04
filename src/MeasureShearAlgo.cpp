@@ -91,6 +91,7 @@ void measureSingleShear1(
     // Correct the centroid first.
     //
     if (!fixCen) {
+        flag1 = 0;
         ell.unfixCen();
         ell.fixMu();
         if (!ell.measure(pix,2,2,sigmaObs,flag1,0.1)) {
@@ -145,6 +146,7 @@ void measureSingleShear1(
             ": cen = "<<cen1+ell.getCen()<<std::endl;
 
         // Now do it again.
+        flag1 = 0;
         if (!ell.measure(pix,2,2,sigmaObs,flag1,0.1)) {
             ++log._nfCentroid;
             dbg<<"Second centroid pass failed.\n";
@@ -166,6 +168,7 @@ void measureSingleShear1(
     // Now adjust the sigma value 
     //
     if (!fixSigma) {
+        flag1 = 0;
         ell.unfixMu();
         if (ell.measure(pix,2,2,sigmaObs,flag1,0.1)) {
             ++log._nsNative;
@@ -322,6 +325,7 @@ void measureSingleShear1(
         //
         // Next, we find the shear where the galaxy looks round.
         //
+        flag1 = 0;
         ell.unfixGam();
         if (!fixSigma) ell.unfixMu();
         if (ell.measure(pix,psf,galOrder,galOrder,sigma,flag1,1.e-2)) {
@@ -329,10 +333,14 @@ void measureSingleShear1(
             dbg<<"Measured gamma = "<<ell.getGamma()<<std::endl;
             dbg<<"Mu  = "<<ell.getMu()<<std::endl;
             dbg<<"Cen  = "<<ell.getCen()<<std::endl;
-            if (flag1 && !lastfpsf) {
-                dbg<<"However, flag = "<<flag1<<", so try larger fPsf\n";
-                --log._nsMu;
-                continue;
+            if (flag1) {
+                if (!lastfpsf) {
+                    dbg<<"However, flag = "<<flag1<<", so try larger fPsf\n";
+                    --log._nsMu;
+                    continue;
+                } else {
+                    flag |= flag1;
+                }
             }
         } else {
             dbg<<"Measurement failed (1st pass)\n";
@@ -377,18 +385,18 @@ void measureSingleShear1(
         //
         // Again, this time we care about being accurate, so use galOrder2 for
         // the intermediate calculations.
-        // Also, for this one we use a thresh value of 1.e-4, rather than 0.1
+        // Also, for this one we use a thresh value of 1.e-3, rather than 0.1
         // to make sure that we get an unbiased estimate of gamma.  
         //
 
         DMatrix cov5(5,5);
-        if (ell.measure(pix,psf,galOrder,galOrder2,sigma,flag,1.e-4,&cov5)) {
+        if (ell.measure(pix,psf,galOrder,galOrder2,sigma,flag,1.e-3,&cov5)) {
             dbg<<"Successful Gamma fit (2nd pass)\n";
             dbg<<"Measured gamma = "<<ell.getGamma()<<std::endl;
             dbg<<"Mu  = "<<ell.getMu()<<std::endl;
             dbg<<"Cen  = "<<ell.getCen()<<std::endl;
-            if (flag && !lastfpsf) {
-                dbg<<"However, flag = "<<flag<<", so try larger fPsf\n";
+            if (flag1 && !lastfpsf) {
+                dbg<<"However, flag = "<<flag1<<", so try larger fPsf\n";
                 --log._nsMu;
                 continue;
             }

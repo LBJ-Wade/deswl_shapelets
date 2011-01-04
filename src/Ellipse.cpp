@@ -272,16 +272,24 @@ bool Ellipse::doMeasureShapelet(
     const double MAX_CONDITION = 1.e6;
 #ifdef USE_TMV
     A.saveDiv();
-    A.divideUsing(tmv::SV);
+    // I used to use SVD for this, rather than the QRP decomposition.
+    // But QRP is significantly faster, and the condition estimate 
+    // produced is good enough for what we need here.  
+    // TODO: I need to add a real condition estimator to division methods
+    // other than SVD in TMV.  LAPACK has this functionality...
+    A.divideUsing(tmv::QRP);
     std::auto_ptr<tmv::MatrixView<double> > A_use(
         new tmv::MatrixView<double>(A.view()));
-    A_use->svd();
-    xdbg<<"svd = "<<A_use->svd().getS().diag()<<std::endl;
-    while (A_use->svd().isSingular() || 
-           A_use->svd().condition() > MAX_CONDITION) {
+    A_use->qrpd();
+    xdbg<<"R diag = "<<A_use->qrpd().getR().diag()<<std::endl;
+    while (A_use->qrpd().isSingular() || 
+           DiagMatrixViewOf(A_use->qrpd().getR().diag()).condition() > 
+           MAX_CONDITION) {
         dbg<<"Poor condition in MeasureShapelet: \n";
-        xdbg<<"svd = "<<A_use->svd().getS().diag()<<std::endl;
-        xdbg<<"condition = "<<A_use->svd().condition()<<std::endl;
+        dbg<<"R diag = "<<A_use->qrpd().getR().diag()<<std::endl;
+        xdbg<<"condition = "<<
+            DiagMatrixViewOf(A_use->qrpd().getR().diag()).condition()<<
+            std::endl;
         if (order > 2) {
             bsize -= order+1; --order;
             dbg<<"Reducing order to "<<order<<std::endl;
