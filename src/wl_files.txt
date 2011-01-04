@@ -4,8 +4,6 @@ NLSolver.cpp
 BinomFact.cpp
 Image.cpp
 BVec.cpp
-EllipseSolver.cpp
-EllipseSolver2.cpp
 EllipseSolver3.cpp
 Pixel.cpp
 Transformation.cpp

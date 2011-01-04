@@ -34,7 +34,7 @@ bool shouldThrow = true;
 std::string lastSuccess = "";
 std::ostream* testout = &std::cout;
 
-//#define TEST1  // Basic measurements, ApplyZ/G/Mu
+#define TEST1  // Basic measurements, ApplyZ/G/Mu
 #define TEST2  // Deconvolving measurements, PsfConvolve
 //#define TEST3  // Solve for Ellipse -- single image
 //#define TEST4  // Solve for Ellipse -- multiple images
@@ -942,7 +942,6 @@ int main(int argc, char **argv) try
     double sigma_i = 1.7;
     Ellipse e0; // all 0's.
 
-    std::auto_ptr<BaseEllipseSolver> s;
     std::vector<PixelList> allpix(1);
 #endif
 
@@ -1233,7 +1232,7 @@ int main(int argc, char **argv) try
                 // This is one estimate of the observed galaxy in the e0
                 // frame.
                 double sigma_o = sqrt(pow(sigma_i,2)+pow(sigmaPsf,2));
-                DMatrix C(bsize2,bsize2);
+                DMatrix C(bsize2,bsize2,0.);
                 calculatePsfConvolve(bpsf,order2,sigma_i,C);
                 BVec c0(order2,sigma_o);
                 //xdbg<<"C = "<<TMV_colRange(C,0,15)<<std::endl;
@@ -1327,7 +1326,7 @@ int main(int argc, char **argv) try
 
                 // cey is yet another estimate of the same: convolve be
                 BVec cey(order2,sigma_o);
-                DMatrix Ce(bsize2,bsize2);
+                DMatrix Ce(bsize2,bsize2,0.);
                 BVec bpsfe(order2,sigmaPsf);
                 bpsfe = bpsf;
                 applyG(g0,bpsfe);
@@ -1610,9 +1609,9 @@ int main(int argc, char **argv) try
             // bpsf2 is the psf in the e0 frame.
             BVec bpsf2(order+4,sigmaPsf);
             bpsf2 = bpsf;
-            DMatrix S1(bpsf2.size(),bpsf2.size());
+            DMatrix S1(bpsf2.size(),bpsf2.size(),0.);
             calculateGTransform(g0,bpsf2.getOrder(),S1);
-            DMatrix D1(bpsf2.size(),bpsf2.size());
+            DMatrix D1(bpsf2.size(),bpsf2.size(),0.);
             calculateMuTransform(m0,bpsf2.getOrder(),D1);
 #ifdef USE_TMV
             bpsf2.vec() /= D1;
@@ -1624,7 +1623,7 @@ int main(int argc, char **argv) try
 
             // c0 is the convolved galaxy shape in the ell frame.
             double sigma_o = sqrt(pow(sigma_i,2)+pow(sigmaPsf,2));
-            DMatrix C(45,45);
+            DMatrix C(45,45,0.);
             calculatePsfConvolve(bpsf,8,sigma_i,C);
             BVec c0(8,sigma_o);
             c0.vec() = TMV_colRange(C,0,15) * b0.vec();
@@ -1759,9 +1758,9 @@ int main(int argc, char **argv) try
                 // allpsf2 is the psf in the e0 frame.
                 allpsf2.push_back(BVec(order+4,sigmaPsfx[k]));
                 allpsf2[k] = allpsf[k];
-                DMatrix S1(allpsf2[k].size(),allpsf2[k].size());
+                DMatrix S1(allpsf2[k].size(),allpsf2[k].size(),0.);
                 calculateGTransform(g0,allpsf2[k].getOrder(),S1);
-                DMatrix D1(allpsf2[k].size(),allpsf2[k].size());
+                DMatrix D1(allpsf2[k].size(),allpsf2[k].size(),0.);
                 calculateMuTransform(m0,allpsf2[k].getOrder(),D1);
 #ifdef USE_TMV
                 allpsf2[k].vec() /= D1;
@@ -1774,7 +1773,7 @@ int main(int argc, char **argv) try
 
                 // c0 is the convolved galaxy shape in the ell frame.
                 double sigma_o = sqrt(pow(sigma_i,2)+pow(sigmaPsfx[k],2));
-                DMatrix C(45,45);
+                DMatrix C(45,45,0.);
                 calculatePsfConvolve(allpsf[k],8,sigma_i,C);
                 BVec c0(8,sigma_o);
                 c0.vec() = TMV_colRange(C,0,15) * b0.vec();
@@ -1919,9 +1918,9 @@ int main(int argc, char **argv) try
             // allpsf2 is the psf in the e0 frame.
             allpsf2.push_back(BVec(order+4,sigmaPsfx[k]));
             allpsf2[k] = allpsf[k];
-            DMatrix S1(allpsf2[k].size(),allpsf2[k].size());
+            DMatrix S1(allpsf2[k].size(),allpsf2[k].size(),0.);
             calculateGTransform(g0,allpsf2[k].getOrder(),S1);
-            DMatrix D1(allpsf2[k].size(),allpsf2[k].size());
+            DMatrix D1(allpsf2[k].size(),allpsf2[k].size(),0.);
             calculateMuTransform(m0,allpsf2[k].getOrder(),D1);
 #ifdef USE_TMV
             allpsf2[k].vec() /= D1;
@@ -1934,7 +1933,7 @@ int main(int argc, char **argv) try
 
             // c0 is the convolved galaxy shape in the ell frame.
             double sigma_o = sqrt(pow(sigma_i,2)+pow(sigmaPsfx[k],2));
-            DMatrix C(45,45);
+            DMatrix C(45,45,0.);
             calculatePsfConvolve(allpsf[k],8,sigma_i,C);
             BVec c0(8,sigma_o);
             c0.vec() = TMV_colRange(C,0,15) * b0.vec();
@@ -2239,7 +2238,7 @@ int main(int argc, char **argv) try
         laguerre::LTransform garyZTransform = 
             laguerre::MakeLTransform(garyZ,order,order,true);
         mv::DMatrix garyZMatrix = garyZTransform.rMatrix();
-        tmv::Matrix<double> myZMatrix(orderSize,orderSize);
+        tmv::Matrix<double> myZMatrix(orderSize,orderSize,0.);
         calculateZTransform(z,order,myZMatrix);
         test(Norm(myZMatrix - convertMatrix(garyZMatrix)) <= 1.e-5,
              "compare ZTransform with Gary's MakeLTransform");
@@ -2250,7 +2249,7 @@ int main(int argc, char **argv) try
             laguerre::MakeLTransform(mu,order,order,true);
         mv::DMatrix garyMuMatrix = garyMuTransform.rMatrix();
         garyMuMatrix /= exp(2.*mu);
-        tmv::Matrix<double> myMuMatrix(orderSize,orderSize);
+        tmv::Matrix<double> myMuMatrix(orderSize,orderSize,0.);
         calculateMuTransform(mu,order,myMuMatrix);
         test(Norm(myMuMatrix - convertMatrix(garyMuMatrix)) <= 1.e-5,
              "compare MuTransform with Gary's MakeLTransform");
@@ -2265,7 +2264,7 @@ int main(int argc, char **argv) try
         laguerre::LTransform garyGTransform = 
             laguerre::MakeLTransform(garyG,order,order,true);
         mv::DMatrix garyGMatrix = garyGTransform.rMatrix();
-        tmv::Matrix<double> myGMatrix(orderSize,orderSize);
+        tmv::Matrix<double> myGMatrix(orderSize,orderSize,0.);
         calculateGTransform(g,order,myGMatrix);
         test(Norm(myGMatrix - convertMatrix(garyGMatrix)) <= 1.e-5,
              "compare GTransform with Gary's MakeLTransform");
@@ -2306,7 +2305,7 @@ int main(int argc, char **argv) try
                 laguerre::LTransform garyPsfTransform = 
                     laguerre::MakeLTransform(garyBPsf,D,order,order,order);
                 mv::DMatrix garyPsfMatrix = garyPsfTransform.rMatrix();
-                tmv::Matrix<double> myPsfMatrix(orderSize,orderSize);
+                tmv::Matrix<double> myPsfMatrix(orderSize,orderSize,0.);
                 calculatePsfConvolve(myBPsf,order,sigma,myPsfMatrix);
                 garyPsfMatrix /= sqrtpi; // To Match my normalization
                 dbg<<"Gary's convolution matrix/sqrt(pi) = "<<
@@ -2346,7 +2345,7 @@ int main(int argc, char **argv) try
             laguerre::LTransform garyPsfTransform = 
                 laguerre::MakeLTransform(garyBPsf,D,order,order,4);
             mv::DMatrix garyPsfMatrix = garyPsfTransform.rMatrix();
-            tmv::Matrix<double> myPsfMatrix(orderSize,orderSize);
+            tmv::Matrix<double> myPsfMatrix(orderSize,orderSize,0.);
             calculatePsfConvolve(myBPsf,order,sigma,myPsfMatrix);
             garyPsfMatrix /= sqrtpi; // To Match my normalization
             dbg<<"Gary's convolution matrix/sqrt(pi) = "<<

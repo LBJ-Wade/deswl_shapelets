@@ -468,11 +468,12 @@ bool NLSolver::solveDogleg(
         xxdbg<<"J = "<<J<<std::endl;
         if (_shouldUseSvd)
             xxdbg<<"J.svd = "<<J.svd().getS().diag()<<std::endl;
-        if (_shouldUseSvd && nsing == maxnsing && J.isSingular() && nsing > 1) {
-            dbg<<"Singular J, so try lowering number of singular values.\n";
+        if (_shouldUseSvd && nsing == maxnsing && nsing > 1 &&
+            J.svd().isSingular()) {
+            xdbg<<"Singular J, so try lowering number of singular values.\n";
             nsing = J.svd().getKMax();
-            dbg<<"J Singular values = \n"<<J.svd().getS().diag()<<std::endl;
-            dbg<<"nsing -> "<<nsing<<std::endl;
+            xdbg<<"J Singular values = \n"<<J.svd().getS().diag()<<std::endl;
+            xdbg<<"nsing -> "<<nsing<<std::endl;
         }
         h = -f/J;
         xdbg<<"h_newton = "<<h<<std::endl;

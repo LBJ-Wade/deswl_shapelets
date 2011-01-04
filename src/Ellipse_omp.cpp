@@ -118,7 +118,7 @@ bool Ellipse::doMeasure(
                 if (solver2.solve(x,f) && NormInf(f) <= ftol) {
                     dbg<<"Found good round frame without using mu:\n";
                     dbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
-                    dbg<<"b = "<<EIGEN_Transpose(solver.getB().vec())<<std::endl;
+                    dbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
                     break;
                 }
                 // Next let Mu help find a good round frame, but don't require 
@@ -139,12 +139,12 @@ bool Ellipse::doMeasure(
             if (solver.solve(x,f)) {
                 dbg<<"Found good round frame:\n";
                 dbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
-                dbg<<"b = "<<EIGEN_Transpose(solver.getB().vec())<<std::endl;
+                dbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
                 break;
             } 
             dbg<<"findRoundFrame solver failed:\n";
             dbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
-            dbg<<"b = "<<EIGEN_Transpose(solver.getB().vec())<<std::endl;
+            dbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
             //if (XDEBUG) if (!solver.testJ(x,f,dbgout,1.e-5)) exit(1);
 #ifdef TRY_HYBRID
             if (psf && !_isFixedMu) {
@@ -153,12 +153,12 @@ bool Ellipse::doMeasure(
                 if (solver.solve(x,f)) {
                     dbg<<"Found good round frame using Hybrid:\n";
                     dbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
-                    dbg<<"b = "<<EIGEN_Transpose(solver.getB().vec())<<std::endl;
+                    dbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
                     break;
                 } 
                 dbg<<"findRoundFrame solver failed again with Hybrid:\n";
                 dbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
-                dbg<<"b = "<<EIGEN_Transpose(solver.getB().vec())<<std::endl;
+                dbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
             }
 #endif
             // If we get here, then nothing worked.
@@ -217,7 +217,7 @@ bool Ellipse::doMeasure(
         // Check for flags
         xdbg<<"Checking for possible problems\n";
         if (!(b(0) > 0.)) {
-            xdbg<<"getB = "<<solver.getB().vec()<<", negative flux.\n";
+            xdbg<<"b = "<<b<<", negative flux.\n";
             xdbg<<"flag SHEAR_BAD_FLUX\n";
             flag |= SHEAR_BAD_FLUX;
         }

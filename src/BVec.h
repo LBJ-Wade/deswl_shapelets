@@ -87,24 +87,44 @@ private :
 inline std::ostream& operator<<(std::ostream& os, const BVec& b)
 { os << b.getOrder()<<"  "<<b.getSigma()<<"  "<<b.vec(); return os; }
 
-void calculateZTransform(std::complex<double> z, int order, DMatrix& T);
+// NB: All of the following calculate and augment functions assume that
+// the input matrix has already been zeroed before calling the function.
+// This is because the sparsity of the matrices maintains its structure
+// for different values of mu, g, theta, and z.  So it is faster to 
+// just overwrite the locations that need to be written and skip the zeroes
+// each time you call these functions.
+void calculateZTransform(
+    std::complex<double> z, int order1, int order2, DMatrix& T);
+inline void calculateZTransform(std::complex<double> z, int order, DMatrix& T)
+{ calculateZTransform(z,order,order,T); }
 void augmentZTransformCols(std::complex<double> z, int order, DMatrix& T);
 void applyZ(std::complex<double> z, BVec& b);
 
-void calculateMuTransform(double mu, int order, DMatrix& D);
+void calculateMuTransform(double mu, int order1, int order2, DMatrix& D);
+inline void calculateMuTransform(double mu, int order, DMatrix& D)
+{ calculateMuTransform(mu,order,order,D); }
 void augmentMuTransformRows(double mu, int order, DMatrix& D);
 void augmentMuTransformCols(double mu, int order, DMatrix& D);
 void applyMu(double mu, BVec& b);
 
-void calculateThetaTransform(double theta, int order, DBandMatrix& R);
+void calculateThetaTransform(
+    double theta, int order1, int order2, DBandMatrix& R);
+inline void calculateThetaTransform(double theta, int order, DBandMatrix& R)
+{ calculateThetaTransform(theta,order,order,R); }
 void applyTheta(double theta, BVec& b);
 
-void calculateGTransform(std::complex<double> g, int order, DMatrix& S);
+void calculateGTransform(
+    std::complex<double> g, int order1, int order2, DMatrix& S);
+inline void calculateGTransform(std::complex<double> g, int order, DMatrix& S)
+{ calculateGTransform(g,order,order,S); }
 void augmentGTransformCols(std::complex<double> g, int order, DMatrix& S);
 void applyG(std::complex<double> g, BVec& b);
 
 void calculatePsfConvolve(
-    const BVec& bpsf, int order, double sigma, DMatrix& C);
+    const BVec& bpsf, int order1, int order2, double sigma, DMatrix& C);
+inline void calculatePsfConvolve(
+    const BVec& bpsf, int order, double sigma, DMatrix& C)
+{ calculatePsfConvolve(bpsf,order,order,sigma,C); }
 void applyPsf(const BVec& bpsf, BVec& b);
 
 #endif

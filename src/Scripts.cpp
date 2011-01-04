@@ -214,7 +214,7 @@ void doMeasureShear(
         gettimeofday(&tp,0);
         t2 = tp.tv_sec + tp.tv_usec/1.e6;
         std::cout<<"Time: Measure Shears = "<<t2-t1<<std::endl;
-        std::cout<<"Rate: "<<(t2-t1)/shearCat->size()<<" s / gal)\n";
+        std::cout<<"Rate: "<<(t2-t1)/shearCat->size()<<" s / gal\n";
         t1 = t2;
     }
 

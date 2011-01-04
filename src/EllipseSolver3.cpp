@@ -28,10 +28,10 @@ struct EllipseSolver3::ESImpl3
     void doJ(const DVector& x, const DVector& f, DMatrix& J) const;
 
     int b0order, bxorder, bxorderp2;
-    mutable BVec b0;
-    mutable BVec bx;
-    mutable DVector bxsave;
     int b0size, bxsize, bxsizep2;
+    mutable BVec b0;
+    mutable DVector bx;
+    mutable DVector bxsave;
     mutable DMatrix Daug;
     mutable DMatrix Saug;
     mutable DMatrix Taug;
@@ -87,29 +87,30 @@ EllipseSolver3::ESImpl3::ESImpl3(
     const BVec& _b0, int _order,
     bool _fixcen, bool _fixgam, bool _fixmu) :
     b0order(_b0.getOrder()), bxorder(_order), bxorderp2(bxorder+2),
-    b0(_b0), bx(bxorder,b0.getSigma()), bxsave(bx.size()),
-    b0size(b0.size()), bxsize(bx.size()), 
+    b0size(_b0.size()), bxsize((bxorder+1)*(bxorder+2)/2),
     bxsizep2((bxorderp2+1)*(bxorderp2+2)/2),
-    Daug(bxsize,bxsizep2), Saug(bxsize,bxsizep2), Taug(bxsize,bxsizep2),
-    D(Daug.colRange(0,bxsize)),
-    S(Saug.colRange(0,bxsize)),
-    T(Taug.colRange(0,bxsize)),
+    b0(_b0), bx(bxsize), bxsave(bxsize),
+    Daug(bxsize,bxsizep2,0.), Saug(bxsize,bxsizep2,0.),
+    Taug(bxsize,bxsizep2,0.),
+    D(TMV_colRange(Daug,0,bxsize)), S(TMV_colRange(Saug,0,bxsize)),
+    T(TMV_colRange(Taug,0,bxsize)),
     dbdE(6), Db0(bxsize), SDb0(bxsize), GDb0(bxsizep2), GthDb0(bxsizep2),
     fixcen(_fixcen), fixgam(_fixgam), fixmu(_fixmu),
     numeric_j(false), zerob11(true),
     U((fixcen?0:2)+(fixgam?0:2)+(fixmu?0:1),5), 
     xinit(5), xx(5), ff(5), jj(5,5),
     x_short(U.TMV_colsize()), f_short(U.TMV_colsize()),
-    Gx(bxsizep2,bxsize), Gy(bxsizep2,bxsize), 
-    Gg1(bxsizep2,bxsize), Gg2(bxsizep2,bxsize), 
-    Gth(bxsizep2,bxsize), Gmu(bxsizep2,bxsize)
+    Gx(bxsizep2,bxsize,0.), Gy(bxsizep2,bxsize,0.), 
+    Gg1(bxsizep2,bxsize,0.), Gg2(bxsizep2,bxsize,0.), 
+    Gth(bxsizep2,bxsize,0.), Gmu(bxsizep2,bxsize,0.)
 {
     //xdbg<<"EllipseSolver3: \n";
     //xdbg<<"b0 = "<<b0.vec()<<std::endl;
     //xdbg<<"b0.order, sigma = "<<b0.getOrder()<<"  "<<b0.getSigma()<<std::endl;
-    //xdbg<<"order = "<<order<<std::endl;
-    //xdbg<<"bx.order, sigma = "<<bx.getOrder()<<"  "<<bx.getSigma()<<std::endl;
+    //xdbg<<"order = "<<_order<<std::endl;
     //xdbg<<"fixcen,gam,mu = "<<fixcen<<"  "<<fixgam<<"  "<<fixmu<<std::endl;
+    //xdbg<<"bxorder = "<<bxorder<<"  "<<bxsize<<std::endl;
+    //xdbg<<"bxorderp2 = "<<bxorderp2<<"  "<<bxsizep2<<std::endl;
     U.setZero();
     xinit.setZero();
 
@@ -126,16 +127,13 @@ EllipseSolver3::ESImpl3::ESImpl3(
     setupGmu(Gmu,bxorderp2,bxorder);
 
     if (fixcen) { 
-        T.setToIdentity();
-        TMV_colRange(Taug,bxsize,bxsizep2).setZero(); 
+        T.diag().setAllTo(1.);
     }
     if (fixgam) { 
-        S.setToIdentity();
-        TMV_colRange(Saug,bxsize,bxsizep2).setZero(); 
+        S.diag().setAllTo(1.);
     }
     if (fixmu) { 
-        D.setToIdentity();
-        TMV_colRange(Daug,bxsize,bxsizep2).setZero(); 
+        D.diag().setAllTo(1.);
     }
 }
 
@@ -150,7 +148,7 @@ void EllipseSolver3::ESImpl3::doF(const DVector& x, DVector& f) const
     if ((x-xinit).TMV_normInf() > 4.) {
         dbg<<"bad x-xinit: "<<(x-xinit)<<std::endl;
         xdbg<<"x = "<<x<<std::endl;
-        f = 2.* bx.vec().TMV_subVector(1,6) / bx(0);
+        f = 2.* bx.TMV_subVector(1,6) / bx(0);
         return;
     }
 
@@ -161,35 +159,66 @@ void EllipseSolver3::ESImpl3::doF(const DVector& x, DVector& f) const
     if (norm(g) > 0.99) {
         dbg<<"bad gsq = "<<norm(g)<<std::endl;
         xdbg<<"x = "<<x<<std::endl;
-        f = 2.* bx.vec().TMV_subVector(1,6) / bx(0);
+        f = 2.* bx.TMV_subVector(1,6) / bx(0);
         return;
     }
-    int order = bx.getOrder();
 
-    bxsave = bx.vec();
-    bx = b0;
+    bxsave = bx;
+    bool bxset = false;
+
     //xdbg<<"Start with b0 = "<<b0.vec()<<std::endl;
-    //xdbg<<"bx = "<<bx.vec()<<std::endl;
+    //xdbg<<"bx = "<<bx<<std::endl;
+    //TODO: Switch to doing calculate??Transform calls for only the portion
+    //      of the matrix that I acutally use.
+    //      This has implications for doJ though...
     if (!fixmu) {
-        calculateMuTransform(mu,order,Daug);
-        bx.vec() = D * bx.vec();
-        //xdbg<<"mu = "<<mu<<" bx => "<<bx.vec()<<std::endl;
+        //xdbg<<"calc Mu:\n";
+        calculateMuTransform(mu,bxorder,Daug);
+        bx = TMV_colRange(D,0,b0size) * b0.vec();
+        bxset = true;
+        //xdbg<<"mu = "<<mu<<" bx => "<<bx<<std::endl;
     } else if (fixm != 0.) {
-        bx.vec() = D * bx.vec();
+        bx = TMV_colRange(D,0,b0size) * b0.vec();
+        bxset = true;
     }
     if (!fixgam) {
-        calculateGTransform(g,order,Saug);
-        bx.vec() = S * bx.vec();
-        //xdbg<<"g = "<<g<<" bx => "<<bx.vec()<<std::endl;
+        //xdbg<<"calc G:\n";
+        calculateGTransform(g,bxorder,Saug);
+        if (bxset) {
+            bx = S * bx;
+        } else {
+            bx = TMV_colRange(S,0,b0size) * b0.vec();
+            bxset = true;
+        }
+        //xdbg<<"g = "<<g<<" bx => "<<bx<<std::endl;
     } else if (fixg1 != 0. || fixg2 != 0.) {
-        bx.vec() = S * bx.vec();
+        if (bxset) {
+            bx = S * bx;
+        } else {
+            bx = TMV_colRange(S,0,b0size) * b0.vec();
+            bxset = true;
+        }
     }
     if (!fixcen) {
-        calculateZTransform(zc,order,Taug);
-        bx.vec() = T * bx.vec();
-        //xdbg<<"zc = "<<zc<<" bx => "<<bx.vec()<<std::endl;
+        //xdbg<<"calc Z:\n";
+        calculateZTransform(zc,bxorder,Taug);
+        //xdbg<<"after calc Z\n";
+        if (bxset) {
+            //xdbg<<"T = "<<T<<std::endl;
+            bx = T * bx;
+        } else {
+            //xdbg<<"T = "<<TMV_colRange(T,0,b0size)<<std::endl;
+            bx = TMV_colRange(T,0,b0size) * b0.vec();
+            bxset = true;
+        }
+        //xdbg<<"zc = "<<zc<<" bx => "<<bx<<std::endl;
     } else if (fixuc != 0. || fixvc != 0.) {
-        bx.vec() = T * bx.vec();
+        if (bxset) {
+            bx = T * bx;
+        } else {
+            bx = TMV_colRange(T,0,b0size) * b0.vec();
+            bxset = true;
+        }
     }
 
     if (bx(0) <= 0.) {
@@ -197,11 +226,11 @@ void EllipseSolver3::ESImpl3::doF(const DVector& x, DVector& f) const
         xdbg<<"x = "<<x<<std::endl;
         xdbg<<"bx = "<<x<<std::endl;
         f = 2.* bxsave.TMV_subVector(1,6) / bxsave(0);
-        bx.vec() = bxsave;
+        bx = bxsave;
         return;
     }
 
-    f = bx.vec().TMV_subVector(1,6) / bx(0);
+    f = bx.TMV_subVector(1,6) / bx(0);
 
     if (!zerob11) f(4) = 0.;
 }
@@ -234,7 +263,7 @@ void EllipseSolver3::ESImpl3::doJ(
 
     if (!fixcen || !fixgam) {
         // Both cen and gam use this:
-        Db0 = D.colRange(0,b0size) * b0.vec();
+        Db0 = TMV_colRange(D,0,b0size) * b0.vec();
     }
 
     // Leave off one factor of bx(0) for now.
@@ -273,14 +302,14 @@ void EllipseSolver3::ESImpl3::doJ(
         GthDb0 = Gth * Db0;
         GDb0 += g2*GthDb0;
         SDb0 = fact * Saug * GDb0;
-        dbdE = T.rowRange(0,6) * SDb0;
+        dbdE = TMV_rowRange(T,0,6) * SDb0;
         //dbg<<"dbdE = "<<dbdE<<std::endl;
         J.col(2) = dbdE.subVector(1,6) - dbdE(0) * f;
         //dbg<<"J(2) = "<<J.col(2)<<std::endl;
         GDb0 = Gg2 * Db0;
         GDb0 -= g1*GthDb0;
         SDb0 = fact * Saug * GDb0;
-        dbdE = T.rowRange(0,6) * SDb0;
+        dbdE = TMV_rowRange(T,0,6) * SDb0;
         //dbg<<"dbdE = "<<dbdE<<std::endl;
         J.col(3) = dbdE.subVector(1,6) - dbdE(0) * f;
         //dbg<<"J(3) = "<<J.col(3)<<std::endl;
@@ -294,10 +323,10 @@ void EllipseSolver3::ESImpl3::doJ(
     if (!fixmu) {
         // dD/dmu = D Gmu
         augmentMuTransformCols(mu,bxorder,Daug);
-        GDb0 = Gmu.colRange(0,b0size) * b0.vec();
+        GDb0 = TMV_colRange(Gmu,0,b0size) * b0.vec();
         Db0 = Daug * GDb0;
         SDb0 = S * Db0; 
-        dbdE = T.rowRange(0,6) * SDb0;
+        dbdE = TMV_rowRange(T,0,6) * SDb0;
         //dbg<<"dbdE = "<<dbdE<<std::endl;
         J.col(4) = dbdE.subVector(1,6) - dbdE(0) * f;
         //dbg<<"J(4) = "<<J.col(4)<<std::endl;
@@ -310,10 +339,8 @@ void EllipseSolver3::ESImpl3::doJ(
     //xdbg<<"J = "<<J<<std::endl;
 
 #ifdef JTEST
-    int order = bx.getOrder();
     double dE = 1.e-6;
     dbg<<"dE = "<<dE<<std::endl;
-    int orderp2 = order+2;
     testout = dbgout;
     
     // This section was only used for debugging purposes, but
@@ -323,16 +350,16 @@ void EllipseSolver3::ESImpl3::doJ(
     //
     // dD/dmu:
     //
-    DMatrix Dbig(bxsizep2,bxsizep2);
-    DMatrix D0(bxsize,bxsize);
-    DMatrix D1(bxsize,bxsize);
-    DMatrix D2(bxsize,bxsize);
-    calculateMuTransform(mu,orderp2,Dbig);
-    calculateMuTransform(mu,order,D0);
-    calculateMuTransform(mu-dE,order,D1);
-    calculateMuTransform(mu+dE,order,D2);
-    DMatrix Gmubig(bxsizep2,bxsize);
-    setupGmu(Gmubig,orderp2,order);
+    DMatrix Dbig(bxsizep2,bxsizep2,0.);
+    DMatrix D0(bxsize,bxsize,0.);
+    DMatrix D1(bxsize,bxsize,0.);
+    DMatrix D2(bxsize,bxsize,0.);
+    calculateMuTransform(mu,bxorderp2,Dbig);
+    calculateMuTransform(mu,bxorder,D0);
+    calculateMuTransform(mu-dE,bxorder,D1);
+    calculateMuTransform(mu+dE,bxorder,D2);
+    DMatrix Gmubig(bxsizep2,bxsize,0.);
+    setupGmu(Gmubig,bxorderp2,bxorder);
 
     DMatrix dDdmu_num = (D2-D1)/(2.*dE);
     DMatrix d2D_num = (D2+D1-2.*D0)/(dE*dE);
@@ -348,18 +375,18 @@ void EllipseSolver3::ESImpl3::doJ(
     //
     // dS/dg1
     //
-    DMatrix Sbig(bxsizep2,bxsizep2);
-    DMatrix S0(bxsize,bxsize);
-    DMatrix S1(bxsize,bxsize);
-    DMatrix S2(bxsize,bxsize);
-    calculateGTransform(g,orderp2,Sbig);
-    calculateGTransform(g,order,S0);
-    calculateGTransform(g-std::complex<double>(dE,0),order,S1);
-    calculateGTransform(g+std::complex<double>(dE,0),order,S2);
-    DMatrix Gg1big(bxsizep2,bxsize);
-    DMatrix Gthbig(bxsizep2,bxsize);
-    setupGg1(Gg1big,orderp2,order);
-    setupGth(Gthbig,orderp2,order);
+    DMatrix Sbig(bxsizep2,bxsizep2,0.);
+    DMatrix S0(bxsize,bxsize,0.);
+    DMatrix S1(bxsize,bxsize,0.);
+    DMatrix S2(bxsize,bxsize,0.);
+    calculateGTransform(g,bxorderp2,Sbig);
+    calculateGTransform(g,bxorder,S0);
+    calculateGTransform(g-std::complex<double>(dE,0),bxorder,S1);
+    calculateGTransform(g+std::complex<double>(dE,0),bxorder,S2);
+    DMatrix Gg1big(bxsizep2,bxsize,0.);
+    DMatrix Gthbig(bxsizep2,bxsize,0.);
+    setupGg1(Gg1big,bxorderp2,bxorder);
+    setupGth(Gthbig,bxorderp2,bxorder);
 
     DMatrix dSdg1_num = (S2-S1)/(2.*dE);
     DMatrix d2S_num = (S2+S1-2.*S0)/(dE*dE);
@@ -376,10 +403,10 @@ void EllipseSolver3::ESImpl3::doJ(
     //
     // dS/dg2
     //
-    calculateGTransform(g-std::complex<double>(0,dE),order,S1);
-    calculateGTransform(g+std::complex<double>(0,dE),order,S2);
-    DMatrix Gg2big(bxsizep2,bxsize);
-    setupGg2(Gg2big,orderp2,order);
+    calculateGTransform(g-std::complex<double>(0,dE),bxorder,S1);
+    calculateGTransform(g+std::complex<double>(0,dE),bxorder,S2);
+    DMatrix Gg2big(bxsizep2,bxsize,0.);
+    setupGg2(Gg2big,bxorderp2,bxorder);
 
     DMatrix dSdg2_num = (S2-S1)/(2.*dE);
     d2S_num = (S2+S1-2.*S0)/(dE*dE);
@@ -396,16 +423,16 @@ void EllipseSolver3::ESImpl3::doJ(
     //
     // dT/dx
     //
-    DMatrix Tbig(bxsizep2,bxsizep2);
-    DMatrix T0(bxsize,bxsize);
-    DMatrix T1(bxsize,bxsize);
-    DMatrix T2(bxsize,bxsize);
-    calculateZTransform(zc,orderp2,Tbig);
-    calculateZTransform(zc,order,T0);
-    calculateZTransform(zc-std::complex<double>(dE,0),order,T1);
-    calculateZTransform(zc+std::complex<double>(dE,0),order,T2);
-    DMatrix Gxbig(bxsizep2,bxsize);
-    setupGx(Gxbig,orderp2,order);
+    DMatrix Tbig(bxsizep2,bxsizep2,0.);
+    DMatrix T0(bxsize,bxsize,0.);
+    DMatrix T1(bxsize,bxsize,0.);
+    DMatrix T2(bxsize,bxsize,0.);
+    calculateZTransform(zc,bxorderp2,Tbig);
+    calculateZTransform(zc,bxorder,T0);
+    calculateZTransform(zc-std::complex<double>(dE,0),bxorder,T1);
+    calculateZTransform(zc+std::complex<double>(dE,0),bxorder,T2);
+    DMatrix Gxbig(bxsizep2,bxsize,0.);
+    setupGx(Gxbig,bxorderp2,bxorder);
 
     DMatrix dTdx_num = (T2-T1)/(2.*dE);
     DMatrix d2T_num = (T2+T1-2.*T0)/(dE*dE);
@@ -421,10 +448,10 @@ void EllipseSolver3::ESImpl3::doJ(
     //
     // dT/dy
     //
-    calculateZTransform(zc-std::complex<double>(0,dE),order,T1);
-    calculateZTransform(zc+std::complex<double>(0,dE),order,T2);
-    DMatrix Gybig(bxsizep2,bxsize);
-    setupGy(Gybig,orderp2,order);
+    calculateZTransform(zc-std::complex<double>(0,dE),bxorder,T1);
+    calculateZTransform(zc+std::complex<double>(0,dE),bxorder,T2);
+    DMatrix Gybig(bxsizep2,bxsize,0.);
+    setupGy(Gybig,bxorderp2,bxorder,0.);
 
     DMatrix dTdy_num = (T2-T1)/(2.*dE);
     d2T_num = (T2+T1-2.*T0)/(dE*dE);
@@ -441,11 +468,11 @@ void EllipseSolver3::ESImpl3::doJ(
     // J 
     //
     
-    DMatrix J_num(5,5);
+    DMatrix J_num(5,5,0.);
     DVector x0 = x;
     DVector f0(5);
     doF(x0,f0);
-    DVector bx0 = bx.vec().subVector(0,6);
+    DVector bx0 = bx.subVector(0,6);
     dbg<<"x0 = "<<x0<<std::endl;
     dbg<<"b0 = "<<bx0<<std::endl;
     dbg<<"f0 = "<<f0<<std::endl;
@@ -456,7 +483,7 @@ void EllipseSolver3::ESImpl3::doJ(
         DVector f1(5);
         DVector x1 = x; x1(k) -= dE;
         doF(x1,f1);
-        DVector b1 = bx.vec().subVector(0,6);
+        DVector b1 = bx.subVector(0,6);
         dbg<<"x1 = "<<x1<<std::endl;
         dbg<<"b1 = "<<b1<<std::endl;
         dbg<<"f1 = "<<f1<<std::endl;
@@ -464,7 +491,7 @@ void EllipseSolver3::ESImpl3::doJ(
         DVector f2(5);
         DVector x2 = x; x2(k) += dE;
         doF(x2,f2);
-        DVector b2 = bx.vec().subVector(0,6);
+        DVector b2 = bx.subVector(0,6);
         dbg<<"x2 = "<<x2<<std::endl;
         dbg<<"b2 = "<<b2<<std::endl;
         dbg<<"f2 = "<<f2<<std::endl;
@@ -607,8 +634,6 @@ void EllipseSolver3::useNumericJ() { _pimpl->numeric_j = true; }
 
 void EllipseSolver3::dontZeroB11() { _pimpl->zerob11 = false; this->useSVD(); }
 
-const BVec& EllipseSolver3::getB() const { return _pimpl->bx; }
-
 void EllipseSolver3::getCovariance(DMatrix& cov) const 
 {
     dbg<<"getCovariance:\n";
@@ -651,7 +676,7 @@ bool EllipseSolver3::solve(DVector& x, DVector& f) const
     Assert(x.size() == 5);
     Assert(f.size() == 5);
     _pimpl->xinit = x;
-    _pimpl->bx.vec().setAllTo(1.); // In case we bail out with f = 2*bx/b(0)
+    _pimpl->bx.setAllTo(1.); // In case we bail out with f = 2*bx/b(0)
     if (_pimpl->fixcen) { _pimpl->fixuc = x[0]; _pimpl->fixvc = x[1]; }
     if (_pimpl->fixgam) { _pimpl->fixg1 = x[2]; _pimpl->fixg2 = x[3]; }
     if (_pimpl->fixmu) { _pimpl->fixm = x[4]; }

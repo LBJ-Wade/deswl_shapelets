@@ -228,43 +228,62 @@ bool Ellipse::doMeasureShapelet(
         for(int k=0,n=0,nx;k<nExp;++k,n=nx) {
             xdbg<<"psf = "<<(*psf)[k]<<std::endl;
             int psforder = (*psf)[k].getOrder();
+            int newpsforder = std::max(psforder,order2);
             xdbg<<"psforder = "<<psforder<<std::endl;
-            if (order2 > psforder) { psforder = order2; }
-            xdbg<<"psforder => "<<psforder<<std::endl;
+            xdbg<<"newpsforder = "<<newpsforder<<std::endl;
             const double psfsigma = (*psf)[k].getSigma();
             xdbg<<"sigma = "<<psfsigma<<std::endl;
-            BVec newpsf(psforder,psfsigma);
-            int psfsize = newpsf.size();
+            BVec newpsf(newpsforder,psfsigma);
+            int psfsize = (*psf)[k].size();
+            int newpsfsize = newpsf.size();
             xdbg<<"psfsize = "<<psfsize<<std::endl;
-            newpsf = (*psf)[k];
-            xdbg<<"Initial newpsf = "<<newpsf<<std::endl;
+            bool setnew = false;
             if (_gamma != 0.) {
-                DMatrix S(psfsize,psfsize);
-                calculateGTransform(_gamma,psforder,S);
-                newpsf.vec() = S * newpsf.vec();
+                DMatrix S(newpsfsize,psfsize,0.);
+                calculateGTransform(_gamma,newpsforder,psforder,S);
+                newpsf.vec() = S * (*psf)[k].vec();
+                setnew = true;
                 xdbg<<"newpsf = "<<newpsf<<std::endl;
             }
             if (real(_mu) != 0.) {
-                DMatrix D(psfsize,psfsize);
-                calculateMuTransform(real(_mu),psforder,D);
-                newpsf.vec() = D * newpsf.vec();
+                if (setnew) {
+                    DMatrix D(newpsfsize,newpsfsize,0.);
+                    calculateMuTransform(real(_mu),newpsforder,D);
+                    newpsf.vec() = D * newpsf.vec();
+                } else {
+                    DMatrix D(newpsfsize,psfsize,0.);
+                    calculateMuTransform(real(_mu),newpsforder,psforder,D);
+                    newpsf.vec() = D * (*psf)[k].vec();
+                    setnew = true;
+                }
                 newpsf.vec() *= exp(2.*real(_mu));
                 xdbg<<"newpsf => "<<newpsf<<std::endl;
             }
             if (imag(_mu) != 0.) {
-                DBandMatrix R(psfsize,psfsize,1,1);
-                calculateThetaTransform(imag(_mu),psforder,R);
-                newpsf.vec() = R * newpsf.vec();
+                if (setnew) {
+                    DBandMatrix R(newpsfsize,newpsfsize,1,1,0.);
+                    calculateThetaTransform(imag(_mu),newpsforder,R);
+                    newpsf.vec() = R * newpsf.vec();
+                } else {
+                    DBandMatrix R(newpsfsize,psfsize,1,1,0.);
+                    calculateThetaTransform(imag(_mu),newpsforder,psforder,R);
+                    newpsf.vec() = R * (*psf)[k].vec();
+                    setnew = true;
+                }
                 xdbg<<"newpsf => "<<newpsf<<std::endl;
             }
-            DMatrix C(bsize2,bsize2);
-            calculatePsfConvolve(newpsf,order2,b.getSigma(),C);
+            DMatrix C(bsize2,bsize,0.);
+            if (setnew) {
+                calculatePsfConvolve(newpsf,order2,order,b.getSigma(),C);
+            } else {
+                calculatePsfConvolve((*psf)[k],order2,order,b.getSigma(),C);
+            }
 
             const int nPix = pix[k].size();
             nx = n+nPix;
             DMatrix A1(nPix,bsize2);
             makePsi(A1,Z.TMV_subVector(n,nx),order2,&W);
-            TMV_rowRange(A,n,nx) = A1 * C.colRange(0,bsize);
+            TMV_rowRange(A,n,nx) = A1 * C;
         }
     } else {
         makePsi(A,TMV_vview(Z),order,&W);
@@ -435,36 +454,52 @@ bool Ellipse::doAltMeasureShapelet(
         if (psf) {
             xdbg<<"psf = "<<(*psf)[k]<<std::endl;
             int psforder = (*psf)[k].getOrder();
+            int newpsforder = std::max(psforder,order2);
             xdbg<<"psforder = "<<psforder<<std::endl;
-            if (order2 > psforder) { psforder = order2; }
-            xdbg<<"psforder => "<<psforder<<std::endl;
+            xdbg<<"newpsforder = "<<newpsforder<<std::endl;
             const double psfsigma = (*psf)[k].getSigma();
             xdbg<<"sigma = "<<psfsigma<<std::endl;
-            BVec newpsf(psforder,psfsigma);
-            int psfsize = newpsf.size();
+            BVec newpsf(newpsforder,psfsigma);
+            int psfsize = (*psf)[k].size();
+            int newpsfsize = newpsf.size();
             xdbg<<"psfsize = "<<psfsize<<std::endl;
-            newpsf = (*psf)[k];
-            xdbg<<"Initial newpsf = "<<newpsf<<std::endl;
+            bool setnew = false;
             if (_gamma != 0.) {
-                DMatrix S(psfsize,psfsize);
-                calculateGTransform(_gamma,psforder,S);
-                newpsf.vec() = S * newpsf.vec();
+                DMatrix S(newpsfsize,psfsize,0.);
+                calculateGTransform(_gamma,newpsforder,psforder,S);
+                newpsf.vec() = S * (*psf)[k].vec();
+                setnew = true;
                 xdbg<<"newpsf = "<<newpsf<<std::endl;
             }
             if (real(_mu) != 0.) {
-                DMatrix D(psfsize,psfsize);
-                calculateMuTransform(real(_mu),psforder,D);
-                newpsf.vec() = D * newpsf.vec();
+                if (setnew) {
+                    DMatrix D(newpsfsize,newpsfsize,0.);
+                    calculateMuTransform(real(_mu),newpsforder,D);
+                    newpsf.vec() = D * newpsf.vec();
+                } else {
+                    DMatrix D(newpsfsize,psfsize,0.);
+                    calculateMuTransform(real(_mu),newpsforder,psforder,D);
+                    newpsf.vec() = D * (*psf)[k].vec();
+                    setnew = true;
+                }
                 newpsf.vec() *= exp(2.*real(_mu));
                 xdbg<<"newpsf => "<<newpsf<<std::endl;
             }
             if (imag(_mu) != 0.) {
-                DBandMatrix R(psfsize,psfsize,1,1);
-                calculateThetaTransform(imag(_mu),psforder,R);
-                newpsf.vec() = R * newpsf.vec();
+                if (setnew) {
+                    DBandMatrix R(newpsfsize,newpsfsize,1,1,0.);
+                    calculateThetaTransform(imag(_mu),newpsforder,R);
+                    newpsf.vec() = R * newpsf.vec();
+                } else {
+                    DBandMatrix R(newpsfsize,psfsize,1,1,0.);
+                    calculateThetaTransform(imag(_mu),newpsforder,psforder,R);
+                    newpsf.vec() = R * (*psf)[k].vec();
+                    setnew = true;
+                }
                 xdbg<<"newpsf => "<<newpsf<<std::endl;
             }
-            DMatrix C(bsize2,bsize2);
+
+            DMatrix C(bsize2,bsize2,0.);
             calculatePsfConvolve(newpsf,order2,b.getSigma(),C);
 #ifdef USE_TMV
             b1 /= C;
