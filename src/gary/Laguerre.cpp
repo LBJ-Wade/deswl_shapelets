@@ -5,7 +5,7 @@
 #include <assert.h>
 
 #include "Matrix.h"
-#include "BinomFact.h"
+#include "../BinomFact.h"
 #include "Laguerre.h"
 #include "Solve.h"
 

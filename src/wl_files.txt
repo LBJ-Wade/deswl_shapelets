@@ -1,6 +1,7 @@
 Bounds.cpp
 Legendre2D.cpp
 NLSolver.cpp
+BinomFact.cpp
 Image.cpp
 BVec.cpp
 EllipseSolver.cpp

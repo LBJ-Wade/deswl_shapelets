@@ -18,8 +18,9 @@ public :
         _isFixedCen(false), _isFixedGamma(false), _isFixedMu(false), 
         _shouldDoTimings(false) {}
 
-    Ellipse(double x, double y, double g1, double g2, double mu) :
-        _cen(x,y), _gamma(g1,g2), _mu(mu), 
+    Ellipse(std::complex<double> cen, std::complex<double> gamma,
+            std::complex<double> mu) :
+        _cen(cen), _gamma(gamma), _mu(mu), 
         _isFixedCen(false), _isFixedGamma(false), _isFixedMu(false), 
         _shouldDoTimings(false) {}
 
@@ -72,17 +73,19 @@ public :
     { return _cen; }
     std::complex<double> getGamma() const 
     { return _gamma; }
-    double getMu() const { return _mu; }
+    double getMu() const { return real(_mu); }
+    double getTheta() const { return imag(_mu); }
 
-    void setCen(const std::complex<double>& cen)
-    { _cen = cen; }
-    void setGamma(const std::complex<double>& gamma)
-    { _gamma = gamma; }
-    void setMu(const double mu) { _mu = mu; }
+    void setCen(const std::complex<double>& cen) { _cen = cen; }
+    void setGamma(const std::complex<double>& gamma) { _gamma = gamma; }
+    void setMu(const std::complex<double>& mu) { _mu = mu; }
 
-    void shiftBy(const std::complex<double>& cen,
-                 const std::complex<double>& gamma,
-                 const double mu);
+    void preShiftBy(const std::complex<double>& cen,
+                    const std::complex<double>& gamma,
+                    const std::complex<double>& mu);
+    void postShiftBy(const std::complex<double>& cen,
+                     const std::complex<double>& gamma,
+                     const std::complex<double>& mu);
 
     void fixCen() { _isFixedCen = true; }
     void fixGam() { _isFixedGamma = true; }
@@ -118,7 +121,7 @@ private :
 
     std::complex<double> _cen;
     std::complex<double> _gamma;
-    double _mu; 
+    std::complex<double> _mu; 
 
     bool _isFixedCen,_isFixedGamma,_isFixedMu;
 

@@ -77,6 +77,9 @@ env2.Prepend(LIBS=['wl'])
 
 env3 = env2.Clone()
 env3.Prepend(LIBS=['gary'])
+compiler = env3['CXXTYPE']
+if env3['CXXTYPE'] == 'g++':
+    env3.Append(CCFLAGS=['-fno-var-tracking-assignments'])
 
 measurepsf = env2.Program('measurepsf', 'MeasurePsf.cpp')
 

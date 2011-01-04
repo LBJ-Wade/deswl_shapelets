@@ -201,6 +201,7 @@ void measureSingleShear1(
 
     long flag0 = flag;
     Ellipse ell0 = ell;
+    Position cen0 = cen;
     for(double fPsf=minFPsf; fPsf<=maxFPsf+1.e-3; fPsf+=0.5) {
         bool lastfpsf = (fPsf + 0.5 > maxFPsf+1.e-3);
         dbg<<"Start fPsf loop: fPsf = "<<fPsf<<std::endl;
@@ -208,6 +209,7 @@ void measureSingleShear1(
         // Reset to initial values in case previous iteration failed.
         flag = flag0;
         ell = ell0;
+        cen = cen0;
 
         //
         // Update deconvolved sigma
@@ -250,7 +252,8 @@ void measureSingleShear1(
         // the intermediate calculations.
         //
         flag1 = 0;
-        if (ell.measure(pix,psf,galOrder,galOrder2,sigma,flag1,1.e-4,0,&shapelet)) {
+        ell.fixMu();
+        if (ell.measure(pix,psf,galOrder,galOrder2,sigma,flag1,1.e-2,0,&shapelet)) {
             dbg<<"Successful deconvolving fit:\n";
             xdbg<<"Mu = "<<ell.getMu()<<std::endl;
             xdbg<<"Cen = "<<ell.getCen()<<std::endl;
@@ -320,7 +323,8 @@ void measureSingleShear1(
         // Next, we find the shear where the galaxy looks round.
         //
         ell.unfixGam();
-        if (ell.measure(pix,psf,galOrder,galOrder,sigma,flag1,1.e-4)) {
+        if (!fixSigma) ell.unfixMu();
+        if (ell.measure(pix,psf,galOrder,galOrder,sigma,flag1,1.e-2)) {
             dbg<<"Successful Gamma fit (1st pass)\n";
             dbg<<"Measured gamma = "<<ell.getGamma()<<std::endl;
             dbg<<"Mu  = "<<ell.getMu()<<std::endl;
@@ -349,6 +353,11 @@ void measureSingleShear1(
         //
         pix[0].clear();
         shear = ell.getGamma();
+        if (!fixCen) cen += ell.getCen();
+        sigma *= exp(ell.getMu());
+        galAp = sigma * galAperture;
+        if (maxAperture > 0. && galAp > maxAperture) galAp = maxAperture;
+        ell.setCen(0.);
         getPixList(im,pix[0],cen,sky,noise,gain,weightIm,trans,
                    galAp,shear,xOffset,yOffset,flag);
         npix = pix[0].size();
@@ -370,9 +379,8 @@ void measureSingleShear1(
         // the intermediate calculations.
         // Also, for this one we use a thresh value of 1.e-4, rather than 0.1
         // to make sure that we get an unbiased estimate of gamma.  
+        //
 
-        sigma *= exp(ell.getMu());
-        ell.setMu(0.);
         DMatrix cov5(5,5);
         if (ell.measure(pix,psf,galOrder,galOrder2,sigma,flag,1.e-4,&cov5)) {
             dbg<<"Successful Gamma fit (2nd pass)\n";

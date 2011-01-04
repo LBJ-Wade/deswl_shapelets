@@ -41,8 +41,9 @@ static const long PSF_BAD_FLUX            = 0x2000000;
 static const long SHAPE_BAD_FLUX          = 0x4000000;
 static const long CENTROID_FAILED         = 0x8000000;
 static const long SHAPELET_NOT_DECONV     = 0x10000000;
+static const long SHEAR_DIDNT_CONVERGE    = 0x20000000;
 
-static const long NFLAGS = 29;
+static const long NFLAGS = 30;
 
 static const char*const flagName[NFLAGS] = {
     "INPUT_FLAG",
@@ -73,7 +74,8 @@ static const char*const flagName[NFLAGS] = {
     "PSF_BAD_FLUX",
     "SHAPE_BAD_FLUX",
     "CENTROID_FAILED",
-    "SHAPELET_NOT_DECONV" 
+    "SHAPELET_NOT_DECONV",
+    "SHEAR_DIDNT_CONVERGE"
 };
 
 void PrintFlags(const std::vector<long>& flags, std::ostream& os);

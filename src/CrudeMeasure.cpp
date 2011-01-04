@@ -159,7 +159,7 @@ void Ellipse::crudeMeasure(const PixelList& pix, double sigma)
 
     std::complex<double> Iz = 0.;
     double I = 0.;
-    double sig2 = sigma * exp(_mu);
+    double sig2 = sigma * exp(real(_mu));
     for(int i=0;i<nPix;++i) {
         double wt = exp(-std::norm((pix[i].getPos()-_cen)/sig2)/2.);
         Iz += wt * pix[i].getFlux() * (pix[i].getPos()-_cen);
@@ -222,8 +222,8 @@ void Ellipse::crudeMeasure(const PixelList& pix, double sigma)
     xdbg<<"mu = "<<m<<std::endl;
 
     if (!isFixedCen()) zc += zc1 * (1.+exp2mu);
-    if (isFixedMu()) m = _mu;
-    else  m += _mu;
+    if (isFixedMu()) m = real(_mu);
+    else  m += real(_mu);
 
     xdbg<<"Approx cen = "<<zc<<std::endl;
     xdbg<<"Approx mu = "<<m<<std::endl;
@@ -233,7 +233,7 @@ void Ellipse::crudeMeasure(const PixelList& pix, double sigma)
         exp(-norm(zc1)*(1.+exp2mu)/(2.*sig2*sig2));
 #else
     std::complex<double> zc = _cen;
-    double m = _mu;
+    double m = real(_mu);
 
     double model = 0.;
     double obs = 0.;
@@ -295,10 +295,10 @@ void Ellipse::crudeMeasure(const PixelList& pix, double sigma)
         dbg<<"Scaling back to "<<cenNew<<std::endl;
     }
 
-    if (std::abs(muNew-_mu) > 2.) {
+    if (std::abs(muNew-real(_mu)) > 2.) {
         dbg<<"Warning: large scale change in CrudeMeasure\n";
         dbg<<"Old mu = "<<_mu<<", new mu = "<<muNew<<std::endl;
-        muNew = _mu + 2.*(muNew - _mu)/std::abs(muNew-_mu);
+        muNew = real(_mu) + 2.*(muNew - real(_mu))/std::abs(muNew-real(_mu));
         dbg<<"Scaling back to "<<muNew<<std::endl;
     }
 

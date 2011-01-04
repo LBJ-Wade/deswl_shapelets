@@ -96,6 +96,9 @@ void augmentMuTransformRows(double mu, int order, DMatrix& D);
 void augmentMuTransformCols(double mu, int order, DMatrix& D);
 void applyMu(double mu, BVec& b);
 
+void calculateThetaTransform(double theta, int order, DBandMatrix& R);
+void applyTheta(double theta, BVec& b);
+
 void calculateGTransform(std::complex<double> g, int order, DMatrix& S);
 void augmentGTransformCols(std::complex<double> g, int order, DMatrix& S);
 void applyG(std::complex<double> g, BVec& b);

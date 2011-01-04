@@ -5,6 +5,7 @@
 
 #include "TMV.h"
 #include "TMV_Sym.h"
+#include "TMV_Band.h"
 #include "TMV_Small.h"
 
 typedef tmv::Vector<double> DVector;
@@ -14,6 +15,7 @@ typedef tmv::Matrix<double> DMatrix;
 typedef tmv::MatrixView<double> DMatrixView;
 typedef tmv::ConstMatrixView<double> DConstMatrixView;
 typedef tmv::SmallMatrix<double,2,2> DSmallMatrix22;
+typedef tmv::BandMatrix<double> DBandMatrix;
 
 typedef tmv::Vector<std::complex<double> > CDVector;
 typedef tmv::VectorView<std::complex<double> > CDVectorView;
@@ -109,6 +111,7 @@ typedef Eigen::MatrixXd DMatrix;
 typedef Eigen::Block<DMatrix> DMatrixView;
 typedef const DMatrixView DConstMatrixView;
 typedef Eigen::Matrix<double,2,2> DSmallMatrix22;
+typedef Eigen::MatrixXd DBandMatrix;
 
 typedef Eigen::VectorXcd CDVector;
 typedef Eigen::Block<CDVector,Eigen::Dynamic,1> CDVectorView;

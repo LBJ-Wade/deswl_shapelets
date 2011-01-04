@@ -7,7 +7,7 @@
 #include "PsiHelper.h"
 #include "Params.h"
 
-#define MAX_ITER 3
+#define MAX_ITER 10
 #define MAX_START 0.1
 #define MAX_SHIFT 0.5
 #define TRY_HYBRID
@@ -176,9 +176,9 @@ bool Ellipse::doMeasure(
             }
         }
 
-        shiftBy(std::complex<double>(x(0),x(1))*sigma,
-                std::complex<double>(x(2),x(3)),
-                x(4));
+        postShiftBy(std::complex<double>(x(0),x(1))*sigma,
+                    std::complex<double>(x(2),x(3)),
+                    x(4));
 
         dbg<<"ell => "<<*this<<std::endl;
         double normx = Norm(x);
@@ -188,6 +188,8 @@ bool Ellipse::doMeasure(
                 ", so good enough to stop.\n";
         } else if (iter == MAX_ITER) {
             dbg<<"norm(x) = "<<normx<<" > 1.e-4, but maxiter reached.\n";
+            xdbg<<"flag SHEAR_DIDNT_CONVERGE\n";
+            flag |= SHEAR_DIDNT_CONVERGE;
         } else {
             dbg<<"norm(x) = "<<normx<<" > 1.e-4, so try again.\n";
             continue;

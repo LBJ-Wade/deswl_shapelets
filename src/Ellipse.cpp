@@ -6,6 +6,7 @@
 #include "PsiHelper.h"
 #include "Params.h"
 
+#if 0
 static std::complex<double> addShears(
     const std::complex<double> g1, const std::complex<double> g2)
 {
@@ -28,16 +29,14 @@ static std::complex<double> addShears(
     //xdbg<<"GammaAdd: "<<g1<<" + "<<g2<<" = "<<g3<<std::endl;
     return g3;
 }
+#endif
 
-void Ellipse::shiftBy(
-    const std::complex<double>& c1,
-    const std::complex<double>& g1,
-    const double m1)
+static void CalculateShift(
+    std::complex<double> c1, std::complex<double> g1, std::complex<double> m1,
+    std::complex<double> c2, std::complex<double> g2, std::complex<double> m2,
+    std::complex<double>& c3, std::complex<double>& g3, 
+    std::complex<double>& m3)
 {
-    // Current values are c2, g2, m2.
-    // The model is that a round galaxy is first transformed by (c1,g1,m1).
-    // And then by the current values of (c2,g2,m2).
-    //
     // The first set (c1,g1,m1) effect a transformation:
     //
     // z' = exp(-m1)/sqrt(1-|g1|^2) ( z-c1 - g1 (z-c1)* )
@@ -54,34 +53,26 @@ void Ellipse::shiftBy(
     //
     // This is pretty complicated, but we can do it in steps.
     //
-    // First, g3:
-    // Taking just the g terms, we find that 
-    // z'' =  [(1+g1* g2) z - (g1+g2) z*] / sqrt(1-|g1|^2) / sqrt(1-|g2|^2)
-    //     =  (1+g1* g2) [z - (g1+g2)/(1+g1* g2) z*] 
-    //                        / sqrt(1-|g1|^2) / sqrt(1-|g2|^2)
+    // First, just take the terms with z or z*:
+    //
+    // z'' = exp(-m2)/sqrt(1-|g2|^2)/sqrt(1-|g1|^2) * 
+    //       ( exp(-m1) (z - g1 z*) - g2 exp(-m1*) (z* - g1* z) )
+    //     = exp(-m2)/sqrt(1-|g2|^2)/sqrt(1-|g1|^2) * 
+    //       ( (exp(-m1) + exp(-m1*) g1* g2) z - 
+    //         (exp(-m1) g1 + exp(-m1*) g2) z* )
+    //     = exp(-m1-m2)/sqrt(1-|g2|^2)/sqrt(1-|g1|^2)
+    //       ( (1 + R g1* g2) z - (g1 + R g2) z* )
+    // where R == exp(2i imag(m1))
+    //
+    // So, 
+    //
+    // g3 = (g1 + R g2) / (1 + R g1* g2)
+    // exp(-m3) = exp(-m1-m2) (1+R g1* g2) sqrt(1-|g3|^2)/
+    //                   sqrt(1-|g1|^2) / sqrt(1-|g2|^2)
     // 
-    // So we have an equation for g3:
-    // g3 = (g1+g2)/(1+g1* g2)
-    //
-    // But look again at the above equation for z''. 
-    // The first factor is (1+g1* g2) which is complex.
-    // This means it is both a dilation and a rotation.
-    // But we aren't modelling rotations.  So we need to take it out.
-    // We do this by multiplying z by (1+g1* g2)/|1+g1* g2| before
-    // doing the rest of the stuff.  This is allowed because we are 
-    // modelling the galaxy to be initially round, so a rotation doesn't
-    // change that.
-    //
-    // So the real equation for g3 is:
-    // g3 = (g1+g2) (1+g1* g2)/|1+g1* g2|^2
-    //    = (g1+g2))/(1+g1 g2*)
+    // The g terms simplify (after a bit of algebra):
+    // exp(-m3) = exp(-m1-m2) (1+R g1* g2)/|1+R g1* g2|
     // 
-    // Next m3:
-    // exp(-m3) / sqrt(1-|g3|^2) = exp(-m1-m2) |1+g1* g2| /
-    //                                sqrt(1-|g1|^2) / sqrt(1-|g2|^2)
-    // m3 = m1 + m2 - 
-    //       ln( |1+g1* g2| sqrt(1-|g3|^2) / sqrt(1-|g1|^2) / sqrt(1-|g2|^2) )
-    //
     // Finally, the translation terms are a bit messy.
     // The translation terms in the equation for z'' are:
     //
@@ -101,39 +92,54 @@ void Ellipse::shiftBy(
     // c3 = (X + g3 X*) / (1-|g3|^2)
     //
 
-    std::complex<double> c2 = _cen;
-    std::complex<double> g2 = _gamma;
-    double m2 = _mu;
-
-    dbg<<"Start Ellipse::shiftBy\n";
+    dbg<<"Start CalculateShift\n";
     dbg<<"c1,g1,m1 = "<<c1<<"  "<<g1<<"  "<<m1<<std::endl;
     dbg<<"c2,g2,m2 = "<<c2<<"  "<<g2<<"  "<<m2<<std::endl;
 
+    std::complex<double> Rg2 = std::polar(1.,2*imag(m1)) * g2;
     double normg1 = norm(g1);
     double normg2 = norm(g2);
-    std::complex<double> g3 = (g1+g2) / (1.+g1*conj(g2));
+    std::complex<double> denom = 1.+conj(g1)*Rg2;
+    g3 = (g1+Rg2) / denom;
     dbg<<"g3 = "<<g3<<std::endl;
 
-    xdbg<<"Miralda-Escude formula gives g3 = "<<addShears(g1,g2)<<std::endl;
+    //xdbg<<"Miralda-Escude formula gives g3 = "<<addShears(g1,g2)<<std::endl;
 
-    // m3 = m1 + m2 - 
-    //       ln( |1+g1* g2| sqrt(1-|g3|^2) / sqrt(1-|g1|^2) / sqrt(1-|g2|^2) )
-    double normg3 = norm(g3);
-    double m3 = m1 + m2 - log(abs(1.+conj(g1)*g2) * 
-                              sqrt( (1.-normg3)/(1.-normg1)/(1.-normg2) ) );
+    m3 = m1 + m2 - std::complex<double>(0.,1.)*arg(denom);
     dbg<<"m3 = "<<m3<<std::endl;
 
     std::complex<double> X = -c1 - g1 * conj(-c1);
     X = exp(-m1)/sqrt(1.-normg1) * X - c2;
     X = exp(-m2)/sqrt(1.-normg2) * (X - g2 * conj(X));
+    double normg3 = norm(g3);
     X /= -exp(-m3)/sqrt(1.-normg3);
-    std::complex<double> c3 = (X + g3*conj(X)) / (1.-normg3);
+    c3 = (X + g3*conj(X)) / (1.-normg3);
     dbg<<"c3 = "<<c3<<std::endl;
-
-    _cen = c3;
-    _gamma = g3;
-    _mu = m3;
 }
+
+void Ellipse::preShiftBy(
+    const std::complex<double>& c1,
+    const std::complex<double>& g1,
+    const std::complex<double>& m1)
+{
+    // Current values are c2, g2, m2.
+    // The model is that a round galaxy is first transformed by (c1,g1,m1).
+    // And then by the current values of (c2,g2,m2).
+    CalculateShift(c1,g1,m1,_cen,_gamma,_mu,_cen,_gamma,_mu); 
+}
+
+void Ellipse::postShiftBy(
+    const std::complex<double>& c2,
+    const std::complex<double>& g2,
+    const std::complex<double>& m2)
+{
+    // Current values are c1, g1, m1.
+    // The model is that a round galaxy is first transformed by (c1,g1,m1).
+    // And then by the provided values of (c2,g2,m2).
+    CalculateShift(_cen,_gamma,_mu,c2,g2,m2,_cen,_gamma,_mu); 
+}
+
+
 
 bool Ellipse::measure(
     const std::vector<PixelList>& pix,
@@ -178,7 +184,7 @@ bool Ellipse::doMeasureShapelet(
     double gsq = std::norm(_gamma);
     Assert(gsq < 1.);
 
-    double m = exp(-_mu)/sqrt(1.-gsq);
+    std::complex<double> m = exp(-_mu)/sqrt(1.-gsq);
 
     int nTot = 0;
     const int nExp = pix.size();
@@ -201,7 +207,7 @@ bool Ellipse::doMeasureShapelet(
             I(n) = pix[k][i].getFlux()*pix[k][i].getInverseSigma();
             W(n) = pix[k][i].getInverseSigma();
             std::complex<double> z1 = pix[k][i].getPos();
-            std::complex<double> z2 = m*(z1-_cen) - m*_gamma*conj(z1-_cen);
+            std::complex<double> z2 = m*((z1-_cen) - _gamma*conj(z1-_cen));
             Z(n) = z2 / sigma_obs;
         }
     }
@@ -211,10 +217,11 @@ bool Ellipse::doMeasureShapelet(
 
     int bsize = (order+1)*(order+2)/2;
     xdbg<<"bsize = "<<bsize<<std::endl;
+    int bsize2 = (order2+1)*(order2+2)/2;
+    xdbg<<"bsize2 = "<<bsize2<<std::endl;
 
     DMatrix A(nTot,bsize);
     Assert(nTot >= bsize); // Should have been addressed by calling routine.
-    makePsi(A,TMV_vview(Z),order,&W);
     //xdbg<<"A = "<<A<<std::endl;
 
     if (psf) {
@@ -229,21 +236,40 @@ bool Ellipse::doMeasureShapelet(
             BVec newpsf(psforder,psfsigma);
             int psfsize = newpsf.size();
             xdbg<<"psfsize = "<<psfsize<<std::endl;
-            DMatrix S(psfsize,psfsize);
-            calculateGTransform(_gamma,psforder,S);
-            newpsf.vec() = S.colRange(0,(*psf)[k].size()) * (*psf)[k].vec();
-            xdbg<<"newpsf = "<<newpsf<<std::endl;
-            DMatrix D(psfsize,psfsize);
-            calculateMuTransform(_mu,psforder,D);
-            newpsf.vec() = D * newpsf.vec();
-            xdbg<<"newpsf => "<<newpsf<<std::endl;
-            DMatrix C(bsize,bsize);
-            calculatePsfConvolve(newpsf,order,b.getSigma(),C);
+            newpsf = (*psf)[k];
+            xdbg<<"Initial newpsf = "<<newpsf<<std::endl;
+            if (_gamma != 0.) {
+                DMatrix S(psfsize,psfsize);
+                calculateGTransform(_gamma,psforder,S);
+                newpsf.vec() = S * newpsf.vec();
+                xdbg<<"newpsf = "<<newpsf<<std::endl;
+            }
+            if (real(_mu) != 0.) {
+                DMatrix D(psfsize,psfsize);
+                calculateMuTransform(real(_mu),psforder,D);
+                newpsf.vec() = D * newpsf.vec();
+                newpsf.vec() *= exp(2.*real(_mu));
+                xdbg<<"newpsf => "<<newpsf<<std::endl;
+            }
+            if (imag(_mu) != 0.) {
+                DBandMatrix R(psfsize,psfsize,1,1);
+                calculateThetaTransform(imag(_mu),psforder,R);
+                newpsf.vec() = R * newpsf.vec();
+                xdbg<<"newpsf => "<<newpsf<<std::endl;
+            }
+            DMatrix C(bsize2,bsize2);
+            calculatePsfConvolve(newpsf,order2,b.getSigma(),C);
+
             const int nPix = pix[k].size();
             nx = n+nPix;
-            TMV_rowRange(A,n,nx) *= C;
+            DMatrix A1(nPix,bsize2);
+            makePsi(A1,Z.TMV_subVector(n,nx),order2,&W);
+            TMV_rowRange(A,n,nx) = A1 * C.colRange(0,bsize);
         }
+    } else {
+        makePsi(A,TMV_vview(Z),order,&W);
     }
+    const double MAX_CONDITION = 1.e6;
 #ifdef USE_TMV
     A.saveDiv();
     A.divideUsing(tmv::SV);
@@ -251,7 +277,8 @@ bool Ellipse::doMeasureShapelet(
         new tmv::MatrixView<double>(A.view()));
     A_use->svd();
     xdbg<<"svd = "<<A_use->svd().getS().diag()<<std::endl;
-    while (A_use->svd().isSingular() || A_use->svd().condition() > 1.e3) {
+    while (A_use->svd().isSingular() || 
+           A_use->svd().condition() > MAX_CONDITION) {
         dbg<<"Poor condition in MeasureShapelet: \n";
         xdbg<<"svd = "<<A_use->svd().getS().diag()<<std::endl;
         xdbg<<"condition = "<<A_use->svd().condition()<<std::endl;
@@ -296,7 +323,7 @@ bool Ellipse::doMeasureShapelet(
     const DMatrix& svd_v = svd.matrixV();
     double max = svd_s(0);
     double min = svd_s(svd_s.size()-1);
-    if (min < 1.e-6 * max) {
+    if (max > MAX_CONDITION * min) {
         xdbg<<"Poor condition in MeasureShapelet: \n";
         xdbg<<"svd = "<<svd_s.transpose()<<std::endl;
         xdbg<<"condition = "<<max/min<<std::endl;
@@ -354,21 +381,13 @@ bool Ellipse::doAltMeasureShapelet(
     const int nExp = pix.size();
 
     const int bsize = (order+1)*(order+2)/2;
+    const int bsize2 = (order2+1)*(order2+2)/2;
     b.vec().setZero();
     double sigma = b.getSigma();
 
-    DDiagMatrix normD(bsize);
-    double val = pixScale*pixScale/(sigma*sigma)/nExp;
-    for(int n=0,k=0;n<=b.getOrder();++n) {
-        for(int p=n,q=0;p>=q;--p,++q,++k) {
-            if (p!=q) { normD(k) = val/2.; normD(++k) = val/2.; }
-            else normD(k) = val;
-        }
-    }
-
     double gsq = std::norm(_gamma);
     Assert(gsq < 1.);
-    double m = exp(-_mu)/sqrt(1.-gsq);
+    std::complex<double> m = exp(-_mu)/sqrt(1.-gsq);
 
     for(int k=0;k<nExp;++k) {
         const int nPix = pix[k].size();
@@ -379,41 +398,74 @@ bool Ellipse::doAltMeasureShapelet(
             psf ?
             sqrt(pow(sigma,2)+pow((*psf)[k].getSigma(),2)) :
             sigma;
+        dbg<<"sigma_obs = "<<sigma_obs<<std::endl;
+
+        DDiagMatrix normD(bsize2);
+        double val = pow(pixScale/sigma_obs,2) * exp(-2.*real(_mu)) / nExp;
+        for(int n=0,i=0;n<=order2;++n) {
+            for(int p=n,q=0;p>=q;--p,++q,++i) {
+                if (p!=q) { normD(i) = val/2.; normD(++i) = val/2.; }
+                else normD(i) = val;
+            }
+        }
 
         for(int i=0;i<nPix;++i) {
             I(i) = pix[k][i].getFlux();
             std::complex<double> z1 = pix[k][i].getPos();
-            std::complex<double> z2 = m*(z1-_cen) - m*_gamma*conj(z1-_cen);
+            std::complex<double> z2 = m*((z1-_cen) - _gamma*conj(z1-_cen));
             Z(i) = z2 / sigma_obs;
         }
 
-        DMatrix A(nPix,bsize);
-        makePsi(A,TMV_vview(Z),order);
+        DMatrix A(nPix,bsize2);
+        makePsi(A,TMV_vview(Z),order2);
 
         // b = C^-1 normD At I
         DVector b1 = A.transpose() * I;
+        dbg<<"b1 = "<<b1<<std::endl;
         b1 = normD EIGEN_asDiag() * b1;
+        dbg<<"b1 => "<<b1<<std::endl;
         if (psf) {
+            xdbg<<"psf = "<<(*psf)[k]<<std::endl;
             int psforder = (*psf)[k].getOrder();
+            xdbg<<"psforder = "<<psforder<<std::endl;
             if (order2 > psforder) { psforder = order2; }
+            xdbg<<"psforder => "<<psforder<<std::endl;
             const double psfsigma = (*psf)[k].getSigma();
+            xdbg<<"sigma = "<<psfsigma<<std::endl;
             BVec newpsf(psforder,psfsigma);
-            const int psfsize = newpsf.size();
-            DMatrix S(psfsize,psfsize);
-            calculateGTransform(_gamma,psforder,S);
-            newpsf.vec() = S.colRange(0,(*psf)[k].size()) * (*psf)[k].vec();
-            DMatrix D(psfsize,psfsize);
-            calculateMuTransform(_mu,psforder,D);
-            newpsf.vec() = D * newpsf.vec();
-            DMatrix C(bsize,bsize);
-            calculatePsfConvolve(newpsf,order,b.getSigma(),C);
+            int psfsize = newpsf.size();
+            xdbg<<"psfsize = "<<psfsize<<std::endl;
+            newpsf = (*psf)[k];
+            xdbg<<"Initial newpsf = "<<newpsf<<std::endl;
+            if (_gamma != 0.) {
+                DMatrix S(psfsize,psfsize);
+                calculateGTransform(_gamma,psforder,S);
+                newpsf.vec() = S * newpsf.vec();
+                xdbg<<"newpsf = "<<newpsf<<std::endl;
+            }
+            if (real(_mu) != 0.) {
+                DMatrix D(psfsize,psfsize);
+                calculateMuTransform(real(_mu),psforder,D);
+                newpsf.vec() = D * newpsf.vec();
+                newpsf.vec() *= exp(2.*real(_mu));
+                xdbg<<"newpsf => "<<newpsf<<std::endl;
+            }
+            if (imag(_mu) != 0.) {
+                DBandMatrix R(psfsize,psfsize,1,1);
+                calculateThetaTransform(imag(_mu),psforder,R);
+                newpsf.vec() = R * newpsf.vec();
+                xdbg<<"newpsf => "<<newpsf<<std::endl;
+            }
+            DMatrix C(bsize2,bsize2);
+            calculatePsfConvolve(newpsf,order2,b.getSigma(),C);
 #ifdef USE_TMV
             b1 /= C;
 #else 
             C.lu().solve(b1,&b1);
 #endif
+            dbg<<"b1 /= C => "<<b1<<std::endl;
         }
-        b.vec() += b1;
+        b.vec() += b1.TMV_subVector(0,bsize);
     }
     if (order < b.getOrder()) {
         xdbg<<"Need to zero the rest of b\n";
@@ -421,7 +473,7 @@ bool Ellipse::doAltMeasureShapelet(
         // Zero out the rest of the shapelet vector:
         b.vec().TMV_subVector(bsize,b.size()).setZero();
     }
-    xdbg<<"Done measure Shapelet\n";
+    xdbg<<"Done (alt) measure Shapelet\n";
     return true;
 }
 

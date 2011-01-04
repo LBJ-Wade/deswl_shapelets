@@ -1,7 +1,7 @@
 // $Id: LTransforms.cpp,v 1.10 2007-03-14 15:52:38 reiko3 Exp $
 #include "Array3d.h"
 #include "Laguerre.h"
-#include "BinomFact.h"
+#include "../BinomFact.h"
 #include <math.h>
 #include <assert.h>
 

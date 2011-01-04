@@ -230,7 +230,7 @@ void calculateMuTransform(double mu, int order, DMatrix& D)
     // Note: Only s-t = p-q terms are nonzero.
     //       This means that this can be significantly sped up
     //       by forming smaller matrices for each m, and using 
-    //       permutations to rotabe b so that these elements are
+    //       permutations to rotate b so that these elements are
     //       continuous and then rotate back after multiplying.
     //       However, I'll wait to implement this until such speed 
     //       is found to be necessary.
@@ -275,8 +275,12 @@ void calculateMuTransform(double mu, int order, DMatrix& D)
                             }
                             temp /= isqrt[t];
                         }
-                        Dpq[st] = temp; // D(st,pq)
-                        if (s!=t) Dpq1[st+1] = temp; // D(st+1,pq+1)
+                        if (s == t) {
+                            Dpq[st] = temp; // D(st,pq)
+                        } else {
+                            Dpq[st] = temp; // D(st,pq)
+                            Dpq1[st+1] = temp; // D(st+1,pq+1)
+                        }
                     }
                     if (s!=t) ++st;
                 }
@@ -388,6 +392,52 @@ void applyMu(double mu, BVec& b)
         DMatrix D(b.size(),b.size());
         calculateMuTransform(mu,b.getOrder(),D);
         b.vec() = D * b.vec();
+    }
+}
+
+void calculateThetaTransform(double theta, int order, DBandMatrix& R)
+{
+    const int size1 = (order+1)*(order+2)/2;
+    Assert(int(R.TMV_colsize()) >= size1);
+    Assert(int(R.TMV_rowsize()) >= size1);
+
+    R.setZero();
+
+    if (theta == 0.0) { 
+        R.diag(0,0,size1).setAllTo(1.0);
+        return; 
+    }
+
+    std::vector<std::complex<double> > expimt(order+1);
+    expimt[0] = 1.;
+    if (order > 0) expimt[1] = std::polar(1.,theta);
+    for(int m=2;m<=order;++m) expimt[m] = expimt[m-1] * expimt[1];
+
+    for(int n=0,pq=0;n<=order;++n) {
+        for(int p=n,q=0,m=n;p>=q;--p,++q,++pq,m-=2) {
+            if (m==0) {
+                R(pq,pq) = 1.;
+            } else {
+                R(pq,pq) = real(expimt[m]);
+                R(pq,pq+1) = -imag(expimt[m]);
+                R(pq+1,pq) = imag(expimt[m]);
+                R(pq+1,pq+1) = real(expimt[m]);
+                ++pq;
+            }
+        }
+    }
+}
+
+void applyTheta(double theta, BVec& b)
+{
+    if (theta != 0.0) {
+#ifdef USE_TMV
+        DBandMatrix R(b.size(),b.size(),1,1);
+#else
+        DBandMatrix R(b.size(),b.size());
+#endif
+        calculateThetaTransform(theta,b.getOrder(),R);
+        b.vec() = R * b.vec();
     }
 }
 
@@ -606,6 +656,10 @@ void applyG(std::complex<double> g, BVec& b)
 void calculatePsfConvolve(
     const BVec& bpsf, int order, double sigma, DMatrix& C)
 {
+    //xdbg<<"Start calculatePsfConvolve\n";
+    //xdbg<<"bpsf = "<<bpsf<<std::endl;
+    //xdbg<<"order = "<<order<<std::endl;
+    //xdbg<<"sigma = "<<sigma<<std::endl;
     // Just make the matrix which multiplies b to effect the convolution.
     // b_obs = C * b_init
     // However, we do not actually use it this way.  Rather, we use it to 
@@ -637,8 +691,8 @@ void calculatePsfConvolve(
     //                    B H(s,p,u-1) / sqrt(p!(u-1)!/s!(p+u-s-1)!) ]
     //            = A sqrt(p)/sqrt(s+1) H(s,p-1,u) + 
     //              B sqrt(u)/sqrt(s+1) H(s,p,u-1)
-    // 
-    const double invsqrtpi = 1./sqrtpi;
+    
+
     // sigma^2 = exp(mu)
     // D = sigma_i^2 / (sigma_i^2 + sigma_psf^2) 
     //   = 1 / (1 + (sigma_psf/sigma_i)^2)
@@ -686,12 +740,14 @@ void calculatePsfConvolve(
     int pq = 0;
     for(int n=0;n<=order;++n) {
         for(int p=n,q=0;p>=q;(p==q?++pq:pq+=2),--p,++q) {
+            //xdbg<<"Start column "<<pq<<" = "<<p<<','<<q<<std::endl;
             int pmq = p-q;
             double* Cpq = TMV_ptr(C.col(pq));
             double* Cpq1 = p>q?TMV_ptr(C.col(pq+1)):0;
             int st = 0;
             for(int nn=0;nn<=order;++nn) {
                 for(int s=nn,t=0;s>=t;(s==t?++st:st+=2),--s,++t) {
+                    //xdbg<<"st = "<<st<<" = "<<s<<','<<t<<std::endl;
                     int smt = s-t;
                     double Cpqst = 0.;
                     double Cpq1st = 0.;
@@ -817,6 +873,7 @@ void calculatePsfConvolve(
                         }
                     }
                     Assert(uv0 == int(bpsf.size()));
+                    //xdbg<<"Cpq[st] = "<<Cpqst<<std::endl;
                     Cpq[st] = Cpqst;
                     if (smt != 0) Cpq[st+1] = Cpqst1;
                     if (pmq != 0) {
@@ -829,7 +886,7 @@ void calculatePsfConvolve(
         }
     }
     Assert(pq == int(C.TMV_rowsize()));
-    C *= invsqrtpi;
+    C /= sqrtpi;
 }
 
 void applyPsf(const BVec& bpsf, BVec& b)

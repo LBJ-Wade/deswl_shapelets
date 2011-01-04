@@ -8,6 +8,7 @@
 
 #include "Params.h"
 
+#if 0
 static const long ok_flags = (
     EDGE |
     SHEAR_LOCAL_MIN |
@@ -16,6 +17,9 @@ static const long ok_flags = (
     SHAPE_POOR_FIT |
     SHAPE_LOCAL_MIN |
     SHAPE_BAD_FLUX );
+#else
+static const long ok_flags = 0;
+#endif
 
 
 // Weight() calculates an appropriate weight for each galaxy.
