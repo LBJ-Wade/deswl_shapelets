@@ -11,6 +11,25 @@
 #include "MeasureShearAlgo.h"
 
 
+static void ConvertShearFlagsToShapeFlags(long& flag) 
+{
+    if (flag & SHEAR_BAD_FLUX) { 
+        xdbg<<"flag SHAPE_BAD_FLUX\n";
+        flag |= SHAPE_BAD_FLUX;
+        flag &= ~SHEAR_BAD_FLUX;
+    }
+    if (flag & SHEAR_POOR_FIT) { 
+        xdbg<<"flag SHAPE_POOR_FIT\n";
+        flag |= SHAPE_POOR_FIT;
+        flag &= ~SHEAR_POOR_FIT;
+    }
+    if (flag & SHEAR_LOCAL_MIN) { 
+        xdbg<<"flag SHAPE_LOCAL_MIN\n";
+        flag |= SHAPE_LOCAL_MIN;
+        flag &= ~SHEAR_LOCAL_MIN;
+    }
+}
+
 void measureSingleShear1(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans, const std::vector<BVec>& psf,
@@ -75,40 +94,43 @@ void measureSingleShear1(
     //
     // Do a crude measurement based on simple pixel sums.
     //
-    Ellipse ell;
-    ell.fixGam();
-    if (fixCen) ell.fixCen();
-    if (fixSigma) ell.fixMu();
+    Ellipse ell_init;
+    if (fixCen) ell_init.fixCen();
+    if (fixSigma) ell_init.fixMu();
+    ell_init.fixGam();
     if (!fixCen || !fixSigma) {
-        ell.crudeMeasure(pix[0],sigmaObs);
-        xdbg<<"Crude Measure: centroid = "<<ell.getCen()<<
-            ", mu = "<<ell.getMu()<<std::endl;
-        sigmaObs *= exp(ell.getMu());
-        ell.setMu(0.);
+        ell_init.crudeMeasure(pix[0],sigmaObs);
+        xdbg<<"Crude Measure: centroid = "<<ell_init.getCen()<<
+            ", mu = "<<ell_init.getMu()<<std::endl;
+        sigmaObs *= exp(ell_init.getMu());
+        ell_init.setMu(0.);
     }
 
     //
     // Correct the centroid first.
     //
+    Ellipse ell_native = ell_init;
+    if (fixCen) ell_native.fixCen();
+    ell_native.fixMu();
+    ell_native.fixGam();
     if (!fixCen) {
         flag1 = 0;
-        ell.unfixCen();
-        ell.fixMu();
-        if (!ell.measure(pix,2,2,sigmaObs,flag1,0.1)) {
+        if (!ell_native.measure(pix,2,2,sigmaObs,flag1,0.1)) {
             ++log._nfCentroid;
             dbg<<"First centroid pass failed.\n";
+            flag |= flag1;
             xdbg<<"flag CENTROID_FAILED\n";
             flag |= CENTROID_FAILED;
             xdbg<<"flag SHAPELET_NOT_DECONV\n";
             flag |= SHAPELET_NOT_DECONV;
             return;
         }
-        dbg<<"After first centroid pass: cen = "<<ell.getCen()<<std::endl;
+        dbg<<"After first centroid pass: cen = "<<ell_native.getCen()<<std::endl;
 
         // redo the pixlist:
         pix[0].clear();
-        cen += ell.getCen();
-        ell.setCen(std::complex<double>(0.,0.));
+        cen += ell_native.getCen();
+        ell_native.setCen(0.);
         dbg<<"New center = "<<cen<<std::endl;
         getPixList(im,pix[0],cen,sky,noise,gain,weightIm,trans,
                    galAp,xOffset,yOffset,flag);
@@ -129,7 +151,7 @@ void measureSingleShear1(
         // centroid value by 0.1 pixel in a random direction, and resolve for
         // the centroid.  This is all pretty fast, so it's worth doing to
         // avoid the subtle bias that can otherwise result.
-        std::complex<double> cen1 = ell.getCen();
+        std::complex<double> cen1 = ell_native.getCen();
         // get a offset of 0.1 pixels in a random direction.
         double x_offset, y_offset, rsq_offset;
         do {
@@ -141,24 +163,25 @@ void measureSingleShear1(
         x_offset /= r_offset*10.;
         y_offset /= r_offset*10.;
         //std::cout<<"x_offset: "<<x_offset<<"   y_offset: "<<y_offset<<"\n";
-        ell.setCen(std::complex<double>(x_offset,y_offset));
+        ell_native.setCen(std::complex<double>(x_offset,y_offset));
         dbg<<"After random offset "<<x_offset<<","<<y_offset<<
-            ": cen = "<<cen1+ell.getCen()<<std::endl;
+            ": cen = "<<cen1+ell_native.getCen()<<std::endl;
 
         // Now do it again.
         flag1 = 0;
-        if (!ell.measure(pix,2,2,sigmaObs,flag1,0.1)) {
+        if (!ell_native.measure(pix,2,2,sigmaObs,flag1,0.1)) {
             ++log._nfCentroid;
             dbg<<"Second centroid pass failed.\n";
+            flag |= flag1;
             xdbg<<"flag CENTROID_FAILED\n";
             flag |= CENTROID_FAILED;
             xdbg<<"flag SHAPELET_NOT_DECONV\n";
             flag |= SHAPELET_NOT_DECONV;
-            if (!fixCen) cen += ell.getCen();
+            if (!fixCen) cen += ell_native.getCen();
             return;
         }
-        dbg<<"After second centroid pass: cen = "<<cen1+ell.getCen()<<std::endl;
-        dbg<<"Which is now considered "<<ell.getCen()<<" relative to the new "
+        dbg<<"After second centroid pass: cen = "<<cen1+ell_native.getCen()<<std::endl;
+        dbg<<"Which is now considered "<<ell_native.getCen()<<" relative to the new "
             "center value of "<<cen<<std::endl;
 
         ++log._nsCentroid;
@@ -169,53 +192,109 @@ void measureSingleShear1(
     //
     if (!fixSigma) {
         flag1 = 0;
-        ell.unfixMu();
-        if (ell.measure(pix,2,2,sigmaObs,flag1,0.1)) {
-            ++log._nsNative;
+        ell_native.unfixMu();
+        if (ell_native.measure(pix,2,2,sigmaObs,flag1,0.1)) {
+            // Don't ++nsNative yet.  Only success if also do round frame.
             dbg<<"Successful native fit:\n";
-            dbg<<"Z = "<<ell.getCen()<<std::endl;
-            dbg<<"Mu = "<<ell.getMu()<<std::endl;
+            dbg<<"Z = "<<ell_native.getCen()<<std::endl;
+            dbg<<"Mu = "<<ell_native.getMu()<<std::endl;
         } else {
             ++log._nfNative;
             dbg<<"Native measurement failed\n";
+            flag |= flag1;
             xdbg<<"flag NATIVE_FAILED\n";
             flag |= NATIVE_FAILED;
             xdbg<<"flag SHAPELET_NOT_DECONV\n";
             flag |= SHAPELET_NOT_DECONV;
-            if (!fixCen) cen += ell.getCen();
+            if (!fixCen) cen += ell_native.getCen();
             return;
         }
 
         // Adjust the sigma value so we can reset mu = 0.
-        sigmaObs *= exp(ell.getMu());
+        sigmaObs *= exp(ell_native.getMu());
         if (sigmaObs < minGalSize*sigmaP) {
             dbg<<"skip: galaxy is too small -- "<<sigmaObs<<
                 " psf size = "<<sigmaP<<std::endl;
             ++log._nfSmall;
+            flag |= flag1;
             xdbg<<"flag TOO_SMALL\n";
             flag |= TOO_SMALL;
             xdbg<<"flag SHAPELET_NOT_DECONV\n";
             flag |= SHAPELET_NOT_DECONV;
-            if (!fixCen) cen += ell.getCen();
+            if (!fixCen) cen += ell_native.getCen();
             return;
         }
-        ell.setMu(0.);
+        ell_native.setMu(0.);
+    }
+
+    //
+    // Now find the frame in which the native observation is round.
+    //
+    Ellipse ell_round = ell_native;
+    if (fixCen) ell_round.fixCen();
+    if (fixSigma) ell_round.fixMu();
+    flag1 = 0;
+    if (ell_round.measure(pix,galOrder,galOrder2,sigmaObs,flag1,1.e-3)) {
+        ++log._nsNative;
+        dbg<<"Successful round fit:\n";
+        dbg<<"Z = "<<ell_round.getCen()<<std::endl;
+        dbg<<"Mu = "<<ell_round.getMu()<<std::endl;
+        dbg<<"Gamma = "<<ell_round.getGamma()<<std::endl;
+    } else {
+        ++log._nfNative;
+        dbg<<"Round measurement failed\n";
+        flag |= flag1;
+        xdbg<<"flag NATIVE_FAILED\n";
+        flag |= NATIVE_FAILED;
+        xdbg<<"flag SHAPELET_NOT_DECONV\n";
+        flag |= SHAPELET_NOT_DECONV;
+        if (!fixCen) cen += ell_round.getCen();
+        shear = ell_round.getGamma();
+        return;
+    }
+
+    // Adjust the sigma value so we can reset mu = 0.
+    sigmaObs *= exp(ell_round.getMu());
+    ell_round.setMu(0.);
+    if (sigmaObs < minGalSize*sigmaP) {
+        dbg<<"skip: galaxy is too small -- "<<sigmaObs<<
+            " psf size = "<<sigmaP<<std::endl;
+        ++log._nfSmall;
+        xdbg<<"flag TOO_SMALL\n";
+        flag |= TOO_SMALL;
+        xdbg<<"flag SHAPELET_NOT_DECONV\n";
+        flag |= SHAPELET_NOT_DECONV;
+        if (!fixCen) cen += ell_round.getCen();
+        shear = ell_round.getGamma();
+        return;
+    }
+    std::complex<double> native_shear = ell_round.getGamma();
+    if (!fixCen) cen += ell_round.getCen();
+    ell_round.setCen(0.);
+    galAp = sigmaObs * galAperture;
+    if (maxAperture > 0. && galAp > maxAperture) galAp = maxAperture;
+    pix[0].clear();
+    getPixList(im,pix[0],cen,sky,noise,gain,weightIm,trans,
+               galAp,native_shear,xOffset,yOffset,flag);
+    npix = pix[0].size();
+    dbg<<"npix = "<<npix<<std::endl;
+    if (npix < 10) {
+        dbg<<"Too few pixels to do shape measurement.\n";
+        xdbg<<"flag SHAPELET_NOT_DECONV\n";
+        flag |= SHAPELET_NOT_DECONV;
+        shear = ell_round.getGamma();
+        return;
     }
 
     long flag0 = flag;
-    Ellipse ell0 = ell;
-    Position cen0 = cen;
     for(double fPsf=minFPsf; fPsf<=maxFPsf+1.e-3; fPsf+=0.5) {
+        flag = flag0; // In case anything was set in a previous iteration.
+
         bool lastfpsf = (fPsf + 0.5 > maxFPsf+1.e-3);
         dbg<<"Start fPsf loop: fPsf = "<<fPsf<<std::endl;
 
-        // Reset to initial values in case previous iteration failed.
-        flag = flag0;
-        ell = ell0;
-        cen = cen0;
-
         //
-        // Update deconvolved sigma
+        // Set the sigma to use for the shapelet measurement:
         //
         // The sigma to use is 
         // sigma_s^2 = sigma_i^2 + fpsf sigma_p^2
@@ -223,78 +302,51 @@ void measureSingleShear1(
         // So sigma_s^2 = sigma_o^2 + (fpsf-1) sigma_p^2
         sigma = pow(sigmaObs,2) + (fPsf-1.) * sigpsq;
         xdbg<<"sigmaP^2 = "<<sigpsq<<std::endl;
+        xdbg<<"sigmaObs^2 = "<<pow(sigmaObs,2)<<std::endl;
         xdbg<<"sigma^2 = sigmaObs^2 + (fPsf-1) * sigmap^2 = "<<sigma<<std::endl;
         if (sigma < 0.1*sigpsq) {
             xdbg<<"sigma too small, try larger fPsf\n";
-            continue;
+            if (!lastfpsf) continue;
+            xdbg<<"flag TOO_SMALL\n";
+            flag |= TOO_SMALL;
+            shear = ell_round.getGamma();
+            return;
         }
         sigma = sqrt(sigma);
-        galAp = sigma * galAperture;
-        if (maxAperture > 0. && galAp > maxAperture) galAp = maxAperture;
         dbg<<"sigma_s = "<<sigma<<std::endl;
 
-        //
-        // Update pixels
-        //
-        pix[0].clear();
-        getPixList(im,pix[0],cen,sky,noise,gain,weightIm,trans,
-                   galAp,xOffset,yOffset,flag);
-        npix = pix[0].size();
-        dbg<<"npix = "<<npix<<std::endl;
-        if (npix < 10) {
-            if (!lastfpsf) continue;
-            dbg<<"Too few pixels to continue: "<<npix<<std::endl;
-            xdbg<<"flag SHAPELET_NOT_DECONV\n";
-            flag |= SHAPELET_NOT_DECONV;
-            if (!fixCen) cen += ell.getCen();
-        }
-
         // 
-        // Measure a deconvolving fit, still keeping gamma fixed.
-        // Also, this time we care about being accurate, so use galOrder2 for
-        // the intermediate calculations.
+        // Measure a deconvolving fit in the native frame.
         //
+        Ellipse ell_deconv = ell_native;
+        ell_deconv.fixGam();
+        if (fixCen) ell_round.fixCen();
+        if (fixSigma) ell_round.fixMu();
         flag1 = 0;
-        ell.fixMu();
-        if (ell.measure(pix,psf,galOrder,galOrder2,sigma,flag1,1.e-2,0,&shapelet)) {
+        if (ell_deconv.measure(
+                pix,psf,galOrder,galOrder2,sigma,flag1,1.e-3,0,&shapelet)) {
             dbg<<"Successful deconvolving fit:\n";
-            xdbg<<"Mu = "<<ell.getMu()<<std::endl;
-            xdbg<<"Cen = "<<ell.getCen()<<std::endl;
-            // Convert flags to corresponding SHAPE version if necessary:
+            xdbg<<"Mu = "<<ell_deconv.getMu()<<std::endl;
+            xdbg<<"Cen = "<<ell_deconv.getCen()<<std::endl;
             xdbg<<"flag1 = "<<flag1<<std::endl;
-            if (flag1 & SHEAR_BAD_FLUX) { 
-                if (!lastfpsf) continue;
-                xdbg<<"flag SHAPE_BAD_FLUX\n";
-                flag |= SHAPE_BAD_FLUX;
-            }
-#if 0
-            // I don't think I actually care about these.
-            // It's ok for the deconvolution to have a b11 term.
-            if (flag & SHEAR_POOR_FIT) { 
-                xdbg<<"flag SHAPE_POOR_FIT\n";
-                flag |= SHAPE_POOR_FIT;
-                flag &= ~SHEAR_POOR_FIT;
-            }
-            if (flag & SHEAR_LOCAL_MIN) { 
-                xdbg<<"flag SHAPE_LOCAL_MIN\n";
-                flag |= SHAPE_LOCAL_MIN;
-                flag &= ~SHEAR_LOCAL_MIN;
-            }
-#endif
-            xdbg<<"flag => "<<flag<<std::endl;
+            if (flag1 & !lastfpsf) continue;
+            ConvertShearFlagsToShapeFlags(flag1);
+            xdbg<<"flag1 => "<<flag1<<std::endl;
+            flag |= flag1;
             ++log._nsMu;
         } else {
             dbg<<"Deconvolving measurement failed\n";
             if (!lastfpsf) continue;
             ++log._nfMu;
+            ConvertShearFlagsToShapeFlags(flag1);
+            xdbg<<"flag1 => "<<flag1<<std::endl;
+            flag |= flag1;
             xdbg<<"flag DECONV_FAILED\n";
             flag |= DECONV_FAILED;
-            if (!fixCen) cen += ell.getCen();
         }
         dbg<<"sigma = "<<sigma<<std::endl;
-        dbg<<"ell.cen = "<<ell.getCen()<<std::endl;
-        dbg<<"ell.gamma = "<<ell.getGamma()<<std::endl;
-        dbg<<"ell.mu = "<<ell.getMu()<<std::endl;
+        dbg<<"ell.cen = "<<ell_deconv.getCen()<<std::endl;
+        dbg<<"ell.mu = "<<ell_deconv.getMu()<<std::endl;
         dbg<<"Measured deconvolved b_gal = "<<shapelet.vec()<<std::endl;
 
         //
@@ -304,7 +356,7 @@ void measureSingleShear1(
         BVec flux(0,sigma);
         DMatrix fluxCov(1,1);
         int order0 = 0;
-        if (!ell.measureShapelet(pix,psf,flux,order0,0,&fluxCov) ||
+        if (!ell_deconv.measureShapelet(pix,psf,flux,order0,0,&fluxCov) ||
             !(flux(0) > 0) || !(fluxCov(0,0) > 0.) ||
             shapelet(0) >= flux(0)*3. || shapelet(0) <= flux(0)/3.) {
             // If the b00 value in the shapelet doesn't match the direct flux
@@ -326,13 +378,17 @@ void measureSingleShear1(
         // Next, we find the shear where the galaxy looks round.
         //
         flag1 = 0;
-        ell.unfixGam();
-        if (!fixSigma) ell.unfixMu();
-        if (ell.measure(pix,psf,galOrder,galOrder,sigma,flag1,1.e-2)) {
-            dbg<<"Successful Gamma fit (1st pass)\n";
-            dbg<<"Measured gamma = "<<ell.getGamma()<<std::endl;
-            dbg<<"Mu  = "<<ell.getMu()<<std::endl;
-            dbg<<"Cen  = "<<ell.getCen()<<std::endl;
+        Ellipse ell_shear = ell_round;
+        if (fixCen) ell_shear.fixCen();
+        if (fixSigma) ell_shear.fixMu();
+        else ell_shear.setMu(ell_deconv.getMu());
+        DMatrix cov5(5,5);
+        if (ell_shear.measure(
+                pix,psf,galOrder,galOrder2,sigma,flag1,1.e-3,&cov5)) {
+            dbg<<"Successful Gamma fit\n";
+            dbg<<"Measured gamma = "<<ell_shear.getGamma()<<std::endl;
+            dbg<<"Mu  = "<<ell_shear.getMu()<<std::endl;
+            dbg<<"Cen  = "<<ell_shear.getCen()<<std::endl;
             if (flag1) {
                 if (!lastfpsf) {
                     dbg<<"However, flag = "<<flag1<<", so try larger fPsf\n";
@@ -342,64 +398,6 @@ void measureSingleShear1(
                     flag |= flag1;
                 }
             }
-        } else {
-            dbg<<"Measurement failed (1st pass)\n";
-            if (!lastfpsf) {
-                --log._nsMu;
-                continue;
-            }
-            ++log._nfGamma;
-            xdbg<<"flag SHEAR_FAILED\n";
-            flag |= SHEAR_FAILED;
-            if (!fixCen) cen += ell.getCen();
-            return;
-        }
-
-        //
-        // Now we can update the pixels to be a circle in the frame where
-        // the galaxy is round, and tweak the results with the new pixels.
-        //
-        pix[0].clear();
-        shear = ell.getGamma();
-        if (!fixCen) cen += ell.getCen();
-        sigma *= exp(ell.getMu());
-        galAp = sigma * galAperture;
-        if (maxAperture > 0. && galAp > maxAperture) galAp = maxAperture;
-        ell.setCen(0.);
-        getPixList(im,pix[0],cen,sky,noise,gain,weightIm,trans,
-                   galAp,shear,xOffset,yOffset,flag);
-        npix = pix[0].size();
-        dbg<<"npix = "<<npix<<std::endl;
-        if (npix < 10) {
-            dbg<<"Too few pixels to continue: "<<npix<<std::endl;
-            if (!lastfpsf) {
-                --log._nsMu;
-                continue;
-            }
-            xdbg<<"flag SHAPELET_NOT_DECONV\n";
-            flag |= SHAPELET_NOT_DECONV;
-            if (!fixCen) cen += ell.getCen();
-            return;
-        }
-
-        //
-        // Again, this time we care about being accurate, so use galOrder2 for
-        // the intermediate calculations.
-        // Also, for this one we use a thresh value of 1.e-3, rather than 0.1
-        // to make sure that we get an unbiased estimate of gamma.  
-        //
-
-        DMatrix cov5(5,5);
-        if (ell.measure(pix,psf,galOrder,galOrder2,sigma,flag,1.e-3,&cov5)) {
-            dbg<<"Successful Gamma fit (2nd pass)\n";
-            dbg<<"Measured gamma = "<<ell.getGamma()<<std::endl;
-            dbg<<"Mu  = "<<ell.getMu()<<std::endl;
-            dbg<<"Cen  = "<<ell.getCen()<<std::endl;
-            if (flag1 && !lastfpsf) {
-                dbg<<"However, flag = "<<flag1<<", so try larger fPsf\n";
-                --log._nsMu;
-                continue;
-            }
             ++log._nsGamma;
         } else {
             dbg<<"Measurement failed (2nd pass)\n";
@@ -408,16 +406,18 @@ void measureSingleShear1(
                 continue;
             }
             ++log._nfGamma;
+            flag |= flag1;
             xdbg<<"flag SHEAR_FAILED\n";
             flag |= SHEAR_FAILED;
-            if (!fixCen) cen += ell.getCen();
+            shear = ell_shear.getGamma();
+            if (!fixCen) cen += ell_shear.getCen();
             return;
         }
 
         //
         // Copy the shear and covariance to the output variables
         //
-        shear = ell.getGamma();
+        shear = ell_shear.getGamma();
         DSmallMatrix22 cov2 = cov5.TMV_subMatrix(2,4,2,4);
         if (!(cov2.TMV_det() > 0.)) {
             dbg<<"cov2 has bad determinant: "<<cov2.TMV_det()<<std::endl;
@@ -433,9 +433,9 @@ void measureSingleShear1(
         } else {
             shearcov = cov2;
         }
+        if (!fixCen) cen += ell_shear.getCen();
         break;
     }
-    if (!fixCen) cen += ell.getCen();
 }
 
 void measureSingleShear(

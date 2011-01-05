@@ -74,6 +74,7 @@ opts.Add(BoolVariable('WITH_TMV','Use TMV for Matrix/Vector (rather than Eigen)'
 opts.Add(BoolVariable('STATIC','Use static linkage', False))
 opts.Add(BoolVariable('MEM_TEST','Test for memory leaks',False))
 opts.Add(BoolVariable('WARN','Add warning compiler flags, like -Wall', False))
+opts.Add(BoolVariable('TMV_DEBUG','Turn on debugging statements within TMV library',False))
 
 opts.Add(BoolVariable('WITH_LIB',
             'Install the static library and headers.',False))
@@ -651,6 +652,9 @@ def DoConfig(env):
     if not env['DEBUG']:
         print 'Debugging turned off'
         env.Append(CPPDEFINES=['NDEBUG'])
+    elif not env['TMV_DEBUG']:
+        print 'Only TMV Debugging turned off'
+        env.Append(CPPDEFINES=['TMVNDEBUG'])
     if env['STATIC'] :
         if env['CXXTYPE'] == 'pgCC':
             env.Append(LINKFLAGS=['-Bstatic'])

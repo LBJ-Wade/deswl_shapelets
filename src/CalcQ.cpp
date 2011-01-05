@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
     // m = (N Sum xi yi - Sum xi Sum yi) / (N Sum xi^2 - (Sum xi)^2)
     while (correct >> id >> e1_c >> e2_c) {
         myanswers >> id >> e1_m >> e2_m >> junk >> junk;
-        std::cout<<id<<": "<<e1_c<<" "<<e2_c<<" --- "<<e1_m<<" "<<e2_m<<std::endl;
+        std::cout<<id<<": "<<e1_c<<" "<<e2_c<<" --- "<<e1_m<<" "<<e2_m;
         sumy1 += e1_m;
         sumy2 += e2_m;
         sumx1 += e1_c;
@@ -59,7 +59,8 @@ int main(int argc, char* argv[])
         sumxy2 += e2_m*e2_c;
         sumq += SQR(e1_m-e1_c) + SQR(e2_m-e2_c);
         n++;
-        //std::cout<<"   "<<sumx2<<"  "<<sumy2<<std::endl;
+        std::cout<<"   "<<SQR(e1_m-e1_c)/1.e-4<<"  "<<SQR(e2_m-e2_c)/1.e-4;
+        std::cout<<std::endl;
     }
     sumq /= 2*n;
     std::cout<<"Q = "<<(1.e-4 / sumq)<<std::endl;

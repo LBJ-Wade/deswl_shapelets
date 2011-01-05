@@ -29,6 +29,20 @@ public :
         _isFixedCen(false), _isFixedGamma(false), _isFixedMu(false),
         _shouldDoTimings(false) {}
 
+    Ellipse(const Ellipse& e2) :
+        _cen(e2.getCen()), _gamma(e2.getGamma()),
+        _mu(e2.getMu(),e2.getTheta()),
+        _isFixedCen(false), _isFixedGamma(false), _isFixedMu(false),
+        _shouldDoTimings(false) {}
+
+    Ellipse& operator=(const Ellipse& e2)
+    { 
+        _cen = e2.getCen();
+        _gamma = e2.getGamma();
+        _mu = std::complex<double>(e2.getMu(),e2.getTheta());
+        return *this;
+    }
+
     bool measure(
         const std::vector<PixelList>& pix, 
         const std::vector<BVec>& psf,

@@ -186,7 +186,7 @@ void augmentZTransformCols(std::complex<double> z, int order, DMatrix& T)
 void applyZ(std::complex<double> z, BVec& b)
 {
     if (z != 0.0) {
-        DMatrix T(b.size(),b.size());
+        DMatrix T(b.size(),b.size(),0.);
         calculateZTransform(z/b.getSigma(),b.getOrder(),T);
         b.vec() = T * b.vec();
     }
@@ -377,7 +377,7 @@ void augmentMuTransformRows(double mu, int order, DMatrix& D)
 void applyMu(double mu, BVec& b)
 {
     if (mu != 0.0) {
-        DMatrix D(b.size(),b.size());
+        DMatrix D(b.size(),b.size(),0.);
         calculateMuTransform(mu,b.getOrder(),D);
         b.vec() = D * b.vec();
     }
@@ -421,9 +421,9 @@ void applyTheta(double theta, BVec& b)
 {
     if (theta != 0.0) {
 #ifdef USE_TMV
-        DBandMatrix R(b.size(),b.size(),1,1);
+        DBandMatrix R(b.size(),b.size(),1,1,0.);
 #else
-        DBandMatrix R(b.size(),b.size());
+        DBandMatrix R(b.size(),b.size(),0.);
 #endif
         calculateThetaTransform(theta,b.getOrder(),R);
         b.vec() = R * b.vec();
@@ -629,7 +629,7 @@ void augmentGTransformCols(std::complex<double> g, int order, DMatrix& S)
 void applyG(std::complex<double> g, BVec& b)
 {
     if (g != 0.0) {
-        DMatrix S(b.size(),b.size());
+        DMatrix S(b.size(),b.size(),0.);
         calculateGTransform(g,b.getOrder(),S);
         b.vec() = S * b.vec();
     }
@@ -856,7 +856,7 @@ void calculatePsfConvolve(
 
 void applyPsf(const BVec& bpsf, BVec& b)
 {
-    DMatrix C(b.size(),b.size());
+    DMatrix C(b.size(),b.size(),0.);
     calculatePsfConvolve(bpsf,b.getOrder(),b.getSigma(),C);
     b.vec() = C * b.vec();
 }

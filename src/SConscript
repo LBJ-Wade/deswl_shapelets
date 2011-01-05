@@ -78,7 +78,8 @@ env2.Prepend(LIBS=['wl'])
 env3 = env2.Clone()
 env3.Prepend(LIBS=['gary'])
 compiler = env3['CXXTYPE']
-if env3['CXXTYPE'] == 'g++':
+# I'm not sure if g++ 4.4 needs this flag, or if it's just 4.5.  4.3 does not.
+if env3['CXXTYPE'] == 'g++' and env3['CXXVERSION_NUMERICAL'] >= 4.5:
     env3.Append(CCFLAGS=['-fno-var-tracking-assignments'])
 
 measurepsf = env2.Program('measurepsf', 'MeasurePsf.cpp')
