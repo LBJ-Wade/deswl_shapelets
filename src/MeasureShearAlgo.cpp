@@ -10,6 +10,7 @@
 #include "Params.h"
 #include "MeasureShearAlgo.h"
 
+//#define USE_TWO_PASSES
 
 static void ConvertShearFlagsToShapeFlags(long& flag) 
 {
@@ -354,7 +355,7 @@ void measureSingleShear1(
         // TODO: Should this be in the reference frame where galaxy is round?
         //
         BVec flux(0,sigma);
-        DMatrix fluxCov(1,1);
+        DMatrix fluxCov(1,1,0.);
         int order0 = 0;
         if (!ell_deconv.measureShapelet(pix,psf,flux,order0,0,&fluxCov) ||
             !(flux(0) > 0) || !(fluxCov(0,0) > 0.) ||
@@ -371,8 +372,13 @@ void measureSingleShear1(
             xdbg<<"flag SHAPE_BAD_FLUX\n";
             flag |= SHAPE_BAD_FLUX;
         }
-        nu = flux(0) / sqrt(fluxCov(0,0));
-        dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<nu<<std::endl;
+        if (flux(0) > 0. && fluxCov(0,0) > 0.) {
+            nu = flux(0) / sqrt(fluxCov(0,0));
+            dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<nu<<std::endl;
+        } else {
+            nu = DEFVALNEG;
+            dbg<<"nu set to error value = "<<nu<<std::endl;
+        }
 
         //
         // Next, we find the shear where the galaxy looks round.
@@ -382,6 +388,46 @@ void measureSingleShear1(
         if (fixCen) ell_shear.fixCen();
         if (fixSigma) ell_shear.fixMu();
         else ell_shear.setMu(ell_deconv.getMu());
+#ifdef USE_TWO_PASSES
+        if (ell_shear.measure(
+                pix,psf,galOrder,galOrder2,sigma,flag1,1.e-2)) {
+            dbg<<"Successful Gamma fit (1st pass)\n";
+            dbg<<"Measured gamma = "<<ell_shear.getGamma()<<std::endl;
+            dbg<<"Mu  = "<<ell_shear.getMu()<<std::endl;
+            dbg<<"Cen  = "<<ell_shear.getCen()<<std::endl;
+            if (flag1) {
+                if (!lastfpsf) {
+                    dbg<<"However, flag = "<<flag1<<", so try larger fPsf\n";
+                    --log._nsMu;
+                    continue;
+                } else {
+                    flag |= flag1;
+                }
+            }
+        } else {
+            dbg<<"Measurement failed (1st pass)\n";
+            if (!lastfpsf) {
+                --log._nsMu;
+                continue;
+            }
+            ++log._nfGamma;
+            flag |= flag1;
+            xdbg<<"flag SHEAR_FAILED\n";
+            flag |= SHEAR_FAILED;
+            shear = ell_shear.getGamma();
+            if (!fixCen) cen += ell_shear.getCen();
+            return;
+        }
+
+        //
+        // Do it again.
+        // Now the measurement made in (closer to) the frame where the
+        // galaxy is round.
+        //
+        sigma *= exp(ell_shear.getMu());
+        ell_shear.setMu(0.);
+        flag1 = 0;
+#endif
         DMatrix cov5(5,5);
         if (ell_shear.measure(
                 pix,psf,galOrder,galOrder2,sigma,flag1,1.e-3,&cov5)) {
@@ -400,7 +446,7 @@ void measureSingleShear1(
             }
             ++log._nsGamma;
         } else {
-            dbg<<"Measurement failed (2nd pass)\n";
+            dbg<<"Measurement failed\n";
             if (!lastfpsf) {
                 --log._nsMu;
                 continue;
@@ -417,6 +463,7 @@ void measureSingleShear1(
         //
         // Copy the shear and covariance to the output variables
         //
+        ell_shear.removeRotation();
         shear = ell_shear.getGamma();
         DSmallMatrix22 cov2 = cov5.TMV_subMatrix(2,4,2,4);
         if (!(cov2.TMV_det() > 0.)) {

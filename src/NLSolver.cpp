@@ -169,7 +169,7 @@ void NLSolver::calculateNumericH(
 #define CHECKF(normInfF) \
     do { \
         double checkfTemp = (normInfF); \
-        if (checkfTemp < _fTol) { \
+        if (!(checkfTemp > _fTol)) { \
             dbg<<"Found ||f|| ~= 0\n"; \
             dbg<<"||f||_inf = "<<checkfTemp<<" < "<<_fTol<<std::endl; \
             return true; \
@@ -179,7 +179,7 @@ void NLSolver::calculateNumericH(
 #define CHECKG(normInfG) \
     do { \
         double checkgTemp = (normInfG); \
-        if (checkgTemp < _gTol) { \
+        if (!(checkgTemp > _gTol)) { \
             dbg<<"Found local minimum of ||f||\n"; \
             dbg<<"||g||_inf = "<<checkgTemp<<" < "<<_gTol<<std::endl; \
             return true; \
@@ -196,7 +196,7 @@ void NLSolver::calculateNumericH(
     do { \
         double checkStepTemp1 = (normH); \
         double checkStepTemp2 = _minStep*(x.norm()+_minStep); \
-        if (checkStepTemp1 < checkStepTemp2) { \
+        if (!(checkStepTemp1 > checkStepTemp2)) { \
             dbg<<"Step size became too small\n"; \
             dbg<<"||h|| = "<<checkStepTemp1<<" < "<<checkStepTemp2<<std::endl; \
             SHOWFAILFG; \
@@ -705,18 +705,26 @@ bool NLSolver::solveHybrid(
         double QNew = 0.5*fNew.normSq();
         xdbg<<"Qnew = "<<QNew<<std::endl;
 
+        double normInfGNew = 0.;
+        bool isJNewSet = false;
+        bool isGNewSet = false;
         if (!shouldUseDirectH || shouldUseQuasiNewton || QNew < Q) {
             this->calculateJ(xNew,fNew,JNew);
             xdbg<<"Jnew = "<<JNew<<std::endl;
+            isJNewSet = true;
         }
         if (shouldUseQuasiNewton || QNew < Q) {
+            if (!isJNewSet) dbg<<"Error: JNew should be set!\n";
             gNew = JNew.transpose() * fNew;
             xdbg<<"gnew = "<<gNew<<std::endl;
+            normInfGNew = gNew.normInf();
+            xdbg<<"NormInf(gnew) = "<<NormInf(gNew)<<std::endl;
+            isGNewSet = true;
         }
-        double normInfGNew = gNew.normInf();
 
         if (shouldUseQuasiNewton) {
             xdbg<<"quasinewton\n";
+            if (!isGNewSet) dbg<<"Error: gNew should be set!\n";
             isBetter = 
                 (QNew < Q) || 
                 (QNew <= (1.+sqrtEps)*Q && normInfGNew < normInfG);
@@ -749,7 +757,7 @@ bool NLSolver::solveHybrid(
             }
         } else {
             xdbg<<"LM\n";
-            if (QNew <= Q) {
+            if (QNew < Q) {
                 isBetter = true;
                 // we don't need the g vector anymore, so use this space
                 // to calculate g-mu*h
@@ -757,6 +765,7 @@ bool NLSolver::solveHybrid(
                 g -= mu*h;
                 double rho = (Q-QNew) / (-0.5*h*g);
                 mu *= std::max(1./3.,1.-std::pow(2.*rho-1.,3)); nu = 2.;
+                if (!isGNewSet) dbg<<"Error: gNew should be set!\n";
                 xdbg<<"check1: "<<normInfGNew<<" <? "<<0.02*QNew<<std::endl;
                 xdbg<<"check2: "<<Q-QNew<<" <? "<<0.02*QNew<<std::endl;
                 if (std::min(normInfGNew,Q-QNew) < 0.02 * QNew) {
@@ -766,6 +775,7 @@ bool NLSolver::solveHybrid(
                     count = 0;
                 }
                 if (count != 3) {
+                    if (!isJNewSet) dbg<<"Error: JNew should be set!\n";
                     A = JNew.transpose() * JNew;
                     A += mu;
                 }
@@ -782,6 +792,7 @@ bool NLSolver::solveHybrid(
         }
 
         if (!shouldUseDirectH) {
+            if (!isJNewSet) dbg<<"Error: JNew should be set!\n";
             y = JNew.transpose()*(JNew*h) + (JNew-J).transpose()*fNew;
             double hy = h*y;
             xdbg<<"hy = "<<hy<<std::endl;
@@ -800,9 +811,12 @@ bool NLSolver::solveHybrid(
 
         if (isBetter) {
             xdbg<<"better"<<std::endl;
-            x = xNew; f = fNew; Q = QNew; J = JNew; g = gNew; 
+            x = xNew; f = fNew; Q = QNew; normInfF = f.normInf(); 
+            if (isJNewSet) J = JNew;
+            else this->calculateJ(x,f,J);
+            if (isGNewSet) { g = gNew; normInfG = normInfGNew; }
+            else { g = J.transpose() * f; normInfG = g.normInf(); }
             J.unsetDiv();
-            normInfF = f.normInf(); normInfG = normInfGNew;
             if (shouldUseDirectH && shouldUseQuasiNewton && !shouldSwitchMethod)
                 this->calculateH(x,f,J,H);
             CHECKF(normInfF);
@@ -1225,7 +1239,7 @@ bool NLSolver::testJ(
 #define CHECKF(normInfF) \
     do { \
         double checkfTemp = (normInfF); \
-        if (checkfTemp < _fTol) { \
+        if (!(checkfTemp > _fTol)) { \
             dbg<<"Found ||f|| ~= 0\n"; \
             dbg<<"||f||_inf = "<<checkfTemp<<" < "<<_fTol<<std::endl; \
             return true; \
@@ -1235,7 +1249,7 @@ bool NLSolver::testJ(
 #define CHECKG(normInfG) \
     do { \
         double checkgTemp = (normInfG); \
-        if (checkgTemp < _gTol) { \
+        if (!(checkgTemp > _gTol)) { \
             dbg<<"Found local minimum of ||f||\n"; \
             dbg<<"||g||_inf = "<<checkgTemp<<" < "<<_gTol<<std::endl; \
             return true; \
@@ -1252,7 +1266,7 @@ bool NLSolver::testJ(
     do { \
         double checkStepTemp1 = (normH); \
         double checkStepTemp2 = _minStep*(x.norm()+_minStep); \
-        if (checkStepTemp1 < checkStepTemp2) { \
+        if (!(checkStepTemp1 > checkStepTemp2)) { \
             dbg<<"Step size became too small\n"; \
             dbg<<"||h|| = "<<checkStepTemp1<<" < "<<checkStepTemp2<<std::endl; \
             SHOWFAILFG; \

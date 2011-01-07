@@ -652,7 +652,7 @@ def DoConfig(env):
     if not env['DEBUG']:
         print 'Debugging turned off'
         env.Append(CPPDEFINES=['NDEBUG'])
-    elif not env['TMV_DEBUG']:
+    elif not env['TMV_DEBUG'] and env['WITH_TMV']:
         print 'Only TMV Debugging turned off'
         env.Append(CPPDEFINES=['TMVNDEBUG'])
     if env['STATIC'] :

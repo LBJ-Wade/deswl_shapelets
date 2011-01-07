@@ -6,8 +6,9 @@
 #include "PsiHelper.h"
 #include "Params.h"
 
-#if 0
-static std::complex<double> addShears(
+// This is the Miralda-Escude formula for adding distortions.
+// We convert to/from distortion to use their formula.
+std::complex<double> addShears(
     const std::complex<double> g1, const std::complex<double> g2)
 {
     double absg1 = std::abs(g1);
@@ -29,9 +30,8 @@ static std::complex<double> addShears(
     //xdbg<<"GammaAdd: "<<g1<<" + "<<g2<<" = "<<g3<<std::endl;
     return g3;
 }
-#endif
 
-static void CalculateShift(
+void CalculateShift(
     std::complex<double> c1, std::complex<double> g1, std::complex<double> m1,
     std::complex<double> c2, std::complex<double> g2, std::complex<double> m2,
     std::complex<double>& c3, std::complex<double>& g3, 
@@ -137,6 +137,31 @@ void Ellipse::postShiftBy(
     // The model is that a round galaxy is first transformed by (c1,g1,m1).
     // And then by the provided values of (c2,g2,m2).
     CalculateShift(_cen,_gamma,_mu,c2,g2,m2,_cen,_gamma,_mu); 
+}
+
+void Ellipse::removeRotation()
+{
+    // This finds the rotation-free transformation that distorts a 
+    // circle to the same final shape as the current transformation does.
+    // In otherwords, we move the rotation part from the end of the 
+    // transformation to the beginning, since a rotation of a circle 
+    // is a null operation.
+    // 
+    // z' = exp(-m-it)/sqrt(1-|g|^2) ( z-c - g (z-c)* )
+    //    = exp(-m)/sqrt(1-|g|^2) (exp(-it)(z-c) - g exp(-it) (z-c)*)
+    //    = exp(-m)/sqrt(1-|g|^2) (exp(-it)(z-c) - g exp(-2it) (exp(-it)(z-c))*)
+    //
+    // So, g -> g exp(-2it)
+    //     c -> c exp(-it)
+    //     m -> m
+    //     t -> 0
+
+    if (imag(_mu) != 0.) { 
+        std::complex<double> r = std::polar(1.,-imag(_mu));
+        _gamma *= r*r;
+        _cen *= r;
+        imag(_mu) = 0.;
+    }
 }
 
 

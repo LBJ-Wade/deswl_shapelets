@@ -25,12 +25,23 @@ void StarCatalog::calculateSizes(
     double xOffset = _params.read("cat_x_offset",0.);
     double yOffset = _params.read("cat_y_offset",0.);
 
-    const bool shouldUseShapeletSigma = _params["stars_use_shapelet_sigma"];
+    const bool shouldUseShapeletSigma = _params.read(
+        "stars_use_shapelet_sigma",true);
+    const bool shouldOutputDots = _params.read("output_dots",false);
 
 #ifdef _OPENMP
 #pragma omp parallel for schedule(guided)
 #endif
     for (int i=0; i<n; ++i) if (!_flags[i]) {
+        if (shouldOutputDots) {
+#ifdef _OPENMP
+#pragma omp critical (output)
+#endif
+            {
+                std::cerr<<"."; std::cerr.flush();
+            }
+        }
+
         dbg<<"use i = "<<i<<std::endl;
 
         // Negative value indicates not set yet.  Start with 1 then.
