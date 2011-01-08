@@ -1,30 +1,37 @@
 
 -------------------------------------------------------------------------
 
-v0.61  (2010-??-??) 
+v0.61  (2011-01-08) 
 
 The biggest development is to reconfigure the basic shear measurement 
 algorithm to address a bug we had seen where the shears come out up to 10%
 wrong when the psf has high order terms in it.  
 
-I had been shearing the psf to the coordinate system where the galaxy 
-is round and then measure the max likelihood galaxy shape there.
-It turns out that this can be improved somewhat by trying to keep mu
-as small as possible (by updating sigma whenever possible), and by
-increasing the order of the calculation of the intermediate matrices.
+It turns out that this is prone to significant errors:
 
-However, I actually ended up abandoning this method in favor of a single
-deconvolution measurement, and then find the coordinate system where 
-this shapelet vector appears round.  (Then I redo this process one time
-to improve the results a bit more.)  
+First, for highly elliptical galaxies, this requires shearing the PSF 
+a great deal, which is not very accurate with the finite order of the
+decomposition.
 
-This is much faster than the other method, since we aren't inverting a 
-large matrix (with all the pixel information) at every step in the 
-non-linear solver.  However, I still have some work to do on speeding
-up the specific implementation, since it doesn't calculate the jacobian
-analytically yet, for example.  But the accuracy is much improved on the
-test images I've been looking at (from Andres).  I'm getting a bias
-of less than 1.e-4, whereas it used to be around 10% on these galaxies.
+Second, the decomposition has the highest signal-to-noise in the frame where
+the _observed_ galaxy is round, not where the pre-seeing galaxy is round.
+So for small galaxies where these two frames are potentially very different,
+the S/N can be much worse and the algorithm had trouble converging.
+
+So the new method does a single deconvolution measurement in the frame
+where the observed galaxy is round.  Then it analytically determines what
+frame that shapelet vector _would_ be observed to be round.
+I don't remeasure in that frame to check though because of the measurement
+issues mentioned above.
+
+On the Great08 simulations, I'm getting:
+Q = 260 for LowNoise_Known
+Q = 668 for LowNoise_Blind
+(I'm not sure why there is such a big difference.)
+
+The new algorithm is also much faster than the old one, since we aren't 
+inverting a large matrix (with all the pixel information) at every step 
+in the non-linear solver.  It takes about 0.1 sec / galaxy / cpu.
 
 OK, now the list of other changes in this update:
 
