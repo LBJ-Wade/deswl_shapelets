@@ -326,14 +326,23 @@ bool Ellipse::doMeasureShapelet(
         new tmv::MatrixView<double>(A.view()));
     A_use->qrpd();
     xdbg<<"R diag = "<<A_use->qrpd().getR().diag()<<std::endl;
-    while (A_use->qrpd().isSingular() || 
-           DiagMatrixViewOf(A_use->qrpd().getR().diag()).condition() > 
-           MAX_CONDITION) {
+    while (
+#if TMV_VERSION_AT_LEAST(0,65)
+        A_use->qrpd().isSingular() || 
+#else
+        // Fixed a bug in the isSingular function in v0.65.
+        // Until that is the standard TMV version for DES, use this instead:
+        (A_use->qrpd().getR().minAbs2Element() < 
+         1.e-16 * A_use->qrpd().getR().maxAbs2Element()) ||
+#endif
+        DiagMatrixViewOf(A_use->qrpd().getR().diag()).condition() > 
+        MAX_CONDITION) {
         dbg<<"Poor condition in MeasureShapelet: \n";
         dbg<<"R diag = "<<A_use->qrpd().getR().diag()<<std::endl;
-        xdbg<<"condition = "<<
+        dbg<<"condition = "<<
             DiagMatrixViewOf(A_use->qrpd().getR().diag()).condition()<<
             std::endl;
+        dbg<<"det = "<<A_use->qrpd().det()<<std::endl;
         if (order > 2) {
             bsize -= order+1; --order;
             dbg<<"Reducing order to "<<order<<std::endl;
