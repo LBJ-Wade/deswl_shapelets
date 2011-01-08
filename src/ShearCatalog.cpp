@@ -65,7 +65,12 @@ ShearCatalog::ShearCatalog(
                 dbgout->precision(6);
                 xdbg<<"  "<<temp-_skyPos[i];
                 std::complex<double> diff = temp-_skyPos[i];
-                real(diff) *= cos(imag(diff));
+                // Technically this is illegal since real doesn't have to 
+                // return a reference.
+                // gcc does, but pgCC doesn't.
+                //real(diff) *= cos(imag(diff));
+                double diff_ra = real(diff) * cos(imag(diff));
+                diff = std::complex<double>(diff_ra,imag(diff));
                 double err = std::norm(diff);
                 if (err > 0.1) xdbg<<"  XXX";
                 xdbg<<std::endl;

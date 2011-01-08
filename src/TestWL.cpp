@@ -815,6 +815,7 @@ int main(int argc, char **argv) try
     dbgout = new std::ofstream(dbgfile.c_str());
 #ifdef _OPENMP
     omp_set_dynamic(0); 
+#ifndef __PGI
 #pragma omp parallel copyin(dbgout, XDEBUG)
     {
         int threadnum = omp_get_thread_num();
@@ -823,6 +824,7 @@ int main(int argc, char **argv) try
         std::string dbgfile2 = dbgfile + "_" + ss.str();
         if (threadnum > 0) dbgout = new std::ofstream(dbgfile2.c_str());
     }
+#endif
 #endif
 #else
     dbgout = &std::cout;

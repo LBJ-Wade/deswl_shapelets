@@ -52,6 +52,7 @@ void StarCatalog::calculateSizes(
             trans, psfAp, xOffset, yOffset, 
             _flags[i], shouldUseShapeletSigma);
     }
+    if (shouldOutputDots) std::cerr<<std::endl;
     dbg<<"Done MeasureSigmas\n";
 }
 

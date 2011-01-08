@@ -160,7 +160,7 @@ void Ellipse::removeRotation()
         std::complex<double> r = std::polar(1.,-imag(_mu));
         _gamma *= r*r;
         _cen *= r;
-        imag(_mu) = 0.;
+        _mu = real(_mu);
     }
 }
 

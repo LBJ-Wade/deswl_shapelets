@@ -127,8 +127,8 @@ public :
 
     void setCen(const std::complex<double>& cen) { _cen = cen; }
     void setGamma(const std::complex<double>& gamma) { _gamma = gamma; }
-    void setMu(double mu) { real(_mu) = mu; }
-    void setTheta(double theta) { imag(_mu) = theta; }
+    void setMu(double mu) { _mu = std::complex<double>(mu,getTheta()); }
+    void setTheta(double theta) { _mu = std::complex<double>(getMu(),theta); }
 
     void fixCen() { _isFixedCen = true; }
     void fixGam() { _isFixedGamma = true; }

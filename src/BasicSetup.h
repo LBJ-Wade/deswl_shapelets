@@ -67,6 +67,8 @@ inline int basicSetup(
             std::string debugFile = makeName(params,"debug",false,false);
             dbgout = new std::ofstream(debugFile.c_str());
 
+#ifndef __PGI
+            // This gives errors with pgCC, so just skip it.
 #ifdef _OPENMP
             // For openmp runs, we use a cool feature known as threadprivate 
             // variables.  
@@ -92,6 +94,7 @@ inline int basicSetup(
                     dbgout->setf(std::ios_base::unitbuf);
                 }
             }
+#endif
 #endif
         }
         else dbgout = &std::cout;
