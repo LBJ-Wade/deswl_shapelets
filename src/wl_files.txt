@@ -1,7 +1,6 @@
 Bounds.cpp
 Legendre2D.cpp
 NLSolver.cpp
-BinomFact.cpp
 Image.cpp
 BVec.cpp
 EllipseSolver3.cpp
@@ -12,6 +11,7 @@ FittedPsf.cpp
 CrudeMeasure.cpp
 Name.cpp Log.cpp
 Ellipse.cpp
+Ellipse_meas.cpp
 PsiHelper.cpp
 Histogram.cpp
 StarFinder.cpp

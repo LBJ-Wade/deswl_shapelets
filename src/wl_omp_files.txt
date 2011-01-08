@@ -1,4 +1,4 @@
-Ellipse_omp.cpp
+BinomFact_omp.cpp
 StarCatalog_omp.cpp
 PsfCatalog_omp.cpp
 Pixel_omp.cpp

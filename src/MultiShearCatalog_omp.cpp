@@ -426,3 +426,150 @@ void MultiShearCatalog::getImagePixelLists(
     dbg<<"Done extracting pixel lists\n";
 }
 
+template <typename T>
+inline long long getMemoryFootprint(const T& x)
+{
+    return sizeof(x); 
+}
+
+template <typename T>
+inline long long getMemoryFootprint(T*const x)
+{
+    long long res=sizeof(x);
+    res += getMemoryFootprint(*x);
+    return res;
+}
+
+template <typename T>
+inline long long getMemoryFootprint(const T*const x)
+{
+    long long res=sizeof(x);
+    res += getMemoryFootprint(*x);
+    return res;
+}
+
+template <typename T>
+inline long long getMemoryFootprint(const std::auto_ptr<T>& x)
+{
+    long long res=sizeof(x);
+    res += getMemoryFootprint(*x);
+    return res;
+}
+
+template <typename T, class Alloc>
+inline long long getMemoryFootprint(const std::vector<T,Alloc>& x)
+{
+    long long res=sizeof(x);
+    const int xsize = x.size();
+    for(int i=0;i<xsize;++i) res += getMemoryFootprint(x[i]);
+    return res;
+}
+
+inline long long getMemoryFootprint(const PixelList& x)
+{
+    long long res=sizeof(x);
+    res += x.size() * sizeof(Pixel);
+    return res;
+}
+
+template <typename T>
+inline long long getMemoryFootprint(const TVector(T)& x)
+{
+    long long res=sizeof(x);
+    res += x.size() * sizeof(T);
+    return res;
+}
+
+inline long long getMemoryFootprint(const BVec& x)
+{
+    long long res=sizeof(x);
+    res += x.size() * sizeof(double);
+    return res;
+}
+
+template <typename T>
+inline long long getMemoryFootprint(const TMatrix(T)& x)
+{
+    long long res=sizeof(x);
+    res += x.colsize() * x.rowsize() * sizeof(T);
+    return res;
+}
+
+double MultiShearCatalog::calculateMemoryFootprint(bool shouldGetMax) const
+{
+
+    static double maxMem=0.;
+
+    dbg<<"Memory usage:\n";
+    dbg<<"input_flags: "<<
+        getMemoryFootprint(_inputFlags)/1024./1024.<<" MB\n";
+    dbg<<"nimages_found: "<<
+        getMemoryFootprint(_nImagesFound)/1024./1024.<<" MB\n";
+    dbg<<"pixlist: "<<
+        getMemoryFootprint(_pixList)/1024./1024.<<" MB\n";
+    dbg<<"nimages_gotpix: "<<
+        getMemoryFootprint(_nImagesGotPix)/1024./1024.<<" MB\n";
+    dbg<<"id: "<<
+        getMemoryFootprint(_id)/1024./1024.<<" MB\n";
+    dbg<<"skypos: "<<
+        getMemoryFootprint(_skyPos)/1024./1024.<<" MB\n";
+    dbg<<"flags: "<<
+        getMemoryFootprint(_flags)/1024./1024.<<" MB\n";
+    dbg<<"shear: "<<
+        getMemoryFootprint(_shear)/1024./1024.<<" MB\n";
+    dbg<<"nu: "<<
+        getMemoryFootprint(_nu)/1024./1024.<<" MB\n";
+    dbg<<"cov: "<<
+        getMemoryFootprint(_cov)/1024./1024.<<" MB\n";
+    dbg<<"shape: "<<
+        getMemoryFootprint(_shape)/1024./1024.<<" MB\n";
+    dbg<<"psflist: "<<
+        getMemoryFootprint(_psfList)/1024./1024.<<" MB\n";
+    dbg<<"se_shearlist: "<<
+        getMemoryFootprint(_seShearList)/1024./1024.<<" MB\n";
+    dbg<<"se_sizelist: "<<
+        getMemoryFootprint(_seSizeList)/1024./1024.<<" MB\n";
+    dbg<<"image_file_list: "<<
+        getMemoryFootprint(_imageFileList)/1024./1024.<<" MB\n";
+    dbg<<"shear_file_list: "<<
+        getMemoryFootprint(_shearFileList)/1024./1024.<<" MB\n";
+    dbg<<"fitpsf_file_list: "<<
+        getMemoryFootprint(_fitPsfFileList)/1024./1024.<<" MB\n";
+    dbg<<"skymap_file_list: "<<
+        getMemoryFootprint(_skyMapFileList)/1024./1024.<<" MB\n";
+    dbg<<"saved_se_skybounds: "<<
+        getMemoryFootprint(_savedSeSkyBounds)/1024./1024.<<" MB\n";
+
+    double totMem = 
+        getMemoryFootprint(_inputFlags) +
+        getMemoryFootprint(_nImagesFound) +
+        getMemoryFootprint(_pixList) +
+        getMemoryFootprint(_nImagesGotPix) +
+        getMemoryFootprint(_id) +
+        getMemoryFootprint(_skyPos) +
+        getMemoryFootprint(_flags) +
+        getMemoryFootprint(_shear) +
+        getMemoryFootprint(_nu) +
+        getMemoryFootprint(_cov) +
+        getMemoryFootprint(_shape) +
+        getMemoryFootprint(_psfList) +
+        getMemoryFootprint(_seShearList) +
+        getMemoryFootprint(_seSizeList) +
+        getMemoryFootprint(_imageFileList) +
+        getMemoryFootprint(_shearFileList) +
+        getMemoryFootprint(_fitPsfFileList) +
+        getMemoryFootprint(_skyMapFileList) +
+        getMemoryFootprint(_savedSeSkyBounds);
+    totMem /= 1024.*1024.;  // B -> MB
+    dbg<<"totmem = "<<totMem<<std::endl;
+
+#ifdef _OPENMP
+#pragma omp critical
+#endif
+    {
+        if (totMem > maxMem) maxMem = totMem;
+    }
+
+    return shouldGetMax ? maxMem : totMem;
+}
+
