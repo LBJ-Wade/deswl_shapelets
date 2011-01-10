@@ -27,43 +27,54 @@ static const long ok_flags = 0;
 // currently specified by #if blocks (TODO: Make this a runtime parameter).
 // See BJ02 Eqn 5-33.
 static double Weight(
-    std::complex<double> e, double vare, double shapenoise, double& dr)
+    std::complex<double> g, double varg, double shapenoise, double& dr)
 {
     // Impose a minimum on the variance to keep them from dominating
     // the weights.
-    if (vare < 1.e-3) vare = 1.e-3;
+    if (varg < 1.e-3) varg = 1.e-3;
 
-    double esq = std::norm(e);
-    double f = shapenoise / (vare+shapenoise);
-    double k0 = f*vare;
+    double gsq = std::norm(g);
+    double f = shapenoise / (varg+shapenoise);
+    double k0 = f*varg;
     double k1 = f*f;
 
 #if 0
     // No Weight
     double w = 1.;
-    double edwde = 0.;
+    double gdwdg = 0.;
+#endif
+
+#if 0
+    // Simple inverse variance weight
+    double w = 1./varg;
+    double gdwdg = 0.;
 #endif
 
 #if 1
-    // Simple inverse variance weight
-    double w = 1./vare;
-    double edwde = 0.;
+    // Weight that makes a shear average act like a distortion average
+    // e = tanh(2*atanh(g))
+    //   = 2*g/(1+g^2)
+    // w = e/g = 2/(1+g^2)
+    // dw/dg = -4g/(1+g^2)^2
+    // g dw/dg = -g^2*w^2
+    double w = 2./(1.+gsq);
+    double gdwdg = -gsq*w*w;
 #endif
 
 #if 0
     // Better weight if lensing shear is small 
-    double w = 1./sqrt(esq + 2.25 * vare);
-    //if (vare > 1.) w = 0.;
-    double edwde = -w*w*w*esq;
+    double w = 1./sqrt(gsq + 2.25 * varg);
+    //if (varg > 1.) w = 0.;
+    double gdwdg = -w*w*w*gsq;
 #endif
 
 #if 0
-    // De-weight large e
-    double w = exp(-esq/2.e-2);
-    double edwde = -w*esq/1.e-2;
+    // De-weight large g
+    double w = exp(-gsq/2.e-2);
+    double gdwdg = -w*gsq/1.e-2;
 #endif
 
-    dr = w * (1-k0-0.5*k1*esq) + 0.5*edwde*(1.-k0-k1*esq);
+    dr = w + 0.5*gdwdg*(1.-k0-k1*gsq);
     return w;
 }
 
@@ -159,29 +170,17 @@ int main(int argc, char **argv)
     //
 
     const int nGal = idVec.size();
-    std::vector<double> vareVec(nGal);
-    std::vector<std::complex<double> > eVec(nGal);
     double shapenoise=0., sumw=0.;
 
     for(int i=0;i<nGal;++i) {
         std::complex<double> g = gVec[i];
         double varg = vargVec[i];
         double gsq = std::norm(g);
-        double absg = sqrt(gsq);
-        double eta = atanh(absg)*2.;
-        double e = tanh(eta);
-        double esq = e*e;
-        // e = tanh(2*atanh(g))
-        // de/dg = 2(1-e^2)/(1-g^2)
-        double dedg = 2.*(1.-esq)*(1.-gsq);
-        double vare = dedg*dedg*varg;
-        eVec[i] = e/absg * g;
-        vareVec[i] = vare;
-        // TODO: The 0.1 in the next line should be a parameter.
-        if (vare > 0.1) continue; // Throw out sigma_e > 0.3
         double dr;
-        double galw = Weight(e,vare,0.,dr);
-        shapenoise += (esq - vare)*galw;
+        // TODO: The 0.1 in the next line should be a parameter.
+        if (varg > 0.1) continue; // Throw out sigma_g > 0.3
+        double galw = Weight(g,varg,0.,dr);
+        shapenoise += (gsq - varg) * galw;
         sumw += galw;
     }
     shapenoise /= 2.*sumw; // 2 so shapenoise per component
@@ -191,21 +190,20 @@ int main(int argc, char **argv)
     // Calculate responsivity
     //
 
-    double resp=0.,sumw2e2=0.;
+    double resp=0.,sumw2g2=0.;
     sumw = 0.;
-    std::complex<double> sumwe = 0.;
+    std::complex<double> sumwg = 0.;
     for (int i=0; i<nGal; ++i) {
-        std::complex<double> galpos(raVec[i],decVec[i]);
-        std::complex<double> e = eVec[i];
-        double esq = std::norm(e);
-        double vare = vareVec[i];
-        if (vare > 0.1) continue;
+        std::complex<double> g = gVec[i];
+        double gsq = std::norm(g);
+        double varg = vargVec[i];
+        if (varg > 0.1) continue;
         double dr;
-        double galw = Weight(e,vare,shapenoise,dr);
+        double galw = Weight(g,varg,shapenoise,dr);
         resp += dr;
         sumw += galw;
-        sumwe += galw*e;
-        sumw2e2 += galw*galw*esq;
+        sumwg += galw*g;
+        sumw2g2 += galw*galw*gsq;
     }
     resp /= sumw;
     std::cout<<"resp = "<<resp<<", ngal = "<<nGal<<std::endl;
@@ -214,17 +212,11 @@ int main(int argc, char **argv)
     // Calculate estimate of applied shear
     //
 
-    std::complex<double> e = sumwe / sumw;
-    e /= resp;
-    double vare = sumw2e2 / (2.*sumw*sumw);
-    double sige = sqrt(vare);
-    // Now convert back to gamma:
-    double abse = std::abs(e);
-    double eta = atanh(abse);
-    double absgamma = tanh(eta/2.);
-    std::complex<double> gamma = absgamma/abse * e;
-    double siggamma = tanh(atanh(sige)/2.);
-    std::cout<<"e = "<<e<<" +- "<<sige<<std::endl;
+    std::complex<double> gamma = sumwg / sumw;
+    gamma /= resp;
+    double varg = sumw2g2 / (2.*sumw*sumw);
+    double sigg = sqrt(varg);
+    double siggamma = tanh(atanh(sigg)/2.);
     std::cout<<"gamma = "<<gamma<<" +- "<<siggamma<<std::endl;
 
     //
