@@ -16,7 +16,7 @@ output=../../testdata/output
 BINDIR=.
 #BINDIR=/home/mjarvis/bin
 #BINDIR=/Users/Mike/bin
-vl=1
+vl=0
 
 echo FindStars:
 echo $BINDIR/findstars $config root=$root input_prefix=$input/ output_prefix=$output/ debug_file=fs.debug verbose=$vl output_dots=1 $extra_config

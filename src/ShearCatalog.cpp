@@ -60,10 +60,12 @@ ShearCatalog::ShearCatalog(
             try {
                 Position temp;
                 _trans->transform(_pos[i],temp);
-                dbgout->precision(12);
-                xdbg<<_pos[i]<<"  "<<_skyPos[i]/3600.<<"  "<<temp/3600.;
-                dbgout->precision(6);
-                xdbg<<"  "<<temp-_skyPos[i];
+                if (dbgout && XDEBUG) {
+                    dbgout->precision(12);
+                    xdbg<<_pos[i]<<"  "<<_skyPos[i]/3600.<<"  "<<temp/3600.;
+                    dbgout->precision(6);
+                    xdbg<<"  "<<temp-_skyPos[i];
+                }
                 std::complex<double> diff = temp-_skyPos[i];
                 // Technically this is illegal since real doesn't have to 
                 // return a reference.
