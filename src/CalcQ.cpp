@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
         sumxy2 += e2_m*e2_c;
         sumq += SQR(e1_m-e1_c) + SQR(e2_m-e2_c);
         n++;
-        std::cout<<"   "<<SQR(e1_m-e1_c)/1.e-4<<"  "<<SQR(e2_m-e2_c)/1.e-4;
+        std::cout<<"   "<<2.e-4/(SQR(e1_m-e1_c)+SQR(e2_m-e2_c));
         std::cout<<std::endl;
     }
     sumq /= 2*n;
