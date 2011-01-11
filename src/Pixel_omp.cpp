@@ -35,7 +35,7 @@ PixelList& PixelList::operator=(const PixelList& rhs)
 PixelList::~PixelList()
 {
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (PixelList)
 #endif
     {
         _v2.reset();
@@ -49,7 +49,7 @@ void PixelList::usePool()
     if (_v2.get()) Assert(_v2->size() == 0);
     _v1.reset();
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (PixelList)
 #endif
     {
         _v2.reset(new std::vector<Pixel,PoolAllocPixel>());
@@ -67,7 +67,7 @@ void PixelList::reserve(const int n)
 {
     if (_shouldUsePool) {
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (PixelList)
 #endif
         {
             _v2->reserve(n);
@@ -84,7 +84,7 @@ void PixelList::resize(const int n)
 {
     if (_shouldUsePool) {
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (PixelList)
 #endif
         {
             _v2->resize(n);
@@ -98,7 +98,7 @@ void PixelList::clear()
 {
     if (_shouldUsePool) {
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (PixelList)
 #endif
         {
             _v2->clear();
@@ -112,7 +112,7 @@ void PixelList::push_back(const Pixel& p)
 {
     if (_shouldUsePool) {
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (PixelList)
 #endif
         {
             _v2->push_back(p);

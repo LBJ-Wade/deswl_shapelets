@@ -564,7 +564,7 @@ double MultiShearCatalog::calculateMemoryFootprint(bool shouldGetMax) const
     dbg<<"totmem = "<<totMem<<std::endl;
 
 #ifdef _OPENMP
-#pragma omp critical
+#pragma omp critical (totMem)
 #endif
     {
         if (totMem > maxMem) maxMem = totMem;

@@ -10,7 +10,7 @@
 #include "FittedPsf.h"
 #include "Pixel.h"
 
-void measureSingleShear(
+void measureShapes(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans, const FittedPsf& fitPsf,
     double noise, double gain, const Image<double>* weightIm, 
@@ -19,11 +19,11 @@ void measureSingleShear(
     double minFPsf, double maxFPsf, double minGalSize, bool fixCen,
     double xOffset, double yOffset,
     bool fixSigma, double fixSigmaValue,
-    ShearLog& log, std::complex<double>& shear, 
-    DSmallMatrix22& shearCov, BVec& shapelet,
+    ShearLog& log, BVec& shapelet, 
+    std::complex<double>& gamma, BVec& shearedShape,
     double& nu, long& flag);
 
-void measureSingleShear1(
+void measureShapes1(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans, const std::vector<BVec>& psf,
     double noise, double gain, const Image<double>* weightIm, 
@@ -32,8 +32,8 @@ void measureSingleShear1(
     double minFPsf, double maxFPsf, double minGalSize, bool fixCen,
     double xOffset, double yOffset,
     bool fixSigma, double fixSigmaValue,
-    ShearLog& log, std::complex<double>& shear, 
-    DSmallMatrix22& shearCov, BVec& shapelet,
+    ShearLog& log, BVec& shapelet, 
+    std::complex<double>& gamma, BVec& shearedShape,
     double& nu, long& flag);
 
 // This is poorly named.  It is still only measuring a single shear,

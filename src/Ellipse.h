@@ -67,6 +67,12 @@ public :
         DMatrix* cov=0, BVec* bret=0, DMatrix* bcov=0,
         std::vector<PixelList>* pixels_model=0);
 
+    // Given a measured shapelet vector, find the ellipse transformation
+    // in which this shapelet vector would be observed to be round.
+    bool findRoundFrame(
+        const BVec& b, bool psf, int galOrder2, double thresh,
+        long& flag, DMatrix* cov=0);
+
     // Do a really simple and fast measurement to get a good starting point.
     // Only does centroid and size.
     void crudeMeasure(const PixelList& pix, double sigma);

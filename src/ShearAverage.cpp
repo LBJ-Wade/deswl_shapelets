@@ -50,7 +50,7 @@ static double Weight(
     double gdwdg = 0.;
 #endif
 
-#if 1
+#if 0
     // Weight that makes a shear average act like a distortion average
     // e = tanh(2*atanh(g))
     //   = 2*g/(1+g^2)
@@ -68,10 +68,11 @@ static double Weight(
     double gdwdg = -w*w*w*gsq;
 #endif
 
-#if 0
+#if 1
     // De-weight large g
-    double w = exp(-gsq/2.e-2);
-    double gdwdg = -w*gsq/1.e-2;
+    int k = 3;
+    double w = 1./std::pow(1.+gsq,k);
+    double gdwdg = -2.*k*gsq*w/(1.+gsq);
 #endif
 
     dr = w + 0.5*gdwdg*(1.-k0-k1*gsq);
@@ -93,13 +94,13 @@ static void ReadData(
     std::string line;
     while (getline(fin,line)) {
         std::istringstream strin(line);
-        std::string junk;
         long id,flag;
-        double x,y,ra,dec,g1,g2,nu;
+        double x,y,sky,noise,ra,dec,g1,g2,nu,c00,c01,c11;
         strin >> 
-            // id  x  y  sky  noise  flag  ra  dec  g1  g2  nu ...
-            id >> x >> y >> junk >> junk >> 
-            flag >> ra >> dec >> g1 >> g2 >> nu;
+            // id  x  y  sky  noise  flag  ra  dec  g1  g2  nu c00..
+            id >> x >> y >> sky >> noise >> 
+            flag >> ra >> dec >> g1 >> g2 >> nu >> c00 >> c01 >> c11;
+
         if (flag & ~ok_flags) continue;
         idVec.push_back(id);
         xVec.push_back(x);
@@ -182,6 +183,7 @@ int main(int argc, char **argv)
         double galw = Weight(g,varg,0.,dr);
         shapenoise += (gsq - varg) * galw;
         sumw += galw;
+        //std::cout<<i<<"  "<<g<<"  "<<gsq<<"  "<<esq<<"  "<<vare<<"  "<<galw<<"  "<<shapenoise<<"  "<<sumw<<std::endl;
     }
     shapenoise /= 2.*sumw; // 2 so shapenoise per component
     std::cout<<"sigma_SN = "<<shapenoise<<std::endl;

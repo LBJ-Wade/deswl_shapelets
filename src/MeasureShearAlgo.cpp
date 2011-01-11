@@ -10,8 +10,6 @@
 #include "Params.h"
 #include "MeasureShearAlgo.h"
 
-//#define USE_TWO_PASSES
-
 static void ConvertShearFlagsToShapeFlags(long& flag) 
 {
     if (flag & SHEAR_BAD_FLUX) { 
@@ -31,7 +29,7 @@ static void ConvertShearFlagsToShapeFlags(long& flag)
     }
 }
 
-void measureSingleShear1(
+void measureShapes1(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans, const std::vector<BVec>& psf,
     double noise, double gain, const Image<double>* weightIm, 
@@ -40,8 +38,8 @@ void measureSingleShear1(
     double minFPsf, double maxFPsf, double minGalSize, bool fixCen,
     double xOffset, double yOffset,
     bool fixSigma, double fixSigmaValue,
-    ShearLog& log, std::complex<double>& shear, 
-    DSmallMatrix22& shearcov, BVec& shapelet,
+    ShearLog& log, BVec& shapelet, 
+    std::complex<double>& gamma, BVec& shearedShape,
     double& nu, long& flag)
 {
     // Find harmonic mean of psf sizes:
@@ -250,7 +248,6 @@ void measureSingleShear1(
         xdbg<<"flag SHAPELET_NOT_DECONV\n";
         flag |= SHAPELET_NOT_DECONV;
         if (!fixCen) cen += ell_round.getCen();
-        shear = ell_round.getGamma();
         return;
     }
 
@@ -266,27 +263,31 @@ void measureSingleShear1(
         xdbg<<"flag SHAPELET_NOT_DECONV\n";
         flag |= SHAPELET_NOT_DECONV;
         if (!fixCen) cen += ell_round.getCen();
-        shear = ell_round.getGamma();
         return;
     }
-    std::complex<double> native_shear = ell_round.getGamma();
+    gamma = ell_round.getGamma();
     if (!fixCen) cen += ell_round.getCen();
     ell_round.setCen(0.);
+    dbg<<"ell_round = "<<ell_round<<std::endl;
+
+    // Get the pixels in an elliptical aperture based on the
+    // observed shape.
     galAp = sigmaObs * galAperture;
     if (maxAperture > 0. && galAp > maxAperture) galAp = maxAperture;
     pix[0].clear();
     getPixList(im,pix[0],cen,sky,noise,gain,weightIm,trans,
-               galAp,native_shear,xOffset,yOffset,flag);
+               galAp,gamma,xOffset,yOffset,flag);
     npix = pix[0].size();
     dbg<<"npix = "<<npix<<std::endl;
     if (npix < 10) {
         dbg<<"Too few pixels to do shape measurement.\n";
         xdbg<<"flag SHAPELET_NOT_DECONV\n";
         flag |= SHAPELET_NOT_DECONV;
-        shear = ell_round.getGamma();
         return;
     }
 
+    // Start with the specified fPsf, but allow it to increase up to
+    // maxFPsf if there are any problems.
     long flag0 = flag;
     for(double fPsf=minFPsf; fPsf<=maxFPsf+1.e-3; fPsf+=0.5) {
         flag = flag0; // In case anything was set in a previous iteration.
@@ -310,7 +311,6 @@ void measureSingleShear1(
             if (!lastfpsf) continue;
             xdbg<<"flag TOO_SMALL\n";
             flag |= TOO_SMALL;
-            shear = ell_round.getGamma();
             return;
         }
         sigma = sqrt(sigma);
@@ -319,35 +319,17 @@ void measureSingleShear1(
         // 
         // Measure a deconvolving fit in the native frame.
         //
-        Ellipse ell_deconv = ell_native;
-        ell_deconv.fixGam();
-        if (fixCen) ell_round.fixCen();
-        if (fixSigma) ell_round.fixMu();
-        flag1 = 0;
-        if (ell_deconv.measure(
-                pix,psf,galOrder,galOrder2,sigma,flag1,1.e-3,0,&shapelet)) {
+        shapelet.setSigma(sigma);
+        if (ell_native.measureShapelet(pix,psf,shapelet,galOrder,galOrder2)) {
             dbg<<"Successful deconvolving fit:\n";
-            xdbg<<"Mu = "<<ell_deconv.getMu()<<std::endl;
-            xdbg<<"Cen = "<<ell_deconv.getCen()<<std::endl;
-            xdbg<<"flag1 = "<<flag1<<std::endl;
-            if (flag1 & !lastfpsf) continue;
-            ConvertShearFlagsToShapeFlags(flag1);
-            xdbg<<"flag1 => "<<flag1<<std::endl;
-            flag |= flag1;
             ++log._nsMu;
         } else {
             dbg<<"Deconvolving measurement failed\n";
             if (!lastfpsf) continue;
             ++log._nfMu;
-            ConvertShearFlagsToShapeFlags(flag1);
-            xdbg<<"flag1 => "<<flag1<<std::endl;
-            flag |= flag1;
             xdbg<<"flag DECONV_FAILED\n";
             flag |= DECONV_FAILED;
         }
-        dbg<<"sigma = "<<sigma<<std::endl;
-        dbg<<"ell.cen = "<<ell_deconv.getCen()<<std::endl;
-        dbg<<"ell.mu = "<<ell_deconv.getMu()<<std::endl;
         dbg<<"Measured deconvolved b_gal = "<<shapelet.vec()<<std::endl;
 
         //
@@ -357,7 +339,7 @@ void measureSingleShear1(
         BVec flux(0,sigma);
         DMatrix fluxCov(1,1,0.);
         int order0 = 0;
-        if (!ell_deconv.measureShapelet(pix,psf,flux,order0,0,&fluxCov) ||
+        if (!ell_native.measureShapelet(pix,psf,flux,order0,0,&fluxCov) ||
             !(flux(0) > 0) || !(fluxCov(0,0) > 0.) ||
             shapelet(0) >= flux(0)*3. || shapelet(0) <= flux(0)/3.) {
             // If the b00 value in the shapelet doesn't match the direct flux
@@ -381,111 +363,27 @@ void measureSingleShear1(
         }
 
         //
-        // Next, we find the shear where the galaxy looks round.
+        // Next, we measure the deconvolved shape in the frame where the 
+        // observed galaxy is round.
         //
-        flag1 = 0;
-        Ellipse ell_shear = ell_round;
-        if (fixCen) ell_shear.fixCen();
-        if (fixSigma) ell_shear.fixMu();
-        else ell_shear.setMu(ell_deconv.getMu());
-#ifdef USE_TWO_PASSES
-        if (ell_shear.measure(
-                pix,psf,galOrder,galOrder2,sigma,flag1,1.e-2)) {
-            dbg<<"Successful Gamma fit (1st pass)\n";
-            dbg<<"Measured gamma = "<<ell_shear.getGamma()<<std::endl;
-            dbg<<"Mu  = "<<ell_shear.getMu()<<std::endl;
-            dbg<<"Cen  = "<<ell_shear.getCen()<<std::endl;
-            if (flag1) {
-                if (!lastfpsf) {
-                    dbg<<"However, flag = "<<flag1<<", so try larger fPsf\n";
-                    --log._nsMu;
-                    continue;
-                } else {
-                    flag |= flag1;
-                }
-            }
-        } else {
-            dbg<<"Measurement failed (1st pass)\n";
-            if (!lastfpsf) {
-                --log._nsMu;
-                continue;
-            }
-            ++log._nfGamma;
-            flag |= flag1;
-            xdbg<<"flag SHEAR_FAILED\n";
-            flag |= SHEAR_FAILED;
-            shear = ell_shear.getGamma();
-            if (!fixCen) cen += ell_shear.getCen();
-            return;
-        }
-
-        //
-        // Do it again.
-        // Now the measurement made in (closer to) the frame where the
-        // galaxy is round.
-        //
-        sigma *= exp(ell_shear.getMu());
-        ell_shear.setMu(0.);
-        flag1 = 0;
-#endif
-        DMatrix cov5(5,5);
-        if (ell_shear.measure(
-                pix,psf,galOrder,galOrder2,sigma,flag1,1.e-3,&cov5)) {
-            dbg<<"Successful Gamma fit\n";
-            dbg<<"Measured gamma = "<<ell_shear.getGamma()<<std::endl;
-            dbg<<"Mu  = "<<ell_shear.getMu()<<std::endl;
-            dbg<<"Cen  = "<<ell_shear.getCen()<<std::endl;
-            if (flag1) {
-                if (!lastfpsf) {
-                    dbg<<"However, flag = "<<flag1<<", so try larger fPsf\n";
-                    --log._nsMu;
-                    continue;
-                } else {
-                    flag |= flag1;
-                }
-            }
+        shearedShape.setSigma(sigma);
+        if (ell_round.measureShapelet(
+                pix,psf,shearedShape,galOrder,galOrder2)) {
+            dbg<<"Successful sheared deconvolving fit:\n";
             ++log._nsGamma;
         } else {
-            dbg<<"Measurement failed\n";
-            if (!lastfpsf) {
-                --log._nsMu;
-                continue;
-            }
+            dbg<<"Sheared deconvolving measurement failed\n";
+            if (!lastfpsf) continue;
             ++log._nfGamma;
-            flag |= flag1;
             xdbg<<"flag SHEAR_FAILED\n";
             flag |= SHEAR_FAILED;
-            shear = ell_shear.getGamma();
-            if (!fixCen) cen += ell_shear.getCen();
-            return;
         }
-
-        //
-        // Copy the shear and covariance to the output variables
-        //
-        ell_shear.removeRotation();
-        shear = ell_shear.getGamma();
-        DSmallMatrix22 cov2 = cov5.TMV_subMatrix(2,4,2,4);
-        if (!(cov2.TMV_det() > 0.)) {
-            dbg<<"cov2 has bad determinant: "<<cov2.TMV_det()<<std::endl;
-            dbg<<"cov2 = "<<cov2<<std::endl;
-            dbg<<"Full cov = "<<cov5<<std::endl;
-            if (!lastfpsf) {
-                --log._nsMu;
-                --log._nsGamma;
-                continue;
-            }
-            xdbg<<"flag SHEAR_BAD_COVAR\n";
-            flag |= SHEAR_BAD_COVAR;
-        } else {
-            shearcov = cov2;
-        }
-        if (!fixCen) cen += ell_shear.getCen();
+        dbg<<"shearedShape = "<<shearedShape<<std::endl;
         break;
     }
 }
 
-void measureSingleShear(
+void measureShapes(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans, const FittedPsf& fitpsf,
     double noise, double gain, const Image<double>* weightIm, 
@@ -494,8 +392,8 @@ void measureSingleShear(
     double minFPsf, double maxFPsf, double minGalSize, bool fixCen,
     double xOffset, double yOffset,
     bool fixSigma, double fixSigmaValue,
-    ShearLog& log, std::complex<double>& shear, 
-    DSmallMatrix22& shearcov, BVec& shapelet,
+    ShearLog& log, BVec& shapelet, 
+    std::complex<double>& gamma, BVec& shearedShape,
     double& nu, long& flag)
 {
     // Get coordinates of the galaxy, and convert to sky coordinates
@@ -531,7 +429,7 @@ void measureSingleShear(
     // Do the real meat of the calculation:
     dbg<<"measure single shear cen = "<<cen<<std::endl;
     try {
-        measureSingleShear1(
+        measureShapes1(
             // Input data:
             cen, im, sky, trans, psf,
             // Noise variables:
@@ -543,23 +441,23 @@ void measureSingleShear(
             // Log information
             log,
             // Ouput values:
-            shear, shearcov, shapelet, nu, flag);
+            shapelet, gamma, shearedShape, nu, flag);
 #ifdef USE_TMV
     } catch (tmv::Error& e) {
-        dbg<<"TMV Error thrown in MeasureSingleShear\n";
+        dbg<<"TMV Error thrown in MeasureShapes\n";
         dbg<<e<<std::endl;
         ++log._nfTmvError;
         xdbg<<"flag TMV_EXCEPTION\n";
         flag |= TMV_EXCEPTION;
 #endif
     } catch (std::exception& e) {
-        dbg<<"std::exception thrown in MeasureSingleShear\n";
+        dbg<<"std::exception thrown in MeasureShapes\n";
         dbg<<e.what()<<std::endl;
         ++log._nfOtherError;
         xdbg<<"flag STD_EXCEPTION\n";
         flag |= STD_EXCEPTION;
     } catch (...) {
-        dbg<<"unkown exception in MeasureSingleShear\n";
+        dbg<<"unkown exception in MeasureShapes\n";
         ++log._nfOtherError;
         xdbg<<"flag UNKNOWN_EXCEPTION\n";
         flag |= UNKNOWN_EXCEPTION;

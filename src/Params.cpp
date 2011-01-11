@@ -16,11 +16,11 @@ void PrintFlags(const std::vector<long>& flags, std::ostream& os)
             if (flag & (1 << flagNum)) ++nFlagCount[flagNum];
         }
     }
-    os<<"Total N = "<<nObj<<std::endl;
-    os<<"N with no flags = "<<nNoFlag<<std::endl;
+    os<<"   Total N = "<<nObj<<std::endl;
+    os<<"     # with no flags = "<<nNoFlag<<std::endl;
     for(long flagNum = 0; flagNum < NFLAGS; ++flagNum) {
         if (nFlagCount[flagNum]) {
-            os<<"N with "<<flagName[flagNum]<<" = "<<
+            os<<"     # with "<<flagName[flagNum]<<" = "<<
                 nFlagCount[flagNum]<<std::endl;
         }
     }

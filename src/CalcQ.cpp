@@ -21,12 +21,14 @@ inline double SQR(double x) { return x*x; }
 
 int main(int argc, char* argv[])
 {
-    if (argc != 3) {
-        std::cerr<<"Usage: calcq correctfile myanswers\n";
+    if (argc < 3 || argc > 4) {
+        std::cerr<<"Usage: calcq correctfile myanswers [nmax]\n";
+        std::cerr<<"If nvals is specified, only do the first nmax lines\n";
         exit(1);
     }
     std::ifstream correct(argv[1]);
     std::ifstream myanswers(argv[2]);
+    int nmax = (argc >= 4) ? strtol(argv[3],0,0) : -1;
 
     std::string junk;
     getline(correct,junk);
@@ -59,13 +61,14 @@ int main(int argc, char* argv[])
         sumxy2 += e2_m*e2_c;
         sumq += SQR(e1_m-e1_c) + SQR(e2_m-e2_c);
         n++;
-        std::cout<<"   "<<2.e-4/(SQR(e1_m-e1_c)+SQR(e2_m-e2_c));
+        std::cout<<"   "<<2.e-4/(SQR(e1_m-e1_c) + SQR(e2_m-e2_c));
         std::cout<<std::endl;
+        if (n == nmax) break;
     }
     sumq /= 2*n;
     std::cout<<"Q = "<<(1.e-4 / sumq)<<std::endl;
-    double altq = 1.e-4 / (SQR((sumy1-sumx1)/n) + SQR((sumy2-sumx2)/n));
-    std::cout<<"Alt Q = "<<altq<<std::endl;
+    //double altq = 1.e-4 / (SQR((sumy1-sumx1)/n) + SQR((sumy2-sumx2)/n));
+    //std::cout<<"Alt Q = "<<altq<<std::endl;
     double m1 = (sumxy1*n - sumx1 * sumy1) / (sumxsq1*n - sumx1 * sumx1)-1.;
     double m2 = (sumxy2*n - sumx2 * sumy2) / (sumxsq2*n - sumx2 * sumx2)-1.;
     double c1 = sumy1 / n - m1 * sumx1/n;
