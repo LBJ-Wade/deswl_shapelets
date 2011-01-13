@@ -626,7 +626,8 @@ done
 
 
 def generate_se_pbsfile(serun, exposurename, outfile, ccd=None,
-                        nodes=1, ppn=8, walltime='24:00:00'):
+                        nodes=1, ppn=1, walltime=None, queue='fast', 
+                        nthread=1):
 
     """
     """
@@ -637,6 +638,7 @@ def generate_se_pbsfile(serun, exposurename, outfile, ccd=None,
         ccd = ''
     else:
         jobname=exposurename+'-%02i' % int(ccd)
+    jobname = jobname.replace('decam-','')
 
     # The useful log file we redirect from the actual script call
     logf=outfile+'.log'
@@ -646,52 +648,38 @@ def generate_se_pbsfile(serun, exposurename, outfile, ccd=None,
 
     scratch_rootdir=default_scratch_rootdir()
 
+    if walltime is not None:
+        walltime='#PBS -l walltime=%s' % walltime
+    else:
+        walltime=''
+
     header="""#!/bin/bash
 #PBS -S /bin/bash
-#PBS -N %s
+#PBS -N {jobname}
 #PBS -j oe
-#PBS -o %s
+#PBS -o {pbslog_file}
 #PBS -m a
 #PBS -V
 #PBS -r n
 #PBS -W umask=0022
-#PBS -l walltime=%s
-#PBS -l nodes=%s:ppn=%s
-#PBS -q fast
-
-# explanation of above directives
-# see also: http://wiki.hpc.ufl.edu/index.php/PBS_Directives
-#
-# -N name - the name of the job
-# -j oe   - merge stdout and stderr in the output log (see -o)
-# -o name - put the output here.  Not usually useful for logging that
-#                   needs to be watched since it isn't actually written till the
-#                       script finishes.
-# -m a    - send mail when there is an abort
-# -V      - All environment variables in the qsub command's environment
-#                       are to be exported to the batch job.
-# -r n    - Don't try to rerun the job
-# -W umask=0022 - you can specify lots of things with -W. In this case make
-#                 sure the umask is correct.  I often put this in the 
-#                 script itself too
-# -l walltime=24:00:00 - "-l" is used to specify resources.  walltime gives
-#                        the max wall time the script can take before it
-#                        gets killed.
-#
-# some stuff not in this header
-#
-# -l nodes=number_of_nodes:ppn=process_per_node
-#    Note, in modern parlance, ppn is really number of cores to use.
-# -q queue  - Run in this queue
+{walltime}
+#PBS -l nodes={nodes}:ppn={ppn}
+#PBS -q {queue}
 
 umask 0022
 
 # The main log file, updated as the script runs
-logf="%s"
+logf="{logf}"
 
 # get eups ready
 source /global/data/products/eups/bin/setups.sh
-""" % (jobname, pbslog_file, walltime, nodes, ppn, logf)
+""".format(jobname=jobname, 
+           pbslog_file=pbslog_file, 
+           walltime=walltime, 
+           nodes=nodes, 
+           ppn=ppn, 
+           logf=logf,
+           queue=queue)
 
     rc=deswl.files.Runconfig(serun)
     wl_setup = _make_setup_command('wl',rc['wlvers'])
@@ -705,6 +693,7 @@ source /global/data/products/eups/bin/setups.sh
     fobj.write('%s\n' % wl_setup)
     fobj.write('%s\n' % tmv_setup)
     fobj.write('%s\n' % esutil_setup)
+    fobj.write('export OMP_NUM_THREADS=%d\n' % nthread)
 
     fobj.write("\nshear-run       \\\n")
     fobj.write('    --serun=%s    \\\n' % serun)
@@ -719,7 +708,7 @@ source /global/data/products/eups/bin/setups.sh
 
 
 
-def generate_se_pbsfiles(serun, band, typ='fullpipe', byccd=False): 
+def generate_se_pbsfiles(serun, band, typ='fullpipe', byccd=False, nthread=1): 
 
     stdout.write("Creating pbs files\n")
 
@@ -763,7 +752,7 @@ def generate_se_pbsfiles(serun, band, typ='fullpipe', byccd=False):
             if typ == 'checkpsf':
                 generate_se_checkpsf_pbsfile(serun, exposurename, outfile)
             else:
-                generate_se_pbsfile(serun, exposurename, outfile)
+                generate_se_pbsfile(serun, exposurename, outfile, nthread=nthread)
 
             bfile = os.path.basename(outfile)
             submit.write('echo -n "%s "; qsub %s\n' % (bfile,bfile))
@@ -934,7 +923,7 @@ def run_se_pipe(types, fdict, writelog=False, debug=0, dosplit=True):
 
 
 
-def process_se_image(fdict, writelog=False, debug=0, timeout=5*60):
+def process_se_image_old(fdict, writelog=False, debug=0, timeout=5*60):
 
     # should we re-direct stdout (which is only QA and STATUS messages)
     # to the QA log file?
@@ -961,6 +950,130 @@ def getband_from_exposurename(exposurename):
         if exposurename.find(pattern) != -1:
             return band
     raise ValueError("No band found in exposurename: %s\n" % exposurename)
+
+def process_se_image(config, image, cat, **args):
+    ip = ImageProcessor(config, image, cat, **args)
+    types = args.get('types','all')
+    ip.process(types)
+
+class ImageProcessor(deswl.WL):
+    """
+    Much simpler than ExposureProcessor for processing a single image/catalog pair.
+    Good for interactive use.
+    """
+    def __init__(self, config, image, cat, **args):
+        deswl.WL.__init__(self, config)
+
+        self.config_file = config
+        self.image_file = image
+        self.cat_file = cat
+
+        outdir = args.get('outdir',None)
+        if outdir is None:
+            outdir = os.path.dirname(self.cat_file)
+        self.outdir = outdir
+        if self.outdir == '':
+            self.outdir = '.'
+
+        self.set_output_names()
+
+        self.imcat_loaded = False
+
+    def set_output_names(self):
+        out_base = os.path.basename(self.cat_file)
+        out_base = out_base.replace('_cat.fits','')
+        out_base = out_base.replace('.fits','')
+        out_base = out_base.replace('.fit','')
+
+        out_base = path_join(self.outdir, out_base)
+
+        rc = deswl.files.Runconfig()
+        self.names = {}
+        for type in rc.se_filetypes:
+            self.names[type] = out_base+'-'+type+'.fits'
+
+    def load_data(self):
+        stdout.write('Loading %s\n' % self.image_file)
+        self.load_images(self.image_file)
+        stdout.write('Loading %s\n' % self.cat_file)
+        self.load_catalog(self.cat_file)
+        self.imcat_loaded = True
+
+    def process(self, types=['stars','psf','shear','split']):
+        if not self.imcat_loaded:
+            self.load_data()
+        if 'stars' in types:
+            self.find_stars()
+        if 'psf' in types:
+            self.measure_psf()
+        if 'shear' in types:
+            self.measure_shear()
+        if 'split' in types:
+            self.split_starcat()
+            # note only 'psf' and 'shear' will actually get processed
+            self.process_split(types=types)
+
+
+    def process_full(self):
+        if not self.imcat_loaded:
+            self.load_data()
+        self.find_stars()
+        self.measure_psf()
+        self.measure_shear()
+
+    def find_stars(self):
+        print("Finding stars.  Will write to: %s" % self.names['stars'])
+        deswl.WL.find_stars(self, self.names['stars'])
+    def measure_psf(self):
+        print("Measuring PSF. Will write to: "
+              "\n    %s\n    %s" % (self.names['psf'],self.names['fitpsf']))
+        deswl.WL.measure_psf(self,self.names['psf'],self.names['fitpsf'])
+    def measure_shear(self):
+        print("Measuring shear.  Will write to: %s" % self.names['shear'])
+        deswl.WL.measure_shear(self,self.names['shear'])
+
+    def split_starcat(self):
+        stdout.write("splitting catalog: \n"
+                     "    '%s'\n"
+                     "    '%s'\n" % (self.names['stars1'],self.names['stars2']))
+        deswl.WL.split_starcat(self, self.names["stars1"],self.names["stars2"])
+
+        """
+        stdout.write('loading stars1\n')
+        self.load_starcat(fdict['stars1'])
+        stdout.write('measuring psf1\n')
+        deswl.WL.measure_psf(self, self.names['psf1'], self.names['fitpsf1'])
+        stdout.write('measuring shear1\n')
+        deswl.WL.measure_shear(self,self.names['shear1'])
+
+        stdout.write('loading stars2\n')
+        self.load_starcat(fdict['stars2'])
+        stdout.write('measuring psf2\n')
+        deswl.WL.measure_psf(self, self.names['psf2'], self.names['fitpsf2'])
+        stdout.write('measuring shear2\n')
+        deswl.WL.measure_shear(self,self.names['shear2'])
+        """
+
+    def process_split(self, splitnum=[1,2], types=['psf','shear']):
+        for num in splitnum:
+            nstr = str(num)
+
+            t = ImageProcessor(self.config_file, self.image_file, self.cat_file, 
+                               outdir=self.outdir) 
+
+            t.names['psf'] = t.names['psf'+nstr]
+            t.names['fitpsf'] = t.names['fitpsf'+nstr]
+            t.names['shear'] = t.names['shear'+nstr]
+
+            t.load_starcat(t.names['stars'+nstr])
+
+            # need to do this explicitly just in case 'stars' or 'split' 
+            # were accidentally sent
+            if 'psf' in types:
+                t.process('psf')
+            if 'shear' in types:
+                t.process('shear')
+
 
 
 class ExposureProcessor:
@@ -1081,7 +1194,7 @@ class ExposureProcessor:
 
         except RuntimeError as e:
             self.stat['error'] = ERROR_SE_MISC
-            self.stat['error_string'] = str(e)
+            self.stat['error_string'] = unicode(str(e),errors='replace')
             stdout.write(self.stat['error_string']+'\n')
             raise e
 
@@ -1133,7 +1246,7 @@ class ExposureProcessor:
                 getband_from_exposurename(self.stat['exposurename'])
         except RuntimeError as e:
             self.stat['error'] = ERROR_SE_MISC
-            self.stat['error_string'] = str(e)
+            self.stat['error_string'] = unicode(str(e),errors='replace')
             stdout.write(self.stat['error_string']+'\n')
             raise e
 
@@ -1202,7 +1315,7 @@ class ExposureProcessor:
 
         except RuntimeError as e:
             self.stat['error'] = ERROR_SE_MISC
-            self.stat['error_string'] = str(e)
+            self.stat['error_string'] = unicode(str(e),errors='replace')
             stdout.write(self.stat['error_string']+'\n')
             # since we cannot write to a file, just convert it
             # to a string
@@ -1210,13 +1323,13 @@ class ExposureProcessor:
             raise e
         except AttributeError as e:
             self.stat['error'] = ERROR_SE_MISC
-            self.stat['error_string'] = str(e)
+            self.stat['error_string'] = unicode(str(e),errors='replace')
             stdout.write(self.stat['error_string']+'\n')
             stdout.write('%s\n' % pprint.pprint(self.stat))
             raise e
         except NameError as e:
             self.stat['error'] = ERROR_SE_MISC
-            self.stat['error_string'] = str(e)
+            self.stat['error_string'] = unicode(str(e),errors='replace')
             stdout.write(self.stat['error_string']+'\n')
             stdout.write('%s\n' % pprint.pprint(self.stat))
             raise e
@@ -1237,7 +1350,7 @@ class ExposureProcessor:
             # the internal routines currently throw const char* which
             # swig is converting to runtime
             self.stat['error'] = ERROR_SE_IO
-            self.stat['error_string'] = str(e)
+            self.stat['error_string'] = unicode(str(e),errors='replace')
             stdout.write(self.stat['error_string']+'\n')
             raise e
 
@@ -1251,7 +1364,7 @@ class ExposureProcessor:
             # the internal routines currently throw const char* which
             # swig is converting to runtime
             self.stat['error'] = ERROR_SE_IO
-            self.stat['error_string'] = str(e)
+            self.stat['error_string'] = unicode(str(e),errors='replace')
             stdout.write(self.stat['error_string']+'\n')
             raise e
 
@@ -1274,7 +1387,7 @@ class ExposureProcessor:
             stars_loaded=True
         except RuntimeError as e:
             self.stat['error'] = ERROR_SE_FINDSTARS
-            self.stat['error_string'] = str(e)
+            self.stat['error_string'] = unicode(str(e),errors='replace')
             stdout.write(self.stat['error_string']+'\n')
             raise e
 
@@ -1298,7 +1411,7 @@ class ExposureProcessor:
             self.psf_loaded=True
         except RuntimeError as e:
             self.stat['error'] = ERROR_SE_MEASURE_PSF
-            self.stat['error_string'] = str(e)
+            self.stat['error_string'] = unicode(str(e),errors='replace')
             stdout.write(self.stat['error_string']+'\n')
             raise e
     def ensure_psf_loaded(self):
@@ -1323,7 +1436,7 @@ class ExposureProcessor:
             self.shear_loaded=True
         except RuntimeError as e:
             self.stat['error'] = ERROR_SE_MEASURE_SHEAR
-            self.stat['error_string'] = str(e)
+            self.stat['error_string'] = unicode(str(e),errors='replace')
             stdout.write(self.stat['error_string']+'\n')
             raise e
 
@@ -1370,7 +1483,7 @@ class ExposureProcessor:
             self.wl.measure_shear(files['shear2'])
         except RuntimeError as e:
             self.stat['error'] = ERROR_SE_SPLIT_STARS
-            self.stat['error_string'] = str(e)
+            self.stat['error_string'] = unicode(str(e),errors='replace')
             stdout.write(self.stat['error_string']+'\n')
             raise e
 
@@ -1750,7 +1863,7 @@ def run_shear(exposurename,
 
 
     # need to write one of these for se
-    #exit_status = process_se_image(fdict, writelog=writelog, debug=debug)
+    #exit_status = process_se_image_old(fdict, writelog=writelog, debug=debug)
     exit_status = run_se_pipe(types, fdict, writelog=writelog, debug=debug)
 
     
@@ -1798,6 +1911,7 @@ def check_shear(serun, band, rootdir=None, outdir=None):
     rootdir= and outdir= refer to the directories where the shear outputs
     are located, not outputs of this program
     """
+    import copy
 
     rc=deswl.files.Runconfig(serun)
     dataset = rc['dataset']
@@ -1830,6 +1944,39 @@ def check_shear(serun, band, rootdir=None, outdir=None):
         psf_file    = fdict['psf']
         shear_file  = fdict['shear']
 
+        status_read = False
+        if not os.path.exists(fdict['stat']):
+            print 'Stat file missing:',fdict['stat']
+            info = copy.deepcopy(fdict)
+            info['error'] = 9999
+            info['error_string'] = 'stat file missing'
+            info['failtype'] = 'stat file missing'
+            badlist.append(info)
+        else:
+            try:
+                stat=json_util.read(fdict['stat'])
+                status_read = True
+            except ValueError as e:
+                print "Error reading file:",fdict['stat']
+                info = copy.deepcopy(fdict)
+                info['error'] = 9998
+                info['error_string'] = 'Error reading stat file'
+                info['failtype'] = 'Error reading stat file'
+                badlist.append(info)
+
+        if status_read:
+            error_code = int( stat['error'] )
+            estring = stat['error_string']
+            info['error'] = error_code
+            info['error_string'] = estring
+
+            if error_code != 0:
+                stdout.write("'%s': error: %s: '%s'\n" % (fdict['stat'],error_code,estring))
+                info['failtype'] = 'Processing error'
+                problem_found=True
+                badlist.append(info)
+
+        """
         for ftype in ['stars','fitpsf','psf','shear','qa','stat']:
             fpath=fdict[ftype]
             if not os.path.exists(fpath):
@@ -1838,9 +1985,12 @@ def check_shear(serun, band, rootdir=None, outdir=None):
                 problem_found=True
                 badlist.append(info)
                 # break out of file type loop
-                break
-            if ftype == 'stat':
-                stat=json_util.read(fpath)
+            elif ftype == 'stat':
+                try:
+                    stat=json_util.read(fpath)
+                except ValueError as e:
+                    stdout.write("Error reading file: %s\n" % fpath)
+                    raise ValueError(e)
 
                 error_code = int( stat['error'] )
                 estring = stat['error_string']
@@ -1852,6 +2002,7 @@ def check_shear(serun, band, rootdir=None, outdir=None):
                     info['failtype'] = 'error'
                     problem_found=True
                     badlist.append(info)
+        """
 
         if not problem_found:
             goodlist.append(info)
@@ -2175,7 +2326,8 @@ def _make_setup_command(prodname, vers):
     return setup_command
 
 def generate_me_pbsfile(merun, tilename, band, outfile,
-                        nodes=1, ppn=8, walltime='24:00:00'):
+                        nodes=1, ppn=8, walltime=None,
+                        queue='fast'):
 
     # the job name
     jobname=tilename+'-'+band
@@ -2188,58 +2340,38 @@ def generate_me_pbsfile(merun, tilename, band, outfile,
 
     scratch_rootdir=default_scratch_rootdir()
 
+    if walltime is not None:
+        walltime='#PBS -l walltime=%s' % walltime
+    else:
+        walltime=''
+
     header="""#!/bin/bash
 #PBS -S /bin/bash
-#PBS -N %s
+#PBS -N {jobname}
 #PBS -j oe
-#PBS -o %s
+#PBS -o {pbslog_file}
 #PBS -m a
 #PBS -V
 #PBS -r n
 #PBS -W umask=0022
-#PBS -l walltime=%s
-#PBS -l nodes=%s:ppn=%s
-
-# explanation of above directives
-# see also: http://wiki.hpc.ufl.edu/index.php/PBS_Directives
-#
-# -N name - the name of the job
-# -j oe   - merge stdout and stderr in the output log (see -o)
-# -o name - put the output here.  Not usually useful for logging that
-#                   needs to be watched since it isn't actually written till the
-#                       script finishes.
-# -m a    - send mail when there is an abort
-# -V      - All environment variables in the qsub command's environment
-#                       are to be exported to the batch job.
-# -r n    - Don't try to rerun the job
-# -W umask=0022 - you can specify lots of things with -W. In this case make
-#                 sure the umask is correct.  I often put this in the 
-#                 script itself too
-# -l walltime=24:00:00 - "-l" is used to specify resources.  walltime gives
-#                        the max wall time the script can take before it
-#                        gets killed.
-#
-# some stuff not in this header
-#
-# -l nodes=number_of_nodes:ppn=process_per_node
-#    Note, in modern parlance, ppn is really number of cores to use.
-# -q queue  - Run in this queue
+{walltime}
+#PBS -l nodes={nodes}:ppn={ppn}
+#PBS -q {queue}
 
 umask 0022
 
 # The main log file, updated as the script runs
-logf="%s"
-
-# make sure our log directory exists
-d=$(dirname $logf)
-if [ ! -e "$d" ]; then
-    mkdir -p "$d"
-fi
+logf="{logf}"
 
 # get eups ready
 source /global/data/products/eups/bin/setups.sh
-""" % (jobname, pbslog_file, walltime, nodes, ppn, logf)
-
+""".format(jobname=jobname, 
+           pbslog_file=pbslog_file, 
+           walltime=walltime, 
+           nodes=nodes, 
+           ppn=ppn, 
+           logf=logf,
+           queue=queue)
     rc=deswl.files.Runconfig(merun)
 
     # tmv,esutil must come after wl if wl is not current

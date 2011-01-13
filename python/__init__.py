@@ -1,4 +1,5 @@
 import sys
+from sys import stdout
 
 def version():
     from sys import stderr
@@ -64,15 +65,16 @@ def get_python_version(numerical=False):
     return pyvers
 
 
-
+try:
+    import cwl
+    from cwl import CWL as WL
+except:
+    stdout.write('Could not import cwl\n')
+    pass
 
 
 import wlpipe
 import files
 import oracle
 
-try:
-    import cwl
-    from cwl import CWL as WL
-except:
-    pass
+

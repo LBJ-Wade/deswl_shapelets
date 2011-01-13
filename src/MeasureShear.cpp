@@ -38,7 +38,7 @@ int main(int argc, char **argv) try
         if (isTiming) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
-            std::cout<<"Time: Open imgae = "<<t2-t1<<std::endl;
+            std::cout<<"Time: Open image = "<<t2-t1<<std::endl;
             t1 = t2;
         }
 

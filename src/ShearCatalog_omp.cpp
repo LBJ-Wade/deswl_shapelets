@@ -179,6 +179,7 @@ int ShearCatalog::measureShears(
                     dbg<<"shear = "<<_shear[i]<<std::endl;
                 }
             }
+            dbg<<"After loop"<<std::endl;
 #ifdef _OPENMP
 #pragma omp critical (add_log)
 #endif

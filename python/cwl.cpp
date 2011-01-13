@@ -339,7 +339,10 @@ void CWL::measure_shear(string shear_file) throw (const char*) {
     throw "fitpsf not loaded";
   }
 
+  std::cout<<"running flagStars"<<std::endl;
+  this->cat->flagStars(*this->starcat.get());
 
+  std::cout<<"Constructing shearcat"<<std::endl;
   this->shearcat.reset(
       new ShearCatalog(
         *this->cat.get(),
@@ -348,20 +351,21 @@ void CWL::measure_shear(string shear_file) throw (const char*) {
         this->params)
   );
 
+  std::cout<<"resetting shear log"<<std::endl;
   this->shear_log.reset(
-      new ShearLog(this->params,
-                 this->shear_logfile,
-                 shear_file)
+      new ShearLog(this->params, this->shear_logfile, shear_file)
   );
 
-  this->shearcat->flagStars(*this->starcat.get());
+  //this->shearcat->flagStars(*this->starcat.get());
  
   //int n_shear = 
+  std::cout<<"running measureShears"<<std::endl;
   this->shearcat->measureShears(
       *this->image.get(),
       this->weight_image.get(),
       *this->shear_log);
 
+  std::cout<<"writing shear catalog: "<<shear_file<<std::endl;
   this->write_shearcat(shear_file);
 }
 

@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """
-    %prog exposurename [ ccd ]
+    %prog config imagefile catfile
+OR
+    %prog [options] exposurename [ ccd ]
 
 Run an exposure through the weak lensing code. If ccd is not sent, process all
 ccds in the exposure.
@@ -49,62 +51,58 @@ parser.add_option("--nodots", action='store_true', default=False,
 # help="Write QS/STATUS messages to a QA log file")
 
 
-#parser.add_option("--debug", default=0,
-#    help="Debug verbosity level. 0:none 1:dbg 2:xdbg. Default %default")
+parser.add_option("--debug", default=0,
+                  help="Debug verbosity level. 0:none 1:dbg 2:xdbg. Default %default")
 
 options, args = parser.parse_args(sys.argv[1:])
-
-if len(args) < 1:
-    parser.print_help()
-    sys.exit(45)
-
-exposurename=args[0]
-
-if len(args) > 1:
-    ccd=int(args[1])
-else:
-    ccd=None
-
 types = options.types
 serun=options.serun
 outdir = options.outdir
 rootdir = options.rootdir
 copyroot=options.copyroot
 config_file=options.config
+debug=options.debug
+
 types = types.split(',')
 nodots=options.nodots
 
-#cleanup=options.cleanup
-#dataset=options.dataset
-#writelog=options.writelog
-#debug=options.debug
 
+if len(args) < 1:
+    parser.print_help()
+    sys.exit(45)
 
-ep = deswl.wlpipe.ExposureProcessor(exposurename,
-                                    serun=serun,
-                                    config=config_file,
-                                    outdir=outdir,
-                                    copyroot=copyroot,
-                                    rootdir=rootdir,
-                                    nodots=nodots)
+if len(args) == 3:
+    config = args[0]
+    image = args[1]
+    cat = args[2]
 
-if ccd is None:
-    ep.process_ccds(types=types)
+    ip = deswl.wlpipe.ImageProcessor(config, image, cat, outdir=outdir)
+    if debug > 0:
+        ip.set_verbosity(debug)
+
+    ip.process(types)
+
 else:
-    ep.process_ccd(ccd, types=types)
 
+    exposurename=args[0]
 
-junk="""
-deswl.wlpipe.run_shear(exposurename, ccd, 
-                       types=types,
-                       config_file=config_file,
-                       serun=serun,
-                       outdir=outdir, 
-                       rootdir=rootdir,
-                       copyroot=copyroot,
-                       cleanup=cleanup,
-                       dataset=dataset,
-                       writelog=writelog,
-                       debug=debug,
-                       nodots=nodots)
-"""
+    if len(args) > 1:
+        ccd=int(args[1])
+    else:
+        ccd=None
+
+    ep = deswl.wlpipe.ExposureProcessor(exposurename,
+                                        serun=serun,
+                                        config=config_file,
+                                        outdir=outdir,
+                                        copyroot=copyroot,
+                                        rootdir=rootdir,
+                                        nodots=nodots)
+
+    if debug > 0:
+        ep.set_verbosity(debug)
+    if ccd is None:
+        ep.process_ccds(types=types)
+    else:
+        ep.process_ccd(ccd, types=types)
+
