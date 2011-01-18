@@ -7,7 +7,7 @@ void getPixList(
     const Image<double>& im, PixelList& pix,
     const Position cen, double sky, double noise, double gain,
     const Image<double>* weightImage, const Transformation& trans,
-    double aperture, std::complex<double> shear,
+    std::complex<double> shear, double aperture,
     double xOffset, double yOffset, long& flag)
 {
     xdbg<<"Start GetPixList\n";
@@ -18,13 +18,13 @@ void getPixList(
         xdbg<<"gain = "<<gain<<std::endl;
     }
 
-    DSmallMatrix22 localD;
-    trans.getDistortion(cen,localD);
+    DSmallMatrix22 D;
+    trans.getDistortion(cen,D);
     // This gets us from chip coordinates to sky coordinates:
     // ( u ) = D ( x )
     // ( v )     ( y )
-    xdbg<<"localD = "<<localD<<std::endl;
-    double det = std::abs(localD.TMV_det());
+    xdbg<<"D = "<<D<<std::endl;
+    double det = std::abs(D.TMV_det());
     double pixScale = sqrt(det); // arsec/pixel
     xdbg<<"pixscale = "<<pixScale<<std::endl;
 
@@ -41,24 +41,23 @@ void getPixList(
     //   -2g1 u^2 -2g2 uv + 2g1 g2 uv + 2g1 v^2 - 2g2 uv - 2g1 g2 uv
     // (1 + |g|^2) (u^2+v^2) - 2g1 (u^2-v^2) - 2g2 (2uv)
     //
-    // Technically, we also need the 1/sqrt(1-|g|^2) factor too, 
-    // but we omit this.  This has the effect of using more pixels for 
-    // more elliptical galaxies, which are the ones that are harder to
-    // converge, so the extra pixels are helpful.
     double normg = norm(shear);
     double g1 = real(shear);
     double g2 = imag(shear);
+#if 0
     DSmallMatrix22 S;
     S(0,0) = 1.-real(shear);
     S(0,1) = S(1,0) = -imag(shear);
     S(1,1) = 1.+real(shear);
-    DSmallMatrix22 SD = S*localD;
-    double detSD = std::abs(localD.TMV_det());
+    S /= sqrt(1.-normg);
+    DSmallMatrix22 SD = S*D;
+    double detSD = std::abs(SD.TMV_det());
+#endif
 
     // xAp,yAp are the maximum deviation from the center in x,y
     // such that u'^2+v'^2 = aperture^2
-    double xAp = aperture / detSD * sqrt(SD(0,0)*SD(0,0) + SD(0,1)*SD(0,1));
-    double yAp = aperture / detSD * sqrt(SD(1,0)*SD(1,0) + SD(1,1)*SD(1,1));
+    double xAp = aperture * sqrt(D(1,0)*D(1,0) + D(1,1)*D(1,1))/det;
+    double yAp = aperture * sqrt(D(0,0)*D(0,0) + D(0,1)*D(0,1))/det;
     xdbg<<"aperture = "<<aperture<<std::endl;
     xdbg<<"xap = "<<xAp<<", yap = "<<yAp<<std::endl;
 
@@ -106,19 +105,28 @@ void getPixList(
     int nPix = 0;
 
     double chipX = xMin+i1-xCen;
+    double peak = 0.;
     for(int i=i1;i<=i2;++i,chipX+=1.) {
         double chipY = yMin+j1-yCen;
-        double u = localD(0,0)*chipX+localD(0,1)*chipY;
-        double v = localD(1,0)*chipX+localD(1,1)*chipY;
-        for(int j=j1;j<=j2;++j,u+=localD(0,1),v+=localD(1,1)) {
+        double u = D(0,0)*chipX+D(0,1)*chipY;
+        double v = D(1,0)*chipX+D(1,1)*chipY;
+        for(int j=j1;j<=j2;++j,u+=D(0,1),v+=D(1,1)) {
             // (1 + |g|^2) (u^2+v^2) - 2g1 (u^2-v^2) - 2g2 (2uv)
             // u,v are in arcsec
             double usq = u*u;
             double vsq = v*v;
-            double rsq = (1.+normg)*(usq+vsq) - 2.*g1*(usq-vsq) - 4.*g2*u*v;
-            if (rsq <= apsq) {
-                shouldUsePix[i-i1][j-j1] = true;
-                ++nPix;
+            // Strangely, this hybrid calculation of using _both_ a 
+            // circular and an elliptical aperture does better than either
+            // the circular or the elliptical aperture by itself.
+            if (usq + vsq <= apsq) {
+                double rsq = (1.+normg)*(usq+vsq) - 2.*g1*(usq-vsq) - 4.*g2*u*v;
+                rsq /= (1.-normg);
+                if (rsq <= apsq) {
+                    xdbg<<"u,v = "<<u<<','<<v<<"  rsq = "<<rsq<<std::endl;
+                    shouldUsePix[i-i1][j-j1] = true;
+                    ++nPix;
+                    if (im(i,j) > peak) peak = im(i,j);
+                }
             }
         }
     }
@@ -131,11 +139,13 @@ void getPixList(
 
     int k=0;
     chipX = xMin+i1-xCen;
+    xdbg<<"Bright pixels are:\n";
+    peak -= sky;
     for(int i=i1;i<=i2;++i,chipX+=1.) {
         double chipY = yMin+j1-yCen;
-        double u = localD(0,0)*chipX+localD(0,1)*chipY;
-        double v = localD(1,0)*chipX+localD(1,1)*chipY;
-        for(int j=j1;j<=j2;++j,u+=localD(0,1),v+=localD(1,1)) {
+        double u = D(0,0)*chipX+D(0,1)*chipY;
+        double v = D(1,0)*chipX+D(1,1)*chipY;
+        for(int j=j1;j<=j2;++j,u+=D(0,1),v+=D(1,1)) {
             if (shouldUsePix[i-i1][j-j1]) {
                 double flux = im(i,j)-sky;
                 double inverseVariance;
@@ -149,7 +159,11 @@ void getPixList(
                 if (inverseVariance > 0.0) {
                     double inverseSigma = sqrt(inverseVariance);
                     Assert(k < int(pix.size()));
-                    pix[k++] = Pixel(u,v,flux,inverseSigma);
+                    Pixel p(u,v,flux,inverseSigma);
+                    pix[k++] = p;
+                    if (flux > peak / 10.) {
+                        xdbg<<p.getPos()<<"  "<<p.getFlux()<<std::endl;
+                    }
                 }
             }
         }
@@ -175,19 +189,19 @@ double getLocalSky(
 
     xdbg<<"Start GetLocalSky\n";
 
-    DSmallMatrix22 localD;
-    trans.getDistortion(cen,localD);
+    DSmallMatrix22 D;
+    trans.getDistortion(cen,D);
 
-    double det = std::abs(localD.TMV_det());
+    double det = std::abs(D.TMV_det());
     double pixScale = sqrt(det); // arcsec/pixel
     xdbg<<"pixscale = "<<pixScale<<std::endl;
 
     // xAp,yAp are the maximum deviation from the center in x,y
     // such that u^2+v^2 = aperture^2
     double xAp = aperture / det * 
-        sqrt(localD(0,0)*localD(0,0) + localD(0,1)*localD(0,1));
+        sqrt(D(0,0)*D(0,0) + D(0,1)*D(0,1));
     double yAp = aperture / det * 
-        sqrt(localD(1,0)*localD(1,0) + localD(1,1)*localD(1,1));
+        sqrt(D(1,0)*D(1,0) + D(1,1)*D(1,1));
     xdbg<<"aperture = "<<aperture<<std::endl;
     xdbg<<"xap = "<<xAp<<", yap = "<<yAp<<std::endl;
 
@@ -225,9 +239,9 @@ double getLocalSky(
     double chipX = xMin+i1-xCen;
     for(int i=i1;i<=i2;++i,chipX+=1.) {
         double chipY = yMin+j1-yCen;
-        double u = localD(0,0)*chipX+localD(0,1)*chipY;
-        double v = localD(1,0)*chipX+localD(1,1)*chipY;
-        for(int j=j1;j<=j2;++j,u+=localD(0,1),v+=localD(1,1)) {
+        double u = D(0,0)*chipX+D(0,1)*chipY;
+        double v = D(1,0)*chipX+D(1,1)*chipY;
+        for(int j=j1;j<=j2;++j,u+=D(0,1),v+=D(1,1)) {
             // u,v are in arcsec
             double rsq = u*u + v*v;
             if (rsq <= apsq) {
@@ -246,22 +260,69 @@ double getLocalSky(
 }
 
 void getSubPixList(
-    PixelList& pix, const PixelList& allpix, double aperture, long& flag)
+    PixelList& pix, const PixelList& allpix,
+    std::complex<double> cen_offset, std::complex<double> shear,
+    double aperture, long& flag)
 {
     // Select a subset of allpix that are within the given aperture
+    const int nTot = allpix.size();
     xdbg<<"Start GetSubPixList\n";
-    xdbg<<"allpix has "<<allpix.size()<<" objects\n";
-    xdbg<<"new apertur size is "<<aperture<<std::endl;
+    xdbg<<"allpix has "<<nTot<<" objects\n";
+    xdbg<<"new aperture = "<<aperture<<std::endl;
+    xdbg<<"cen_offset = "<<cen_offset<<std::endl;
+    xdbg<<"shear = "<<shear<<std::endl;
 
+    double normg = norm(shear);
+    double g1 = real(shear);
+    double g2 = imag(shear);
     double apsq = aperture*aperture;
 
-    pix.clear();
-    const int nPix = allpix.size();
-    for(int i=0;i<nPix;++i) {
-        if (std::norm(allpix[i].getPos()) < apsq) {
-            pix.push_back(allpix[i]);
+    // Do this next loop in two passes.  First figure out which 
+    // pixels we want to use.  Then we can resize pix to the full size
+    // we will need, and go back through and enter the pixels.
+    // This saves us a lot of resizing calls in vector, which are
+    // both slow and can fragment the memory.
+    std::vector<bool> shouldUsePix(nTot,false);
+    int nPix = 0;
+
+    double peak = 0.;
+    for(int i=0;i<nTot;++i) {
+        std::complex<double> z = allpix[i].getPos() - cen_offset;
+        double u = real(z);
+        double v = imag(z);
+        // (1 + |g|^2) (u^2+v^2) - 2g1 (u^2-v^2) - 2g2 (2uv)
+        // u,v are in arcsec
+        double usq = u*u;
+        double vsq = v*v;
+        if (usq + vsq <= apsq) {
+            double rsq = (1.+normg)*(usq+vsq) - 2.*g1*(usq-vsq) - 4.*g2*u*v;
+            rsq /= (1.-normg);
+            if (rsq <= apsq) {
+                xdbg<<"u,v = "<<u<<','<<v<<"  rsq = "<<rsq<<std::endl;
+                shouldUsePix[i] = true;
+                ++nPix;
+                if (allpix[i].getFlux() > peak) peak = allpix[i].getFlux();
+            }
         }
     }
-    xdbg<<"done: npix = "<<pix.size()<<std::endl;
-    if (pix.size() < 10) flag |= LT10PIX;
+
+    xdbg<<"npix = "<<nPix<<std::endl;
+    pix.resize(nPix);
+
+    xdbg<<"pixlist size = "<<nPix<<" = "<<nPix*sizeof(Pixel)<<
+        " bytes = "<<nPix*sizeof(Pixel)/1024.<<" KB\n";
+
+    int k=0;
+    xdbg<<"Bright pixels are:\n";
+    for(int i=0;i<nTot;++i) if(shouldUsePix[i]) {
+        Pixel p = allpix[i];
+        p.setPos(p.getPos() - cen_offset);
+        pix[k++] = p;
+        if (p.getFlux() > peak / 10.) {
+            xdbg<<p.getPos()<<"  "<<p.getFlux()<<std::endl;
+        }
+    }
+    Assert(k == int(pix.size()));
+
+    if (nPix < 10) flag |= LT10PIX;
 }

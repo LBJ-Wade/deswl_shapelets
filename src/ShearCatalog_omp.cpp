@@ -89,8 +89,12 @@ int ShearCatalog::measureShears(
     {
         try {
 #endif
-            ShearLog log1(_params); // just for this thread
+            // Some variables to use just for this thread
+            ShearLog log1(_params); 
             log1.noWriteLog();
+            std::vector<PixelList> pix(1);
+            std::vector<BVec> psf(
+                1, BVec(_fitPsf->getPsfOrder(), _fitPsf->getSigma()));
 #ifdef _OPENMP
 #pragma omp for schedule(dynamic)
 #endif
@@ -117,66 +121,62 @@ int ShearCatalog::measureShears(
                 dbg<<"galaxy "<<i<<":\n";
                 dbg<<"pos = "<<_pos[i]<<std::endl;
 
-                BVec shearedShape(galOrder,1.);
-                _flags[i] = 0;
-                measureShapes(
+                // Get the main PixelList for this galaxy:
+                try {
+                    getPixList(
+                        im,pix[0],_pos[i],_sky[i],_noise[i],gain,weightIm,
+                        *_trans,maxAperture,xOffset,yOffset,_flags[i]);
+                    int npix = pix[0].size();
+                    dbg<<"npix = "<<npix<<std::endl;
+                    if (npix < 10) {
+                        dbg<<"Too few pixels to continue: "<<npix<<std::endl;
+                        xdbg<<"flag SHAPELET_NOT_DECONV\n";
+                        _flags[i] |= SHAPELET_NOT_DECONV;
+                        continue;
+                    }
+                } catch (RangeException& e) {
+                    dbg<<"distortion range error: \n";
+                    xdbg<<"p = "<<_pos[i]<<", b = "<<e.getBounds()<<std::endl;
+                    ++log._nfRange1;
+                    xdbg<<"flag TRANSFORM_EXCEPTION\n";
+                    _flags[i] |= TRANSFORM_EXCEPTION;
+                    continue;
+                }
+
+                // Get the interpolated psf for this galaxy:
+                try {
+                    psf[0] = (*_fitPsf)(_pos[i]);
+                } catch (RangeException& e) {
+                    dbg<<"fittedpsf range error: \n";
+                    xdbg<<"p = "<<_pos[i]<<", b = "<<e.getBounds()<<std::endl;
+                    ++log._nfRange2;
+                    xdbg<<"flag FITTEDPSF_EXCEPTION\n";
+                    _flags[i] |= FITTEDPSF_EXCEPTION;
+                    continue;
+                }
+
+                // Now measure the shape and shear:
+                DoMeasureShear(
                     // Input data:
-                    _pos[i], im, _sky[i], *_trans, *_fitPsf,
-                    // Noise variables:
-                    _noise[i], gain, weightIm, 
+                    pix, psf,
                     // Parameters:
                     galAperture, maxAperture, galOrder, galOrder2,
-                    minFPsf, maxFPsf, minGalSize, galFixCen, xOffset, yOffset,
+                    minFPsf, maxFPsf, minGalSize, galFixCen,
                     galFixSigma, galFixSigmaValue,
                     // Log information
                     log1,
                     // Ouput values:
-                    _shape[i], _shear[i], shearedShape, _nu[i],
-                    _flags[i]);
-                dbg<<"After measureShapes, pos = "<<_pos[i]<<std::endl;
+                    _shape[i], _shear[i], _cov[i], _nu[i], _flags[i]);
+
                 if (!_flags[i]) {
                     dbg<<"Successful shape measurements: \n";
-                    dbg<<_shape[i]<<std::endl;
-                    dbg<<shearedShape<<std::endl;
+                    dbg<<"Shape = "<<_shape[i]<<std::endl;
+                    dbg<<"Shear = "<<_shear[i]<<std::endl;
+                    dbg<<"Cov = "<<_cov[i]<<std::endl;
+                    dbg<<"Nu = "<<_nu[i]<<std::endl;
                 } else {
                     dbg<<"Unsuccessful shape measurement\n"; 
                     dbg<<"flag = "<<_flags[i]<<std::endl;
-                }
-
-                // At this point, the shear value is just the shear of the
-                // _observed_ galaxy.  We still need to convert this to
-                // the shear of the frame in which the deconvolved
-                // galaxy is round, using the observed shape in the 
-                // sheared frame: shearedShape.
-                Ellipse ell;
-                ell.setGamma(_shear[i]);
-                if (galFixCen) ell.fixCen();
-                if (galFixSigma) ell.fixMu();
-                DMatrix cov5(5,5);
-                if (ell.findRoundFrame(
-                        shearedShape, true, galOrder2, 1.e-4, 
-                        _flags[i], &cov5)) {
-                    ell.removeRotation();
-                    _shear[i] = ell.getGamma();
-                    dbg<<"Successful shear measurement: "<<_shear[i]<<std::endl;
-
-                    DSmallMatrix22 cov2 = cov5.TMV_subMatrix(2,4,2,4);
-                    if (!(cov2.TMV_det() > 0.)) {
-                        dbg<<"cov2 has bad determinant: "<<
-                            cov2.TMV_det()<<std::endl;
-                        dbg<<"cov2 = "<<cov2<<std::endl;
-                        dbg<<"Full cov = "<<cov5<<std::endl;
-                        xdbg<<"flag SHEAR_BAD_COVAR\n";
-                        _flags[i] |= SHEAR_BAD_COVAR;
-                    } else {
-                        _cov[i] = cov2;
-                    }
-                } else {
-                    ell.removeRotation();
-                    _shear[i] = ell.getGamma();
-                    dbg<<"Unsuccessful shear measurement\n"; 
-                    dbg<<"flag = "<<_flags[i]<<std::endl;
-                    dbg<<"shear = "<<_shear[i]<<std::endl;
                 }
             }
             dbg<<"After loop"<<std::endl;

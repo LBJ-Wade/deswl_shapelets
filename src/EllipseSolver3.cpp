@@ -230,7 +230,7 @@ void EllipseSolver3::ESImpl3::doF3(const DVector& x, DVector& f) const
     if (bx(0) <= 0.) {
         dbg<<"bad bx(0): "<<bx(0)<<std::endl;
         xdbg<<"x = "<<x<<std::endl;
-        xdbg<<"bx = "<<x<<std::endl;
+        xdbg<<"bx = "<<bx<<std::endl;
         f = 2.* bxsave.TMV_subVector(1,6) / bxsave(0);
         bx = bxsave;
         return;

@@ -39,14 +39,25 @@ void measureSinglePsf1(
     }
     DMatrix cov(psf.size(),psf.size());
 
-    long flag1=0;
-    if (ell.measure(pix,psfOrder,psfOrder+4,sigmaP,flag1,1.e-4,0,&psf,&cov)) {
-        ++log._nsPsf;
-    } else {
-        xdbg<<"Measurement failed\n";
+    // First make sure it is centered.
+    if (!(ell.measure(pix,psfOrder,psfOrder+4,sigmaP,flag,1.e-4))) {
+        xdbg<<"Initial Measurement failed\n";
         ++log._nfPsf;
         xdbg<<"flag MEASURE_PSF_FAILED\n";
         flag |= MEASURE_PSF_FAILED;
+        return;
+    }
+
+    // Then measure it with the correct centroid.
+    psf.setSigma(sigmaP);
+    if (ell.measureShapelet(pix,psf,psfOrder,psfOrder+4,&cov)) {
+        ++log._nsPsf;
+    } else {
+        xdbg<<"Shapelet Measurement failed\n";
+        ++log._nfPsf;
+        xdbg<<"flag MEASURE_PSF_FAILED\n";
+        flag |= MEASURE_PSF_FAILED;
+        return;
     }
 
     // Calculate the 0th order shapelet to make sure the flux is consistent 
@@ -55,10 +66,7 @@ void measureSinglePsf1(
     // an error if it is more than a factor of 3 different.)
     BVec flux(0,sigmaP);
     DMatrix fluxCov(1,1);
-    int order0 = 0; 
-    // order is passed by reference, since it may be changed. 
-    // Won't ever happen when input is 0.
-    if (!ell.measureShapelet(pix,flux,order0,0,&fluxCov)) {
+    if (!ell.measureShapelet(pix,flux,0,0,&fluxCov)) {
         xdbg<<"Measurement of flux failed.\n";
         ++log._nfPsf;
         xdbg<<"flag PSF_BAD_FLUX\n";

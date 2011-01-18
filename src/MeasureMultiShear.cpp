@@ -153,6 +153,8 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
         if (shearCat.getFlagsList()[i] == 0) ++nGood;
     log._nGood = nGood;
     dbg<<log._nGood<<" successful measurements with no measurement flags.\n";
+    dbg<<"Breakdown of flags:\n";
+    if (dbgout) PrintFlags(shearCat.getFlagsList(),*dbgout);
 
     if (shouldOutputDots) {
         std::cerr
@@ -160,6 +162,8 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
             <<"Success rate: "<<log._nsGamma<<"/"<<log._nGoodIn
             <<"  # with no flags: "<<log._nGood
             <<std::endl;
+        std::cerr<<"Breakdown of flags:\n";
+        PrintFlags(shearCat.getFlagsList(),std::cerr);
     }
 
     // Write the catalog.

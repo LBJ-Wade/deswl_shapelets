@@ -58,14 +58,12 @@ public :
     bool measure(
         const std::vector<PixelList>& pix, 
         int order, int order2, double sigma, long& flag, double thresh,
-        DMatrix* cov=0, BVec* bret=0, DMatrix* bcov=0,
-        std::vector<PixelList>* pixels_model=0);
+        DMatrix* cov=0);
     bool measure(
         const std::vector<PixelList>& pix, 
         const std::vector<BVec>& psf,
         int order, int order2, double sigma, long& flag, double thresh,
-        DMatrix* cov=0, BVec* bret=0, DMatrix* bcov=0,
-        std::vector<PixelList>* pixels_model=0);
+        DMatrix* cov=0);
 
     // Given a measured shapelet vector, find the ellipse transformation
     // in which this shapelet vector would be observed to be round.
@@ -89,11 +87,11 @@ public :
     // Again, the first is for the galaxy as observed (the "native" fit),
     // and the second is for the galaxy before being convolved by the psf.
     bool measureShapelet(
-        const std::vector<PixelList>& pix, BVec& bret, int& order, int order2,
+        const std::vector<PixelList>& pix, BVec& bret, int order, int order2,
         DMatrix* bcov=0) const;
     bool measureShapelet(
         const std::vector<PixelList>& pix, 
-        const std::vector<BVec>& psf, BVec& bret, int& order, int order2,
+        const std::vector<BVec>& psf, BVec& bret, int order, int order2,
         DMatrix* bcov=0) const;
 
     // An alternative measurement that uses the formula:
@@ -158,12 +156,11 @@ private :
     bool doMeasure(
         const std::vector<PixelList>& pix, 
         const std::vector<BVec>* psf, int order, int order2, double sigma,
-        long& flag, double thresh, DMatrix* cov=0, 
-        BVec* bret=0, DMatrix* bcov=0, std::vector<PixelList>* pixels_model=0);
+        long& flag, double thresh, DMatrix* cov=0);
 
     bool doMeasureShapelet(
         const std::vector<PixelList>& pix, 
-        const std::vector<BVec>* psf, BVec& bret, int& order, int order2,
+        const std::vector<BVec>* psf, BVec& bret, int order, int order2,
         DMatrix* bcov=0) const;
 
     bool doAltMeasureShapelet(

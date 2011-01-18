@@ -26,5 +26,4 @@ ShearCatalogTree.cpp
 MultiShearCatalog.cpp
 WlVersion.cpp Pool.cpp
 MeasureShearAlgo.cpp
-MeasureShearAlgo2.cpp
 Scripts.cpp

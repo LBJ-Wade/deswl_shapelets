@@ -26,7 +26,7 @@ static const long TOO_SMALL               = 0x400;
 static const long DECONV_FAILED           = 0x800;
 static const long SHEAR_FAILED            = 0x1000;
 static const long SHAPELET_FAILED         = 0x2000;
-static const long UNKNOWN_FAILURE         = 0x4000;
+static const long SHEAR_REDUCED_ORDER     = 0x4000;
 static const long SHAPE_REDUCED_ORDER     = 0x8000;
 static const long SHEAR_LOCAL_MIN         = 0x10000;
 static const long SHEAR_POOR_FIT          = 0x20000;
@@ -60,7 +60,7 @@ static const char*const flagName[NFLAGS] = {
     "DECONV_FAILED",
     "SHEAR_FAILED",
     "SHAPELET_FAILED",
-    "UNKNOWN_FAILURE",
+    "SHEAR_REDUCED_ORDER",
     "SHAPE_REDUCED_ORDER",
     "SHEAR_LOCAL_MIN",
     "SHEAR_POOR_FIT",

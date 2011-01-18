@@ -27,6 +27,9 @@ public :
     Pixel(double u, double v, double flux, double inverseSigma) :
         _pos(u,v), _flux(flux), _inverseSigma(inverseSigma) {}
 
+    Pixel(std::complex<double> z, double flux, double inverseSigma) :
+        _pos(z), _flux(flux), _inverseSigma(inverseSigma) {}
+
     ~Pixel() {}
 
     std::complex<double> getPos() const { return _pos; }
@@ -90,17 +93,17 @@ void getPixList(
     const Image<double>& im, PixelList& pix,
     const Position cen, double sky, double noise, double gain,
     const Image<double>* weightImage, const Transformation& trans,
-    double aperture, std::complex<double> shear,
+    std::complex<double> shear, double aperture,
     double xOffset, double yOffset, long& flag);
 
-static inline void getPixList(
+inline void getPixList(
     const Image<double>& im, PixelList& pix,
     const Position cen, double sky, double noise, double gain,
     const Image<double>* weightImage, const Transformation& trans,
     double aperture, double xOffset, double yOffset, long& flag)
 {
     getPixList(im,pix,cen,sky,noise,gain,weightImage,trans,
-               aperture,0.,xOffset,yOffset,flag);
+               0.,aperture,xOffset,yOffset,flag);
 }
 
 double getLocalSky(
@@ -109,6 +112,21 @@ double getLocalSky(
     double aperture, double xOffset, double yOffset, long& flag);
 
 void getSubPixList(
-    PixelList& pix, const PixelList& allPix, double aperture, long& flag);
+    PixelList& pix, const PixelList& allpix,
+    std::complex<double> cen_offset, std::complex<double> shear,
+    double aperture, long& flag);
+
+inline void getSubPixList(
+    PixelList& pix, const PixelList& allpix,
+    std::complex<double> cen_offset, double aperture, long& flag)
+{ getSubPixList(pix,allpix,cen_offset,0.,aperture,flag); }
+
+inline void getSubPixList(
+    PixelList& pix, const PixelList& allpix,
+    double aperture, long& flag)
+{ getSubPixList(pix,allpix,0.,0.,aperture,flag); }
+
+
+
 
 #endif

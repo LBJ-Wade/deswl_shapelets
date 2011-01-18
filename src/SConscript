@@ -106,10 +106,8 @@ shearave = env.Program('shearave', 'ShearAverage.cpp')
 
 calcq = env.Program('calcq', 'CalcQ.cpp')
 
-g08setup = env.Program('g08setup', 'G08Setup.cpp')
-
 bin_targets = [measurepsf, measureshear, findstars, multishear, fullpipe, 
-               test_psfrec, shearave, calcq, g08setup]
+               test_psfrec, shearave, calcq ]
 
 if 'install' in COMMAND_LINE_TARGETS:
 

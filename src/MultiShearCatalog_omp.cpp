@@ -24,7 +24,10 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
     double maxFPsf = _params.read("shear_max_f_psf",minFPsf);
     double minGalSize = _params.read<double>("shear_min_gal_size");
     bool galFixCen = _params.read("shear_fix_centroid",false);
+    bool galFixSigma = _params.keyExists("shear_force_sigma");
+    double galFixSigmaValue = _params.read("shear_force_sigma",0.);
     bool shouldOutputDots = _params.read("output_dots",false);
+    bool shouldOutputDesQa = _params.read("des_qa",false); 
 
     int nSuccess = 0;
 
@@ -70,22 +73,18 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                     continue;
                 }
 
-                // Start with an error code of unknown failure, in case
-                // something happens that I don't detect as an error.
-                _flags[i] = UNKNOWN_FAILURE;
-                long flag1 = 0;
-
 #if 1
-                measureMultiShear(
+                DoMeasureShear(
                     // Input data:
-                    _skyPos[i], _pixList[i], _psfList[i],
+                    _pixList[i], _psfList[i],
                     // Parameters:
                     galAperture, maxAperture, galOrder, galOrder2,
                     minFPsf, maxFPsf, minGalSize, galFixCen,
+                    galFixSigma, galFixSigmaValue,
                     // Log information
                     log1,
                     // Ouput values:
-                    _shear[i], _cov[i], _shape[i], _nu[i], flag1);
+                    _shape[i], _shear[i], _cov[i], _nu[i], _flags[i]);
 #else
                 _shear[i] = std::complex<double>(0.1,0.2);
                 _cov[i] << 1., 0., 0., 1.;
@@ -93,9 +92,7 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                 _nu[i] = 10.;
 #endif
 
-                _flags[i] = flag1;
-
-                if (!flag1) {
+                if (!_flags[i]) {
                     dbg<<"Successful shear measurement: "<<
                         _shear[i]<<std::endl;
                     ++nSuccess;
@@ -112,11 +109,17 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
 #ifdef _OPENMP
         } catch (std::exception& e) {
             // This isn't supposed to happen.
+            if (shouldOutputDesQa) {
+                std::cerr<<"STATUS5BEG Caught error in parallel region STATUS5END\n";
+            } 
             std::cerr<<"Caught "<<e.what()<<std::endl;
-            std::cerr<<"STATUS5BEG Caught some error in parallel region STATUS5END\n";
+            std::cerr<<"Caught error in parallel region.  Aborting.\n";
             exit(1);
         } catch (...) {
-            std::cerr<<"STATUS5BEG Caught some error in parallel region STATUS5END\n";
+            if (shouldOutputDesQa) {
+                std::cerr<<"STATUS5BEG Caught error in parallel region STATUS5END\n";
+            }
+            std::cerr<<"Caught error in parallel region.  Aborting.\n";
             exit(1);
         }
     }

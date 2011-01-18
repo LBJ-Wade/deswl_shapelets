@@ -149,11 +149,7 @@ int PsfCatalog::measurePsf(
                 dbg<<"star "<<i<<":\n";
                 dbg<<"pos["<<i<<"] = "<<_pos[i]<<std::endl;
 
-                // Start with an error code of unknown failure, in case
-                // something happens that I don't detect as an error.
-                _flags[i] = UNKNOWN_FAILURE;
                 dbg<<"Before MeasureSinglePSF1"<<std::endl;
-                long flag1 = 0;
                 measureSinglePsf(
                     // Input data:
                     _pos[i], im, _sky[i], trans, 
@@ -164,11 +160,10 @@ int PsfCatalog::measurePsf(
                     // Log information
                     log1,
                     // Ouput value:
-                    _psf[i], _nu[i], flag1);
+                    _psf[i], _nu[i], _flags[i]);
                 dbg<<"After MeasureSinglePSF"<<std::endl;
 
-                _flags[i] = flag1;
-                if (!flag1) {
+                if (!_flags[i]) {
                     dbg<<"Successful psf measurement: "<<
                         _psf[i].vec()<<std::endl;
                 } else {
@@ -198,6 +193,8 @@ int PsfCatalog::measurePsf(
     dbg<<nStars-log._nsPsf<<" unsuccessful\n";
     log._nGood = std::count(_flags.begin(),_flags.end(),0);
     dbg<<log._nGood<<" with no flags\n";
+    dbg<<"Breakdown of flags:\n";
+    if (dbgout) PrintFlags(_flags,*dbgout);
 
     if (shouldOutputDots) {
         std::cerr
@@ -205,6 +202,8 @@ int PsfCatalog::measurePsf(
             <<"Success rate: "<<log._nsPsf<<"/"<<log._nGoodIn
             <<"  # with no flags: "<<log._nGood
             <<std::endl;
+        std::cerr<<"Breakdown of flags:\n";
+        PrintFlags(_flags,std::cerr);
     }
 
     return log._nsPsf;

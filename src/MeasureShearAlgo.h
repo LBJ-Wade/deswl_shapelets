@@ -4,54 +4,18 @@
 #include <vector>
 #include "BVec.h"
 #include "MyMatrix.h"
-#include "Transformation.h"
-#include "Image.h"
 #include "Log.h"
-#include "FittedPsf.h"
 #include "Pixel.h"
 
-void measureShapes(
-    Position& cen, const Image<double>& im, double sky,
-    const Transformation& trans, const FittedPsf& fitPsf,
-    double noise, double gain, const Image<double>* weightIm, 
-    double galAperture, double maxAperture, 
-    int galOrder, int galOrder2,
-    double minFPsf, double maxFPsf, double minGalSize, bool fixCen,
-    double xOffset, double yOffset,
-    bool fixSigma, double fixSigmaValue,
-    ShearLog& log, BVec& shapelet, 
-    std::complex<double>& gamma, BVec& shearedShape,
-    double& nu, long& flag);
-
-void measureShapes1(
-    Position& cen, const Image<double>& im, double sky,
-    const Transformation& trans, const std::vector<BVec>& psf,
-    double noise, double gain, const Image<double>* weightIm, 
-    double galAperture, double maxAperture, 
-    int galOrder, int galOrder2,
-    double minFPsf, double maxFPsf, double minGalSize, bool fixCen,
-    double xOffset, double yOffset,
-    bool fixSigma, double fixSigmaValue,
-    ShearLog& log, BVec& shapelet, 
-    std::complex<double>& gamma, BVec& shearedShape,
-    double& nu, long& flag);
-
-// This is poorly named.  It is still only measuring a single shear,
-// but it is doing the multi-exposure version of the measurement.
-// It is _not_ measuring multiple shears.
-// The algorithm is basically the same as the above function, except that
-// we already have the pixel values loaded up with a larger than needed 
-// aperture.  Then we take subsets of that give the actual aperture size
-// that we want each time.
-void measureMultiShear(
-    Position& cen, 
-    const std::vector<PixelList>& allPix,
+void DoMeasureShear(
+    const std::vector<PixelList>& allpix,
     const std::vector<BVec>& psf,
     double galAperture, double maxAperture,
     int galOrder, int galOrder2,
     double minFPsf, double maxFPsf, double minGalSize, bool fixCen,
-    ShearLog& log, std::complex<double>& shear, 
-    DSmallMatrix22& shearCov, BVec& shapelet,
+    bool fixSigma, double fixSigmaValue,
+    ShearLog& log, BVec& shapelet, 
+    std::complex<double>& gamma, DSmallMatrix22& cov,
     double& nu, long& flag);
 
 #endif
