@@ -49,6 +49,7 @@ int ShearCatalog::measureShears(
     double maxAperture = _params.read("shear_max_aperture",0.);
     int galOrder = _params.read<int>("shear_gal_order");
     int galOrder2 = _params.read<int>("shear_gal_order2");
+    int maxm = _params.read("shear_maxm",galOrder);
     double minFPsf = _params.read("shear_f_psf",1.);
     double maxFPsf = _params.read("shear_max_f_psf",minFPsf);
     double gain = _params.read("image_gain",0.);
@@ -60,6 +61,7 @@ int ShearCatalog::measureShears(
     double yOffset = _params.read("cat_y_offset",0.);
     bool shouldOutputDots = _params.read("output_dots",false);
     bool shouldOutputDesQa = _params.read("des_qa",false); 
+    bool nativeOnly = _params.read("shear_native_only",false);
 
     // This need to have been set.
     Assert(_trans);
@@ -160,22 +162,22 @@ int ShearCatalog::measureShears(
                     // Input data:
                     pix, psf,
                     // Parameters:
-                    galAperture, maxAperture, galOrder, galOrder2,
+                    galAperture, maxAperture, galOrder, galOrder2, maxm,
                     minFPsf, maxFPsf, minGalSize, galFixCen,
-                    galFixSigma, galFixSigmaValue,
+                    galFixSigma, galFixSigmaValue, nativeOnly,
                     // Log information
                     log1,
                     // Ouput values:
                     _shape[i], _shear[i], _cov[i], _nu[i], _flags[i]);
 
                 if (!_flags[i]) {
-                    dbg<<"Successful shape measurements: \n";
-                    dbg<<"Shape = "<<_shape[i]<<std::endl;
-                    dbg<<"Shear = "<<_shear[i]<<std::endl;
-                    dbg<<"Cov = "<<_cov[i]<<std::endl;
-                    dbg<<"Nu = "<<_nu[i]<<std::endl;
+                    dbg<<"Successful shear measurements: \n";
+                    dbg<<"shape = "<<_shape[i]<<std::endl;
+                    dbg<<"shear = "<<_shear[i]<<std::endl;
+                    dbg<<"cov = "<<_cov[i]<<std::endl;
+                    dbg<<"nu = "<<_nu[i]<<std::endl;
                 } else {
-                    dbg<<"Unsuccessful shape measurement\n"; 
+                    dbg<<"Unsuccessful shear measurement\n"; 
                     dbg<<"flag = "<<_flags[i]<<std::endl;
                 }
             }

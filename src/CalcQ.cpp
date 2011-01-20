@@ -3,6 +3,8 @@
 #include <string>
 #include <cmath>
 #include <cstdlib>
+#include <map>
+#include <vector>
 
 inline double SQR(double x) { return x*x; }
 
@@ -21,14 +23,46 @@ inline double SQR(double x) { return x*x; }
 
 int main(int argc, char* argv[])
 {
-    if (argc < 3 || argc > 4) {
-        std::cerr<<"Usage: calcq correctfile myanswers [nmax]\n";
-        std::cerr<<"If nvals is specified, only do the first nmax lines\n";
+    if (argc < 3 || argc > 5) {
+        std::cerr<<"Usage: calcq correctfile myanswers [nmax] [cheat]\n";
+        std::cerr<<"If nmax is specified, only do the first nmax lines\n";
+        std::cerr<<"If cheat is specified, use the cheat file to get galaxy types\n";
         exit(1);
     }
     std::ifstream correct(argv[1]);
     std::ifstream myanswers(argv[2]);
     int nmax = (argc >= 4) ? strtol(argv[3],0,0) : -1;
+
+    std::ifstream cheat;
+    std::vector<int> galType;
+    std::vector<std::string> galType_reorg;
+    std::map<std::string,int> galTypeMap;
+    if (argc >= 5) {
+        cheat.open(argv[4]);
+        std::string id, e1_c, e2_c, doc;
+        while (cheat >> id >> e1_c >> e2_c >> doc) {
+            //std::cout<<id<<"  "<<doc<<std::endl;
+            size_t k1 = doc.find('_');
+            ++k1;
+            size_t k2 = doc.find('_',k1);
+            std::string type(doc,k1,k2-k1);
+            if (galTypeMap.find(type) == galTypeMap.end()) {
+                int newnum = galTypeMap.size();
+                galTypeMap[type] = newnum;
+            }
+            galType.push_back(galTypeMap[type]);
+            //std::cout<<galType.size()<<" is type "<<type<<" = "<<galTypeMap[type]<<std::endl;
+        }
+        std::cout<<"Cheat codes:\n";
+        galType_reorg.resize(galTypeMap.size());
+        typedef std::map<std::string,int>::iterator mapit;
+        for(mapit i=galTypeMap.begin(); i!=galTypeMap.end(); ++i) {
+            galType_reorg[i->second] = i->first;
+        }
+        for(int i=0;i<galType_reorg.size();++i) {
+            std::cout<<i<<"  =  "<<galType_reorg[i]<<std::endl;
+        }
+    }
 
     std::string junk;
     getline(correct,junk);
@@ -39,6 +73,8 @@ int main(int argc, char* argv[])
     double sumx1 = 0., sumx2 = 0., sumxsq1 = 0., sumxsq2 = 0.;
     double sumxy1 = 0., sumxy2 = 0.;
     std::string id;
+    std::vector<double> q_by_type(galTypeMap.size());
+    std::vector<int> n_by_type(galTypeMap.size());
     // y = mx + c
     // chisq = Sum (yi - m xi - c)^2
     // d/dm = 2 Sum (yi - m xi - c) (-xi) = 0
@@ -59,10 +95,16 @@ int main(int argc, char* argv[])
         sumxsq2 += e2_c*e2_c;
         sumxy1 += e1_m*e1_c;
         sumxy2 += e2_m*e2_c;
-        sumq += SQR(e1_m-e1_c) + SQR(e2_m-e2_c);
-        n++;
-        std::cout<<"   "<<2.e-4/(SQR(e1_m-e1_c) + SQR(e2_m-e2_c));
+        double normdiff = SQR(e1_m-e1_c) + SQR(e2_m-e2_c);
+        sumq += normdiff;
+        std::cout<<"   "<<2.e-4/normdiff;
+        if (argc >= 5) {
+            std::cout<<"  "<<galType[n];
+            q_by_type[galType[n]] += normdiff;
+            ++n_by_type[galType[n]];
+        }
         std::cout<<std::endl;
+        ++n;
         if (n == nmax) break;
     }
     sumq /= 2*n;
@@ -83,4 +125,12 @@ int main(int argc, char* argv[])
     //std::cout<<"varx2 = "<<sumxsq2<<" / "<<n<<" - "<<sumx2/n<<"^2 = "<<sumxsq2/n-(sumx2/n)*(sumx2/n)<<std::endl;
     //std::cout<<"m2 = ("<<sumxy2<<" - "<<sumx2<<" * "<<sumy2<<") / ("<<sumxsq2<<" - "<<sumx2<<"^2) - 1\n";
     std::cout<<"e2: m = "<<m2<<", c = "<<c2<<std::endl;
+    if (argc >= 5) {
+        std::cout<<"Q by type:\n";
+        for(int i=0;i<galType_reorg.size();++i) {
+            q_by_type[i] = 2.e-4 * n_by_type[i] / q_by_type[i];
+            std::cout<<i<<"  "<<galType_reorg[i]<<"  ";
+            std::cout<<q_by_type[i]<<"  "<<n_by_type[i]<<std::endl;
+        }
+    }
 }

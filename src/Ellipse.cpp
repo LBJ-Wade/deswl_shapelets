@@ -171,24 +171,26 @@ void Ellipse::removeRotation()
 bool Ellipse::measure(
     const std::vector<PixelList>& pix,
     const std::vector<BVec>& psf,
-    int order, int order2, double sigma, long& flag, double thresh,
-    DMatrix* cov)
-{ return doMeasure(pix,&psf,order,order2,sigma,flag,thresh,cov); }
+    int order, int order2, int maxm,
+    double sigma, long& flag, double thresh, DMatrix* cov)
+{ return doMeasure(pix,&psf,order,order2,maxm,sigma,flag,thresh,cov); }
 
 bool Ellipse::measure(
     const std::vector<PixelList>& pix,
-    int order, int order2, double sigma, long& flag, double thresh,
-    DMatrix* cov)
-{ return doMeasure(pix,0,order,order2,sigma,flag,thresh,cov); }
+    int order, int order2, int maxm,
+    double sigma, long& flag, double thresh, DMatrix* cov)
+{ return doMeasure(pix,0,order,order2,maxm,sigma,flag,thresh,cov); }
 
 bool Ellipse::doMeasureShapelet(
     const std::vector<PixelList>& pix,
-    const std::vector<BVec>* psf, BVec& b, int order, int order2,
-    DMatrix* bCov) const
+    const std::vector<BVec>* psf, BVec& b,
+    int order, int order2, int maxm, DMatrix* bCov) const
 {
     xdbg<<"Start MeasureShapelet: order = "<<order<<std::endl;
     xdbg<<"b.order, sigma = "<<b.getOrder()<<", "<<b.getSigma()<<std::endl;
     xdbg<<"el = "<<*this<<std::endl;
+    if (maxm < 0 || maxm > order) maxm = order;
+    xdbg<<"order = "<<order<<','<<order2<<','<<maxm<<std::endl;
 
     // ( u )' = exp(-mu)/sqrt(1-gsq) ( 1-g1  -g2  ) ( u-uc )
     // ( v )                         ( -g2   1+g1 ) ( v-vc )
@@ -233,11 +235,41 @@ bool Ellipse::doMeasureShapelet(
     //xdbg<<"Z = "<<Z<<std::endl;
     //xdbg<<"I = "<<I<<std::endl;
     //xdbg<<"W = "<<W<<std::endl;
-
+    
     int bsize = (order+1)*(order+2)/2;
     xdbg<<"bsize = "<<bsize<<std::endl;
     int bsize2 = (order2+1)*(order2+2)/2;
     xdbg<<"bsize2 = "<<bsize2<<std::endl;
+
+    // Figure out a permutation that puts all the m <= maxm first.
+    tmv::Permutation P(bsize);
+    int msize = bsize;
+    if (maxm < order) {
+        tmv::Vector<double> mvals(bsize);
+        for(int n=0,k=0;n<=order;++n) {
+            for(int m=n;m>=0;m-=2) {
+                mvals[k++] = m;
+                if (m > 0) mvals[k++] = m;
+            }
+        }
+        dbg<<"mvals = "<<mvals<<std::endl;
+        mvals.sort(P);
+        dbg<<"mvals => "<<mvals<<std::endl;
+        // 00  10 10  20 20 11  30 30 21 21  40 40 31 31 22  50 50 41 41 32 32
+        // n =     0  1  2  3  4   5   6
+        // 0size = 1  1  2  2  3   3   4  = (n)/2 + 1
+        // 1size = 1  3  4  6  7   9   10 = (3*(n-1))/2 + 3
+        // 2size = 1  3  6  8  11  13  16 = (5*(n-2))/2 + 6
+        // 3size = 1  3  6  10 13  17  20 = (7*(n-3))/2 + 10
+        // nsize = (n+1)*(n+2)/2
+        // msize = (m+1)*(m+2)/2 + (2*m+1)*(n-m)/2
+        msize = (maxm+1)*(maxm+2)/2 + (2*maxm+1)*(order-maxm)/2;
+        dbg<<"msize = "<<msize<<std::endl;
+        dbg<<"mvals["<<msize-1<<"] = "<<mvals[msize-1]<<std::endl;
+        dbg<<"mvals["<<msize<<"] = "<<mvals[msize]<<std::endl;
+        Assert(mvals[msize-1] == maxm);
+        Assert(mvals[msize] == maxm+1);
+    }
 
     DMatrix A(nTot,bsize);
     Assert(nTot >= bsize); // Should have been addressed by calling routine.
@@ -307,46 +339,52 @@ bool Ellipse::doMeasureShapelet(
     } else {
         makePsi(A,TMV_vview(Z),order,&W);
     }
-    const double MAX_CONDITION = 1.e6;
+    const double MAX_CONDITION = 1.e8;
+
 #ifdef USE_TMV
-    A.saveDiv();
+    A *= P.transpose();
+    tmv::MatrixView<double> Am = A.colRange(0,msize);
     // I used to use SVD for this, rather than the QRP decomposition.
     // But QRP is significantly faster, and the condition estimate 
     // produced is good enough for what we need here.  
     // TODO: I need to add a real condition estimator to division methods
     // other than SVD in TMV.  LAPACK has this functionality...
-    A.divideUsing(tmv::QRP);
-    std::auto_ptr<tmv::MatrixView<double> > A_use(
-        new tmv::MatrixView<double>(A.view()));
-    A_use->qrpd();
-    xdbg<<"R diag = "<<A_use->qrpd().getR().diag()<<std::endl;
+    Am.saveDiv();
+    Am.divideUsing(tmv::QRP);
+    Am.qrpd();
+    xdbg<<"R diag = "<<Am.qrpd().getR().diag()<<std::endl;
     if (
 #if TMV_VERSION_AT_LEAST(0,65)
-        A_use->qrpd().isSingular() || 
+        Am.qrpd().isSingular() || 
 #else
         // Fixed a bug in the isSingular function in v0.65.
         // Until that is the standard TMV version for DES, use this instead:
-        (A_use->qrpd().getR().minAbs2Element() < 
-         1.e-16 * A_use->qrpd().getR().maxAbs2Element()) ||
+        (Am.qrpd().getR().minAbs2Element() < 
+         1.e-16 * Am.qrpd().getR().maxAbs2Element()) ||
 #endif
-        DiagMatrixViewOf(A_use->qrpd().getR().diag()).condition() > 
+        DiagMatrixViewOf(Am.qrpd().getR().diag()).condition() > 
         MAX_CONDITION) {
         dbg<<"Poor condition in MeasureShapelet: \n";
-        dbg<<"R diag = "<<A_use->qrpd().getR().diag()<<std::endl;
+        dbg<<"R diag = "<<Am.qrpd().getR().diag()<<std::endl;
         dbg<<"condition = "<<
-            DiagMatrixViewOf(A_use->qrpd().getR().diag()).condition()<<
+            DiagMatrixViewOf(Am.qrpd().getR().diag()).condition()<<
             std::endl;
-        dbg<<"det = "<<A_use->qrpd().det()<<std::endl;
+        dbg<<"det = "<<Am.qrpd().det()<<std::endl;
         return false;
     }
-    b.vec().subVector(0,bsize) = I/(*A_use);
+    b.vec().subVector(0,msize) = I/Am;
     xdbg<<"b = "<<b<<std::endl;
     xdbg<<"Norm(I) = "<<Norm(I)<<std::endl;
-    xdbg<<"Norm(A*b) = "<<Norm((*A_use)*b.vec().subVector(0,bsize))<<std::endl;
-    xdbg<<"Norm(I-A*b) = "<<Norm(I-(*A_use)*b.vec().subVector(0,bsize))<<std::endl;
+    xdbg<<"Norm(Am*b) = "<<Norm(Am*b.vec().subVector(0,msize))<<std::endl;
+    xdbg<<"Norm(I-Am*b) = "<<Norm(I-Am*b.vec().subVector(0,msize))<<std::endl;
+    b.vec().subVector(msize,bsize).setZero();
+    b.vec() = P.transpose() * b.vec();
+    xdbg<<"b => "<<b<<std::endl;
+
     if (bCov) {
         bCov->setZero();
-        A_use->makeInverseATA(bCov->subMatrix(0,bsize,0,bsize));
+        Am.makeInverseATA(bCov->subMatrix(0,msize,0,msize));
+        *bCov = P.transpose() * (*bCov) * P;
     }
 #else
     const double sqrtEps = sqrt(std::numeric_limits<double>::epsilon());
@@ -367,6 +405,7 @@ bool Ellipse::doMeasureShapelet(
     DVector temp = svd_u.transpose() * I;
     temp = svd_s.cwise().inverse().asDiagonal() * temp;
     b.vec().TMV_subVector(0,bsize) = svd_v * temp;
+
     if (bCov) {
         bCov->setZero();
         // (AtA)^-1 = (VSUt USVt)^-1 = (V S^2 Vt)^-1 = V S^-2 Vt
@@ -526,6 +565,7 @@ bool Ellipse::doAltMeasureShapelet(
             C.lu().solve(b1,&b1);
 #endif
             dbg<<"b1 /= C => "<<b1<<std::endl;
+            if (bCov) *cov1 = C.inverse() * (*cov1) * C;
         }
         b.vec() += b1.TMV_subVector(0,bsize);
         if (bCov) *bCov += cov1->TMV_subMatrix(0,bsize,0,bsize);
@@ -547,14 +587,14 @@ bool Ellipse::doAltMeasureShapelet(
 
 bool Ellipse::measureShapelet(
     const std::vector<PixelList>& pix,
-    const std::vector<BVec>& psf, BVec& b, int order, int order2,
-    DMatrix* bCov) const
-{ return doMeasureShapelet(pix,&psf,b,order,order2,bCov); }
+    const std::vector<BVec>& psf, BVec& b,
+    int order, int order2, int maxm, DMatrix* bCov) const
+{ return doMeasureShapelet(pix,&psf,b,order,order2,maxm,bCov); }
 
 bool Ellipse::measureShapelet(
-    const std::vector<PixelList>& pix, BVec& b, int order, int order2,
-    DMatrix* bCov) const
-{ return doMeasureShapelet(pix,0,b,order,order2,bCov); }
+    const std::vector<PixelList>& pix, BVec& b,
+    int order, int order2, int maxm, DMatrix* bCov) const
+{ return doMeasureShapelet(pix,0,b,order,order2,maxm,bCov); }
 
 bool Ellipse::altMeasureShapelet(
     const std::vector<PixelList>& pix,

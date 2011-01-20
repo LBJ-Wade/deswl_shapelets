@@ -36,9 +36,9 @@ void DoMeasureShear(
     const std::vector<PixelList>& allpix,
     const std::vector<BVec>& psf,
     double galAperture, double maxAperture,
-    int galOrder, int galOrder2,
+    int galOrder, int galOrder2, int maxm,
     double minFPsf, double maxFPsf, double minGalSize, bool fixCen,
-    bool fixSigma, double fixSigmaValue,
+    bool fixSigma, double fixSigmaValue, bool nativeOnly,
     ShearLog& log, BVec& shapelet, 
     std::complex<double>& gamma, DSmallMatrix22& cov,
     double& nu, long& flag)
@@ -131,7 +131,7 @@ void DoMeasureShear(
         ell_native.fixGam();
         if (!fixCen) {
             flag1 = 0;
-            if (!ell_native.measure(pix,2,2,sigmaObs,flag1,0.1)) {
+            if (!ell_native.measure(pix,2,2,2,sigmaObs,flag1,0.1)) {
                 ++log._nfCentroid;
                 dbg<<"First centroid pass failed.\n";
                 flag |= flag1;
@@ -146,8 +146,8 @@ void DoMeasureShear(
             // redo the pixlist:
             cen_offset += ell_native.getCen();
             ell_native.setCen(0.);
-            //dbg<<"New center = "<<AddOffset(cen,cen_offset,trans)<<std::endl;
-            int npix = 0;
+            dbg<<"New center = "<<cen_offset<<std::endl;
+            npix = 0;
             for(int i=0;i<nExp;++i) {
                 getSubPixList(pix[i],allpix[i],cen_offset,galAp,flag1);
                 npix += pix[i].size();
@@ -170,8 +170,7 @@ void DoMeasureShear(
             // centroid value by 0.1 arcsec in a random direction, and resolve for
             // the centroid.  This is all pretty fast, so it's worth doing to
             // avoid the subtle bias that can otherwise result.
-            std::complex<double> cen1 = ell_native.getCen();
-            // get a offset of 0.1 arcsec in a random direction.
+            // get an offset of 0.1 arcsec in a random direction.
             double x_offset, y_offset, rsq_offset;
             do {
                 x_offset = double(rand())*2./double(RAND_MAX) - 1.;
@@ -184,11 +183,11 @@ void DoMeasureShear(
             //std::cout<<"x_offset: "<<x_offset<<"   y_offset: "<<y_offset<<"\n";
             ell_native.setCen(std::complex<double>(x_offset,y_offset));
             dbg<<"After random offset "<<x_offset<<","<<y_offset<<
-                ": cen = "<<cen1+ell_native.getCen()<<std::endl;
+                ": cen = "<<ell_native.getCen()<<std::endl;
 
             // Now do it again.
             flag1 = 0;
-            if (!ell_native.measure(pix,2,2,sigmaObs,flag1,0.1)) {
+            if (!ell_native.measure(pix,2,2,2,sigmaObs,flag1,0.1)) {
                 ++log._nfCentroid;
                 dbg<<"Second centroid pass failed.\n";
                 flag |= flag1;
@@ -199,10 +198,8 @@ void DoMeasureShear(
                 return;
             }
             dbg<<"After second centroid pass: cen = "<<
-                cen1+ell_native.getCen()<<std::endl;
-            //dbg<<"Which is now considered "<<
-                //ell_native.getCen()<<" relative to the new center value of "<<
-                //AddOffset(cen,cen_offset,trans)<<std::endl;
+                ell_native.getCen()<<" relative to the new center: "<<
+                cen_offset<<std::endl;
 
             ++log._nsCentroid;
         }
@@ -213,7 +210,7 @@ void DoMeasureShear(
         if (!fixSigma) {
             flag1 = 0;
             ell_native.unfixMu();
-            if (ell_native.measure(pix,2,2,sigmaObs,flag1,0.1)) {
+            if (ell_native.measure(pix,2,2,2,sigmaObs,flag1,0.1)) {
                 // Don't ++nsNative yet.  Only success if also do round frame.
                 dbg<<"Successful native fit:\n";
                 dbg<<"Z = "<<ell_native.getCen()<<std::endl;
@@ -252,7 +249,8 @@ void DoMeasureShear(
         if (fixCen) ell_round.fixCen();
         if (fixSigma) ell_round.fixMu();
         flag1 = 0;
-        if (ell_round.measure(pix,galOrder,galOrder2,sigmaObs,flag1,1.e-2)) {
+        if (ell_round.measure(
+                pix,galOrder,galOrder2,maxm,sigmaObs,flag1,1.e-2)) {
             ++log._nsNative;
             dbg<<"Successful round fit:\n";
             dbg<<"Z = "<<ell_round.getCen()<<std::endl;
@@ -270,6 +268,8 @@ void DoMeasureShear(
         }
 
         // Adjust the sigma value so we can reset mu = 0.
+        if (!fixCen) cen_offset += ell_round.getCen();
+        ell_round.setCen(0.);
         sigmaObs *= exp(ell_round.getMu());
         ell_round.setMu(0.);
         if (sigmaObs < minGalSize*sigmaP) {
@@ -283,9 +283,9 @@ void DoMeasureShear(
             return;
         }
         gamma = ell_round.getGamma();
-        if (!fixCen) cen_offset += ell_round.getCen();
-        ell_round.setCen(0.);
         dbg<<"ell_round = "<<ell_round<<std::endl;
+
+        if (nativeOnly) return;
 
         // Get the pixels in an elliptical aperture based on the
         // observed shape.
@@ -341,7 +341,7 @@ void DoMeasureShear(
             //
             shapelet.setSigma(sigma);
             if (ell_native.measureShapelet(
-                    pix,psf,shapelet,galOrder,galOrder2)) {
+                    pix,psf,shapelet,galOrder,galOrder2,galOrder)) {
                 dbg<<"Successful deconvolving fit:\n";
                 ++log._nsMu;
             } else {
@@ -360,7 +360,7 @@ void DoMeasureShear(
             //
             BVec flux(0,sigma);
             DMatrix fluxCov(1,1,0.);
-            if (!ell_native.measureShapelet(pix,psf,flux,0,0,&fluxCov) ||
+            if (!ell_native.measureShapelet(pix,psf,flux,0,0,0,&fluxCov) ||
                 !(flux(0) > 0) || !(fluxCov(0,0) > 0.) ||
                 shapelet(0) >= flux(0)*3. || shapelet(0) <= flux(0)/3.) {
                 // If the b00 value in the shapelet doesn't match the direct flux
@@ -396,11 +396,11 @@ void DoMeasureShear(
                     flag |= SHEAR_REDUCED_ORDER;
                 }
                 BVec shearedShape(tryOrder,sigma);
-                //if (maxm > tryOrder) maxm = tryOrder;
+                if (maxm > tryOrder) maxm = tryOrder;
 
                 if (XDEBUG) {
                     if (ell_round.measureShapelet(
-                            pix,psf,shearedShape,tryOrder,galOrder2)) {
+                            pix,psf,shearedShape,tryOrder,galOrder2,tryOrder)) {
                         xdbg<<"Successful sheared deconvolving fit:\n";
                     } else {
                         xdbg<<"Sheared deconvolving measurement failed\n";
@@ -409,13 +409,13 @@ void DoMeasureShear(
                 }
 
                 if (ell_round.measureShapelet(
-                        pix,psf,shearedShape,tryOrder,galOrder2)) {
+                        pix,psf,shearedShape,tryOrder,galOrder2,maxm)) {
                     dbg<<"Successful sheared deconvolving fit:\n";
                 } else {
                     dbg<<"Sheared deconvolving measurement failed\n";
                     continue;
                 }
-                //dbg<<"m <= "<<maxm<<": shearedShape = "<<shearedShape<<std::endl;
+                dbg<<"m <= "<<maxm<<": shearedShape = "<<shearedShape<<std::endl;
 
                 Ellipse ell_shear = ell_round;
                 if (fixCen) ell_shear.fixCen();
@@ -423,7 +423,7 @@ void DoMeasureShear(
                 DMatrix cov5(5,5);
                 long flag1=0;
                 if (ell_shear.findRoundFrame(
-                        shearedShape, true, galOrder2, 1.e-4,
+                        shearedShape, true, galOrder2, 1.e-4, 
                         flag1, &cov5) && flag1==0) {
                     ++log._nsGamma;
                     ell_shear.removeRotation();
@@ -442,7 +442,7 @@ void DoMeasureShear(
                 } else {
                     ell_shear.removeRotation();
                     gamma = ell_shear.getGamma();
-                    dbg<<"Unsuccessful shear measurement\n";
+                    dbg<<"Unsuccessful shear measurement\n"; 
                     dbg<<"shear = "<<gamma<<std::endl;
                     if (tryOrder == 2) {
                         flag |= flag1;
@@ -474,5 +474,7 @@ void DoMeasureShear(
         ++log._nfOtherError;
         xdbg<<"flag UNKNOWN_EXCEPTION\n";
         flag |= UNKNOWN_EXCEPTION;
-    }
+    } 
+
 }
+

@@ -20,6 +20,7 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
     double maxAperture = _params.read("shear_max_aperture",0.);
     int galOrder = _params.read<int>("shear_gal_order");
     int galOrder2 = _params.read<int>("shear_gal_order2");
+    int maxm = _params.read("shear_maxm",galOrder);
     double minFPsf = _params.read("shear_f_psf",1.);
     double maxFPsf = _params.read("shear_max_f_psf",minFPsf);
     double minGalSize = _params.read<double>("shear_min_gal_size");
@@ -28,6 +29,7 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
     double galFixSigmaValue = _params.read("shear_force_sigma",0.);
     bool shouldOutputDots = _params.read("output_dots",false);
     bool shouldOutputDesQa = _params.read("des_qa",false); 
+    bool nativeOnly = _params.read("shear_native_only",false);
 
     int nSuccess = 0;
 
@@ -78,9 +80,9 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                     // Input data:
                     _pixList[i], _psfList[i],
                     // Parameters:
-                    galAperture, maxAperture, galOrder, galOrder2,
-                    minFPsf, maxFPsf, minGalSize, galFixCen,
-                    galFixSigma, galFixSigmaValue,
+                    galAperture, maxAperture, galOrder, galOrder2, maxm,
+                    minFPsf, maxFPsf, minGalSize, galFixCen, 
+                    galFixSigma, galFixSigmaValue, nativeOnly,
                     // Log information
                     log1,
                     // Ouput values:
@@ -93,11 +95,15 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
 #endif
 
                 if (!_flags[i]) {
-                    dbg<<"Successful shear measurement: "<<
-                        _shear[i]<<std::endl;
+                    dbg<<"Successful shear measurements: \n";
+                    dbg<<"shape = "<<_shape[i]<<std::endl;
+                    dbg<<"shear = "<<_shear[i]<<std::endl;
+                    dbg<<"cov = "<<_cov[i]<<std::endl;
+                    dbg<<"nu = "<<_nu[i]<<std::endl;
                     ++nSuccess;
                 } else {
                     dbg<<"Unsuccessful shear measurement\n"; 
+                    dbg<<"flag = "<<_flags[i]<<std::endl;
                 }
             }
 #ifdef _OPENMP

@@ -12,8 +12,8 @@
 bool Ellipse::doMeasure(
     const std::vector<PixelList>& pix,
     const std::vector<BVec>* psf,
-    int galOrder, int galOrder2, double sigma, long& flag, double thresh,
-    DMatrix* cov)
+    int galOrder, int galOrder2, int maxm,
+    double sigma, long& flag, double thresh, DMatrix* cov)
 {
     dbg<<"Start DoMeasure: galOrder = "<<galOrder<<", psf = "<<bool(psf)<<std::endl;
     dbg<<"fix = "<<_isFixedCen<<"  "<<_isFixedGamma<<"  "<<_isFixedMu<<std::endl;
@@ -32,8 +32,12 @@ bool Ellipse::doMeasure(
 
     BVec b(galOrder,sigma);
 
-    if (!doMeasureShapelet(pix,psf,b,galOrder,galOrder2)) {
+    if (!doMeasureShapelet(pix,psf,b,galOrder,galOrder2,maxm)) {
         xdbg<<"Could not measure a shapelet vector.\n";
+        return false;
+    }
+    if (!b(0) > 0) {
+        xdbg<<"Bad flux in measured shapelet\n";
         return false;
     }
     xdbg<<"b = "<<b<<std::endl;
@@ -93,6 +97,7 @@ bool Ellipse::findRoundFrame(
     solver.setOutput(*dbgout);
     if (XDEBUG) solver.useVerboseOutput();
     solver.setMinStep(1.e-6*gtol);
+    solver.setDelta0(0.01);
     solver.setMaxIter(200);
     if (psf && !_isFixedMu) {
         solver.setDelta0(0.01);

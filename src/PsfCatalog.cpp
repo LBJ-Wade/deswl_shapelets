@@ -18,8 +18,8 @@ void measureSinglePsf1(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans,
     double noise, double gain, const Image<double>* weightIm,
-    double sigmaP, double psfAp, int psfOrder, bool fixCen,
-    double xOffset, double yOffset,
+    double sigmaP, double psfAp, int psfOrder, int maxm,
+    bool fixCen, double xOffset, double yOffset,
     PsfLog& log, BVec& psf, double& nu, long& flag)
 {
     std::vector<PixelList> pix(1);
@@ -40,17 +40,17 @@ void measureSinglePsf1(
     DMatrix cov(psf.size(),psf.size());
 
     // First make sure it is centered.
-    if (!(ell.measure(pix,psfOrder,psfOrder+4,sigmaP,flag,1.e-4))) {
-        xdbg<<"Initial Measurement failed\n";
+    if (!(ell.measure(pix,psfOrder,psfOrder+4,maxm,sigmaP,flag,1.e-4))) {
+        xdbg<<"Initial measurement failed\n";
         ++log._nfPsf;
         xdbg<<"flag MEASURE_PSF_FAILED\n";
         flag |= MEASURE_PSF_FAILED;
         return;
-    }
-
-    // Then measure it with the correct centroid.
+    } 
+    
+    // Then measure it with the accurate center.
     psf.setSigma(sigmaP);
-    if (ell.measureShapelet(pix,psf,psfOrder,psfOrder+4,&cov)) {
+    if (ell.measureShapelet(pix,psf,psfOrder,psfOrder+4,maxm,&cov)) {
         ++log._nsPsf;
     } else {
         xdbg<<"Shapelet Measurement failed\n";
@@ -66,7 +66,7 @@ void measureSinglePsf1(
     // an error if it is more than a factor of 3 different.)
     BVec flux(0,sigmaP);
     DMatrix fluxCov(1,1);
-    if (!ell.measureShapelet(pix,flux,0,0,&fluxCov)) {
+    if (!ell.measureShapelet(pix,flux,0,0,0,&fluxCov)) {
         xdbg<<"Measurement of flux failed.\n";
         ++log._nfPsf;
         xdbg<<"flag PSF_BAD_FLUX\n";
@@ -96,8 +96,8 @@ void measureSinglePsf(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans,
     double noise, double gain, const Image<double>* weightIm,
-    double sigmaP, double psfAp, int psfOrder, bool fixCen,
-    double xOffset, double yOffset,
+    double sigmaP, double psfAp, int psfOrder, int maxm,
+    bool fixCen, double xOffset, double yOffset,
     PsfLog& log, BVec& psf, double& nu, long& flag)
 {
     try {
@@ -118,7 +118,7 @@ void measureSinglePsf(
     try {
         measureSinglePsf1(
             cen,im,sky,trans,noise,gain,weightIm,
-            sigmaP,psfAp,psfOrder,fixCen,xOffset,yOffset,log,psf,nu,flag);
+            sigmaP,psfAp,psfOrder,maxm,fixCen,xOffset,yOffset,log,psf,nu,flag);
 #ifdef USE_TMV
     } catch (tmv::Error& e) {
         dbg<<"TMV Error thrown in MeasureSinglePSF\n";

@@ -260,14 +260,14 @@ double getLocalSky(
 }
 
 void getSubPixList(
-    PixelList& pix, const PixelList& allpix,
+    PixelList& pix, const PixelList& allPix,
     std::complex<double> cen_offset, std::complex<double> shear,
     double aperture, long& flag)
 {
-    // Select a subset of allpix that are within the given aperture
-    const int nTot = allpix.size();
+    // Select a subset of allPix that are within the given aperture
+    const int nTot = allPix.size();
     xdbg<<"Start GetSubPixList\n";
-    xdbg<<"allpix has "<<nTot<<" objects\n";
+    xdbg<<"allPix has "<<nTot<<" objects\n";
     xdbg<<"new aperture = "<<aperture<<std::endl;
     xdbg<<"cen_offset = "<<cen_offset<<std::endl;
     xdbg<<"shear = "<<shear<<std::endl;
@@ -287,7 +287,7 @@ void getSubPixList(
 
     double peak = 0.;
     for(int i=0;i<nTot;++i) {
-        std::complex<double> z = allpix[i].getPos() - cen_offset;
+        std::complex<double> z = allPix[i].getPos() - cen_offset;
         double u = real(z);
         double v = imag(z);
         // (1 + |g|^2) (u^2+v^2) - 2g1 (u^2-v^2) - 2g2 (2uv)
@@ -301,7 +301,7 @@ void getSubPixList(
                 xdbg<<"u,v = "<<u<<','<<v<<"  rsq = "<<rsq<<std::endl;
                 shouldUsePix[i] = true;
                 ++nPix;
-                if (allpix[i].getFlux() > peak) peak = allpix[i].getFlux();
+                if (allPix[i].getFlux() > peak) peak = allPix[i].getFlux();
             }
         }
     }
@@ -315,7 +315,7 @@ void getSubPixList(
     int k=0;
     xdbg<<"Bright pixels are:\n";
     for(int i=0;i<nTot;++i) if(shouldUsePix[i]) {
-        Pixel p = allpix[i];
+        Pixel p = allPix[i];
         p.setPos(p.getPos() - cen_offset);
         pix[k++] = p;
         if (p.getFlux() > peak / 10.) {

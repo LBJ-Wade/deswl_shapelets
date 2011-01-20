@@ -51,7 +51,7 @@ static void calculateSigma1(
     xdbg<<"Crude Measure: centroid = "<<ell.getCen();
     xdbg<<", mu = "<<ell.getMu()<<std::endl;
     if (shouldUseShapeletSigma) {
-        if (ell.measure(pix,2,6,sigma,flag1,0.01)) {
+        if (ell.measure(pix,2,6,2,sigma,flag1,0.01)) {
             xdbg<<"Successful 2nd order measure.\n";
             xdbg<<"mu = "<<ell.getMu()<<std::endl;
         } else {

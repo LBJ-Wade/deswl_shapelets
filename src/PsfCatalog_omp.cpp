@@ -85,6 +85,7 @@ int PsfCatalog::measurePsf(
 {
     // Read some needed parameters
     int psfOrder = _params.read<int>("psf_order");
+    int maxm = _params.read("psf_maxm",psfOrder);
     bool shouldOutputDots = _params.read("output_dots",false);
     double gain = _params.read("image_gain",0.);
     double psfAp = _params.read<double>("psf_aperture");
@@ -156,7 +157,8 @@ int PsfCatalog::measurePsf(
                     // Noise values:
                     _noise[i], gain, weightIm,
                     // Parameters:
-                    sigmaP, psfAp, psfOrder, psfFixCen, xOffset, yOffset,
+                    sigmaP, psfAp, psfOrder, maxm,
+                    psfFixCen, xOffset, yOffset,
                     // Log information
                     log1,
                     // Ouput value:

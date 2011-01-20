@@ -11,6 +11,7 @@
 #if 1
 static const long ok_flags = (
     EDGE |
+    SHEAR_REDUCED_ORDER | 
     SHAPE_REDUCED_ORDER | 
     SHAPE_POOR_FIT |
     SHAPE_LOCAL_MIN |
