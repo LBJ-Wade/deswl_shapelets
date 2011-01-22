@@ -52,7 +52,7 @@ bool Ellipse::findRoundFrame(
     DVector x(5,0.);
     DVector f(5);
 
-#if 1
+#if 0
     // Initial estimates from b:
     if (!_isFixedCen) {
         // b10/b00 ~= conj(zc)/2
@@ -117,7 +117,7 @@ bool Ellipse::findRoundFrame(
             xdbg<<"f.norm = "<<f.norm()<<std::endl;
             xdbg<<"f.normInf = "<<f_normInf<<std::endl;
             xdbg<<"ftol = "<<solver.getFTol()<<std::endl;
-            xdbg<<"flag SHEAR_LOCAL_MIN\n";
+            dbg<<"FLAG SHEAR_LOCAL_MIN\n";
             flag |= SHEAR_LOCAL_MIN;
             return false;
         }
@@ -126,7 +126,7 @@ bool Ellipse::findRoundFrame(
         dbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
         dbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
         //if (XDEBUG) if (!solver.testJ(x,f,dbgout,1.e-5)) exit(1);
-        xdbg<<"flag SHEAR_DIDNT_CONVERGE\n";
+        dbg<<"FLAG SHEAR_DIDNT_CONVERGE\n";
         flag |= SHEAR_DIDNT_CONVERGE;
         return false;
     }

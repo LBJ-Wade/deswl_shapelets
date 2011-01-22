@@ -35,7 +35,7 @@ static void calculateSigma1(
     } catch (RangeException& e) {
         dbg<<"distortion range error: \n";
         xdbg<<"center = "<<pos<<", b = "<<e.getBounds()<<std::endl;
-        xdbg<<"flag TRANSFORM_EXCEPTION\n";
+        dbg<<"FLAG TRANSFORM_EXCEPTION\n";
         flag1 |= TRANSFORM_EXCEPTION;
     }
     if (flag1) {
@@ -55,7 +55,7 @@ static void calculateSigma1(
             xdbg<<"Successful 2nd order measure.\n";
             xdbg<<"mu = "<<ell.getMu()<<std::endl;
         } else {
-            xdbg<<"flag NATIVE_FAILED\n";
+            dbg<<"FLAG NATIVE_FAILED\n";
             flag |= NATIVE_FAILED;
             xdbg<<"Ellipse measure returned flag "<<flag1<<std::endl;
             sigma = DEFVALNEG;
@@ -87,18 +87,18 @@ void calculateSigma(
     } catch (tmv::Error& e) {
         dbg<<"Caught: "<<e<<std::endl;
         sigma = DEFVALNEG;
-        xdbg<<"flag TMV_EXCEPTION\n";
+        dbg<<"FLAG TMV_EXCEPTION\n";
         flag |= TMV_EXCEPTION;
 #endif
     } catch (std::exception& e) {
         dbg<<"Caught: "<<e.what()<<std::endl;
         sigma = DEFVALNEG;
-        xdbg<<"flag STD_EXCEPTION\n";
+        dbg<<"FLAG STD_EXCEPTION\n";
         flag |= STD_EXCEPTION;
     } catch (...) {
         dbg<<"Caught unknown exception"<<std::endl;
         sigma = DEFVALNEG;
-        xdbg<<"flag UNKNOWN_EXCEPTION\n";
+        dbg<<"FLAG UNKNOWN_EXCEPTION\n";
         flag |= UNKNOWN_EXCEPTION;
     }
 }

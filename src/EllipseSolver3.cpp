@@ -5,6 +5,7 @@
 
 //#define JTEST
 //#define ALWAYS_NUMERIC_J
+#define MAX_X_DEV 4.
 
 #ifdef JTEST
 #include "TestHelper.h"
@@ -151,12 +152,14 @@ void EllipseSolver3::ESImpl3::doF3(const DVector& x, DVector& f) const
     //xdbg<<"Start doF3\n";
     //xdbg<<"x = "<<x<<std::endl;
 
-    if ((x-xinit).TMV_normInf() > 4.) {
+#ifdef MAX_X_DEV
+    if ((x-xinit).TMV_normInf() > MAX_X_DEV) {
         dbg<<"bad x-xinit: "<<(x-xinit)<<std::endl;
         xdbg<<"x = "<<x<<std::endl;
         f = 2.* bx.TMV_subVector(1,6) / bx(0);
         return;
     }
+#endif
 
     std::complex<double> zc(x[0],x[1]);
     std::complex<double> g(x[2],x[3]);
@@ -249,12 +252,14 @@ void EllipseSolver3::ESImpl3::doF2(const DVector& x, DVector& f) const
     //xdbg<<"Start doF3\n";
     //xdbg<<"x = "<<x<<std::endl;
 
-    if ((x-xinit).TMV_normInf() > 4.) {
+#ifdef MAX_X_DEV
+    if ((x-xinit).TMV_normInf() > MAX_X_DEV) {
         dbg<<"bad x-xinit: "<<(x-xinit)<<std::endl;
         xdbg<<"x = "<<x<<std::endl;
         f = 2.* bx.TMV_subVector(1,6) / bx(0);
         return;
     }
+#endif
 
     std::complex<double> zc(x[0],x[1]);
     double mu = x[4];
@@ -319,12 +324,14 @@ void EllipseSolver3::ESImpl3::doF1(const DVector& x, DVector& f) const
     //xdbg<<"Start doF3\n";
     //xdbg<<"x = "<<x<<std::endl;
 
-    if ((x-xinit).TMV_normInf() > 4.) {
+#ifdef MAX_X_DEV
+    if ((x-xinit).TMV_normInf() > MAX_X_DEV) {
         dbg<<"bad x-xinit: "<<(x-xinit)<<std::endl;
         xdbg<<"x = "<<x<<std::endl;
         f = 2.* bx.TMV_subVector(1,6) / bx(0);
         return;
     }
+#endif
 
     std::complex<double> zc(x[0],x[1]);
 

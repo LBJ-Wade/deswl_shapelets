@@ -43,7 +43,7 @@ void measureSinglePsf1(
     if (!(ell.measure(pix,psfOrder,psfOrder+4,maxm,sigmaP,flag,1.e-4))) {
         xdbg<<"Initial measurement failed\n";
         ++log._nfPsf;
-        xdbg<<"flag MEASURE_PSF_FAILED\n";
+        dbg<<"FLAG MEASURE_PSF_FAILED\n";
         flag |= MEASURE_PSF_FAILED;
         return;
     } 
@@ -55,7 +55,7 @@ void measureSinglePsf1(
     } else {
         xdbg<<"Shapelet Measurement failed\n";
         ++log._nfPsf;
-        xdbg<<"flag MEASURE_PSF_FAILED\n";
+        dbg<<"FLAG MEASURE_PSF_FAILED\n";
         flag |= MEASURE_PSF_FAILED;
         return;
     }
@@ -69,7 +69,7 @@ void measureSinglePsf1(
     if (!ell.measureShapelet(pix,flux,0,0,0,&fluxCov)) {
         xdbg<<"Measurement of flux failed.\n";
         ++log._nfPsf;
-        xdbg<<"flag PSF_BAD_FLUX\n";
+        dbg<<"FLAG PSF_BAD_FLUX\n";
         flag |= PSF_BAD_FLUX;
     }
     nu = flux(0) / std::sqrt(fluxCov(0,0));
@@ -82,7 +82,7 @@ void measureSinglePsf1(
         dbg<<"Bad flux value: \n";
         dbg<<"flux = "<<flux(0)<<std::endl;
         dbg<<"psf = "<<psf.vec()<<std::endl;
-        xdbg<<"flag PSF_BAD_FLUX\n";
+        dbg<<"FLAG PSF_BAD_FLUX\n";
         flag |= PSF_BAD_FLUX;
     }
 
@@ -110,7 +110,7 @@ void measureSinglePsf(
         xdbg<<"skip: transformation range error: \n";
         xdbg<<"p = "<<cen<<", b = "<<e.getBounds()<<std::endl;
         ++log._nfRange;
-        xdbg<<"flag TRANSFORM_EXCEPTION\n";
+        dbg<<"FLAG TRANSFORM_EXCEPTION\n";
         flag |= TRANSFORM_EXCEPTION;
         return;
     }
@@ -124,13 +124,13 @@ void measureSinglePsf(
         dbg<<"TMV Error thrown in MeasureSinglePSF\n";
         dbg<<e<<std::endl;
         ++log._nfTmvError;
-        xdbg<<"flag TMV_EXCEPTION\n";
+        dbg<<"FLAG TMV_EXCEPTION\n";
         flag |= TMV_EXCEPTION;
 #endif
     } catch (...) {
         dbg<<"unkown exception in MeasureSinglePSF\n";
         ++log._nfOtherError;
-        xdbg<<"flag UNKNOWN_EXCEPTION\n";
+        dbg<<"FLAG UNKNOWN_EXCEPTION\n";
         flag |= UNKNOWN_EXCEPTION;
     }
 }

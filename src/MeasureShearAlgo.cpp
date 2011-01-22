@@ -10,6 +10,9 @@
 #include "Params.h"
 #include "MeasureShearAlgo.h"
 
+#define MAX_MU_ITER 3
+#define MAX_DELTA_MU 0.5
+
 #if 0
 static Position AddOffset(
     Position cen, std::complex<double> offset, const Transformation& trans)
@@ -98,9 +101,9 @@ void DoMeasureShear(
         dbg<<"npix = "<<npix<<std::endl;
         if (npix < 10) {
             dbg<<"Too few pixels to continue: "<<npix<<std::endl;
-            xdbg<<"flag LT10PIX\n";
+            dbg<<"FLAG LT10PIX\n";
             flag |= LT10PIX;
-            xdbg<<"flag SHAPELET_NOT_DECONV\n";
+            dbg<<"FLAG SHAPELET_NOT_DECONV\n";
             flag |= SHAPELET_NOT_DECONV;
             return;
         }
@@ -135,9 +138,9 @@ void DoMeasureShear(
                 ++log._nfCentroid;
                 dbg<<"First centroid pass failed.\n";
                 flag |= flag1;
-                xdbg<<"flag CENTROID_FAILED\n";
+                dbg<<"FLAG CENTROID_FAILED\n";
                 flag |= CENTROID_FAILED;
-                xdbg<<"flag SHAPELET_NOT_DECONV\n";
+                dbg<<"FLAG SHAPELET_NOT_DECONV\n";
                 flag |= SHAPELET_NOT_DECONV;
                 return;
             }
@@ -154,9 +157,9 @@ void DoMeasureShear(
             }
             if (npix < 10) {
                 dbg<<"Too few pixels to continue: "<<npix<<std::endl;
-                xdbg<<"flag LT10PIX\n";
+                dbg<<"FLAG LT10PIX\n";
                 flag |= LT10PIX;
-                xdbg<<"flag SHAPELET_NOT_DECONV\n";
+                dbg<<"FLAG SHAPELET_NOT_DECONV\n";
                 flag |= SHAPELET_NOT_DECONV;
                 return;
             }
@@ -191,9 +194,9 @@ void DoMeasureShear(
                 ++log._nfCentroid;
                 dbg<<"Second centroid pass failed.\n";
                 flag |= flag1;
-                xdbg<<"flag CENTROID_FAILED\n";
+                dbg<<"FLAG CENTROID_FAILED\n";
                 flag |= CENTROID_FAILED;
-                xdbg<<"flag SHAPELET_NOT_DECONV\n";
+                dbg<<"FLAG SHAPELET_NOT_DECONV\n";
                 flag |= SHAPELET_NOT_DECONV;
                 return;
             }
@@ -208,38 +211,75 @@ void DoMeasureShear(
         // Now adjust the sigma value 
         //
         if (!fixSigma) {
-            flag1 = 0;
-            ell_native.unfixMu();
-            if (ell_native.measure(pix,2,2,2,sigmaObs,flag1,0.1)) {
-                // Don't ++nsNative yet.  Only success if also do round frame.
-                dbg<<"Successful native fit:\n";
-                dbg<<"Z = "<<ell_native.getCen()<<std::endl;
-                dbg<<"Mu = "<<ell_native.getMu()<<std::endl;
-            } else {
-                ++log._nfNative;
-                dbg<<"Native measurement failed\n";
-                flag |= flag1;
-                xdbg<<"flag NATIVE_FAILED\n";
-                flag |= NATIVE_FAILED;
-                xdbg<<"flag SHAPELET_NOT_DECONV\n";
-                flag |= SHAPELET_NOT_DECONV;
-                return;
-            }
+            for(int iter=1;iter<=MAX_MU_ITER;++iter) {
+                dbg<<"Mu iter = "<<iter<<std::endl;
+                flag1 = 0;
+                ell_native.unfixMu();
+                if (ell_native.measure(pix,2,2,2,sigmaObs,flag1,0.1)) {
+                    // Don't ++nsNative yet.  Only success if also do round frame.
+                    dbg<<"Successful native fit:\n";
+                    dbg<<"Z = "<<ell_native.getCen()<<std::endl;
+                    dbg<<"Mu = "<<ell_native.getMu()<<std::endl;
+                } else {
+                    ++log._nfNative;
+                    dbg<<"Native measurement failed\n";
+                    flag |= flag1;
+                    dbg<<"FLAG NATIVE_FAILED\n";
+                    flag |= NATIVE_FAILED;
+                    dbg<<"FLAG SHAPELET_NOT_DECONV\n";
+                    flag |= SHAPELET_NOT_DECONV;
+                    return;
+                }
 
-            // Adjust the sigma value so we can reset mu = 0.
-            sigmaObs *= exp(ell_native.getMu());
-            if (sigmaObs < minGalSize*sigmaP) {
-                dbg<<"skip: galaxy is too small -- "<<sigmaObs<<
-                    " psf size = "<<sigmaP<<std::endl;
-                ++log._nfSmall;
-                flag |= flag1;
-                xdbg<<"flag TOO_SMALL\n";
-                flag |= TOO_SMALL;
-                xdbg<<"flag SHAPELET_NOT_DECONV\n";
-                flag |= SHAPELET_NOT_DECONV;
-                return;
+                // Adjust the sigma value so we can reset mu = 0.
+                double deltaMu = ell_native.getMu();
+                cen_offset += ell_native.getCen();
+                dbg<<"New center = "<<cen_offset<<std::endl;
+                ell_native.setCen(0.);
+                sigmaObs *= exp(ell_native.getMu());
+                dbg<<"New sigmaObs = "<<sigmaObs<<std::endl;
+                ell_native.setMu(0.);
+                if (sigmaObs < minGalSize*sigmaP) {
+                    dbg<<"skip: galaxy is too small -- "<<sigmaObs<<
+                        " psf size = "<<sigmaP<<std::endl;
+                    ++log._nfSmall;
+                    flag |= flag1;
+                    dbg<<"FLAG TOO_SMALL\n";
+                    flag |= TOO_SMALL;
+                    dbg<<"FLAG SHAPELET_NOT_DECONV\n";
+                    flag |= SHAPELET_NOT_DECONV;
+                    return;
+                }
+
+                // redo the pixlist:
+                galAp = sigmaObs * galAperture;
+                if (maxAperture > 0. && galAp > maxAperture) 
+                    galAp = maxAperture;
+                npix = 0;
+                for(int i=0;i<nExp;++i) {
+                    getSubPixList(pix[i],allpix[i],cen_offset,galAp,flag1);
+                    npix += pix[i].size();
+                }
+                if (npix < 10) {
+                    dbg<<"Too few pixels to continue: "<<npix<<std::endl;
+                    dbg<<"FLAG LT10PIX\n";
+                    flag |= LT10PIX;
+                    dbg<<"FLAG SHAPELET_NOT_DECONV\n";
+                    flag |= SHAPELET_NOT_DECONV;
+                    return;
+                }
+                dbg<<"deltaMu = "<<deltaMu<<std::endl;
+                if (std::abs(deltaMu) < MAX_DELTA_MU) {
+                    dbg<<"deltaMu < "<<MAX_DELTA_MU<<std::endl;
+                    break;
+                } else if (iter < MAX_MU_ITER-1) {
+                    dbg<<"deltaMu >= "<<MAX_DELTA_MU<<std::endl;
+                    continue;
+                } else {
+                    dbg<<"deltaMu >= "<<MAX_DELTA_MU<<std::endl;
+                    dbg<<"But iter == "<<MAX_MU_ITER<<", so stop.\n";
+                }
             }
-            ell_native.setMu(0.);
         }
 
         //
@@ -260,9 +300,9 @@ void DoMeasureShear(
             ++log._nfNative;
             dbg<<"Round measurement failed\n";
             flag |= flag1;
-            xdbg<<"flag NATIVE_FAILED\n";
+            dbg<<"FLAG NATIVE_FAILED\n";
             flag |= NATIVE_FAILED;
-            xdbg<<"flag SHAPELET_NOT_DECONV\n";
+            dbg<<"FLAG SHAPELET_NOT_DECONV\n";
             flag |= SHAPELET_NOT_DECONV;
             return;
         }
@@ -276,9 +316,9 @@ void DoMeasureShear(
             dbg<<"skip: galaxy is too small -- "<<sigmaObs<<
                 " psf size = "<<sigmaP<<std::endl;
             ++log._nfSmall;
-            xdbg<<"flag TOO_SMALL\n";
+            dbg<<"FLAG TOO_SMALL\n";
             flag |= TOO_SMALL;
-            xdbg<<"flag SHAPELET_NOT_DECONV\n";
+            dbg<<"FLAG SHAPELET_NOT_DECONV\n";
             flag |= SHAPELET_NOT_DECONV;
             return;
         }
@@ -299,9 +339,9 @@ void DoMeasureShear(
         dbg<<"npix = "<<npix<<std::endl;
         if (npix < 10) {
             dbg<<"Too few pixels to do shape measurement.\n";
-            xdbg<<"flag LT10PIX\n";
+            dbg<<"FLAG LT10PIX\n";
             flag |= LT10PIX;
-            xdbg<<"flag SHAPELET_NOT_DECONV\n";
+            dbg<<"FLAG SHAPELET_NOT_DECONV\n";
             flag |= SHAPELET_NOT_DECONV;
             return;
         }
@@ -329,7 +369,7 @@ void DoMeasureShear(
             if (sigma < 0.1*sigpsq) {
                 xdbg<<"sigma too small, try larger fPsf\n";
                 if (!lastfpsf) continue;
-                xdbg<<"flag TOO_SMALL\n";
+                dbg<<"FLAG TOO_SMALL\n";
                 flag |= TOO_SMALL;
                 return;
             }
@@ -348,7 +388,7 @@ void DoMeasureShear(
                 dbg<<"Deconvolving measurement failed\n";
                 if (!lastfpsf) continue;
                 ++log._nfMu;
-                xdbg<<"flag DECONV_FAILED\n";
+                dbg<<"FLAG DECONV_FAILED\n";
                 flag |= DECONV_FAILED;
             }
             dbg<<"Measured deconvolved b_gal = "<<shapelet.vec()<<std::endl;
@@ -374,7 +414,7 @@ void DoMeasureShear(
                     --log._nsMu;
                     continue;
                 }
-                xdbg<<"flag SHAPE_BAD_FLUX\n";
+                dbg<<"FLAG SHAPE_BAD_FLUX\n";
                 flag |= SHAPE_BAD_FLUX;
             }
             if (flux(0) > 0. && fluxCov(0,0) > 0.) {
@@ -392,7 +432,7 @@ void DoMeasureShear(
             for(int tryOrder=galOrder; tryOrder>=2; --tryOrder) {
                 dbg<<"tryOrder = "<<tryOrder<<std::endl;
                 if (tryOrder < galOrder) {
-                    xdbg<<"flag SHEAR_REDUCED_ORDER\n";
+                    dbg<<"FLAG SHEAR_REDUCED_ORDER\n";
                     flag |= SHEAR_REDUCED_ORDER;
                 }
                 BVec shearedShape(tryOrder,sigma);
@@ -435,7 +475,7 @@ void DoMeasureShear(
                             cov.TMV_det()<<std::endl;
                         dbg<<"cov = "<<cov<<std::endl;
                         dbg<<"Full cov = "<<cov5<<std::endl;
-                        xdbg<<"flag SHEAR_BAD_COVAR\n";
+                        dbg<<"FLAG SHEAR_BAD_COVAR\n";
                         flag |= SHEAR_BAD_COVAR;
                     }
                     return;
@@ -452,7 +492,7 @@ void DoMeasureShear(
             }
             if (!lastfpsf) continue;
             ++log._nfGamma;
-            xdbg<<"flag SHEAR_FAILED\n";
+            dbg<<"FLAG SHEAR_FAILED\n";
             flag |= SHEAR_FAILED;
         }
 #ifdef USE_TMV
@@ -460,19 +500,19 @@ void DoMeasureShear(
         dbg<<"TMV Error thrown in MeasureShapes\n";
         dbg<<e<<std::endl;
         ++log._nfTmvError;
-        xdbg<<"flag TMV_EXCEPTION\n";
+        dbg<<"FLAG TMV_EXCEPTION\n";
         flag |= TMV_EXCEPTION;
 #endif
     } catch (std::exception& e) {
         dbg<<"std::exception thrown in MeasureShapes\n";
         dbg<<e.what()<<std::endl;
         ++log._nfOtherError;
-        xdbg<<"flag STD_EXCEPTION\n";
+        dbg<<"FLAG STD_EXCEPTION\n";
         flag |= STD_EXCEPTION;
     } catch (...) {
         dbg<<"unkown exception in MeasureShapes\n";
         ++log._nfOtherError;
-        xdbg<<"flag UNKNOWN_EXCEPTION\n";
+        dbg<<"FLAG UNKNOWN_EXCEPTION\n";
         flag |= UNKNOWN_EXCEPTION;
     } 
 

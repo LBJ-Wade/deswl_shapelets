@@ -132,7 +132,7 @@ int ShearCatalog::measureShears(
                     dbg<<"npix = "<<npix<<std::endl;
                     if (npix < 10) {
                         dbg<<"Too few pixels to continue: "<<npix<<std::endl;
-                        xdbg<<"flag SHAPELET_NOT_DECONV\n";
+                        dbg<<"FLAG SHAPELET_NOT_DECONV\n";
                         _flags[i] |= SHAPELET_NOT_DECONV;
                         continue;
                     }
@@ -140,7 +140,7 @@ int ShearCatalog::measureShears(
                     dbg<<"distortion range error: \n";
                     xdbg<<"p = "<<_pos[i]<<", b = "<<e.getBounds()<<std::endl;
                     ++log._nfRange1;
-                    xdbg<<"flag TRANSFORM_EXCEPTION\n";
+                    dbg<<"FLAG TRANSFORM_EXCEPTION\n";
                     _flags[i] |= TRANSFORM_EXCEPTION;
                     continue;
                 }
@@ -152,7 +152,7 @@ int ShearCatalog::measureShears(
                     dbg<<"fittedpsf range error: \n";
                     xdbg<<"p = "<<_pos[i]<<", b = "<<e.getBounds()<<std::endl;
                     ++log._nfRange2;
-                    xdbg<<"flag FITTEDPSF_EXCEPTION\n";
+                    dbg<<"FLAG FITTEDPSF_EXCEPTION\n";
                     _flags[i] |= FITTEDPSF_EXCEPTION;
                     continue;
                 }
