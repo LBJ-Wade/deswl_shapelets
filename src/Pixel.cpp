@@ -7,8 +7,7 @@ void getPixList(
     const Image<double>& im, PixelList& pix,
     const Position cen, double sky, double noise, double gain,
     const Image<double>* weightImage, const Transformation& trans,
-    std::complex<double> shear, double aperture,
-    double xOffset, double yOffset, long& flag)
+    double aperture, double xOffset, double yOffset, long& flag)
 {
     xdbg<<"Start GetPixList\n";
     if (weightImage) {
@@ -27,32 +26,6 @@ void getPixList(
     double det = std::abs(D.TMV_det());
     double pixScale = sqrt(det); // arsec/pixel
     xdbg<<"pixscale = "<<pixScale<<std::endl;
-
-    // If we are provided a shear, then we need to go a step further
-    // and go to the coordinate system where the object is round.
-    // This is
-    // ( u' ) = (1/sqrt(1-|g|^2)) ( 1-g1  -g2  ) ( u )
-    // ( v' )                     ( -g2   1+g1 ) ( v )
-    // We only use this coordinate system for the aperture radius though.
-    // u'^2 + v'^2 < r_ap^2
-    // ((1-g1) u - g2 v)^2 + ((1+g1) v - g2 u)^2
-    // (u - g1 u - g2 v)^2 + (v + g1 v - g2 u)^2
-    // u^2 + g1^2 u^2 + g2^2 v^2 + v^2 + g1^2 v^2 + g2^2 u^2
-    //   -2g1 u^2 -2g2 uv + 2g1 g2 uv + 2g1 v^2 - 2g2 uv - 2g1 g2 uv
-    // (1 + |g|^2) (u^2+v^2) - 2g1 (u^2-v^2) - 2g2 (2uv)
-    //
-    double normg = norm(shear);
-    double g1 = real(shear);
-    double g2 = imag(shear);
-#if 0
-    DSmallMatrix22 S;
-    S(0,0) = 1.-real(shear);
-    S(0,1) = S(1,0) = -imag(shear);
-    S(1,1) = 1.+real(shear);
-    S /= sqrt(1.-normg);
-    DSmallMatrix22 SD = S*D;
-    double detSD = std::abs(SD.TMV_det());
-#endif
 
     // xAp,yAp are the maximum deviation from the center in x,y
     // such that u'^2+v'^2 = aperture^2
@@ -111,22 +84,11 @@ void getPixList(
         double u = D(0,0)*chipX+D(0,1)*chipY;
         double v = D(1,0)*chipX+D(1,1)*chipY;
         for(int j=j1;j<=j2;++j,u+=D(0,1),v+=D(1,1)) {
-            // (1 + |g|^2) (u^2+v^2) - 2g1 (u^2-v^2) - 2g2 (2uv)
-            // u,v are in arcsec
-            double usq = u*u;
-            double vsq = v*v;
-            // Strangely, this hybrid calculation of using _both_ a 
-            // circular and an elliptical aperture does better than either
-            // the circular or the elliptical aperture by itself.
-            if (usq + vsq <= apsq) {
-                double rsq = (1.+normg)*(usq+vsq) - 2.*g1*(usq-vsq) - 4.*g2*u*v;
-                rsq /= (1.-normg);
-                if (rsq <= apsq) {
-                    xdbg<<"u,v = "<<u<<','<<v<<"  rsq = "<<rsq<<std::endl;
-                    shouldUsePix[i-i1][j-j1] = true;
-                    ++nPix;
-                    if (im(i,j) > peak) peak = im(i,j);
-                }
+            double rsq = u*u+v*v;
+            if (rsq <= apsq) {
+                shouldUsePix[i-i1][j-j1] = true;
+                ++nPix;
+                if (im(i,j) > peak) peak = im(i,j);
             }
         }
     }
@@ -294,15 +256,13 @@ void getSubPixList(
         // u,v are in arcsec
         double usq = u*u;
         double vsq = v*v;
-        if (usq + vsq <= apsq) {
-            double rsq = (1.+normg)*(usq+vsq) - 2.*g1*(usq-vsq) - 4.*g2*u*v;
-            rsq /= (1.-normg);
-            if (rsq <= apsq) {
-                xdbg<<"u,v = "<<u<<','<<v<<"  rsq = "<<rsq<<std::endl;
-                shouldUsePix[i] = true;
-                ++nPix;
-                if (allPix[i].getFlux() > peak) peak = allPix[i].getFlux();
-            }
+        double rsq = (1.+normg)*(usq+vsq) - 2.*g1*(usq-vsq) - 4.*g2*u*v;
+        rsq /= (1.-normg);
+        if (rsq <= apsq) {
+            //xdbg<<"u,v = "<<u<<','<<v<<"  rsq = "<<rsq<<std::endl;
+            shouldUsePix[i] = true;
+            ++nPix;
+            if (allPix[i].getFlux() > peak) peak = allPix[i].getFlux();
         }
     }
 

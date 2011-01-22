@@ -10,8 +10,9 @@
 #include "Params.h"
 #include "MeasureShearAlgo.h"
 
-#define MAX_MU_ITER 3
-#define MAX_DELTA_MU 0.5
+#define MAX_ITER 3
+#define MAX_DELTA_MU 0.2
+#define MAX_DELTA_GAMMA 0.2
 
 #if 0
 static Position AddOffset(
@@ -208,10 +209,10 @@ void DoMeasureShear(
         }
 
         //
-        // Now adjust the sigma value 
+        // Next find a good sigma value 
         //
         if (!fixSigma) {
-            for(int iter=1;iter<=MAX_MU_ITER;++iter) {
+            for(int iter=1;iter<=MAX_ITER;++iter) {
                 dbg<<"Mu iter = "<<iter<<std::endl;
                 flag1 = 0;
                 ell_native.unfixMu();
@@ -272,79 +273,107 @@ void DoMeasureShear(
                 if (std::abs(deltaMu) < MAX_DELTA_MU) {
                     dbg<<"deltaMu < "<<MAX_DELTA_MU<<std::endl;
                     break;
-                } else if (iter < MAX_MU_ITER-1) {
+                } else if (iter < MAX_ITER-1) {
                     dbg<<"deltaMu >= "<<MAX_DELTA_MU<<std::endl;
                     continue;
                 } else {
                     dbg<<"deltaMu >= "<<MAX_DELTA_MU<<std::endl;
-                    dbg<<"But iter == "<<MAX_MU_ITER<<", so stop.\n";
+                    dbg<<"But iter == "<<MAX_ITER<<", so stop.\n";
                 }
             }
         }
 
         //
-        // Now find the frame in which the native observation is round.
+        // Next find the frame in which the native observation is round.
         //
         Ellipse ell_round = ell_native;
         if (fixCen) ell_round.fixCen();
         if (fixSigma) ell_round.fixMu();
-        flag1 = 0;
-        if (ell_round.measure(
-                pix,galOrder,galOrder2,maxm,sigmaObs,flag1,1.e-2)) {
-            ++log._nsNative;
-            dbg<<"Successful round fit:\n";
-            dbg<<"Z = "<<ell_round.getCen()<<std::endl;
-            dbg<<"Mu = "<<ell_round.getMu()<<std::endl;
-            dbg<<"Gamma = "<<ell_round.getGamma()<<std::endl;
-        } else {
-            ++log._nfNative;
-            dbg<<"Round measurement failed\n";
-            flag |= flag1;
-            dbg<<"FLAG NATIVE_FAILED\n";
-            flag |= NATIVE_FAILED;
-            dbg<<"FLAG SHAPELET_NOT_DECONV\n";
-            flag |= SHAPELET_NOT_DECONV;
-            return;
-        }
+        std::complex<double> gamma_prev = 0.;
+        for(int iter=1;iter<=MAX_ITER;++iter) {
+            dbg<<"Round iter = "<<iter<<std::endl;
+            flag1 = 0;
+            if (ell_round.measure(
+                    pix,galOrder,galOrder2,maxm,sigmaObs,flag1,1.e-3)) {
+                ++log._nsNative;
+                dbg<<"Successful round fit:\n";
+                dbg<<"Z = "<<ell_round.getCen()<<std::endl;
+                dbg<<"Mu = "<<ell_round.getMu()<<std::endl;
+                dbg<<"Gamma = "<<ell_round.getGamma()<<std::endl;
+            } else {
+                ++log._nfNative;
+                dbg<<"Round measurement failed\n";
+                flag |= flag1;
+                dbg<<"FLAG NATIVE_FAILED\n";
+                flag |= NATIVE_FAILED;
+                dbg<<"FLAG SHAPELET_NOT_DECONV\n";
+                flag |= SHAPELET_NOT_DECONV;
+                return;
+            }
 
-        // Adjust the sigma value so we can reset mu = 0.
-        if (!fixCen) cen_offset += ell_round.getCen();
-        ell_round.setCen(0.);
-        sigmaObs *= exp(ell_round.getMu());
-        ell_round.setMu(0.);
-        if (sigmaObs < minGalSize*sigmaP) {
-            dbg<<"skip: galaxy is too small -- "<<sigmaObs<<
-                " psf size = "<<sigmaP<<std::endl;
-            ++log._nfSmall;
-            dbg<<"FLAG TOO_SMALL\n";
-            flag |= TOO_SMALL;
-            dbg<<"FLAG SHAPELET_NOT_DECONV\n";
-            flag |= SHAPELET_NOT_DECONV;
-            return;
+            // Adjust the sigma value so we can reset mu = 0.
+            if (!fixCen) cen_offset += ell_round.getCen();
+            ell_round.setCen(0.);
+            double deltaMu = ell_round.getMu();
+            sigmaObs *= exp(ell_round.getMu());
+            ell_round.setMu(0.);
+            if (sigmaObs < minGalSize*sigmaP) {
+                dbg<<"skip: galaxy is too small -- "<<sigmaObs<<
+                    " psf size = "<<sigmaP<<std::endl;
+                ++log._nfSmall;
+                dbg<<"FLAG TOO_SMALL\n";
+                flag |= TOO_SMALL;
+                dbg<<"FLAG SHAPELET_NOT_DECONV\n";
+                flag |= SHAPELET_NOT_DECONV;
+                return;
+            }
+            ell_round.removeRotation();
+            gamma = ell_round.getGamma();
+            dbg<<"New center = "<<cen_offset<<std::endl;
+            dbg<<"New sigmaObs = "<<sigmaObs<<std::endl;
+            dbg<<"New gamma = "<<gamma<<std::endl;
+            std::complex<double> deltaGamma = gamma - gamma_prev;
+            gamma_prev = gamma;
+            dbg<<"ell_round = "<<ell_round<<std::endl;
+
+            // Get the pixels in an elliptical aperture based on the
+            // observed shape.
+            galAp = sigmaObs * galAperture;
+            if (maxAperture > 0. && galAp > maxAperture) 
+                galAp = maxAperture;
+            npix = 0;
+            for(int i=0;i<nExp;++i) {
+                getSubPixList(pix[i],allpix[i],cen_offset,gamma,galAp,flag1);
+                npix += pix[i].size();
+            }
+            dbg<<"npix = "<<npix<<std::endl;
+            if (npix < 10) {
+                dbg<<"Too few pixels to continue: "<<npix<<std::endl;
+                dbg<<"FLAG LT10PIX\n";
+                flag |= LT10PIX;
+                dbg<<"FLAG SHAPELET_NOT_DECONV\n";
+                flag |= SHAPELET_NOT_DECONV;
+                return;
+            }
+            dbg<<"deltaMu = "<<deltaMu<<std::endl;
+            dbg<<"deltaGamma = "<<deltaGamma<<std::endl;
+            if (std::abs(deltaMu) < MAX_DELTA_MU &&
+                std::abs(deltaGamma) < MAX_DELTA_GAMMA) {
+                dbg<<"deltaMu < "<<MAX_DELTA_MU;
+                dbg<<" and deltaGamma < "<<MAX_DELTA_GAMMA<<std::endl;
+                break;
+            } else if (iter < MAX_ITER-1) {
+                dbg<<"deltaMu >= "<<MAX_DELTA_MU;
+                dbg<<" or deltaGamma >= "<<MAX_DELTA_GAMMA<<std::endl;
+                continue;
+            } else {
+                dbg<<"deltaMu >= "<<MAX_DELTA_MU;
+                dbg<<" or deltaGamma >= "<<MAX_DELTA_GAMMA<<std::endl;
+                dbg<<"But iter == "<<MAX_ITER<<", so stop.\n";
+            }
         }
-        gamma = ell_round.getGamma();
-        dbg<<"ell_round = "<<ell_round<<std::endl;
 
         if (nativeOnly) return;
-
-        // Get the pixels in an elliptical aperture based on the
-        // observed shape.
-        galAp = sigmaObs * galAperture;
-        if (maxAperture > 0. && galAp > maxAperture) galAp = maxAperture;
-        npix = 0;
-        for(int i=0;i<nExp;++i) {
-            getSubPixList(pix[i],allpix[i],cen_offset,gamma,galAp,flag1);
-            npix += pix[i].size();
-        }
-        dbg<<"npix = "<<npix<<std::endl;
-        if (npix < 10) {
-            dbg<<"Too few pixels to do shape measurement.\n";
-            dbg<<"FLAG LT10PIX\n";
-            flag |= LT10PIX;
-            dbg<<"FLAG SHAPELET_NOT_DECONV\n";
-            flag |= SHAPELET_NOT_DECONV;
-            return;
-        }
 
         // Start with the specified fPsf, but allow it to increase up to
         // maxFPsf if there are any problems.
