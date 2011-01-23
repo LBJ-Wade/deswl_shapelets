@@ -25,7 +25,16 @@ int ShearCatalog::measureShears(
 {
     static bool first = true;
 #ifdef _OPENMP
+#ifndef __INTEL_COMPILER
+    // This should technically be guarded by a critical block, since 
+    // it involves writing to global variables.  However, icpc seg faults
+    // on the srand call if it is in a critical block.
+    // I have no idea why, but it is clearly a bug in icpc.  v10.1 at least.
+    // Anyway, it shouldn't be a problem, since this block should not 
+    // be in a parallel region anyway, so there shouldn't be any problem
+    // with multi-threading here anyway.
 #pragma omp critical (srand)
+#endif
 #endif
     {
         if (first) {

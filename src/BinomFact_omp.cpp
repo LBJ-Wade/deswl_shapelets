@@ -18,7 +18,7 @@ double fact(int i)
     }
     if (i>=(int)f.size()) {
 #ifdef _OPENMP
-#pragma omp critical (output)
+#pragma omp critical (fact)
 #endif
         {
             for(int j=f.size();j<=i;j++)
@@ -42,7 +42,7 @@ double sqrtfact(int i)
     }
     if (i>=(int)f.size()) {
 #ifdef _OPENMP
-#pragma omp critical (output)
+#pragma omp critical (sqrtfact)
 #endif
         {
             for(int j=f.size();j<=i;j++)
@@ -70,7 +70,7 @@ double binom(int i,int j)
     }
     if (i>=(int)f.size()) {
 #ifdef _OPENMP
-#pragma omp critical (output)
+#pragma omp critical (binom)
 #endif
         {
             for(int i1=f.size();i1<=i;i1++) {
@@ -97,7 +97,7 @@ double sqrtn(int i)
     }
     if (i>=(int)f.size()) {
 #ifdef _OPENMP
-#pragma omp critical (output)
+#pragma omp critical (sqrtn)
 #endif
         {
             for(int j=f.size();j<=i;j++)
