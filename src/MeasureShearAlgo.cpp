@@ -12,29 +12,7 @@
 
 #define MAX_ITER 3
 #define MAX_DELTA_MU 0.2
-#define MAX_DELTA_GAMMA 0.2
-
-#if 0
-static Position AddOffset(
-    Position cen, std::complex<double> offset, const Transformation& trans)
-{
-    // ( u' ) = D ( x ) + ( u_off )
-    // ( v' )     ( y )   ( v_off )
-    //        = D ( x' )
-    //            ( y' )
-    // D ( x' ) = D ( x ) + ( u_off )
-    //   ( y' )     ( y )   ( v_off )
-    //   ( x' ) = ( x ) + D^-1 ( u_off )
-    //   ( y' )   ( y )        ( v_off )
-    DSmallMatrix22 localD;
-    trans.getDistortion(cen,localD);
-    tmv::SmallVector<double,2> xy;
-    xy << real(offset) << imag(offset);
-    xy = localD.inverse() * xy;
-    Position ret(cen.getX() + xy(0), cen.getY() + xy(1));
-    return ret;
-}
-#endif
+#define MAX_DELTA_GAMMA 0.1
 
 void DoMeasureShear(
     const std::vector<PixelList>& allpix,
@@ -464,6 +442,106 @@ void DoMeasureShear(
                     dbg<<"FLAG SHEAR_REDUCED_ORDER\n";
                     flag |= SHEAR_REDUCED_ORDER;
                 }
+                if (maxm > tryOrder) maxm = tryOrder;
+#if 1
+                Ellipse ell_shear = ell_round;
+                if (fixCen) ell_shear.fixCen();
+                if (fixSigma) ell_shear.fixMu();
+                gamma_prev = ell_shear.getGamma();
+                bool success = false;
+                DMatrix cov5(5,5);
+                for(int iter=1;iter<=MAX_ITER;++iter) {
+                    dbg<<"Shear iter = "<<iter<<std::endl;
+                    flag1 = 0;
+                    ell_shear.setGamma(
+                        (ell_shear.getGamma() + ell_round.getGamma())/2.);
+                    if (ell_shear.measure(
+                            pix,psf,tryOrder,galOrder2,maxm,sigma,flag1,
+                            1.e-4,&cov5)) {
+                        dbg<<"Successful shear fit:\n";
+                        dbg<<"Z = "<<ell_shear.getCen()<<std::endl;
+                        dbg<<"Mu = "<<ell_shear.getMu()<<std::endl;
+                        dbg<<"Gamma = "<<ell_shear.getGamma()<<std::endl;
+                    } else {
+                        dbg<<"Shear measurement failed\n";
+                        success = false;
+                        break;
+                    }
+
+                    ell_shear.removeRotation();
+                    gamma = ell_shear.getGamma();
+                    dbg<<"New gamma = "<<gamma<<std::endl;
+                    std::complex<double> deltaGamma = gamma - gamma_prev;
+                    gamma_prev = gamma;
+                    dbg<<"ell_shear = "<<ell_shear<<std::endl;
+
+                    dbg<<"deltaGamma = "<<deltaGamma<<std::endl;
+                    if (std::abs(deltaGamma) < MAX_DELTA_GAMMA) {
+                        dbg<<"deltaGamma < "<<MAX_DELTA_GAMMA<<std::endl;
+                        success = true;
+                        break;
+                    } else if (iter < MAX_ITER-1) {
+                        dbg<<"deltaGamma >= "<<MAX_DELTA_GAMMA<<std::endl;
+                        continue;
+                    } else {
+                        dbg<<"deltaGamma >= "<<MAX_DELTA_GAMMA<<std::endl;
+                        dbg<<"But iter == "<<MAX_ITER<<", so stop.\n";
+                    }
+                }
+                if (success) {
+                    ++log._nsGamma;
+                    cov = cov5.TMV_subMatrix(2,4,2,4);
+                    if (!(cov.TMV_det() > 0.)) {
+                        dbg<<"cov has bad determinant: "<<
+                            cov.TMV_det()<<std::endl;
+                        dbg<<"cov = "<<cov<<std::endl;
+                        dbg<<"Full cov = "<<cov5<<std::endl;
+                        dbg<<"FLAG SHEAR_BAD_COVAR\n";
+                        flag |= SHEAR_BAD_COVAR;
+                    }
+                    return;
+                } else {
+                    dbg<<"Unsuccessful shear measurement\n"; 
+                    dbg<<"shear = "<<gamma<<std::endl;
+                    if (tryOrder == 2) {
+                        flag |= flag1;
+                        dbg<<"flag = "<<flag<<std::endl;
+                    }
+                }
+#elif 1
+                Ellipse ell_shear = ell_round;
+                if (fixCen) ell_shear.fixCen();
+                if (fixSigma) ell_shear.fixMu();
+                DMatrix cov5(5,5);
+                long flag1=0;
+                if (ell_shear.measure(
+                        pix,psf,tryOrder,galOrder2,maxm,sigma,flag1,
+                        1.e-4,&cov5)) {
+                    ++log._nsGamma;
+                    ell_shear.removeRotation();
+                    gamma = ell_shear.getGamma();
+                    dbg<<"Successful shear measurement: "<<gamma<<std::endl;
+                    cov = cov5.TMV_subMatrix(2,4,2,4);
+                    if (!(cov.TMV_det() > 0.)) {
+                        dbg<<"cov has bad determinant: "<<
+                            cov.TMV_det()<<std::endl;
+                        dbg<<"cov = "<<cov<<std::endl;
+                        dbg<<"Full cov = "<<cov5<<std::endl;
+                        dbg<<"FLAG SHEAR_BAD_COVAR\n";
+                        flag |= SHEAR_BAD_COVAR;
+                    }
+                    return;
+                } else {
+                    ell_shear.removeRotation();
+                    gamma = ell_shear.getGamma();
+                    dbg<<"Unsuccessful shear measurement\n"; 
+                    dbg<<"shear = "<<gamma<<std::endl;
+                    if (tryOrder == 2) {
+                        flag |= flag1;
+                        dbg<<"flag = "<<flag<<std::endl;
+                    }
+                }
+#else
                 BVec shearedShape(tryOrder,sigma);
                 if (maxm > tryOrder) maxm = tryOrder;
 
@@ -518,6 +596,7 @@ void DoMeasureShear(
                         dbg<<"flag = "<<flag<<std::endl;
                     }
                 }
+#endif
             }
             if (!lastfpsf) continue;
             ++log._nfGamma;

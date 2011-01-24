@@ -186,7 +186,7 @@ void doMeasureShear(
     const InputCatalog& inCat, const FittedPsf& fitPsf,
     std::auto_ptr<ShearCatalog>& shearCat)
 {
-    dbg<<"Starting MeasurePsf script\n";
+    dbg<<"Starting MeasureShear script\n";
 
     bool isTiming = params.read("timing",false);
     timeval tp;
