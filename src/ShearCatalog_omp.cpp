@@ -19,6 +19,49 @@
 #undef _OPENMP
 #endif
 
+static bool GetPixPsf(
+    const Image<double>& im, PixelList& pix,
+    const Position pos, double sky, double noise, double gain,
+    const Image<double>* weightIm, const Transformation& trans,
+    double maxAperture, double xOffset, double yOffset, long& flags,
+    const FittedPsf& fitPsf, BVec& psf, ShearLog& log)
+{
+    // Get the main PixelList for this galaxy:
+    try {
+        getPixList(
+            im,pix,pos,sky,noise,gain,weightIm,
+            trans,maxAperture,xOffset,yOffset,flags);
+        int npix = pix.size();
+        dbg<<"npix = "<<npix<<std::endl;
+        if (npix < 10) {
+            dbg<<"Too few pixels to continue: "<<npix<<std::endl;
+            dbg<<"FLAG SHAPELET_NOT_DECONV\n";
+            flags |= SHAPELET_NOT_DECONV;
+            return false;
+        }
+    } catch (RangeException& e) {
+        dbg<<"distortion range error: \n";
+        xdbg<<"p = "<<pos<<", b = "<<e.getBounds()<<std::endl;
+        ++log._nfRange1;
+        dbg<<"FLAG TRANSFORM_EXCEPTION\n";
+        flags |= TRANSFORM_EXCEPTION;
+        return false;
+    }
+
+    // Get the interpolated psf for this galaxy:
+    try {
+        psf = fitPsf(pos);
+    } catch (RangeException& e) {
+        dbg<<"fittedpsf range error: \n";
+        xdbg<<"p = "<<pos<<", b = "<<e.getBounds()<<std::endl;
+        ++log._nfRange2;
+        dbg<<"FLAG FITTEDPSF_EXCEPTION\n";
+        flags |= FITTEDPSF_EXCEPTION;
+        return false;
+    }
+    return true;
+}
+ 
 int ShearCatalog::measureShears(
     const Image<double>& im,
     const Image<double>* weightIm, ShearLog& log)
@@ -132,37 +175,10 @@ int ShearCatalog::measureShears(
                 dbg<<"galaxy "<<i<<":\n";
                 dbg<<"pos = "<<_pos[i]<<std::endl;
 
-                // Get the main PixelList for this galaxy:
-                try {
-                    getPixList(
+                if (!GetPixPsf(
                         im,pix[0],_pos[i],_sky[i],_noise[i],gain,weightIm,
-                        *_trans,maxAperture,xOffset,yOffset,_flags[i]);
-                    int npix = pix[0].size();
-                    dbg<<"npix = "<<npix<<std::endl;
-                    if (npix < 10) {
-                        dbg<<"Too few pixels to continue: "<<npix<<std::endl;
-                        dbg<<"FLAG SHAPELET_NOT_DECONV\n";
-                        _flags[i] |= SHAPELET_NOT_DECONV;
-                        continue;
-                    }
-                } catch (RangeException& e) {
-                    dbg<<"distortion range error: \n";
-                    xdbg<<"p = "<<_pos[i]<<", b = "<<e.getBounds()<<std::endl;
-                    ++log._nfRange1;
-                    dbg<<"FLAG TRANSFORM_EXCEPTION\n";
-                    _flags[i] |= TRANSFORM_EXCEPTION;
-                    continue;
-                }
-
-                // Get the interpolated psf for this galaxy:
-                try {
-                    psf[0] = (*_fitPsf)(_pos[i]);
-                } catch (RangeException& e) {
-                    dbg<<"fittedpsf range error: \n";
-                    xdbg<<"p = "<<_pos[i]<<", b = "<<e.getBounds()<<std::endl;
-                    ++log._nfRange2;
-                    dbg<<"FLAG FITTEDPSF_EXCEPTION\n";
-                    _flags[i] |= FITTEDPSF_EXCEPTION;
+                        *_trans,maxAperture,xOffset,yOffset,_flags[i],
+                        *_fitPsf,psf[0],log1)) {
                     continue;
                 }
 

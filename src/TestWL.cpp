@@ -1028,6 +1028,7 @@ int main(int argc, char **argv) try
             int order = 12;
             int bsize = (order+1)*(order+2)/2;
             int order2 = 40;
+            int maxm = order;
 
             allpix.resize(1);
             allpix[0].clear();
@@ -1037,7 +1038,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
             ell.altMeasureShapelet(allpix,b0,order,order2,pixScale);
 #else
-            ell.measureShapelet(allpix,b0,order,order2);
+            ell.measureShapelet(allpix,b0,order,order2,maxm);
 #endif
             dbg<<"measured b = "<<b0.vec()<<std::endl;
             dbg<<ie<<"  "<<ib<<"  basic  ";
@@ -1057,7 +1058,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
             e1.altMeasureShapelet(allpix,b1,order,order2,pixScale);
 #else
-            e1.measureShapelet(allpix,b1,order,order2);
+            e1.measureShapelet(allpix,b1,order,order2,maxm);
 #endif
             xdbg<<"b(z1 = "<<z1<<") = "<<b1.vec()<<std::endl;
             BVec b2(order,sigma_i);
@@ -1075,7 +1076,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
             e1.altMeasureShapelet(allpix,b1,order,order2,pixScale);
 #else
-            e1.measureShapelet(allpix,b1,order,order2);
+            e1.measureShapelet(allpix,b1,order,order2,maxm);
 #endif
             applyZ(-z1,b2=b0);
             dbg<<"diff for z = "<<-z1<<" = "<<b2.vec()-b1.vec()<<std::endl;
@@ -1092,7 +1093,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
             e1.altMeasureShapelet(allpix,b1,order,order2,pixScale);
 #else
-            e1.measureShapelet(allpix,b1,order,order2);
+            e1.measureShapelet(allpix,b1,order,order2,maxm);
 #endif
             xdbg<<"b(mu = "<<m1<<") = "<<b1.vec()<<std::endl;
             applyMu(m1,b2=b0);
@@ -1110,7 +1111,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
             e1.altMeasureShapelet(allpix,b1,order,order2,pixScale);
 #else
-            e1.measureShapelet(allpix,b1,order,order2);
+            e1.measureShapelet(allpix,b1,order,order2,maxm);
 #endif
             applyMu(-m1,b2=b0);
             dbg<<"diff for mu = "<<-m1<<" = "<<b2.vec()-b1.vec()<<std::endl;
@@ -1127,7 +1128,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
             e1.altMeasureShapelet(allpix,b1,order,order2,pixScale);
 #else
-            e1.measureShapelet(allpix,b1,order,order2);
+            e1.measureShapelet(allpix,b1,order,order2,maxm);
 #endif
             applyG(g1,b2=b0);
             xdbg<<"b(predicted) = "<<b2.vec()<<std::endl;
@@ -1144,7 +1145,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
             e1.altMeasureShapelet(allpix,b1,order,order2,pixScale);
 #else
-            e1.measureShapelet(allpix,b1,order,order2);
+            e1.measureShapelet(allpix,b1,order,order2,maxm);
 #endif
             applyG(-g1,b2=b0);
             dbg<<"diff for gamma = "<<-g1<<" = "<<b2.vec()-b1.vec()<<std::endl;
@@ -1166,7 +1167,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
                 ell.altMeasureShapelet(allpix,b,order,order2,pixScale);
 #else
-                ell.measureShapelet(allpix,b,order,order2);
+                ell.measureShapelet(allpix,b,order,order2,maxm);
 #endif
                 dbg<<"blong = "<<blong.vec()<<std::endl;
                 dbg<<"b = "<<b.vec()<<std::endl;
@@ -1185,7 +1186,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
                 e1.altMeasureShapelet(allpix,bx,order,order2,pixScale);
 #else
-                e1.measureShapelet(allpix,bx,order,order2);
+                e1.measureShapelet(allpix,bx,order,order2,maxm);
 #endif
                 dbg<<"blong = "<<blong.vec()<<std::endl;
                 dbg<<"bx = "<<bx.vec()<<std::endl;
@@ -1222,6 +1223,7 @@ int main(int argc, char **argv) try
                 int order = 12;
                 int bsize = (order+1)*(order+2)/2;
                 int order2 = 40;
+                int maxm = order;
                 int bsize2 = (order2+1)*(order2+2)/2;
 
                 // bpsf is the psf in the e0 frame.
@@ -1262,7 +1264,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
                 ell.altMeasureShapelet(allpix,be,order,order2,pixScale);
 #else
-                ell.measureShapelet(allpix,be,order,order2);
+                ell.measureShapelet(allpix,be,order,order2,maxm);
 #endif
                 xdbg<<"be = "<<be.vec()<<std::endl;
 
@@ -1288,7 +1290,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
                 ell.altMeasureShapelet(allpix,ce,order,order2,pixScale);
 #else
-                ell.measureShapelet(allpix,ce,order,order2);
+                ell.measureShapelet(allpix,ce,order,order2,maxm);
 #endif
                 xdbg<<"ce = "<<ce<<std::endl;
                 xdbg<<"Norm(ce)+Norm(c0) = "<<
@@ -1378,7 +1380,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
                 ell.altMeasureShapelet(allpix,allpsf,bes,order,order2,pixScale);
 #else
-                ell.measureShapelet(allpix,allpsf,bes,order,order2);
+                ell.measureShapelet(allpix,allpsf,bes,order,order2,maxm);
 #endif
                 xdbg<<"bes = "<<bes.vec()<<std::endl;
                 xdbg<<"b0 = "<<b0.vec()<<std::endl;
@@ -1403,7 +1405,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
                 e1.altMeasureShapelet(allpix,allpsf,b1,order,order2,pixScale);
 #else
-                e1.measureShapelet(allpix,allpsf,b1,order,order2);
+                e1.measureShapelet(allpix,allpsf,b1,order,order2,maxm);
 #endif
                 xdbg<<"b(z1 = "<<z1<<") = "<<b1.vec()<<std::endl;
                 BVec b2(order,sigma_i);
@@ -1422,7 +1424,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
                 e1.altMeasureShapelet(allpix,allpsf,b1,order,order2,pixScale);
 #else
-                e1.measureShapelet(allpix,allpsf,b1,order,order2);
+                e1.measureShapelet(allpix,allpsf,b1,order,order2,maxm);
 #endif
                 xdbg<<"b(z1 = "<<-z1<<") = "<<b1.vec()<<std::endl;
                 applyZ(-z1,b2=b0);
@@ -1442,7 +1444,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
                 e1.altMeasureShapelet(allpix,allpsf,b1,order,order2,pixScale);
 #else
-                e1.measureShapelet(allpix,allpsf,b1,order,order2);
+                e1.measureShapelet(allpix,allpsf,b1,order,order2,maxm);
 #endif
                 xdbg<<"b(mu = "<<m1<<") = "<<b1.vec()<<std::endl;
                 applyMu(m1,b2=b0);
@@ -1461,7 +1463,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
                 e1.altMeasureShapelet(allpix,allpsf,b1,order,order2,pixScale);
 #else
-                e1.measureShapelet(allpix,allpsf,b1,order,order2);
+                e1.measureShapelet(allpix,allpsf,b1,order,order2,maxm);
 #endif
                 xdbg<<"b(mu = "<<-m1<<") = "<<b1.vec()<<std::endl;
                 applyMu(-m1,b2=b0);
@@ -1481,7 +1483,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
                 e1.altMeasureShapelet(allpix,allpsf,b1,order,order2,pixScale);
 #else
-                e1.measureShapelet(allpix,allpsf,b1,order,order2);
+                e1.measureShapelet(allpix,allpsf,b1,order,order2,maxm);
 #endif
                 xdbg<<"b(g = "<<g1<<") = "<<b1.vec()<<std::endl;
                 applyG(g1,b2=b0);
@@ -1500,7 +1502,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
                 e1.altMeasureShapelet(allpix,allpsf,b1,order,order2,pixScale);
 #else
-                e1.measureShapelet(allpix,allpsf,b1,order,order2);
+                e1.measureShapelet(allpix,allpsf,b1,order,order2,maxm);
 #endif
                 xdbg<<"b(g = "<<-g1<<") = "<<b1.vec()<<std::endl;
                 applyG(-g1,b2=b0);
@@ -1527,7 +1529,7 @@ int main(int argc, char **argv) try
 #ifdef USE_ALT
                     e1.altMeasureShapelet(allpix,allpsf,b1,order,order2,pixScale);
 #else
-                    e1.measureShapelet(allpix,allpsf,b1,order,order2);
+                    e1.measureShapelet(allpix,allpsf,b1,order,order2,maxm);
 #endif
                     dbg<<"b1 = "<<b1<<std::endl;
                     BVec b3(order2,sigma_i);
