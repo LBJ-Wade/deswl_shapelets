@@ -10,9 +10,11 @@
 #include "Params.h"
 #include "MeasureShearAlgo.h"
 
-#define MAX_ITER 3
+#define MAX_ITER 4
 #define MAX_DELTA_MU 0.2
-#define MAX_DELTA_GAMMA 0.1
+#define MAX_DELTA_GAMMA1 0.1
+#define MAX_DELTA_GAMMA2 1.e-3
+#define FAIL_DELTA_GAMMA2 1.e-2
 
 void DoMeasureShear(
     const std::vector<PixelList>& allpix,
@@ -251,7 +253,7 @@ void DoMeasureShear(
                 if (std::abs(deltaMu) < MAX_DELTA_MU) {
                     dbg<<"deltaMu < "<<MAX_DELTA_MU<<std::endl;
                     break;
-                } else if (iter < MAX_ITER-1) {
+                } else if (iter < MAX_ITER) {
                     dbg<<"deltaMu >= "<<MAX_DELTA_MU<<std::endl;
                     continue;
                 } else {
@@ -336,17 +338,17 @@ void DoMeasureShear(
             dbg<<"deltaMu = "<<deltaMu<<std::endl;
             dbg<<"deltaGamma = "<<deltaGamma<<std::endl;
             if (std::abs(deltaMu) < MAX_DELTA_MU &&
-                std::abs(deltaGamma) < MAX_DELTA_GAMMA) {
+                std::abs(deltaGamma) < MAX_DELTA_GAMMA1) {
                 dbg<<"deltaMu < "<<MAX_DELTA_MU;
-                dbg<<" and deltaGamma < "<<MAX_DELTA_GAMMA<<std::endl;
+                dbg<<" and deltaGamma < "<<MAX_DELTA_GAMMA1<<std::endl;
                 break;
-            } else if (iter < MAX_ITER-1) {
+            } else if (iter < MAX_ITER) {
                 dbg<<"deltaMu >= "<<MAX_DELTA_MU;
-                dbg<<" or deltaGamma >= "<<MAX_DELTA_GAMMA<<std::endl;
+                dbg<<" or deltaGamma >= "<<MAX_DELTA_GAMMA1<<std::endl;
                 continue;
             } else {
                 dbg<<"deltaMu >= "<<MAX_DELTA_MU;
-                dbg<<" or deltaGamma >= "<<MAX_DELTA_GAMMA<<std::endl;
+                dbg<<" or deltaGamma >= "<<MAX_DELTA_GAMMA1<<std::endl;
                 dbg<<"But iter == "<<MAX_ITER<<", so stop.\n";
             }
         }
@@ -476,16 +478,16 @@ void DoMeasureShear(
                     dbg<<"ell_shear = "<<ell_shear<<std::endl;
 
                     dbg<<"deltaGamma = "<<deltaGamma<<std::endl;
-                    if (std::abs(deltaGamma) < MAX_DELTA_GAMMA) {
-                        dbg<<"deltaGamma < "<<MAX_DELTA_GAMMA<<std::endl;
+                    if (std::abs(deltaGamma) < MAX_DELTA_GAMMA2) {
+                        dbg<<"deltaGamma < "<<MAX_DELTA_GAMMA2<<std::endl;
                         success = true;
                         break;
-                    } else if (iter < MAX_ITER-1) {
-                        dbg<<"deltaGamma >= "<<MAX_DELTA_GAMMA<<std::endl;
-                        continue;
-                    } else {
-                        dbg<<"deltaGamma >= "<<MAX_DELTA_GAMMA<<std::endl;
+                    } else if (iter == MAX_ITER) {
+                        dbg<<"deltaGamma >= "<<MAX_DELTA_GAMMA2<<std::endl;
                         dbg<<"But iter == "<<MAX_ITER<<", so stop.\n";
+                        success = std::abs(deltaGamma) < FAIL_DELTA_GAMMA2;
+                    } else {
+                        dbg<<"deltaGamma >= "<<MAX_DELTA_GAMMA2<<std::endl;
                     }
                 }
                 if (success) {

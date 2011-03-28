@@ -8,7 +8,6 @@
 #include "Name.h"
 #include "Params.h"
 
-const double PI = 4.*atan(1.);
 
 // 
 // Constructor, and basic definition routines

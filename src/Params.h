@@ -4,10 +4,14 @@
 #include <stdexcept>
 #include <vector>
 #include <ostream>
+#include <cmath>
 
 // Default value for various measured quantities
 #define DEFVALPOS 9999
 #define DEFVALNEG -9999
+
+static const double PI = 4.*atan(1.);
+static const double sqrtpi = sqrt(PI);
 
 //
 // Flags 

@@ -22,9 +22,6 @@
 #include "omp.h"
 #endif
 
-const double PI = 3.14159265359;
-const double sqrtpi = sqrt(PI);
-
 std::ostream* dbgout = 0;
 bool XDEBUG = true;
 //bool XDEBUG = false;

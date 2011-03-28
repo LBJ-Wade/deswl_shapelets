@@ -2,9 +2,7 @@
 #include "PsiHelper.h"
 #include <vector>
 #include "dbg.h"
-
-const double PI = 3.14159265359;
-const double sqrtpi = sqrt(PI);
+#include "Params.h"
 
 // Here is the order of p,q along the indices of psi:
 //

@@ -220,6 +220,9 @@ def AddOpenMPFlag(env):
         xlib = []
     else:
         print 'Warning: No OpenMP support for compiler ',compiler
+        flag = []
+        ldflag = []
+        xlib = []
 
     #print 'Adding openmp support:',flag
     env['OMP_FLAGS'] = flag

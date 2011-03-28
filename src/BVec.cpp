@@ -2,9 +2,7 @@
 #include "BVec.h"
 #include "BinomFact.h"
 #include <cmath>
-
-const double PI = 3.14159265359;
-const double sqrtpi = sqrt(PI);
+#include "Params.h"
 
 BVec& BVec::operator=(const AssignableToBVec& rhs)
 {
