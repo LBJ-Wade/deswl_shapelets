@@ -33,6 +33,9 @@ void StarFinder::setParams(
 {
     SFKeyAssign(_minSize,"minsize");
     SFKeyAssign(_maxSize,"maxsize");
+    SFKeyAssign(_minSg,"minsg");
+    SFKeyAssign(_maxSg,"maxsg");
+    SFKeyAssign(_minSgFrac,"minsgfrac");
     SFKeyAssign(_isSizeLog,"logsize");
 
     SFKeyAssign(_minMag,"minmag");

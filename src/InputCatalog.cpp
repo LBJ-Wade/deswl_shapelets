@@ -375,6 +375,13 @@ void InputCatalog::readFits(std::string file, int hdu)
         table.column(magErrCol).read(_magErr, start, end);
     }
 
+    // Star Galaxy separation
+    if (_params.keyExists("cat_sg_col")) {
+        std::string sgCol=_params["cat_sg_col"];
+        dbg<<"  "<<sgCol<<std::endl;
+        table.column(sgCol).read(_sg, start, end);
+    }
+
     // Size
     if (_params.keyExists("cat_size_col")) {
         std::string sizeCol=_params["cat_size_col"];
@@ -413,10 +420,11 @@ void InputCatalog::readFits(std::string file, int hdu)
         table.column(raCol).read(ra, start, end);
         dbg<<"  "<<declCol<<std::endl;
         table.column(declCol).read(decl, start, end);
-
+        
         _skyPos.resize(nRows);
         for(long i=0;i<nRows;++i) {
             _skyPos[i] = Position(ra[i],decl[i]);
+            
             // The convention for Position is to use arcsec for everything.
             // ra and dec come in as degrees.  So wee need to convert to arcsec.
             _skyPos[i] *= 3600.;  // deg -> arcsec
@@ -477,6 +485,8 @@ void InputCatalog::readAscii(std::string file, std::string delim)
 
     int magCol = _params.read("cat_mag_col",0);
     int magErrCol = _params.read("cat_mag_err_col",0);
+
+    int sgCol = _params.read("cat_sg_col",0);
 
     int sizeCol = _params.read("cat_size_col",0);
     int size2Col = _params.read("cat_size2_col",0);
@@ -559,6 +569,14 @@ void InputCatalog::readAscii(std::string file, std::string delim)
             _magErr.push_back(magErrVal);
         } 
 
+        // Star-galaxy
+        if (sgCol) {
+            double sgVal = 0.;
+            Assert(sgCol <= int(tokens.size()));
+            sgVal = tokens[sgCol-1];
+            _sg.push_back(sgVal);
+        } 
+
         // Size
         if (sizeCol) {
             double sizeVal = 0.;
@@ -635,6 +653,12 @@ void InputCatalog::printall(int i) {
     std::cout<<"  InputCatalog::printall magErr["<<i<<"]: "<<_magErr[i]<<"\n";
   } else {
     std::cout<<"  InputCatalog::printall index "<<i<<" is larger than magErr.size\n";
+  }
+
+  if (int(_sg.size()) > i) {
+    std::cout<<"  InputCatalog::printall sg["<<i<<"]: "<<_sg[i]<<"\n";
+  } else {
+    std::cout<<"  InputCatalog::printall index "<<i<<" is larger than sg.size\n";
   }
 
   if (int(_objSize.size()) > i) {

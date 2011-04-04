@@ -346,7 +346,7 @@ FindStarsLog::FindStarsLog(
     std::string logFile, std::string fitsFile
 ) : 
     Log(params,logFile,fitsFile),
-    _nTot(0), _nrFlag(0), _nrMag(0), _nrSize(0),
+    _nTot(0), _nrFlag(0), _nrMag(0), _nrSg(0), _nrSize(0),
     _nObj(0), _nAllStars(0), _nStars(0) 
 {}
 
@@ -376,6 +376,8 @@ void FindStarsLog::writeLogToFitsHeader() const
                      "# of objects rejected because of input flag");
         table.addKey("fsnrmag", _nrMag,
                      "# of objects rejected because of mag limits");
+        table.addKey("fsnrsg", _nrSg,
+                     "# of objects rejected because of star-galaxy limits");
         table.addKey("fsnrsize", _nrSize,
                      "# of objects rejected because of size limits");
         table.addKey("fsnobj", _nObj, 
@@ -415,6 +417,7 @@ void FindStarsLog::writeLog() const
                 "ntot="<<_nTot <<" & "<<
                 "nr_flag="<<_nrFlag <<" & "<<
                 "nr_mag="<<_nrMag <<" & "<<
+                "nr_sg="<<_nrSg <<" & "<<
                 "nr_size="<<_nrSize <<" & "<<
                 "nobj="<<_nObj <<" & "<<
                 "nallstars="<<_nAllStars <<" & "<<

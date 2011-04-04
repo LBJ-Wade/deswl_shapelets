@@ -110,6 +110,7 @@ StarCatalog::StarCatalog(const StarCatalog& inStarCat) :
     _noise(inStarCat.getNoiseList()),
     _flags(inStarCat.getFlagsList()), 
     _mag(inStarCat.getMagList()), 
+    _sg(inStarCat.getSgList()),
     _objSize(inStarCat.getObjSizeList()),
     _isAStar(inStarCat.getIsAStarList()),
     _params(inStarCat.getParams())
@@ -120,6 +121,7 @@ StarCatalog::StarCatalog(const StarCatalog& inStarCat) :
     Assert(_noise.size() == size());
     Assert(_flags.size() == size());
     Assert(_mag.size() == size());
+    Assert(_sg.size() == size());
     Assert(_objSize.size() == size());
     Assert(_isAStar.size() == size());
 
@@ -139,6 +141,7 @@ StarCatalog::StarCatalog(
     _flags.resize(nind);
 
     _mag.resize(nind);
+    _sg.resize(nind);
     _objSize.resize(nind);
     _isAStar.resize(nind);
 
@@ -151,6 +154,7 @@ StarCatalog::StarCatalog(
         _flags[i]   = inStarCat.getFlags(ind);
 
         _mag[i]     = inStarCat.getMag(ind);
+        _sg[i]      = inStarCat.getSg(ind);
         _objSize[i] = inStarCat.getObjSize(ind);
         _isAStar[i] = inStarCat.getIsAStar(ind);
     }
@@ -163,7 +167,7 @@ StarCatalog::StarCatalog(
     _id(inCat.getIdList()), _pos(inCat.getPosList()), 
     _sky(inCat.getSkyList()), _noise(inCat.getNoiseList()),
     _flags(inCat.getFlagsList()), _mag(inCat.getMagList()), 
-    _objSize(inCat.getObjSizeList()),
+    _sg(inCat.getSgList()), _objSize(inCat.getObjSizeList()),
     _isAStar(_id.size(),0), _params(params), _prefix(fsPrefix)
 {
     Assert(_id.size() == size());
@@ -171,6 +175,7 @@ StarCatalog::StarCatalog(
     Assert(_sky.size() == size());
     Assert(_noise.size() == size());
     Assert(_flags.size() == size());
+    Assert(_sg.size() == size());
     if (_objSize.size() == 0) _objSize.resize(size(),DEFVALNEG);
     Assert(_objSize.size() == size());
     Assert(_isAStar.size() == size());
@@ -191,6 +196,7 @@ StarCatalog::StarCatalog(const ConfigFile& params, std::string fsPrefix) :
     Assert(_flags.size() == size());
     Assert(_objSize.size() == size());
     Assert(_mag.size() == size());
+    Assert(_sg.size() == size());
     Assert(_isAStar.size() == size());
 }
 
@@ -246,7 +252,6 @@ void StarCatalog::splitInTwo(
 int StarCatalog::findStars(FindStarsLog& log)
 {
     StarFinder finder(_params,_prefix);
-
     std::vector<PotentialStar*> maybestars;
 
     // First get a list of potential stars
@@ -254,6 +259,24 @@ int StarCatalog::findStars(FindStarsLog& log)
     long count=0;
     const int nObj = size();
     log._nTot = nObj;
+
+    // Check to see if star-galaxy classification failed for this
+    // image by looking at fration of objects with minimum size.
+    // If there are too few objects ignore the star-galaxy cut
+    double fracNObj=0;
+    for (int i=0; i<nObj; ++i) {
+      if(finder.isOkSg(_sg[i]) && finder.isOkSize(_objSize[i])) fracNObj++;
+    }
+    fracNObj/=nObj;
+
+    bool ignoreSgCut=false;
+    if(fracNObj<finder.getMinSgFrac()) {
+      dbg<<" Fraction of objects in star-galaxy range too small: "<<
+        fracNObj<<std::endl;
+      dbg<<" Ignoring star-galaxy cut"<<std::endl;
+      ignoreSgCut=true;
+    }
+
 
     for (int i=0; i<nObj; ++i) {
         // A series of checks
@@ -276,7 +299,14 @@ int StarCatalog::findStars(FindStarsLog& log)
             ++log._nrMag;
             continue;
         }
-        xdbg<<"OK: "<<_objSize[i]<<"  "<<_mag[i]<<std::endl;
+        if(!ignoreSgCut) {   
+          if (!finder.isOkSg(_sg[i])) {
+            xdbg<<"Reject "<<i<<" for star-galaxy "<<_sg[i]<<" outside range "<<
+              finder.getMinSg()<<" -- "<<finder.getMaxSg()<<std::endl;
+            ++log._nrSg;
+            continue;
+          }
+        }
 
         ++count;
         double logObjSize = finder.convertToLogSize(_objSize[i]);
@@ -333,6 +363,7 @@ void StarCatalog::writeFits(std::string file) const
     Assert(_noise.size() == size());
     Assert(_flags.size() == size());
     Assert(_mag.size() == size());
+    Assert(_sg.size() == size());
     Assert(_objSize.size() == size());
     Assert(_isAStar.size() == size());
 
@@ -341,7 +372,7 @@ void StarCatalog::writeFits(std::string file) const
     // ! means overwrite existing file
     CCfits::FITS fits("!"+file, CCfits::Write);
 
-    const int nFields = 9;
+    const int nFields = 10;
 
     std::vector<string> colNames(nFields);
     std::vector<string> colFmts(nFields);
@@ -354,8 +385,9 @@ void StarCatalog::writeFits(std::string file) const
     colNames[4] = _params["stars_noise_col"];
     colNames[5] = _params["stars_flags_col"];
     colNames[6] = _params["stars_mag_col"];
-    colNames[7] = _params["stars_objsize_col"];
-    colNames[8] = _params["stars_isastar_col"];
+    colNames[7] = _params["stars_sg_col"];
+    colNames[8] = _params["stars_objsize_col"];
+    colNames[9] = _params["stars_isastar_col"];
 
     colFmts[0] = "1J"; // id
     colFmts[1] = "1D"; // x
@@ -364,8 +396,11 @@ void StarCatalog::writeFits(std::string file) const
     colFmts[4] = "1D"; // noise
     colFmts[5] = "1J"; // flags
     colFmts[6] = "1E"; // mag
-    colFmts[7] = "1D"; // sigma
-    colFmts[8] = "1J"; // star flag
+    colFmts[7] = "1E"; // star-galaxy
+    colFmts[8] = "1D"; // sigma
+    colFmts[9] = "1J"; // star flag
+
+
 
     colUnits[0] = "None";     // id
     colUnits[1] = "pixels";   // x
@@ -374,8 +409,10 @@ void StarCatalog::writeFits(std::string file) const
     colUnits[4] = "ADU^2";    // noise
     colUnits[5] = "None";     // flags
     colUnits[6] = "mags";     // mag
-    colUnits[7] = "Arcsec";   // sigma0
-    colUnits[8] = "None";     //star flag
+    colUnits[7] = "None";     // star-galaxy
+    colUnits[8] = "Arcsec";   // sigma0
+    colUnits[9] = "None";     // star flag
+
 
     CCfits::Table* table;
     table = fits.addTable("findstars",nTot,colNames,colFmts,colUnits);
@@ -436,8 +473,10 @@ void StarCatalog::writeFits(std::string file) const
 
         writeParamToTable(_params, table, "stars_purityratio", dbl);
         writeParamToTable(_params, table, "stars_maxrefititer", intgr);
+        writeParamToTable(_params, table, "stars_minsg", dbl);
+        writeParamToTable(_params, table, "stars_maxsg", dbl);
     }
-
+  
 
     // Now the data columns
 
@@ -457,8 +496,10 @@ void StarCatalog::writeFits(std::string file) const
     table->column(colNames[4]).write(_noise,startrow);
     table->column(colNames[5]).write(_flags,startrow);
     table->column(colNames[6]).write(_mag,startrow);
-    table->column(colNames[7]).write(_objSize,startrow);
-    table->column(colNames[8]).write(_isAStar,startrow);
+    table->column(colNames[7]).write(_sg,startrow);
+    table->column(colNames[8]).write(_objSize,startrow);
+    table->column(colNames[9]).write(_isAStar,startrow);
+
 
 }
 
@@ -470,6 +511,7 @@ void StarCatalog::writeAscii(std::string file, std::string delim) const
     Assert(_noise.size() == size());
     Assert(_flags.size() == size());
     Assert(_mag.size() == size());
+    Assert(_sg.size() == size());
     Assert(_objSize.size() == size());
     Assert(_isAStar.size() == size());
 
@@ -492,6 +534,7 @@ void StarCatalog::writeAscii(std::string file, std::string delim) const
             << sci8(_noise[i]) << delim
             << _flags[i] << delim
             << fix3(_mag[i]) << delim
+            << fix3(_sg[i]) << delim
             << fix6(_objSize[i]) << delim
             << _isAStar[i] << std::endl;
     }
@@ -573,6 +616,7 @@ void StarCatalog::readFits(std::string file)
     std::string noiseCol=_params.get("stars_noise_col");
     std::string flagsCol=_params.get("stars_flags_col");
     std::string magCol=_params.get("stars_mag_col");
+    std::string sgCol=_params.get("stars_sg_col");
     std::string objSizeCol=_params.get("stars_objsize_col");
     std::string isAStarCol=_params.get("stars_isastar_col");
 
@@ -597,11 +641,13 @@ void StarCatalog::readFits(std::string file)
     table.column(flagsCol).read(_flags, start, end);
     dbg<<"  "<<magCol<<std::endl;
     table.column(magCol).read(_mag, start, end);
+    dbg<<"  "<<sgCol<<std::endl;
+    table.column(sgCol).read(_sg, start, end);
     dbg<<"  "<<objSizeCol<<std::endl;
     table.column(objSizeCol).read(_objSize, start, end);
     dbg<<"  "<<isAStarCol<<std::endl;
     table.column(isAStarCol).read(_isAStar, start, end);
-
+    
     _pos.resize(nRows);
     for(long i=0;i<nRows;++i) {
         _pos[i] = Position(x[i],y[i]);
@@ -617,20 +663,21 @@ void StarCatalog::readAscii(std::string file, std::string delim)
     }
 
     _id.clear(); _pos.clear(); _sky.clear(); _noise.clear(); _flags.clear();
-    _mag.clear(); _objSize.clear(); _isAStar.clear();
+    _mag.clear(); _sg.clear(); _objSize.clear(); _isAStar.clear();
 
     if (delim == "  ") {
         ConvertibleString flag;
         long id1,star;
-        double x,y,sky1,n,s,m;
+        double x,y,sky1,n,s,m,sg;
         while ( fin >> id1 >> x >> y >> sky1 >> n 
-                >> flag >> m >> s >> star) {
+                >> flag >> m >> sg >> s >> star) {
             _id.push_back(id1);
             _pos.push_back(Position(x,y));
             _sky.push_back(sky1);
             _noise.push_back(n);
             _flags.push_back(flag);
             _mag.push_back(m);
+            _sg.push_back(sg);
             _objSize.push_back(s);
             _isAStar.push_back(star);
         } 
@@ -657,6 +704,7 @@ void StarCatalog::readAscii(std::string file, std::string delim)
             getline(fin,temp,d); _noise.push_back(temp);
             getline(fin,temp,d); _flags.push_back(temp);
             getline(fin,temp,d); _mag.push_back(temp);
+            getline(fin,temp,d); _sg.push_back(temp);
             getline(fin,temp,d); _objSize.push_back(temp);
             getline(fin,temp); _isAStar.push_back(temp);
             dbg<<"Last elemnt in line = "<<temp<<std::endl;
@@ -744,6 +792,12 @@ void StarCatalog::printall(int i)
         std::cout<<"  StarCatalog::printall mag["<<i<<"]: "<<_mag[i]<<"\n";
     } else {
         std::cout<<"  StarCatalog::printall index "<<i<<" is larger than mag.size\n";
+    }
+
+    if (int(_sg.size()) > i) {
+        std::cout<<"  StarCatalog::printall sg["<<i<<"]: "<<_sg[i]<<"\n";
+    } else {
+        std::cout<<"  StarCatalog::printall index "<<i<<" is larger than sg.size\n";
     }
 
     if (int(_objSize.size()) > i) {

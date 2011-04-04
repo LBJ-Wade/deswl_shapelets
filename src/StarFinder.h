@@ -58,6 +58,9 @@ public :
     bool isOkOutputMag(const double mag)
     { return mag >= _minMag && mag <= _maxOutMag; }
 
+    bool isOkSg(const double sg)
+    { return sg >= _minSg && sg <= _maxSg; }
+
     double convertToLogSize(const double size)
     { return _isSizeLog ? size : std::log(size); }
 
@@ -65,6 +68,9 @@ public :
     double getMaxSize() const { return _maxSize; }
     double getMinMag() const { return _minMag; }
     double getMaxMag() const { return _maxMag; }
+    double getMinSg() const { return _minSg; }
+    double getMaxSg() const { return _maxSg; }
+    double getMinSgFrac() const { return _minSgFrac; }
 
 private :
 
@@ -74,6 +80,9 @@ private :
     double _minMag;        // The min and max magnitude to consider
     double _maxMag;
     double _maxOutMag;
+    double _minSg;         // The min and max star-galaxy value to consider
+    double _maxSg;
+    double _minSgFrac;     // The minimum fraction of objects in the star-galaxy range
     int _nDivX;         // Divide the image into nx by ny subsections
     int _nDivY;
 

@@ -69,6 +69,7 @@ public:
     const std::vector<double>& getNoiseList() const { return _noise; }
     const std::vector<long>& getFlagsList() const { return _flags; }
     const std::vector<double>& getMagList() const { return _mag; }
+    const std::vector<double>& getSgList() const { return _sg; }
     const std::vector<double>& getObjSizeList() const { return _objSize; }
     const std::vector<bool>& getIsAStarList() const { return _isAStar; }
 
@@ -83,9 +84,10 @@ public:
     double   getNoise(int i)   const { return _noise[i]; }
     long     getFlags(int i)   const { return _flags[i]; }
     double   getMag(int i)     const { return _mag[i]; }
+    double   getSg(int i)      const { return _sg[i]; }
     double   getObjSize(int i) const { return _objSize[i]; }
     bool     getIsAStar(int i) const { return _isAStar[i]; }
-
+             
     // This one looks for the given id.  
     // If it is in the catalog _and_ it is marked as a star, it returns true.
     // This way the StarCatalog may have a different number of objects than
@@ -105,6 +107,7 @@ private :
     std::vector<long> _flags;
 
     std::vector<double> _mag;
+    std::vector<double> _sg;
     std::vector<double> _objSize;
     std::vector<bool> _isAStar;
 

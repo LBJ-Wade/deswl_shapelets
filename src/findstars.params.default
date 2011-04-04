@@ -15,6 +15,9 @@
 
 minsize		0.2	# The min size to consider
 maxsize		20.	# The max size to consider
+minsg		0.	# The min sg to consider
+maxsg		1.	# The max sg to consider
+minsgfrac	0.05	# The max sg to consider
 minmag		12	# The min magnitude to consider
 maxmag		24	# The max magnitude to consider
 maxoutmag	24	# The max magnitude to include in output
