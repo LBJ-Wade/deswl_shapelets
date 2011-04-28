@@ -389,8 +389,9 @@ void DoMeasureShear(
             // Measure a deconvolving fit in the native frame.
             //
             shapelet.setSigma(sigma);
+            DMatrix shapeCov(shapelet.size(),shapelet.size());
             if (ell_native.measureShapelet(
-                    pix,psf,shapelet,galOrder,galOrder2,galOrder)) {
+                    pix,psf,shapelet,galOrder,galOrder2,galOrder,&shapeCov)) {
                 dbg<<"Successful deconvolving fit:\n";
                 ++log._nsMu;
             } else {
@@ -401,6 +402,7 @@ void DoMeasureShear(
                 flag |= DECONV_FAILED;
             }
             dbg<<"Measured deconvolved b_gal = "<<shapelet.vec()<<std::endl;
+            xdbg<<"shapeCov = "<<shapeCov<<std::endl;
 
             //
             // Also measure the isotropic significance
@@ -426,6 +428,8 @@ void DoMeasureShear(
                 dbg<<"FLAG SHAPE_BAD_FLUX\n";
                 flag |= SHAPE_BAD_FLUX;
             }
+            xdbg<<"flux = "<<flux<<std::endl;
+            xdbg<<"fluxCov = "<<fluxCov<<std::endl;
             if (flux(0) > 0. && fluxCov(0,0) > 0.) {
                 nu = flux(0) / sqrt(fluxCov(0,0));
                 dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<nu<<std::endl;
@@ -455,8 +459,9 @@ void DoMeasureShear(
                 for(int iter=1;iter<=MAX_ITER;++iter) {
                     dbg<<"Shear iter = "<<iter<<std::endl;
                     flag1 = 0;
+                    double w = sqrt(sigma/sigmaP);
                     ell_shear.setGamma(
-                        (ell_shear.getGamma() + ell_round.getGamma())/2.);
+                        (w*ell_shear.getGamma() + ell_round.getGamma())/(w+1.));
                     if (ell_shear.measure(
                             pix,psf,tryOrder,galOrder2,maxm,sigma,flag1,
                             1.e-4,&cov5)) {

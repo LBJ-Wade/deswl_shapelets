@@ -6,14 +6,14 @@
 #include <vector>
 #include "NLSolver.h"
 
-class EllipseSolver3 : public NLSolver
+class EllipseSolver : public NLSolver
 {
 public :
 
-    EllipseSolver3(
+    EllipseSolver(
         const BVec& b0, int order,
         bool fixcen=false, bool fixgam=false, bool fixmu=false);
-    ~EllipseSolver3();
+    ~EllipseSolver();
 
     void calculateF(const DVector& x, DVector& f) const;
     void calculateJ(const DVector& x, const DVector& f, DMatrix& df) const;
@@ -32,9 +32,9 @@ public :
 
 private :
 
-    struct ESImpl3;
+    struct ESImpl;
 
-    ESImpl3* _pimpl;
+    ESImpl* _pimpl;
 };
 
 #endif

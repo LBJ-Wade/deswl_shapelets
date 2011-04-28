@@ -248,10 +248,19 @@ int ShearCatalog::measureShears(
         PrintFlags(_flags,std::cerr);
     }
 
+
+    static const long ok_flags = (
+        EDGE |
+        SHEAR_REDUCED_ORDER |
+        SHAPE_REDUCED_ORDER |
+        SHAPE_POOR_FIT |
+        SHAPE_LOCAL_MIN |
+        SHAPE_BAD_FLUX );
+
     if (shouldOutputDots && !shouldOutputDesQa) {
         std::complex<double> meanShear = 0.;
         int nGoodShear = 0.;
-        for(int i=0;i<nGals;++i) if (!_flags[i]) {
+        for(int i=0;i<nGals;++i) if (!(_flags[i] & ~ok_flags)) {
             meanShear += _shear[i];
             ++nGoodShear;
         }
@@ -276,8 +285,8 @@ int ShearCatalog::measureShears(
     if (std::abs(meanOffset) > 0.5) {
         if (shouldOutputDesQa) {
             std::cerr<<"STATUS3BEG Warning: A bias in the input positions found: "
-            <<meanOffset<<".\nThis may bias the shear, so you should "
-            <<"change cat_x_offset, cat_y_offset.  STATUS3END\n";
+                <<meanOffset<<".\nThis may bias the shear, so you should "
+                <<"change cat_x_offset, cat_y_offset.  STATUS3END\n";
         }
     }
     dbg<<"Found mean offset of "<<meanOffset<<" using "<<nOffset<<

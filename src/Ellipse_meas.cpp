@@ -52,7 +52,7 @@ bool Ellipse::findRoundFrame(
 
     x.setZero();
 
-    EllipseSolver3 solver(b,galOrder2,_isFixedCen,_isFixedGamma,_isFixedMu);
+    EllipseSolver solver(b,galOrder2,_isFixedCen,_isFixedGamma,_isFixedMu);
 
 #ifdef NOTHROW
     solver.noUseCholesky();

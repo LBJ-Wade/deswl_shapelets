@@ -8,6 +8,10 @@
 
 #include "Params.h"
 
+const double MINVARG = 1.e-3; // If less than this then set to this.
+const double MAXVARG = 1.e3; // If more than this then skip.
+
+
 #if 1
 static const long ok_flags = (
     EDGE |
@@ -32,7 +36,7 @@ static double Weight(
 {
     // Impose a minimum on the variance to keep them from dominating
     // the weights.
-    if (varg < 1.e-3) varg = 1.e-3;
+    if (varg < MINVARG) varg = MINVARG;
 
     double gsq = std::norm(g);
     double f = shapenoise / (varg+shapenoise);
@@ -179,8 +183,7 @@ int main(int argc, char **argv)
         double varg = vargVec[i];
         double gsq = std::norm(g);
         double dr;
-        // TODO: The 0.1 in the next line should be a parameter.
-        if (varg > 0.1) continue; // Throw out sigma_g > 0.3
+        if (varg > MAXVARG) continue; // Throw out sigma_g > 0.3
         double galw = Weight(g,varg,0.,dr);
         shapenoise += (gsq - varg) * galw;
         sumw += galw;
@@ -200,7 +203,7 @@ int main(int argc, char **argv)
         std::complex<double> g = gVec[i];
         double gsq = std::norm(g);
         double varg = vargVec[i];
-        if (varg > 0.1) continue;
+        if (varg > MAXVARG) continue;
         double dr;
         double galw = Weight(g,varg,shapenoise,dr);
         resp += dr;
