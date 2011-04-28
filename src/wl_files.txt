@@ -1,9 +1,10 @@
 Bounds.cpp
+Function2D.cpp
 Legendre2D.cpp
 NLSolver.cpp
 Image.cpp
 BVec.cpp
-EllipseSolver3.cpp
+EllipseSolver.cpp
 Pixel.cpp
 Transformation.cpp
 ConfigFile.cpp

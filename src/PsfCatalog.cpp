@@ -37,7 +37,7 @@ void measureSinglePsf1(
         ell.peakCentroid(pix[0],psfAp/3.);
         ell.crudeMeasure(pix[0],sigmaP);
     }
-    DMatrix cov(psf.size(),psf.size());
+    DMatrix cov(int(psf.size()),int(psf.size()));
 
     // First make sure it is centered.
     if (!(ell.measure(pix,psfOrder,psfOrder+4,maxm,sigmaP,flag,1.e-4))) {

@@ -15,6 +15,7 @@ typedef tmv::Matrix<double> DMatrix;
 typedef tmv::MatrixView<double> DMatrixView;
 typedef tmv::ConstMatrixView<double> DConstMatrixView;
 typedef tmv::SmallMatrix<double,2,2> DSmallMatrix22;
+typedef tmv::Matrix<double> DRowVector;
 typedef tmv::BandMatrix<double> DBandMatrix;
 
 typedef tmv::Vector<std::complex<double> > CDVector;
@@ -68,8 +69,11 @@ typedef tmv::SymMatrix<double> DSymMatrix;
 #define TMV_addToAll(x) addToAll(x)
 #define TMV_setAllTo(x) setAllTo(x)
 #define TMV_colpart(j,i1,i2) col(j,i1,i2)
+#define TMV_rowpart(i,j1,j2) row(i,j1,j2)
+#define TMV_diagpart(i,j1,j2) diag(i,j1,j2)
 #define TMV_det() det()
 #define TMV_transposeSelf() transposeSelf()
+#define TMV_sumElements() sumElements()
 
 // Macros that require the matrix or vector as an argument:
 #define TMV_view(m) (m).view()
@@ -84,6 +88,8 @@ typedef tmv::SymMatrix<double> DSymMatrix;
 #define TMV_conjugateSelf(m) (m).conjugateSelf();
 #define EIGEN_Transpose(m) m
 #define EIGEN_ToScalar(m) m
+#define TMV_NormInf(m) NormInf(m)
+#define TMV_Norm(m) Norm(m)
 
 // Standalone macros:
 #define TMV_const const
@@ -92,6 +98,10 @@ typedef tmv::SymMatrix<double> DSymMatrix;
 
 // QR solver:
 #define TMV_QR(m) (m).divideUsing(tmv::QR); (m).saveDiv()
+#define TMV_QR1(m) (m).divideUsing(tmv::QR); (m).saveDiv()
+#define TMV_QR2(m) (m).resetDiv()
+#define TMV_QRisSingular(m) (m).isSingular()
+#define TMV_throwSingular throw tmv::Singular()
 #define TMV_QR_Solve(m,x,b) x = b/m
 #define TMV_QR_InverseATA(m,cov) (m).makeInverseATA(cov)
 
@@ -111,6 +121,7 @@ typedef Eigen::MatrixXd DMatrix;
 typedef Eigen::Block<DMatrix> DMatrixView;
 typedef const DMatrixView DConstMatrixView;
 typedef Eigen::Matrix<double,2,2> DSmallMatrix22;
+typedef Eigen::RowVectorXd DRowVector;
 typedef Eigen::MatrixXd DBandMatrix;
 
 typedef Eigen::VectorXcd CDVector;
@@ -164,8 +175,13 @@ typedef DMatrix DSymMatrix;
 #define TMV_addToAll(x) cwise() += (x)
 #define TMV_setAllTo(x) setConstant(x)
 #define TMV_colpart(j,i1,i2) col(j).segment(i1,i2)
+#define TMV_rowpart(i,j1,j2) row(i).segment(j1,j2)
+// This is only right if i == 0.  I don't think Eigen has the 
+// more general functionality, but that's not usually what I use.
+#define TMV_diagpart(i,j1,j2) diagonal().segment(j1,j2)
 #define TMV_det() determinant()
 #define TMV_transposeSelf() transposeInPlace()
+#define TMV_sumElements() sum()
 
 // Macros that require the matrix or vector as an argument:
 #define TMV_view(m) (m).block(0,0,(m).rows(),(m).cols())
@@ -173,13 +189,15 @@ typedef DMatrix DSymMatrix;
 #define TMV_colRange(m,j1,j2) (m).block(0,j1,(m).rows(),((j2)-(j1)))
 #define TMV_rowRange(m,i1,i2) (m).block(i1,0,((i2)-(i1)),(m).cols())
 #define TMV_ptr(m) &((m).coeffRef(0,0))
-#define TMV_cptr(m) &((m).coeffRef(0,0))
+#define TMV_cptr(m) &((m).coeff(0,0))
 #define TMV_stepi(m) ((m).Flags & Eigen::RowMajorBit ? (m).stride() : 1)
 #define TMV_stepj(m) ((m).Flags & Eigen::RowMajorBit ? 1 :  (m).stride())
 #define TMV_DiagMatrixViewOf(v) (v).asDiagonal()
 #define TMV_conjugateSelf(m) (m) = (m).conjugate()
 #define EIGEN_Transpose(m) (m).transpose()
 #define EIGEN_ToScalar(m) (m)(0,0)
+#define TMV_NormInf(m) (m).lpNorm<Eigen::Infinity>()
+#define TMV_Norm(m) (m).norm()
 
 // Standalone macros:
 #define TMV_const 
@@ -187,8 +205,21 @@ typedef DMatrix DSymMatrix;
 #define EIGEN_twice(x) x,x
 
 // QR solver:
-#define TMV_QR(m) Eigen::QR<DMatrix> QR_Solver_ ## m  = m.qr();
-#define TMV_QR_Solve(m,x,b) QR_Solver_ ## m .solve(b,&x);
+#define TMV_QR(m) Eigen::QR<DMatrix> QR_Solver_ ## m  = (m).qr();
+#define TMV_QR1(m)
+#define TMV_QR2(m) Eigen::QR<DMatrix> QR_Solver_ ## m  = (m).qr();
+// Eigen changed how the QR module works sometime between 2.0.0 and 2.0.10
+#if (EIGEN_MINOR_VERSION >= 10) || (EIGEN_MAJOR_VERSION > 0)
+#define TMV_QRisSingular(m) QR_Solver_ ## m .isInjective()
+#define TMV_QR_Solve(m,x,b) QR_Solver_ ## m .solve(b,&(x));
+#else
+#define TMV_QRisSingular(m) QR_Solver_ ## m .isFullRank()
+// 2.0.0 doesn't even have a QR.solve() function.
+#define TMV_QR_Solve(m,x,b) \
+    (x) = QR_Solver_ ## m .matrixQ().transpose() * (b); \
+QR_Solver_ ## m .matrixR().solveTriangularInPlace(x)
+#endif
+#define TMV_throwSingular throw std::runtime_error("Singular")
 #define TMV_QR_InverseATA(m,cov) \
     do { \
         (cov).setIdentity(); \

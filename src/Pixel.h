@@ -1,11 +1,14 @@
 #ifndef PIXEL_H
 #define PIXEL_H
 
+#define PIXELLIST_USE_POOL
+
 #include <complex>
 #include <string>
 #include "Image.h"
 #include "Transformation.h"
 #include "ConfigFile.h"
+#include "Bounds.h"
 
 #ifdef __INTEL_COMPILER
 #pragma warning (disable : 1418)
@@ -15,8 +18,10 @@
 #pragma warning (default : 1418)
 #endif
 
+#ifdef PIXELLIST_USE_POOL
 #define PIXELLIST_BLOCK 1024*1024*100  // 100 MB per block
 #include "PoolAllocator.h"
+#endif
 
 class Pixel 
 { 
@@ -84,8 +89,12 @@ private :
 
     bool _shouldUsePool;
     boost::shared_ptr<std::vector<Pixel> > _v1;
+#ifdef PIXELLIST_USE_POOL
     typedef PoolAllocator<Pixel,PIXELLIST_BLOCK> PoolAllocPixel;
     boost::shared_ptr<std::vector<Pixel,PoolAllocPixel> > _v2;
+#else
+    boost::shared_ptr<std::vector<Pixel> > _v2;
+#endif
 
 };
 

@@ -401,10 +401,10 @@ public :
     virtual void noUseVerboseOutput() { _verbose = 0; }
 
     virtual void useDirectH() {}
-    virtual void useSVD() {}
+    virtual void useSVD() { _shouldUseSvd = true; }
     virtual void useCholesky() {}
     virtual void noUseDirectH() {}
-    virtual void noUseSVD() {}
+    virtual void noUseSVD() { _shouldUseSvd = false; }
     virtual void noUseCholesky() {}
 
 private :

@@ -727,6 +727,23 @@ void FittedPsf::readFits(std::string file)
     }
 }
 
+double FittedPsf::interpolateSingleElement(Position pos, int i) const
+{
+    DVector P(_fitSize);
+#ifdef USE_TMV
+    setPRow(_fitOrder,pos,_bounds,P.view());
+    DVector b1 = P * (*_f);
+    double bi = b1 * _mV->col(i,0,_nPca);
+#else
+    setPRow(_fitOrder,pos,_bounds,P);
+    DVector b1 = _f->transpose() * P;
+    double bi = EIGEN_ToScalar(
+        EIGEN_Transpose(b1) * _mV_transpose->TMV_rowpart(i,0,_nPca));
+#endif
+    bi += (*_avePsf)(i);
+    return bi;
+}
+
 void FittedPsf::interpolateVector(Position pos, DVectorView b) const
 {
     DVector P(_fitSize);
@@ -741,4 +758,7 @@ void FittedPsf::interpolateVector(Position pos, DVectorView b) const
 #endif
     b += *_avePsf;
 }
+
+BVec FittedPsf::getMean() const
+{ return BVec(_psfOrder,_sigma,*_avePsf); }
 

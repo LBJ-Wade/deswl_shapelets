@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <iostream>
+#include <memory>
 #include "BVec.h"
 #include "Bounds.h"
 #include "ConfigFile.h"
@@ -29,6 +30,7 @@ public :
     int getFitSize() const { return _fitSize; }
     int getNpca() const { return _nPca; }
     double getSigma() const { return _sigma; }
+    void setSigma(double sigma) { _sigma = sigma; }
 
     double getXMin() const { return _bounds.getXMin(); }
     double getXMax() const { return _bounds.getXMax(); }
@@ -52,11 +54,6 @@ public :
         const std::vector<double>& nu,
         std::vector<long>& flags, PsfLog& log);
 
-#if 0
-    // Split the PSF stars into a training set and validation set
-    void split_psf_stars(std::vector<long>& flags);
-#endif
-
     void interpolate(Position pos, BVec& b) const
     {
         Assert(_avePsf.get());
@@ -67,6 +64,8 @@ public :
         interpolateVector(pos,TMV_vview(b.vec()));
     }
 
+    double interpolateSingleElement(Position pos, int i) const;
+
     // This next construct with FittedPsfAtXY allows you to write:
     // b = psf(pos);
     // instead of:
@@ -74,6 +73,8 @@ public :
     // Both do the same thing.  I just like the first notation better.
     friend class FittedPsfAtXY;
     inline FittedPsfAtXY operator()(Position pos) const; // below...
+
+    BVec getMean() const;
 
 private :
 

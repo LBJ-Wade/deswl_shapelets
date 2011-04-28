@@ -241,7 +241,10 @@ bool Ellipse::doMeasureShapelet(
     int bsize2 = (order2+1)*(order2+2)/2;
     xdbg<<"bsize2 = "<<bsize2<<std::endl;
 
+#ifdef USE_TMV
     // Figure out a permutation that puts all the m <= maxm first.
+    // I don't know how to do this with Eigen, but I don't really 
+    // use maxm < order on a regular basis, so only implement this for TMV.
     tmv::Permutation P(bsize);
     int msize = bsize;
     if (maxm < order) {
@@ -270,6 +273,7 @@ bool Ellipse::doMeasureShapelet(
         Assert(mvals[msize-1] == maxm);
         Assert(mvals[msize] == maxm+1);
     }
+#endif
 
     DMatrix A(nTot,bsize);
     Assert(nTot >= bsize); // Should have been addressed by calling routine.
@@ -290,7 +294,7 @@ bool Ellipse::doMeasureShapelet(
             xdbg<<"psfsize = "<<psfsize<<std::endl;
             bool setnew = false;
             if (_gamma != 0.) {
-                DMatrix S(newpsfsize,psfsize,0.);
+                DMatrix S(newpsfsize,psfsize);
                 calculateGTransform(_gamma,newpsforder,psforder,S);
                 newpsf.vec() = S * (*psf)[k].vec();
                 setnew = true;
@@ -298,11 +302,11 @@ bool Ellipse::doMeasureShapelet(
             }
             if (real(_mu) != 0.) {
                 if (setnew) {
-                    DMatrix D(newpsfsize,newpsfsize,0.);
+                    DMatrix D(newpsfsize,newpsfsize);
                     calculateMuTransform(real(_mu),newpsforder,D);
                     newpsf.vec() = D * newpsf.vec();
                 } else {
-                    DMatrix D(newpsfsize,psfsize,0.);
+                    DMatrix D(newpsfsize,psfsize);
                     calculateMuTransform(real(_mu),newpsforder,psforder,D);
                     newpsf.vec() = D * (*psf)[k].vec();
                     setnew = true;
@@ -312,18 +316,26 @@ bool Ellipse::doMeasureShapelet(
             }
             if (imag(_mu) != 0.) {
                 if (setnew) {
-                    DBandMatrix R(newpsfsize,newpsfsize,1,1,0.);
+#ifdef USE_TMV
+                    DBandMatrix R(newpsfsize,newpsfsize,1,1);
+#else
+                    DBandMatrix R(newpsfsize,newpsfsize);
+#endif
                     calculateThetaTransform(imag(_mu),newpsforder,R);
                     newpsf.vec() = R * newpsf.vec();
                 } else {
-                    DBandMatrix R(newpsfsize,psfsize,1,1,0.);
+#ifdef USE_TMV
+                    DBandMatrix R(newpsfsize,psfsize,1,1);
+#else
+                    DBandMatrix R(newpsfsize,psfsize);
+#endif
                     calculateThetaTransform(imag(_mu),newpsforder,psforder,R);
                     newpsf.vec() = R * (*psf)[k].vec();
                     setnew = true;
                 }
                 xdbg<<"newpsf => "<<newpsf<<std::endl;
             }
-            DMatrix C(bsize2,bsize,0.);
+            DMatrix C(bsize2,bsize);
             if (setnew) {
                 calculatePsfConvolve(newpsf,order2,order,b.getSigma(),C);
             } else {
@@ -387,7 +399,6 @@ bool Ellipse::doMeasureShapelet(
         *bCov = P.transpose() * (*bCov) * P;
     }
 #else
-    const double sqrtEps = sqrt(std::numeric_limits<double>::epsilon());
     Eigen::SVD<DMatrix> svd = A.svd().sort();
     const DMatrix& svd_u = svd.matrixU();
     const DVector& svd_s = svd.singularValues();
@@ -409,9 +420,10 @@ bool Ellipse::doMeasureShapelet(
     if (bCov) {
         bCov->setZero();
         // (AtA)^-1 = (VSUt USVt)^-1 = (V S^2 Vt)^-1 = V S^-2 Vt
-        DMatrix temp2 = 
-            svd_s.cwise().square().inverse().asDiagonal() * svd_v.transpose();
-        bCov->TMV_subMatrix(0,bsize,0,bsize) = svd_v.transpose() * temp2;
+        bCov->TMV_subMatrix(0,bsize,0,bsize) = 
+            svd_v *
+            svd_s.cwise().square().cwise().inverse().asDiagonal() *
+            svd_v.transpose();
     }
 #endif
     if (!(b(0) > 0.)) {
@@ -519,7 +531,7 @@ bool Ellipse::doAltMeasureShapelet(
             xdbg<<"psfsize = "<<psfsize<<std::endl;
             bool setnew = false;
             if (_gamma != 0.) {
-                DMatrix S(newpsfsize,psfsize,0.);
+                DMatrix S(newpsfsize,psfsize);
                 calculateGTransform(_gamma,newpsforder,psforder,S);
                 newpsf.vec() = S * (*psf)[k].vec();
                 setnew = true;
@@ -527,11 +539,11 @@ bool Ellipse::doAltMeasureShapelet(
             }
             if (real(_mu) != 0.) {
                 if (setnew) {
-                    DMatrix D(newpsfsize,newpsfsize,0.);
+                    DMatrix D(newpsfsize,newpsfsize);
                     calculateMuTransform(real(_mu),newpsforder,D);
                     newpsf.vec() = D * newpsf.vec();
                 } else {
-                    DMatrix D(newpsfsize,psfsize,0.);
+                    DMatrix D(newpsfsize,psfsize);
                     calculateMuTransform(real(_mu),newpsforder,psforder,D);
                     newpsf.vec() = D * (*psf)[k].vec();
                     setnew = true;
@@ -541,11 +553,19 @@ bool Ellipse::doAltMeasureShapelet(
             }
             if (imag(_mu) != 0.) {
                 if (setnew) {
-                    DBandMatrix R(newpsfsize,newpsfsize,1,1,0.);
+#ifdef USE_TMV
+                    DBandMatrix R(newpsfsize,newpsfsize,1,1);
+#else
+                    DBandMatrix R(newpsfsize,newpsfsize);
+#endif
                     calculateThetaTransform(imag(_mu),newpsforder,R);
                     newpsf.vec() = R * newpsf.vec();
                 } else {
-                    DBandMatrix R(newpsfsize,psfsize,1,1,0.);
+#ifdef USE_TMV
+                    DBandMatrix R(newpsfsize,psfsize,1,1);
+#else
+                    DBandMatrix R(newpsfsize,psfsize);
+#endif
                     calculateThetaTransform(imag(_mu),newpsforder,psforder,R);
                     newpsf.vec() = R * (*psf)[k].vec();
                     setnew = true;
@@ -553,7 +573,7 @@ bool Ellipse::doAltMeasureShapelet(
                 xdbg<<"newpsf => "<<newpsf<<std::endl;
             }
 
-            DMatrix C(bsize2,bsize2,0.);
+            DMatrix C(bsize2,bsize2);
             if (setnew) {
                 calculatePsfConvolve(newpsf,order2,b.getSigma(),C);
             } else {

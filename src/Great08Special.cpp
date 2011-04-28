@@ -10,6 +10,8 @@
 
 int main(int argc, char **argv) try 
 {
+    const double PI = 3.141592653589793;
+
     ConfigFile params;
     if (basicSetup(argc,argv,params,"g08special")) return EXIT_FAILURE;
 
@@ -112,6 +114,71 @@ int main(int argc, char **argv) try
         // Measure shears and shapelet vectors
         int nShear = shearCat.measureShears(im,weightIm.get(),*log);
 
+        int nGal = shearCat.size();
+        double maxg = 0.;
+        std::vector<double> absgamma;
+        absgamma.reserve(nGal);
+        for(int i=0; i<nGal; ++i) if (shearCat.getFlags(i) == 0) { 
+            double absg = std::abs(shearCat.getShear(i));
+            if (absg > maxg) maxg = absg;
+            absgamma.push_back(absg);
+        }
+        std::cout<<"absgamma.size = "<<absgamma.size()<<std::endl;
+        sort(absgamma.begin(),absgamma.end());
+        std::cout<<"shear by decile = "<<std::endl;
+        for(int i=0;i<10;++i) {
+            std::cout<<i*10<<"%  ==  "<<absgamma[absgamma.size()*double(i)/10.]<<std::endl;
+        }
+        std::cout<<"100%  ==  "<<absgamma.back()<<std::endl;
+
+        // Distribute the galaxies according to their measured shear.
+        // We will have total of 48 bins:
+        // There are 4 ranges for abs(g):
+        // 0 < abs(g) < g1 
+        // g1 < abs(g) < g2
+        // g2 < abs(g) < g3
+        // g3 < abs(g) < maxg
+        //
+        // with g1,g2,g3 being the quartile values of abs(g)
+        //
+        // Within each of these ranges, we have 12 bins in azimuth.
+        
+        double g1 = absgamma[absgamma.size()*0.25];
+        double g2 = absgamma[absgamma.size()*0.5];
+        double g3 = absgamma[absgamma.size()*0.75];
+        std::vector<std::vector<long> > idLists(48);
+        for(int i=0; i<nGal; ++i) if (shearCat.getFlags(i) == 0) {
+            double absg = std::abs(shearCat.getShear(i));
+            double argg = std::arg(shearCat.getShear(i)) * 180./PI;
+            int k1 = 
+                absg < g1 ? 0 : 
+                absg < g2 ? 1 :
+                absg < g3 ? 2 :
+                3;
+            int k2 = 
+                argg < -150. ? 0 : 
+                argg < -120. ? 1 :
+                argg < -90. ? 2 :
+                argg < -60. ? 3 :
+                argg < -30. ? 4 :
+                argg < 0. ? 5 :
+                argg < 30. ? 6 :
+                argg < 60. ? 7 :
+                argg < 90. ? 8 :
+                argg < 120. ? 9 :
+                argg < 150. ? 10 :
+                11;
+            idLists[12*k1 + k2].push_back(i);
+        }
+        std::cout<<"g ranges are:\n";
+        std::cout<<"0 -- "<<g1<<std::endl;
+        std::cout<<g1<<" -- "<<g2<<std::endl;
+        std::cout<<g2<<" -- "<<g3<<std::endl;
+        std::cout<<g3<<" -- "<<maxg<<std::endl;
+        for(int k=0;k<48;++k) {
+            std::cout<<"idLists["<<k<<"].size = "<<idLists[k].size()<<std::endl;
+        }
+
         if (isTiming) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
@@ -121,18 +188,13 @@ int main(int argc, char **argv) try
         }
 
         // Write results to file
-        shearCat.write();
+        //shearCat.write();
 
         if (isTiming) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
             std::cout<<"Time: Write ShearCatalog = "<<t2-t1<<std::endl;
             t1 = t2;
-        }
-
-        if (nShear == 0) {
-            throw ProcessingException(
-                "No successful shear measurements");
         }
 
         xdbg<<"Shear Log: \n"<<*log<<std::endl;

@@ -408,7 +408,7 @@ void DoMeasureShear(
             //       Probably doesn't matter.
             //
             BVec flux(0,sigma);
-            DMatrix fluxCov(1,1,0.);
+            DMatrix fluxCov(1,1);
             if (!ell_native.measureShapelet(pix,psf,flux,0,0,0,&fluxCov) ||
                 !(flux(0) > 0) || !(fluxCov(0,0) > 0.) ||
                 shapelet(0) >= flux(0)*3. || shapelet(0) <= flux(0)/3.) {

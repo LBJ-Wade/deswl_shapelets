@@ -84,18 +84,25 @@ int MultiShearCatalog::getPixels(const Bounds& bounds)
 #endif
 
             // Get the file names
+            Assert(iFile < _imageFileList.size());
+            Assert(iFile < _fitPsfFileList.size());
             std::string imageFile = _imageFileList[iFile];
-            std::string shearFile = _shearFileList[iFile];
             std::string fitPsfFile = _fitPsfFileList[iFile];
 
             dbg<<"Reading image file: "<<imageFile<<"\n";
             // Set the appropriate parameters
             _params["image_file"] = imageFile;
             setRoot(_params,imageFile);
-            _params["shear_file"] = shearFile;
             _params["fitpsf_file"] = fitPsfFile;
 
+            if (_shearFileList.size() > 0) {
+                Assert(iFile < _shearFileList.size());
+                std::string shearFile = _shearFileList[iFile];
+                _params["shear_file"] = shearFile;
+            }
+
             if (_skyMapFileList.size() > 0) {
+                Assert(iFile < _skyMapFileList.size());
                 std::string skyMapFile = _skyMapFileList[iFile];
                 _params["skymap_file"] = skyMapFile;
             }
@@ -138,6 +145,16 @@ MultiShearCatalog::MultiShearCatalog(const ConfigFile& params) :
 MultiShearCatalog::~MultiShearCatalog() 
 {}
 
+void MultiShearCatalog::addImage(
+    const std::string& imageFilename, const std::string& fitPsfFilename,
+    const std::string& shearFilename, const std::string& skyMapFilename)
+{
+    _imageFileList.push_back(imageFilename);
+    _fitPsfFileList.push_back(fitPsfFilename);
+    if (shearFilename != "") _shearFileList.push_back(shearFilename);
+    if (skyMapFilename != "") _skyMapFileList.push_back(skyMapFilename);
+}
+
 // readFileLists reads the srclist file specified in params
 // and reads the names of the images and fitpsf 
 void MultiShearCatalog::readFileLists()
@@ -166,9 +183,6 @@ void MultiShearCatalog::readFileLists()
         bool isSkyMapInList = _params.read("multishear_skymap_in_list",false);
 
         while (flist >> imageFilename >> shearFilename >> fitPsfFilename) {
-            _imageFileList.push_back(imageFilename);
-            _shearFileList.push_back(shearFilename);
-            _fitPsfFileList.push_back(fitPsfFilename);
             dbg<<"Files are :\n"<<imageFilename<<std::endl;
             dbg<<shearFilename<<std::endl;
             dbg<<fitPsfFilename<<std::endl;
@@ -178,7 +192,10 @@ void MultiShearCatalog::readFileLists()
                     throw ReadException(
                         "Unable to read skyMapFilename in list file " + file);
                 }
-                _skyMapFileList.push_back(skyMapFilename);
+                addImage(imageFilename,fitPsfFilename,
+                         shearFilename,skyMapFilename);
+            } else {
+                addImage(imageFilename,fitPsfFilename,shearFilename);
             }
         }
         if (isSkyMapInList) {

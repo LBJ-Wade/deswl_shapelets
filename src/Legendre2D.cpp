@@ -1,7 +1,8 @@
 #include <algorithm>
+#include <stdexcept>
 
 #include "Legendre2D.h"
-#include "Function2D.cpp"
+//#include "Function2D.cpp"
 
 static std::string makeRangeExceptionMessage(
     const Position& p, const Bounds& b)

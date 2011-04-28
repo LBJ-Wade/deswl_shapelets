@@ -44,6 +44,7 @@ PixelList::~PixelList()
 
 void PixelList::usePool() 
 {
+#ifdef PIXELLIST_USE_POOL
     // This should be done before any elements are added.
     if (_v1.get()) Assert(_v1->size() == 0);
     if (_v2.get()) Assert(_v2->size() == 0);
@@ -55,6 +56,7 @@ void PixelList::usePool()
         _v2.reset(new std::vector<Pixel,PoolAllocPixel>());
     }
     _shouldUsePool = true; 
+#endif
 }
 
 size_t PixelList::size() const

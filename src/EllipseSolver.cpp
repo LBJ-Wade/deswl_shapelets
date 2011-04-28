@@ -97,8 +97,8 @@ EllipseSolver3::ESImpl3::ESImpl3(
     b0size(_b0.size()), bxsize((bxorder+1)*(bxorder+2)/2),
     bxsizep2((bxorderp2+1)*(bxorderp2+2)/2),
     b0(_b0), bx(bxsize), bxsave(bxsize),
-    Daug(bxsize,bxsizep2,0.), Saug(bxsize,bxsizep2,0.),
-    Taug(bxsize,bxsizep2,0.),
+    Daug(bxsize,bxsizep2), Saug(bxsize,bxsizep2),
+    Taug(bxsize,bxsizep2),
     D(TMV_colRange(Daug,0,bxsize)), S(TMV_colRange(Saug,0,bxsize)),
     T(TMV_colRange(Taug,0,bxsize)),
     dbdE(6), Db0(bxsize), SDb0(bxsize), GDb0(bxsizep2), GthDb0(bxsizep2),
@@ -107,9 +107,9 @@ EllipseSolver3::ESImpl3::ESImpl3(
     U((fixcen?0:2)+(fixgam?0:2)+(fixmu?0:1),5), 
     xinit(5), xx(5), ff(5), jj(5,5),
     x_short(U.TMV_colsize()), f_short(U.TMV_colsize()),
-    Gx(bxsizep2,bxsize,0.), Gy(bxsizep2,bxsize,0.), 
-    Gg1(bxsizep2,bxsize,0.), Gg2(bxsizep2,bxsize,0.), 
-    Gth(bxsizep2,bxsize,0.), Gmu(bxsizep2,bxsize,0.)
+    Gx(bxsizep2,bxsize), Gy(bxsizep2,bxsize), 
+    Gg1(bxsizep2,bxsize), Gg2(bxsizep2,bxsize), 
+    Gth(bxsizep2,bxsize), Gmu(bxsizep2,bxsize)
 {
     //xdbg<<"EllipseSolver3: \n";
     //xdbg<<"b0 = "<<b0.vec()<<std::endl;
@@ -126,6 +126,10 @@ EllipseSolver3::ESImpl3::ESImpl3(
     if (!fixgam) { U(k++,2) = 1.; U(k++,3) = 1.; }
     if (!fixmu) { U(k,4) = 1.; }
 
+    Daug.setZero();
+    Saug.setZero();
+    Taug.setZero();
+
     setupGx(Gx,bxorderp2,bxorder);
     setupGy(Gy,bxorderp2,bxorder);
     setupGg1(Gg1,bxorderp2,bxorder);
@@ -134,13 +138,13 @@ EllipseSolver3::ESImpl3::ESImpl3(
     setupGmu(Gmu,bxorderp2,bxorder);
 
     if (fixcen) { 
-        T.diag().setAllTo(1.);
+        T.TMV_diag().TMV_setAllTo(1.);
     }
     if (fixgam) { 
-        S.diag().setAllTo(1.);
+        S.TMV_diag().TMV_setAllTo(1.);
     }
     if (fixmu) { 
-        D.diag().setAllTo(1.);
+        D.TMV_diag().TMV_setAllTo(1.);
     }
 }
 
@@ -404,14 +408,14 @@ void EllipseSolver3::ESImpl3::doJ3(
         augmentZTransformCols(zc,bxorder,Taug);
         SDb0 = S * Db0;
         GDb0 = Gx * SDb0;
-        dbdE = Taug.rowRange(0,6) * GDb0;
+        dbdE = TMV_rowRange(Taug,0,6) * GDb0;
         //dbg<<"dbdE = "<<dbdE<<std::endl;
-        J.col(0) = dbdE.subVector(1,6) - dbdE(0) * f;
+        J.col(0) = dbdE.TMV_subVector(1,6) - dbdE(0) * f;
         //dbg<<"J(0) = "<<J.col(0)<<std::endl;
         GDb0 = Gy * SDb0;
-        dbdE = Taug.rowRange(0,6) * GDb0;
+        dbdE = TMV_rowRange(Taug,0,6) * GDb0;
         //dbg<<"dbdE = "<<dbdE<<std::endl;
-        J.col(1) = dbdE.subVector(1,6) - dbdE(0) * f;
+        J.col(1) = dbdE.TMV_subVector(1,6) - dbdE(0) * f;
         //dbg<<"J(1) = "<<J.col(1)<<std::endl;
     } else {
         J.col(0).setZero();
@@ -432,14 +436,14 @@ void EllipseSolver3::ESImpl3::doJ3(
         SDb0 = fact * Saug * GDb0;
         dbdE = TMV_rowRange(T,0,6) * SDb0;
         //dbg<<"dbdE = "<<dbdE<<std::endl;
-        J.col(2) = dbdE.subVector(1,6) - dbdE(0) * f;
+        J.col(2) = dbdE.TMV_subVector(1,6) - dbdE(0) * f;
         //dbg<<"J(2) = "<<J.col(2)<<std::endl;
         GDb0 = Gg2 * Db0;
         GDb0 -= g1*GthDb0;
         SDb0 = fact * Saug * GDb0;
         dbdE = TMV_rowRange(T,0,6) * SDb0;
         //dbg<<"dbdE = "<<dbdE<<std::endl;
-        J.col(3) = dbdE.subVector(1,6) - dbdE(0) * f;
+        J.col(3) = dbdE.TMV_subVector(1,6) - dbdE(0) * f;
         //dbg<<"J(3) = "<<J.col(3)<<std::endl;
     } else {
         J.col(2).setZero();
@@ -456,7 +460,7 @@ void EllipseSolver3::ESImpl3::doJ3(
         SDb0 = S * Db0; 
         dbdE = TMV_rowRange(T,0,6) * SDb0;
         //dbg<<"dbdE = "<<dbdE<<std::endl;
-        J.col(4) = dbdE.subVector(1,6) - dbdE(0) * f;
+        J.col(4) = dbdE.TMV_subVector(1,6) - dbdE(0) * f;
         //dbg<<"J(4) = "<<J.col(4)<<std::endl;
     } else {
         J.col(4).setZero();
@@ -478,24 +482,24 @@ void EllipseSolver3::ESImpl3::doJ3(
     //
     // dD/dmu:
     //
-    DMatrix Dbig(bxsizep2,bxsizep2,0.);
-    DMatrix D0(bxsize,bxsize,0.);
-    DMatrix D1(bxsize,bxsize,0.);
-    DMatrix D2(bxsize,bxsize,0.);
+    DMatrix Dbig(bxsizep2,bxsizep2);
+    DMatrix D0(bxsize,bxsize);
+    DMatrix D1(bxsize,bxsize);
+    DMatrix D2(bxsize,bxsize);
     calculateMuTransform(mu,bxorderp2,Dbig);
     calculateMuTransform(mu,bxorder,D0);
     calculateMuTransform(mu-dE,bxorder,D1);
     calculateMuTransform(mu+dE,bxorder,D2);
-    DMatrix Gmubig(bxsizep2,bxsize,0.);
+    DMatrix Gmubig(bxsizep2,bxsize);
     setupGmu(Gmubig,bxorderp2,bxorder);
 
     DMatrix dDdmu_num = (D2-D1)/(2.*dE);
     DMatrix d2D_num = (D2+D1-2.*D0)/(dE*dE);
-    DMatrix dDdmu = Dbig.rowRange(0,bxsize) * Gmubig;
-    dbg<<"Gmu = "<<Gmubig.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"D = "<<Dbig.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"dDdmu = "<<dDdmu.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"dDdmu_num = "<<dDdmu_num.subMatrix(0,6,0,6)<<std::endl;
+    DMatrix dDdmu = TMV_rowRange(Dbig,0,bxsize) * Gmubig;
+    dbg<<"Gmu = "<<Gmubig.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"D = "<<Dbig.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"dDdmu = "<<dDdmu.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"dDdmu_num = "<<dDdmu_num.TMV_subMatrix(0,6,0,6)<<std::endl;
     dbg<<"Norm(dD/dmu - numeric dD/dmu) = "<<Norm(dDdmu-dDdmu_num)<<std::endl;
     dbg<<"dE*Norm(d2D_num) = "<<dE*Norm(d2D_num)<<std::endl;
     test(Norm(dDdmu-dDdmu_num) < 30.*dE*Norm(d2D_num),"dDdmu");
@@ -503,27 +507,27 @@ void EllipseSolver3::ESImpl3::doJ3(
     //
     // dS/dg1
     //
-    DMatrix Sbig(bxsizep2,bxsizep2,0.);
-    DMatrix S0(bxsize,bxsize,0.);
-    DMatrix S1(bxsize,bxsize,0.);
-    DMatrix S2(bxsize,bxsize,0.);
+    DMatrix Sbig(bxsizep2,bxsizep2);
+    DMatrix S0(bxsize,bxsize);
+    DMatrix S1(bxsize,bxsize);
+    DMatrix S2(bxsize,bxsize);
     calculateGTransform(g,bxorderp2,Sbig);
     calculateGTransform(g,bxorder,S0);
     calculateGTransform(g-std::complex<double>(dE,0),bxorder,S1);
     calculateGTransform(g+std::complex<double>(dE,0),bxorder,S2);
-    DMatrix Gg1big(bxsizep2,bxsize,0.);
-    DMatrix Gthbig(bxsizep2,bxsize,0.);
+    DMatrix Gg1big(bxsizep2,bxsize);
+    DMatrix Gthbig(bxsizep2,bxsize);
     setupGg1(Gg1big,bxorderp2,bxorder);
     setupGth(Gthbig,bxorderp2,bxorder);
 
     DMatrix dSdg1_num = (S2-S1)/(2.*dE);
     DMatrix d2S_num = (S2+S1-2.*S0)/(dE*dE);
-    DMatrix dSdg1 = fact * Sbig.rowRange(0,bxsize) * (Gg1big + imag(g) * Gthbig);
-    dbg<<"Gg1 = "<<Gg1big.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"Gth = "<<Gthbig.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"S = "<<Sbig.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"dSdg1 = "<<dSdg1.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"dSdg1_num = "<<dSdg1_num.subMatrix(0,6,0,6)<<std::endl;
+    DMatrix dSdg1 = fact * TMV_rowRange(Sbig,0,bxsize) * (Gg1big + imag(g) * Gthbig);
+    dbg<<"Gg1 = "<<Gg1big.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"Gth = "<<Gthbig.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"S = "<<Sbig.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"dSdg1 = "<<dSdg1.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"dSdg1_num = "<<dSdg1_num.TMV_subMatrix(0,6,0,6)<<std::endl;
     dbg<<"Norm(dS/dg1 - numeric dS/dg1) = "<<Norm(dSdg1-dSdg1_num)<<std::endl;
     dbg<<"dE*Norm(d2S_num) = "<<dE*Norm(d2S_num)<<std::endl;
     test(Norm(dSdg1-dSdg1_num) < 30.*dE*Norm(d2S_num),"dSdg1");
@@ -533,17 +537,17 @@ void EllipseSolver3::ESImpl3::doJ3(
     //
     calculateGTransform(g-std::complex<double>(0,dE),bxorder,S1);
     calculateGTransform(g+std::complex<double>(0,dE),bxorder,S2);
-    DMatrix Gg2big(bxsizep2,bxsize,0.);
+    DMatrix Gg2big(bxsizep2,bxsize);
     setupGg2(Gg2big,bxorderp2,bxorder);
 
     DMatrix dSdg2_num = (S2-S1)/(2.*dE);
     d2S_num = (S2+S1-2.*S0)/(dE*dE);
-    DMatrix dSdg2 = fact * Sbig.rowRange(0,bxsize) * (Gg2big - real(g) * Gthbig);
-    dbg<<"Gg2 = "<<Gg2big.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"Gth = "<<Gthbig.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"S = "<<Sbig.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"dSdg2 = "<<dSdg2.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"dSdg2_num = "<<dSdg2_num.subMatrix(0,6,0,6)<<std::endl;
+    DMatrix dSdg2 = fact * TMV_rowRange(Sbig,0,bxsize) * (Gg2big - real(g) * Gthbig);
+    dbg<<"Gg2 = "<<Gg2big.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"Gth = "<<Gthbig.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"S = "<<Sbig.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"dSdg2 = "<<dSdg2.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"dSdg2_num = "<<dSdg2_num.TMV_subMatrix(0,6,0,6)<<std::endl;
     dbg<<"Norm(dS/dg2 - numeric dS/dg2) = "<<Norm(dSdg2-dSdg2_num)<<std::endl;
     dbg<<"dE*Norm(d2S_num) = "<<dE*Norm(d2S_num)<<std::endl;
     test(Norm(dSdg2-dSdg2_num) < 30.*dE*Norm(d2S_num),"dSdg2");
@@ -551,24 +555,24 @@ void EllipseSolver3::ESImpl3::doJ3(
     //
     // dT/dx
     //
-    DMatrix Tbig(bxsizep2,bxsizep2,0.);
-    DMatrix T0(bxsize,bxsize,0.);
-    DMatrix T1(bxsize,bxsize,0.);
-    DMatrix T2(bxsize,bxsize,0.);
+    DMatrix Tbig(bxsizep2,bxsizep2);
+    DMatrix T0(bxsize,bxsize);
+    DMatrix T1(bxsize,bxsize);
+    DMatrix T2(bxsize,bxsize);
     calculateZTransform(zc,bxorderp2,Tbig);
     calculateZTransform(zc,bxorder,T0);
     calculateZTransform(zc-std::complex<double>(dE,0),bxorder,T1);
     calculateZTransform(zc+std::complex<double>(dE,0),bxorder,T2);
-    DMatrix Gxbig(bxsizep2,bxsize,0.);
-    setupGx(Gxbig,bxorderp2,bxorder);
+    DMatrix Gxbig(bxsizep2,bxsize);
+    setupGx(Gxbig,bxorderp2,bxorder,0.);
 
     DMatrix dTdx_num = (T2-T1)/(2.*dE);
     DMatrix d2T_num = (T2+T1-2.*T0)/(dE*dE);
-    DMatrix dTdx = Tbig.rowRange(0,bxsize) * Gxbig;
-    dbg<<"Gx = "<<Gxbig.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"T = "<<Tbig.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"dTdx = "<<dTdx.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"dTdx_num = "<<dTdx_num.subMatrix(0,6,0,6)<<std::endl;
+    DMatrix dTdx = TMV_rowRange(Tbig,0,bxsize) * Gxbig;
+    dbg<<"Gx = "<<Gxbig.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"T = "<<Tbig.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"dTdx = "<<dTdx.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"dTdx_num = "<<dTdx_num.TMV_subMatrix(0,6,0,6)<<std::endl;
     dbg<<"Norm(dT/dx - numeric dT/dx) = "<<Norm(dTdx-dTdx_num)<<std::endl;
     dbg<<"dE*Norm(d2T_num) = "<<dE*Norm(d2T_num)<<std::endl;
     test(Norm(dTdx-dTdx_num) < 30.*dE*Norm(d2T_num),"dTdx");
@@ -578,16 +582,16 @@ void EllipseSolver3::ESImpl3::doJ3(
     //
     calculateZTransform(zc-std::complex<double>(0,dE),bxorder,T1);
     calculateZTransform(zc+std::complex<double>(0,dE),bxorder,T2);
-    DMatrix Gybig(bxsizep2,bxsize,0.);
+    DMatrix Gybig(bxsizep2,bxsize);
     setupGy(Gybig,bxorderp2,bxorder,0.);
 
     DMatrix dTdy_num = (T2-T1)/(2.*dE);
     d2T_num = (T2+T1-2.*T0)/(dE*dE);
-    DMatrix dTdy = Tbig.rowRange(0,bxsize) * Gybig;
-    dbg<<"Gy = "<<Gybig.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"T = "<<Tbig.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"dTdy = "<<dTdy.subMatrix(0,6,0,6)<<std::endl;
-    dbg<<"dTdy_num = "<<dTdy_num.subMatrix(0,6,0,6)<<std::endl;
+    DMatrix dTdy = TMV_rowRange(Tbig,0,bxsize) * Gybig;
+    dbg<<"Gy = "<<Gybig.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"T = "<<Tbig.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"dTdy = "<<dTdy.TMV_subMatrix(0,6,0,6)<<std::endl;
+    dbg<<"dTdy_num = "<<dTdy_num.TMV_subMatrix(0,6,0,6)<<std::endl;
     dbg<<"Norm(dT/dy - numeric dT/dy) = "<<Norm(dTdy-dTdy_num)<<std::endl;
     dbg<<"dE*Norm(d2T_num) = "<<dE*Norm(d2T_num)<<std::endl;
     test(Norm(dTdy-dTdy_num) < 30.*dE*Norm(d2T_num),"dTdy");
@@ -600,7 +604,7 @@ void EllipseSolver3::ESImpl3::doJ3(
     DVector x0 = x;
     DVector f0(5);
     doF3(x0,f0);
-    DVector bx0 = bx.subVector(0,6);
+    DVector bx0 = bx.TMV_subVector(0,6);
     dbg<<"x0 = "<<x0<<std::endl;
     dbg<<"b0 = "<<bx0<<std::endl;
     dbg<<"f0 = "<<f0<<std::endl;
@@ -611,7 +615,7 @@ void EllipseSolver3::ESImpl3::doJ3(
         DVector f1(5);
         DVector x1 = x; x1(k) -= dE;
         doF3(x1,f1);
-        DVector b1 = bx.subVector(0,6);
+        DVector b1 = bx.TMV_subVector(0,6);
         dbg<<"x1 = "<<x1<<std::endl;
         dbg<<"b1 = "<<b1<<std::endl;
         dbg<<"f1 = "<<f1<<std::endl;
@@ -619,7 +623,7 @@ void EllipseSolver3::ESImpl3::doJ3(
         DVector f2(5);
         DVector x2 = x; x2(k) += dE;
         doF3(x2,f2);
-        DVector b2 = bx.subVector(0,6);
+        DVector b2 = bx.TMV_subVector(0,6);
         dbg<<"x2 = "<<x2<<std::endl;
         dbg<<"b2 = "<<b2<<std::endl;
         dbg<<"f2 = "<<f2<<std::endl;
@@ -632,26 +636,26 @@ void EllipseSolver3::ESImpl3::doJ3(
         DVector dbdE(6);
         double g1 = real(g);
         double g2 = imag(g);
-        Db0 = D.colRange(0,b0size) * b0.vec();
+        Db0 = TMV_colRange(D,0,b0size) * b0.vec();
         dbg<<"Db0 = "<<Db0<<std::endl;
         switch (k) {
           case 0: SDb0 = S * Db0;
                   dbg<<"SDb0 = "<<SDb0<<std::endl;
                   GDb0 = Gx * SDb0;
                   dbg<<"GDb0 = "<<GDb0<<std::endl;
-                  dbdE = Tbig.rowRange(0,6) * GDb0;
+                  dbdE = TMV_rowRange(Tbig,0,6) * GDb0;
                   dbg<<"dbdx = "<<dbdE<<std::endl;
                   dbg<<"dbdx = dTdx S D b0 = "<<
-                      dTdx.rowRange(0,6) * S * Db0<<std::endl;
+                      TMV_rowRange(dTdx,0,6) * S * Db0<<std::endl;
                   break;
           case 1: SDb0 = S * Db0;
                   dbg<<"SDb0 = "<<SDb0<<std::endl;
                   GDb0 = Gy * SDb0;
                   dbg<<"GDb0 = "<<GDb0<<std::endl;
-                  dbdE = Tbig.rowRange(0,6) * GDb0;
+                  dbdE = TMV_rowRange(Tbig,0,6) * GDb0;
                   dbg<<"dbdy = "<<dbdE<<std::endl;
                   dbg<<"dbdy = dTdy S D b0 = "<<
-                      dTdy.rowRange(0,6) * S * Db0<<std::endl;
+                      TMV_rowRange(dTdy,0,6) * S * Db0<<std::endl;
                   break;
           case 2: GDb0 = Gg1 * Db0;
                   dbg<<"GDb0 = "<<GDb0<<std::endl;
@@ -659,12 +663,12 @@ void EllipseSolver3::ESImpl3::doJ3(
                   dbg<<"GthDb0 = "<<GthDb0<<std::endl;
                   GDb0 += g2*GthDb0;
                   dbg<<"GDb0 = "<<GDb0<<std::endl;
-                  SDb0 = fact * Sbig.rowRange(0,bxsize) * GDb0;
+                  SDb0 = fact * TMV_rowRange(Sbig,0,bxsize) * GDb0;
                   dbg<<"SDb0 = "<<SDb0<<std::endl;
-                  dbdE = T.rowRange(0,6) * SDb0;
+                  dbdE = TMV_rowRange(T,0,6) * SDb0;
                   dbg<<"dbdg1 = "<<dbdE<<std::endl;
                   dbg<<"dbdg1 = T dSdg1 D b0 = "<<
-                      T.rowRange(0,6) * dSdg1 * Db0<<std::endl;
+                      TMV_rowRange(T,0,6) * dSdg1 * Db0<<std::endl;
                   break;
           case 3: GDb0 = Gg2 * Db0;
                   dbg<<"GDb0 = "<<GDb0<<std::endl;
@@ -672,23 +676,23 @@ void EllipseSolver3::ESImpl3::doJ3(
                   dbg<<"GthDb0 = "<<GthDb0<<std::endl;
                   GDb0 -= g1*GthDb0;
                   dbg<<"GDb0 = "<<GDb0<<std::endl;
-                  SDb0 = fact * Sbig.rowRange(0,bxsize) * GDb0;
+                  SDb0 = fact * TMV_rowRange(Sbig,0,bxsize) * GDb0;
                   dbg<<"SDb0 = "<<SDb0<<std::endl;
-                  dbdE = T.rowRange(0,6) * SDb0;
+                  dbdE = TMV_rowRange(T,0,6) * SDb0;
                   dbg<<"dbdg2 = "<<dbdE<<std::endl;
                   dbg<<"dbdg2 = T dSdg2 D b0 = "<<
-                      T.rowRange(0,6) * dSdg2 * Db0<<std::endl;
+                      TMV_rowRange(T,0,6) * dSdg2 * Db0<<std::endl;
                   break;
-          case 4: GDb0 = Gmu.colRange(0,b0size) * b0.vec();
+          case 4: GDb0 = TMV_colRange(Gmu,0,b0size) * b0.vec();
                   dbg<<"GDb0 = "<<GDb0<<std::endl;
-                  Db0 = Dbig.rowRange(0,bxsize) * GDb0;
+                  Db0 = TMV_rowRange(Dbig,0,bxsize) * GDb0;
                   dbg<<"Db0 = "<<Db0<<std::endl;
                   SDb0 = S * Db0; 
                   dbg<<"SDb0 = "<<SDb0<<std::endl;
-                  dbdE = T.rowRange(0,6) * SDb0;
+                  dbdE = TMV_rowRange(T,0,6) * SDb0;
                   dbg<<"dbdmu = "<<dbdE<<std::endl;
                   dbg<<"dbdmu = T S dDdmu b0 = "<<
-                      T.rowRange(0,6) * S * dDdmu.colRange(0,b0size) * b0.vec()
+                      TMV_rowRange(T,0,6) * S * TMV_colRange(dDdmu,0,b0size) * b0.vec()
                       <<std::endl;
                   break;
         }
@@ -697,11 +701,11 @@ void EllipseSolver3::ESImpl3::doJ3(
         dbg<<"dE*Norm(d2bdE) = "<<dE*Norm(d2bdE)<<std::endl;
         test(Norm(dbdE-dbdE_num) < 30.*dE*Norm(d2bdE),"dbdE");
 
-        DVector dfdE = dbdE.subVector(1,6) - dbdE(0) * f0;
+        DVector dfdE = dbdE.TMV_subVector(1,6) - dbdE(0) * f0;
         dfdE /= bx(0);
         dbg<<"dfdE from dbdE = "<<dfdE<<std::endl;
         dbg<<"dfdE from dbdE_num = "<<
-            (dbdE_num.subVector(1,6) - dbdE_num(0) * f0)/bx(0)<<std::endl;;
+            (dbdE_num.TMV_subVector(1,6) - dbdE_num(0) * f0)/bx(0)<<std::endl;;
         dbg<<"dfdE in J = "<<J.col(k)<<std::endl;
         J_num.col(k) = (f2-f1)/(2.*dE);
         dbg<<"dfdE_num = "<<J_num.col(k)<<std::endl;
@@ -714,8 +718,8 @@ void EllipseSolver3::ESImpl3::doJ3(
 
     dbg<<"J_num = "<<J_num<<std::endl;
     dbg<<"analytic: "<<J<<std::endl;
-    if (fixcen) J_num.colRange(0,2).setZero(); 
-    if (fixgam) J_num.colRange(2,4).setZero(); 
+    if (fixcen) TMV_colRange(J_num,0,2).setZero(); 
+    if (fixgam) TMV_colRange(J_num,2,4).setZero(); 
     if (fixmu) J_num.col(4).setZero(); 
     dbg<<"J_num => "<<J_num<<std::endl;
     dbg<<"Norm(diff) = "<<Norm(J-J_num)<<std::endl;
@@ -745,14 +749,14 @@ void EllipseSolver3::ESImpl3::doJ2(
         Db0 = TMV_colRange(D,0,b0size) * b0.vec();
         //dbg<<"Db0 = "<<Db0<<std::endl;
         GDb0 = Gx * Db0;
-        dbdE = Taug.rowRange(0,6) * GDb0;
+        dbdE = TMV_rowRange(Taug,0,6) * GDb0;
         //dbg<<"dbdE = "<<dbdE<<std::endl;
-        J.col(0) = dbdE.subVector(1,6) - dbdE(0) * f;
+        J.col(0) = dbdE.TMV_subVector(1,6) - dbdE(0) * f;
         //dbg<<"J(0) = "<<J.col(0)<<std::endl;
         GDb0 = Gy * Db0;
-        dbdE = Taug.rowRange(0,6) * GDb0;
+        dbdE = TMV_rowRange(Taug,0,6) * GDb0;
         //dbg<<"dbdE = "<<dbdE<<std::endl;
-        J.col(1) = dbdE.subVector(1,6) - dbdE(0) * f;
+        J.col(1) = dbdE.TMV_subVector(1,6) - dbdE(0) * f;
         //dbg<<"J(1) = "<<J.col(1)<<std::endl;
     } else {
         //dbg<<"J(0) = "<<J.col(0)<<std::endl;
@@ -770,7 +774,7 @@ void EllipseSolver3::ESImpl3::doJ2(
         //dbg<<"SDb0 = "<<SDb0<<std::endl;
         dbdE = TMV_rowRange(T,0,6) * SDb0;
         //dbg<<"dbdE = "<<dbdE<<std::endl;
-        J.col(4) = dbdE.subVector(1,6) - dbdE(0) * f;
+        J.col(4) = dbdE.TMV_subVector(1,6) - dbdE(0) * f;
         //dbg<<"J(4) = "<<J.col(4)<<std::endl;
     } else {
         //dbg<<"J(4) = "<<J.col(4)<<std::endl;
@@ -798,14 +802,14 @@ void EllipseSolver3::ESImpl3::doJ1(
 
     augmentZTransformCols(zc,bxorder,Taug);
     GDb0 = TMV_colRange(Gx,0,b0size) * b0.vec();
-    dbdE = Taug.rowRange(0,6) * GDb0;
+    dbdE = TMV_rowRange(Taug,0,6) * GDb0;
     //dbg<<"dbdE = "<<dbdE<<std::endl;
-    J.col(0) = dbdE.subVector(1,6) - dbdE(0) * f;
+    J.col(0) = dbdE.TMV_subVector(1,6) - dbdE(0) * f;
     //dbg<<"J(0) = "<<J.col(0)<<std::endl;
     GDb0 = TMV_colRange(Gy,0,b0size) * b0.vec();
-    dbdE = Taug.rowRange(0,6) * GDb0;
+    dbdE = TMV_rowRange(Taug,0,6) * GDb0;
     //dbg<<"dbdE = "<<dbdE<<std::endl;
-    J.col(1) = dbdE.subVector(1,6) - dbdE(0) * f;
+    J.col(1) = dbdE.TMV_subVector(1,6) - dbdE(0) * f;
     //dbg<<"J(1) = "<<J.col(1)<<std::endl;
 
     J /= bx(0);
@@ -864,6 +868,7 @@ void EllipseSolver3::dontZeroB11() { _pimpl->zerob11 = false; this->useSVD(); }
 void EllipseSolver3::getCovariance(DMatrix& cov) const 
 {
     DMatrix cov1(_pimpl->x_short.size(),_pimpl->x_short.size());
+    //const_cast<EllipseSolver3*>(this)->setOutput(*dbgout);
     NLSolver::getCovariance(cov1);
     cov = _pimpl->U.transpose()*cov1*_pimpl->U;
     dbg<<"getCovariance:\n";
@@ -902,7 +907,7 @@ bool EllipseSolver3::solve(DVector& x, DVector& f) const
     Assert(x.size() == 5);
     Assert(f.size() == 5);
     _pimpl->xinit = x;
-    _pimpl->bx.setAllTo(1.); // In case we bail out with f = 2*bx/b(0)
+    _pimpl->bx.TMV_setAllTo(1.); // In case we bail out with f = 2*bx/b(0)
     if (_pimpl->fixcen) { _pimpl->fixuc = x[0]; _pimpl->fixvc = x[1]; }
     if (_pimpl->fixgam) { _pimpl->fixg1 = x[2]; _pimpl->fixg2 = x[3]; }
     if (_pimpl->fixmu) { _pimpl->fixm = x[4]; }

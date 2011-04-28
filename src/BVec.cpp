@@ -57,8 +57,9 @@ void calculateZTransform(
     Assert(int(T.TMV_colsize()) >= size1);
     Assert(int(T.TMV_rowsize()) >= size2);
 
+    T.setZero();
     if (z == 0.0) { 
-        T.diag(0,0,std::min(size1,size2)).setAllTo(1.);
+        T.TMV_diagpart(0,0,std::min(size1,size2)).TMV_setAllTo(1.);
         return; 
     }
 
@@ -184,7 +185,12 @@ void augmentZTransformCols(std::complex<double> z, int order, DMatrix& T)
 void applyZ(std::complex<double> z, BVec& b)
 {
     if (z != 0.0) {
+#ifdef USE_TMV
         DMatrix T(b.size(),b.size(),0.);
+#else
+        DMatrix T(int(b.size()),int(b.size()));
+        T.setZero();
+#endif
         calculateZTransform(z/b.getSigma(),b.getOrder(),T);
         b.vec() = T * b.vec();
     }
@@ -227,9 +233,10 @@ void calculateMuTransform(double mu, int order1, int order2, DMatrix& D)
     //       However, I'll wait to implement this until such speed 
     //       is found to be necessary.
 
+    D.setZero();
 
     if (mu == 0.0) { 
-        D.diag(0,0,std::min(size1,size2)).setAllTo(1.);
+        D.TMV_diagpart(0,0,std::min(size1,size2)).TMV_setAllTo(1.);
         return; 
     }
 
@@ -375,7 +382,7 @@ void augmentMuTransformRows(double mu, int order, DMatrix& D)
 void applyMu(double mu, BVec& b)
 {
     if (mu != 0.0) {
-        DMatrix D(b.size(),b.size(),0.);
+        DMatrix D(int(b.size()),int(b.size()));
         calculateMuTransform(mu,b.getOrder(),D);
         b.vec() = D * b.vec();
     }
@@ -389,8 +396,10 @@ void calculateThetaTransform(
     Assert(int(R.TMV_colsize()) >= size1);
     Assert(int(R.TMV_rowsize()) >= size2);
 
+    R.setZero();
+
     if (theta == 0.0) { 
-        R.diag(0,0,std::min(size1,size2)).setAllTo(1.);
+        R.TMV_diagpart(0,0,std::min(size1,size2)).TMV_setAllTo(1.);
         return; 
     }
 
@@ -419,9 +428,9 @@ void applyTheta(double theta, BVec& b)
 {
     if (theta != 0.0) {
 #ifdef USE_TMV
-        DBandMatrix R(b.size(),b.size(),1,1,0.);
+        DBandMatrix R(int(b.size()),int(b.size()),1,1);
 #else
-        DBandMatrix R(b.size(),b.size(),0.);
+        DBandMatrix R(int(b.size()),int(b.size()));
 #endif
         calculateThetaTransform(theta,b.getOrder(),R);
         b.vec() = R * b.vec();
@@ -447,8 +456,10 @@ void calculateGTransform(
     // sparse.  Could get a speedup by expoiting that, but currently don't.
     // I'll wait until the speedup is found to be necessary.
 
+    S.setZero();
+
     if (g == 0.0) { 
-        S.diag(0,0,std::min(size1,size2)).setAllTo(1.);
+        S.TMV_diagpart(0,0,std::min(size1,size2)).TMV_setAllTo(1.);
         return; 
     }
 
@@ -627,7 +638,7 @@ void augmentGTransformCols(std::complex<double> g, int order, DMatrix& S)
 void applyG(std::complex<double> g, BVec& b)
 {
     if (g != 0.0) {
-        DMatrix S(b.size(),b.size(),0.);
+        DMatrix S(int(b.size()),int(b.size()));
         calculateGTransform(g,b.getOrder(),S);
         b.vec() = S * b.vec();
     }
@@ -673,6 +684,7 @@ void calculatePsfConvolve(
     //            = A sqrt(p)/sqrt(s+1) H(s,p-1,u) + 
     //              B sqrt(u)/sqrt(s+1) H(s,p,u-1)
     
+    C.setZero();
 
     // sigma^2 = exp(mu)
     // D = sigma_i^2 / (sigma_i^2 + sigma_psf^2) 
@@ -704,7 +716,7 @@ void calculatePsfConvolve(
     }
 
     int pq = 0;
-    const double* bpsfv = bpsf.vec().cptr();
+    const double* bpsfv = TMV_cptr(bpsf.vec());
     for(int n=0;n<=order2;++n) {
         for(int p=n,q=0;p>=q;(p==q?++pq:pq+=2),--p,++q) {
             //xdbg<<"Start column "<<pq<<" = "<<p<<','<<q<<std::endl;
@@ -854,7 +866,7 @@ void calculatePsfConvolve(
 
 void applyPsf(const BVec& bpsf, BVec& b)
 {
-    DMatrix C(b.size(),b.size(),0.);
+    DMatrix C(int(b.size()),int(b.size()));
     calculatePsfConvolve(bpsf,b.getOrder(),b.getSigma(),C);
     b.vec() = C * b.vec();
 }

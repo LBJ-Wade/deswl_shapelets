@@ -30,6 +30,14 @@ public :
     // Read the srclist file
     void readFileLists();
 
+    // Or can add images by hand.
+    // The last two file names are optional.
+    void addImage( 
+        const std::string& imageFilename,
+        const std::string& fitPsfFilename,
+        const std::string& shearFilename="",
+        const std::string& skyMapFilename="");
+
     // Get a set of bounds with a maximum linear extent in either direction
     // of params["multishear_section_size"] arcminutes on a side.
     std::vector<Bounds> splitBounds();

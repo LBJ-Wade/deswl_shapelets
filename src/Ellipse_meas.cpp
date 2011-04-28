@@ -7,8 +7,6 @@
 #include "PsiHelper.h"
 #include "Params.h"
 
-#define MAX_START 0.1
-
 bool Ellipse::doMeasure(
     const std::vector<PixelList>& pix,
     const std::vector<BVec>* psf,
@@ -49,41 +47,10 @@ bool Ellipse::findRoundFrame(
     const BVec& b, bool psf, int galOrder2, double thresh,
     long& flag, DMatrix* cov)
 {
-    DVector x(5,0.);
+    DVector x(5);
     DVector f(5);
 
-#if 0
-    // Initial estimates from b:
-    if (!_isFixedCen) {
-        // b10/b00 ~= conj(zc)/2
-        x(0) = b(1)/b(0)*2.;
-        x(1) = -b(2)/b(0)*2.;
-    }
-    if (!_isFixedGamma) {
-        // b20/b00 ~= conj(gamma)/sqrt(2)
-        x(2) = b(3)/b(0)*sqrt(2.); 
-        x(3) = -b(4)/b(0)*sqrt(2.); 
-    }
-    if (!_isFixedMu && !psf) {
-        // b11/b00 ~= mu
-        x(4) = b(5)/b(0);
-    }
-
-    // Don't start with more that 0.1 in any element.
-    DVector xinit = x;
-    for(int k=0;k<5;++k) {
-        if (x[k] > MAX_START) {
-            xdbg<<"Adjusting x["<<k<<"] from "<<x[k];
-            x[k] = MAX_START;
-            xdbg<<" to "<<x[k]<<std::endl;
-        } else if (x[k] < -MAX_START) {
-            xdbg<<"Adjusting x["<<k<<"] from "<<x[k];
-            x[k] = -MAX_START;
-            xdbg<<" to "<<x[k]<<std::endl;
-        }
-    }
-    xdbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
-#endif
+    x.setZero();
 
     EllipseSolver3 solver(b,galOrder2,_isFixedCen,_isFixedGamma,_isFixedMu);
 
@@ -111,7 +78,7 @@ bool Ellipse::findRoundFrame(
         dbg<<"Found good round frame:\n";
         dbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
         dbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
-        double f_normInf = f.normInf();
+        double f_normInf = f.TMV_normInf();
         if (psf && !_isFixedMu && !(f_normInf < solver.getFTol())) {
             xdbg<<"Oops, Local minimum, not real solution.\n";
             xdbg<<"f.norm = "<<f.norm()<<std::endl;
