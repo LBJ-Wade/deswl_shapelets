@@ -1,6 +1,28 @@
 
 -------------------------------------------------------------------------
 
+v0.62  (2011-04-29) 
+
+1) Shear average now dowe directly in gamma space, rather than by 
+   translating to and from delta per definition in BJ02.
+
+2) A number of algorithmic changes to the shear measurement process, 
+   mostly to fix some biases at low S/N.
+   - When shear measurement fails, reduce order of shapelet decomposition 
+     and try again, rather than failing.
+   - Made the shear measurement routine work for either single or multiple
+     epoch estimates, so no need to have two different versions anymore.
+   - Iterate multiple times to estimate shear, using a weighted average of
+     the 'round' frame and the 'shear' frame for doing the measurement.
+   - Also iterate for the native measurement a couple of times, which helps
+     for highly elliptical galaxies.
+
+3) Added Bob's improvements to the star-galaxy separation algorithm.
+
+4) Some other minor bug fixes.
+
+-------------------------------------------------------------------------
+
 v0.61  (2011-01-08) 
 
 The biggest development is to reconfigure the basic shear measurement 
