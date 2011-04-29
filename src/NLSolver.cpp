@@ -1144,8 +1144,10 @@ void NLSolver::getCovariance(tmv::Matrix<double>& cov) const
     J.makeInverseATA(cov);
     xdbg<<"getCovariance:\n";
     xdbg<<"J = "<<J<<std::endl;
-    xdbg<<"JtJ = "<<J.adjoint()*J<<std::endl;
-    xdbg<<"(JtJ)^-1 = "<<(J.adjoint()*J).inverse()<<std::endl;
+    tmv::Matrix<double> JtJ = J.adjoint()*J;
+    xdbg<<"JtJ = "<<JtJ<<std::endl;
+    JtJ.divideUsing(tmv::QRP);
+    xdbg<<"(JtJ)^-1 = "<<JtJ.inverse()<<std::endl;
     xdbg<<"cov = "<<cov<<std::endl;
 }
 

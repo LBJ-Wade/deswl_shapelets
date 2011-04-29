@@ -14,7 +14,7 @@
 #define MAX_DELTA_MU 0.2
 #define MAX_DELTA_GAMMA1 0.1
 #define MAX_DELTA_GAMMA2 1.e-3
-#define FAIL_DELTA_GAMMA2 1.e-2
+#define FAIL_DELTA_GAMMA2 1.e-1
 
 void DoMeasureShear(
     const std::vector<PixelList>& allpix,
@@ -459,7 +459,8 @@ void DoMeasureShear(
                 for(int iter=1;iter<=MAX_ITER;++iter) {
                     dbg<<"Shear iter = "<<iter<<std::endl;
                     flag1 = 0;
-                    double w = sqrt(sigma/sigmaP);
+                    //double w = sqrt(sigma/sigmaP);
+                    double w = 1.;
                     ell_shear.setGamma(
                         (w*ell_shear.getGamma() + ell_round.getGamma())/(w+1.));
                     if (ell_shear.measure(
