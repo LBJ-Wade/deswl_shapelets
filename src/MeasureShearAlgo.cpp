@@ -459,8 +459,7 @@ void DoMeasureShear(
                 for(int iter=1;iter<=MAX_ITER;++iter) {
                     dbg<<"Shear iter = "<<iter<<std::endl;
                     flag1 = 0;
-                    //double w = sqrt(sigma/sigmaP);
-                    double w = 1.;
+                    double w = sqrt(sigma/sigmaP);
                     ell_shear.setGamma(
                         (w*ell_shear.getGamma() + ell_round.getGamma())/(w+1.));
                     if (ell_shear.measure(

@@ -380,7 +380,7 @@ void InputCatalog::readFits(std::string file, int hdu)
         std::string sgCol=_params["cat_sg_col"];
         dbg<<"  "<<sgCol<<std::endl;
         table.column(sgCol).read(_sg, start, end);
-    }
+    } 
 
     // Size
     if (_params.keyExists("cat_size_col")) {

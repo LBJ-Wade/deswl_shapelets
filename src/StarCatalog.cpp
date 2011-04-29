@@ -175,6 +175,7 @@ StarCatalog::StarCatalog(
     Assert(_sky.size() == size());
     Assert(_noise.size() == size());
     Assert(_flags.size() == size());
+    if (_sg.size() == 0) _sg.resize(size(),DEFVALNEG);
     Assert(_sg.size() == size());
     if (_objSize.size() == 0) _objSize.resize(size(),DEFVALNEG);
     Assert(_objSize.size() == size());
