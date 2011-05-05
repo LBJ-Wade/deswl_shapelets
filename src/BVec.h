@@ -101,14 +101,22 @@ void calculateZTransform(
     std::complex<double> z, int order1, int order2, DMatrix& T);
 inline void calculateZTransform(std::complex<double> z, int order, DMatrix& T)
 { calculateZTransform(z,order,order,T); }
-void augmentZTransformCols(std::complex<double> z, int order, DMatrix& T);
+void augmentZTransformCols(
+    std::complex<double> z, int order1, int order2, DMatrix& T);
+inline void augmentZTransformCols(
+    std::complex<double> z, int order, DMatrix& T)
+{ augmentZTransformCols(z,order,order,T); }
 void applyZ(std::complex<double> z, BVec& b);
 
 void calculateMuTransform(double mu, int order1, int order2, DMatrix& D);
 inline void calculateMuTransform(double mu, int order, DMatrix& D)
 { calculateMuTransform(mu,order,order,D); }
-void augmentMuTransformRows(double mu, int order, DMatrix& D);
-void augmentMuTransformCols(double mu, int order, DMatrix& D);
+void augmentMuTransformRows(double mu, int order1, int order2, DMatrix& D);
+void augmentMuTransformCols(double mu, int order1, int order2, DMatrix& D);
+inline void augmentMuTransformRows(double mu, int order, DMatrix& D)
+{ augmentMuTransformRows(mu,order,order,D); }
+inline void augmentMuTransformCols(double mu, int order, DMatrix& D)
+{ augmentMuTransformCols(mu,order,order,D); }
 void applyMu(double mu, BVec& b);
 
 void calculateThetaTransform(
@@ -121,7 +129,11 @@ void calculateGTransform(
     std::complex<double> g, int order1, int order2, DMatrix& S);
 inline void calculateGTransform(std::complex<double> g, int order, DMatrix& S)
 { calculateGTransform(g,order,order,S); }
-void augmentGTransformCols(std::complex<double> g, int order, DMatrix& S);
+void augmentGTransformCols(
+    std::complex<double> g, int order1, int order2, DMatrix& S);
+inline void augmentGTransformCols(
+    std::complex<double> g, int order, DMatrix& S)
+{ augmentGTransformCols(g,order,order,S); }
 void applyG(std::complex<double> g, BVec& b);
 
 void calculatePsfConvolve(
