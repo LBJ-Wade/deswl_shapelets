@@ -29,8 +29,10 @@ bool Ellipse::doMeasure(
     }
 
     BVec b(galOrder,sigma);
+    std::auto_ptr<DMatrix> bCov;
+    if (cov) bCov.reset(new DMatrix(b.size(),b.size()));
 
-    if (!doMeasureShapelet(pix,psf,b,galOrder,galOrder2,maxm)) {
+    if (!doMeasureShapelet(pix,psf,b,galOrder,galOrder2,maxm,bCov.get())) {
         xdbg<<"Could not measure a shapelet vector.\n";
         return false;
     }
@@ -40,12 +42,12 @@ bool Ellipse::doMeasure(
     }
     xdbg<<"b = "<<b<<std::endl;
 
-    return findRoundFrame(b,psf,galOrder2,thresh,flag,cov);
+    return findRoundFrame(b,psf,galOrder2,thresh,flag,bCov.get(),cov);
 }
 
 bool Ellipse::findRoundFrame(
     const BVec& b, bool psf, int galOrder2, double thresh,
-    long& flag, DMatrix* cov)
+    long& flag, const DMatrix* bCov, DMatrix* cov)
 {
     DVector x(5);
     DVector f(5);
@@ -106,8 +108,9 @@ bool Ellipse::findRoundFrame(
     dbg<<"ell => "<<*this<<std::endl;
 
     if (cov) {
+        Assert(bCov);
         solver.useSVD();
-        solver.getCovariance(*cov);
+        solver.getCovariance(*bCov,*cov);
         xdbg<<"cov = "<<*cov<<std::endl;
     }
 

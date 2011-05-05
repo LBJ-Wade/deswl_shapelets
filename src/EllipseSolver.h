@@ -20,8 +20,8 @@ public :
 
     void useNumericJ();
     void dontZeroB11();
-    void getCovariance(DMatrix& cov) const;
-    void getInverseCovariance(DMatrix& invcov) const;
+    void getCovariance(const DMatrix& b0Cov, DMatrix& cov) const;
+    void getInverseCovariance(const DMatrix& b0Cov, DMatrix& invcov) const;
 
     // CallF takes x and f of length 5, rather than whatever shorter
     // length that F takex (depending on if things are fixed).

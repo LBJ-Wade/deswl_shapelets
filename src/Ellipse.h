@@ -69,7 +69,7 @@ public :
     // in which this shapelet vector would be observed to be round.
     bool findRoundFrame(
         const BVec& b, bool psf, int galOrder2, double thresh,
-        long& flag, DMatrix* cov=0);
+        long& flag, const DMatrix* bCov=0, DMatrix* cov=0);
 
     // Do a really simple and fast measurement to get a good starting point.
     // Only does centroid and size.

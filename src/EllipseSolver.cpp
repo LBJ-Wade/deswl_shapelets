@@ -19,7 +19,7 @@ struct EllipseSolver::ESImpl
 {
 
     ESImpl(
-        const BVec& b0, int order,
+        const BVec& _b0, int order,
         bool isFixedCen, bool isFixedGamma, bool isFixedMu);
 
     void calculateF(const DVector& x, DVector& f) const;
@@ -34,9 +34,11 @@ struct EllipseSolver::ESImpl
     void doF1(const DVector& x, DVector& f) const;
     void doJ1(const DVector& x, const DVector& f, DMatrix& J) const;
 
+    void calculateInvCov(const DMatrix& b0Cov, DMatrix& invcov) const;
+
     int b0order, bxorder, bxorderp2;
     int b0size, bxsize, bxsizep2;
-    mutable BVec b0;
+    const BVec& b0;
     mutable DVector bx;
     mutable DVector bxsave;
     mutable DMatrix Daug;
@@ -68,9 +70,9 @@ struct EllipseSolver::ESImpl
 };
 
 EllipseSolver::EllipseSolver(
-    const BVec& b0, int order,
+    const BVec& _b0, int order,
     bool fixcen, bool fixgam, bool fixmu) :
-    _pimpl(new ESImpl(b0,order,fixcen,fixgam,fixmu))
+    _pimpl(new ESImpl(_b0,order,fixcen,fixgam,fixmu))
 {}
 
 EllipseSolver::~EllipseSolver() 
@@ -861,29 +863,63 @@ void EllipseSolver::ESImpl::calculateJ(
     j = U*jj*U.transpose();
 }
 
+void EllipseSolver::ESImpl::calculateInvCov(
+    const DMatrix& b0Cov, DMatrix& invcov) const
+{
+    xdbg<<"ESImpl: calculateInvCov:\n";
+    xdbg<<"b0Cov = "<<b0Cov<<std::endl;
+
+    // Cov(b') = T S D Cov(b0) Dt St Tt
+    // Cov(f) = Cov(b')(1:6,1:6) / b(0)^2
+    // Cov(x)^-1 = Jt Cov(f)^-1 J
+    DMatrix T1 = T.TMV_subMatrix(1,6,0,b0size);
+    DMatrix TS1 = T1 * TMV_colRange(S,0,b0size);
+    DMatrix TSD1 = TS1 * TMV_colRange(D,0,b0size);
+    DMatrix bxCov = TSD1 * b0Cov * TSD1.transpose();
+    xdbg<<"bxCov = "<<bxCov<<std::endl;
+    DMatrix fCov = bxCov / (bx(0)*bx(0));
+    xdbg<<"fCov = "<<fCov<<std::endl;
+    fCov.divideUsing(tmv::SV);
+
+    invcov = jj.transpose() * fCov.inverse() * jj;
+}
+
 void EllipseSolver::useNumericJ() { _pimpl->numeric_j = true; }
 
 void EllipseSolver::dontZeroB11() { _pimpl->zerob11 = false; this->useSVD(); }
 
-void EllipseSolver::getCovariance(DMatrix& cov) const 
+void EllipseSolver::getCovariance(const DMatrix& b0Cov, DMatrix& cov) const 
 {
-    DMatrix cov1(_pimpl->x_short.size(),_pimpl->x_short.size());
-    //const_cast<EllipseSolver*>(this)->setOutput(*dbgout);
-    NLSolver::getCovariance(cov1);
-    cov = _pimpl->U.transpose()*cov1*_pimpl->U;
+    const double sqrtEps = sqrt(std::numeric_limits<double>::epsilon());
     dbg<<"getCovariance:\n";
+
+    DMatrix invcov1(_pimpl->x_short.size(),_pimpl->x_short.size());
+    _pimpl->calculateInvCov(b0Cov,invcov1);
+    dbg<<"invcov1 = "<<invcov1<<std::endl;
+
+    if (_shouldUseSvd) {
+        invcov1.divideUsing(tmv::SV);
+        invcov1.svd().thresh(sqrtEps);
+    }
+
+    DMatrix cov1 = invcov1.inverse();
     dbg<<"cov1 = "<<cov1<<std::endl;
-    dbg<<"full cov = "<<cov<<std::endl;
+
+    cov = _pimpl->U.transpose()*cov1*_pimpl->U;
+    dbg<<"cov = "<<cov<<std::endl;
 }
 
-void EllipseSolver::getInverseCovariance(DMatrix& invcov) const 
+void EllipseSolver::getInverseCovariance(
+    const DMatrix& b0Cov, DMatrix& invcov) const 
 {
-    DMatrix invcov1(_pimpl->x_short.size(),_pimpl->x_short.size());
-    NLSolver::getInverseCovariance(invcov1);
-    invcov = _pimpl->U.transpose()*invcov1*_pimpl->U;
     dbg<<"getInverseCovariance:\n";
+
+    DMatrix invcov1(_pimpl->x_short.size(),_pimpl->x_short.size());
+    _pimpl->calculateInvCov(b0Cov,invcov1);
     dbg<<"invcov1 = "<<invcov1<<std::endl;
-    dbg<<"full invcov = "<<invcov<<std::endl;
+
+    invcov = _pimpl->U.transpose()*invcov1*_pimpl->U;
+    dbg<<"invcov = "<<invcov<<std::endl;
 }
 
 void EllipseSolver::callF(const DVector& x, DVector& f) const

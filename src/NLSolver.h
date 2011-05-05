@@ -303,7 +303,7 @@ public :
     virtual void noUseSVD() { _shouldUseSvd = false; }
     virtual void noUseCholesky() { _shouldUseCh = false; }
 
-private :
+protected:
 
     enum Method { NEWTON, HYBRID, DOGLEG, LM, SECANT_DOGLEG, SECANT_LM };
 
@@ -407,7 +407,7 @@ public :
     virtual void noUseSVD() { _shouldUseSvd = false; }
     virtual void noUseCholesky() {}
 
-private :
+protected:
 
     enum Method { HYBRID, DOGLEG };
 
