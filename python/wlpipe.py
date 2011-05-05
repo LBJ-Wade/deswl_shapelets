@@ -352,6 +352,12 @@ def find_redfiles(dataset, band):
         else:
             stdout.write("* Skipping missing run: %s\n" % run)
 
+    # grab just the pointing info
+    pointings = []
+    for info in infolist:
+        imdir = os.path.dirname(info['imfile'])
+        catdir = os.path.dirname(info['catfile'])
+        pointings.append({'imdir':imdir,'catdir':catdir})
     deswl.files.collated_redfiles_write(dataset, band, infolist)
 
 

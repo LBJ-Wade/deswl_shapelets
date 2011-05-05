@@ -34,9 +34,9 @@ parser.add_option("--rootdir", default=None,
 parser.add_option("--copyroot", action='store_true', default=False,
     help="Copy output files to the default path under $DESDATA")
 
-parser.add_option("-t","--types",default="stars,psf,shear,split",
+parser.add_option("-t","--types",default="stars,psf,shear",
                   help="Comma separated list indicating which"
-                       " types of processing to perform.  Default %default")
+                       " types of processing to perform stars,psf,shear,split.  Default %default")
 
 #parser.add_option("--dataset", default=None,
 #                  help="dataset. e.g. 'dc4'")

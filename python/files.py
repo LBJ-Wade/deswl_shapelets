@@ -808,7 +808,7 @@ def collated_redfiles_write_web(dataset, band):
     data = esutil.io.read(json_file)
     flist = data['flist']
 
-    DESDATA=data['rootdir']
+    #DESDATA=data['rootdir']
 
 
     # just for getting unique ones
@@ -817,12 +817,13 @@ def collated_redfiles_write_web(dataset, band):
     pdata = {}
     pdata['band'] = band
     pdata['dataset'] = dataset
-    pdata['DESDATA'] = DESDATA
+    #pdata['DESDATA'] = DESDATA
+    pdata['hostname'] = data['hostname']
     pdata['flist'] = []
     for f in flist:
 
-        imfile=f['imfile'].replace(DESDATA,'$DESDATA')
-        catfile=f['catfile'].replace(DESDATA,'$DESDATA')
+        imfile=f['imfile']#.replace(DESDATA,'$DESDATA')
+        catfile=f['catfile']#.replace(DESDATA,'$DESDATA')
 
         imdir=os.path.dirname(imfile)
         catdir=os.path.dirname(catfile)
