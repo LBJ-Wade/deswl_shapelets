@@ -48,12 +48,12 @@ namespace laguerre {
 
     // ??? replace here with numeric_limits<double>.infinity()
 #ifdef HUGE_VAL
-    static const double DOUBLE_INFINITY=HUGE_VAL;
+    //static const double DOUBLE_INFINITY=HUGE_VAL;
 #else
-    static const double DOUBLE_INFINITY=1./0.;
+    //static const double DOUBLE_INFINITY=1./0.;
 #endif
-    static const double DOUBLE_NEGATIVE_INFINITY=-DOUBLE_INFINITY;
-    static const double DOUBLE_NAN = DOUBLE_NEGATIVE_INFINITY + DOUBLE_INFINITY;
+    //static const double DOUBLE_NEGATIVE_INFINITY=-DOUBLE_INFINITY;
+    //static const double DOUBLE_NAN = DOUBLE_NEGATIVE_INFINITY + DOUBLE_INFINITY;
 #ifndef PI
 #ifdef M_PI
 #define PI M_PI

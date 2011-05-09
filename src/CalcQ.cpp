@@ -59,7 +59,7 @@ int main(int argc, char* argv[])
         for(mapit i=galTypeMap.begin(); i!=galTypeMap.end(); ++i) {
             galType_reorg[i->second] = i->first;
         }
-        for(int i=0;i<galType_reorg.size();++i) {
+        for(int i=0;i<int(galType_reorg.size());++i) {
             std::cout<<i<<"  =  "<<galType_reorg[i]<<std::endl;
         }
     }
@@ -127,7 +127,7 @@ int main(int argc, char* argv[])
     std::cout<<"e2: m = "<<m2<<", c = "<<c2<<std::endl;
     if (argc >= 5) {
         std::cout<<"Q by type:\n";
-        for(int i=0;i<galType_reorg.size();++i) {
+        for(int i=0;i<int(galType_reorg.size());++i) {
             q_by_type[i] = 2.e-4 * n_by_type[i] / q_by_type[i];
             std::cout<<i<<"  "<<galType_reorg[i]<<"  ";
             std::cout<<q_by_type[i]<<"  "<<n_by_type[i]<<std::endl;

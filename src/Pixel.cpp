@@ -36,6 +36,8 @@ void getPixList(
 
     int xMin = im.getXMin();
     int yMin = im.getYMin();
+    int xMax = im.getXMax();
+    int yMax = im.getYMax();
 
     double xCen = cen.getX();
     double yCen = cen.getY();
@@ -49,6 +51,18 @@ void getPixList(
     // set from the parameters: cat_x_offset and cat_y_offset
     xCen -= xOffset;
     yCen -= yOffset;
+
+    if (xCen < xMin || xCen > xMax || yCen < yMin || yCen > yMax) {
+        dbg<<"Position "<<xCen<<" , "<<yCen<<
+            " does not fall within bounds of image:\n";
+        dbg<<xMin<<"  "<<xMax<<"  "<<yMin<<"  "<<yMax<<std::endl;
+        dbg<<"returning with no pixels\n";
+        pix.resize(0);
+        flag |= EDGE;
+        flag |= LT10PIX;
+        return;
+    }
+
 
     int i1 = int(floor(xCen-xAp-xMin));
     int i2 = int(ceil(xCen+xAp-xMin));

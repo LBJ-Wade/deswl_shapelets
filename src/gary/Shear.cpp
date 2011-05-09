@@ -220,7 +220,8 @@ Ellipse::fromMatrix(const SqDMatrix& m, double& rotation, bool& parityFlip) {
     scale = -det;
   } else if (det==0.) {
     // Degenerate transformation.  Return some junk
-    return Ellipse(0., 0., DOUBLE_NEGATIVE_INFINITY, 0., 0.);
+    //return Ellipse(0., 0., DOUBLE_NEGATIVE_INFINITY, 0., 0.);
+    return Ellipse(0., 0., 0., 0., 0.);
   } else {
     scale = det;
   }

@@ -259,7 +259,7 @@ int ShearCatalog::measureShears(
 
     if (shouldOutputDots && !shouldOutputDesQa) {
         std::complex<double> meanShear = 0.;
-        int nGoodShear = 0.;
+        int nGoodShear = 0;
         for(int i=0;i<nGals;++i) if (!(_flags[i] & ~ok_flags)) {
             meanShear += _shear[i];
             ++nGoodShear;

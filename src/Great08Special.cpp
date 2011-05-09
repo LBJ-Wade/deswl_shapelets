@@ -113,6 +113,7 @@ int main(int argc, char **argv) try
 
         // Measure shears and shapelet vectors
         int nShear = shearCat.measureShears(im,weightIm.get(),*log);
+	dbg<<"nShear = "<<nShear<<std::endl;
 
         int nGal = shearCat.size();
         double maxg = 0.;
@@ -127,7 +128,7 @@ int main(int argc, char **argv) try
         sort(absgamma.begin(),absgamma.end());
         std::cout<<"shear by decile = "<<std::endl;
         for(int i=0;i<10;++i) {
-            std::cout<<i*10<<"%  ==  "<<absgamma[absgamma.size()*double(i)/10.]<<std::endl;
+            std::cout<<i*10<<"%  ==  "<<absgamma[int(absgamma.size()*double(i)/10.)]<<std::endl;
         }
         std::cout<<"100%  ==  "<<absgamma.back()<<std::endl;
 
@@ -143,9 +144,9 @@ int main(int argc, char **argv) try
         //
         // Within each of these ranges, we have 12 bins in azimuth.
         
-        double g1 = absgamma[absgamma.size()*0.25];
-        double g2 = absgamma[absgamma.size()*0.5];
-        double g3 = absgamma[absgamma.size()*0.75];
+        double g1 = absgamma[int(absgamma.size()*0.25)];
+        double g2 = absgamma[int(absgamma.size()*0.5)];
+        double g3 = absgamma[int(absgamma.size()*0.75)];
         std::vector<std::vector<long> > idLists(48);
         for(int i=0; i<nGal; ++i) if (shearCat.getFlags(i) == 0) {
             double absg = std::abs(shearCat.getShear(i));

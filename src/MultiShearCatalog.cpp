@@ -84,8 +84,8 @@ int MultiShearCatalog::getPixels(const Bounds& bounds)
 #endif
 
             // Get the file names
-            Assert(iFile < _imageFileList.size());
-            Assert(iFile < _fitPsfFileList.size());
+            Assert(iFile < int(_imageFileList.size()));
+            Assert(iFile < int(_fitPsfFileList.size()));
             std::string imageFile = _imageFileList[iFile];
             std::string fitPsfFile = _fitPsfFileList[iFile];
 
@@ -96,13 +96,13 @@ int MultiShearCatalog::getPixels(const Bounds& bounds)
             _params["fitpsf_file"] = fitPsfFile;
 
             if (_shearFileList.size() > 0) {
-                Assert(iFile < _shearFileList.size());
+                Assert(iFile < int(_shearFileList.size()));
                 std::string shearFile = _shearFileList[iFile];
                 _params["shear_file"] = shearFile;
             }
 
             if (_skyMapFileList.size() > 0) {
-                Assert(iFile < _skyMapFileList.size());
+                Assert(iFile < int(_skyMapFileList.size()));
                 std::string skyMapFile = _skyMapFileList[iFile];
                 _params["skymap_file"] = skyMapFile;
             }

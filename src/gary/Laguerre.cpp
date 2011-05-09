@@ -36,7 +36,7 @@ LVector::LVector(const DVector& rhs, int order_):
 }
 
 LVector::LVector(const CVector& cv) {
-  int ord = floor(0.5*(sqrt(8.*cv.size()+1.)-3.));
+  int ord = int(floor(0.5*(sqrt(8.*cv.size()+1.)-3.)));
   if (PQIndex::size(ord) != int(cv.size())) 
     throw LaguerreError("CVector size incompatible with LVector");
   // ??? should also check for Hermiticity
