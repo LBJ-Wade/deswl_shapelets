@@ -265,9 +265,17 @@ void InputCatalog::read()
         Assert(_flags.size() == _id.size());
         dbg<<"INPUT_FLAG: "<<INPUT_FLAG<<"\n";
         for(int i=0;i<nRows;++i) {
-            if (_flags[i] & ignoreFlags) {
-                dbg<<"Marking object "<<i<<" with flag "<<_flags[i]<<std::endl;
-                _flags[i] = INPUT_FLAG;
+            if (_flags[i]) {
+                dbg<<std::dec<<std::noshowbase;
+                dbg<<"Object "<<i;
+                dbg<<std::hex<<std::showbase;
+                dbg<<" has sextractor flag "<<_flags[i];
+                if (_flags[i] & ignoreFlags) {
+                    dbg<<"    Marking with flag INPUT_FLAG\n";
+                    _flags[i] = INPUT_FLAG;
+                } else {
+                    dbg<<"\n";
+                }
             } else {
                 _flags[i] = 0;
             }
