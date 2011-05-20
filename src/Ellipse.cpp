@@ -94,21 +94,21 @@ void CalculateShift(
     // c3 = (X + g3 X*) / (1-|g3|^2)
     //
 
-    dbg<<"Start CalculateShift\n";
-    dbg<<"c1,g1,m1 = "<<c1<<"  "<<g1<<"  "<<m1<<std::endl;
-    dbg<<"c2,g2,m2 = "<<c2<<"  "<<g2<<"  "<<m2<<std::endl;
+    xdbg<<"Start CalculateShift\n";
+    xdbg<<"c1,g1,m1 = "<<c1<<"  "<<g1<<"  "<<m1<<std::endl;
+    xdbg<<"c2,g2,m2 = "<<c2<<"  "<<g2<<"  "<<m2<<std::endl;
 
     std::complex<double> Rg2 = std::polar(1.,2*imag(m1)) * g2;
     double normg1 = norm(g1);
     double normg2 = norm(g2);
     std::complex<double> denom = 1.+conj(g1)*Rg2;
     g3 = (g1+Rg2) / denom;
-    dbg<<"g3 = "<<g3<<std::endl;
+    xdbg<<"g3 = "<<g3<<std::endl;
 
     //xdbg<<"Miralda-Escude formula gives g3 = "<<addShears(g1,g2)<<std::endl;
 
     m3 = m1 + m2 - std::complex<double>(0.,1.)*arg(denom);
-    dbg<<"m3 = "<<m3<<std::endl;
+    xdbg<<"m3 = "<<m3<<std::endl;
 
     std::complex<double> X = -c1 - g1 * conj(-c1);
     X = exp(-m1)/sqrt(1.-normg1) * X - c2;
@@ -116,7 +116,7 @@ void CalculateShift(
     double normg3 = norm(g3);
     X /= -exp(-m3)/sqrt(1.-normg3);
     c3 = (X + g3*conj(X)) / (1.-normg3);
-    dbg<<"c3 = "<<c3<<std::endl;
+    xdbg<<"c3 = "<<c3<<std::endl;
 }
 
 void Ellipse::preShiftBy(
@@ -172,13 +172,13 @@ bool Ellipse::measure(
     const std::vector<PixelList>& pix,
     const std::vector<BVec>& psf,
     int order, int order2, int maxm,
-    double sigma, long& flag, double thresh, DMatrix* cov)
+    double sigma, long& flag, double thresh, DSmallMatrix22* cov)
 { return doMeasure(pix,&psf,order,order2,maxm,sigma,flag,thresh,cov); }
 
 bool Ellipse::measure(
     const std::vector<PixelList>& pix,
     int order, int order2, int maxm,
-    double sigma, long& flag, double thresh, DMatrix* cov)
+    double sigma, long& flag, double thresh, DSmallMatrix22* cov)
 { return doMeasure(pix,0,order,order2,maxm,sigma,flag,thresh,cov); }
 
 bool Ellipse::doMeasureShapelet(
@@ -210,7 +210,7 @@ bool Ellipse::doMeasureShapelet(
     int nTot = 0;
     const int nExp = pix.size();
     for(int i=0;i<nExp;++i) nTot += pix[i].size();
-    dbg<<"ntot = "<<nTot<<" in "<<nExp<<" images\n";
+    xdbg<<"ntot = "<<nTot<<" in "<<nExp<<" images\n";
 
     DVector I(nTot);
     DVector W(nTot);
@@ -221,7 +221,7 @@ bool Ellipse::doMeasureShapelet(
             psf ?
             sqrt(pow(sigma,2)+pow((*psf)[k].getSigma(),2)) :
             sigma;
-        dbg<<"sigma_obs["<<k<<"] = "<<sigma_obs<<std::endl;
+        xdbg<<"sigma_obs["<<k<<"] = "<<sigma_obs<<std::endl;
 
         const int nPix = pix[k].size();
         for(int i=0;i<nPix;++i,++n) {
@@ -255,9 +255,9 @@ bool Ellipse::doMeasureShapelet(
                 if (m > 0) mvals[k++] = m;
             }
         }
-        dbg<<"mvals = "<<mvals<<std::endl;
+        xdbg<<"mvals = "<<mvals<<std::endl;
         mvals.sort(P);
-        dbg<<"mvals => "<<mvals<<std::endl;
+        xdbg<<"mvals => "<<mvals<<std::endl;
         // 00  10 10  20 20 11  30 30 21 21  40 40 31 31 22  50 50 41 41 32 32
         // n =     0  1  2  3  4   5   6
         // 0size = 1  1  2  2  3   3   4  = (n)/2 + 1
@@ -267,9 +267,9 @@ bool Ellipse::doMeasureShapelet(
         // nsize = (n+1)*(n+2)/2
         // msize = (m+1)*(m+2)/2 + (2*m+1)*(n-m)/2
         msize = (maxm+1)*(maxm+2)/2 + (2*maxm+1)*(order-maxm)/2;
-        dbg<<"msize = "<<msize<<std::endl;
-        dbg<<"mvals["<<msize-1<<"] = "<<mvals[msize-1]<<std::endl;
-        dbg<<"mvals["<<msize<<"] = "<<mvals[msize]<<std::endl;
+        xdbg<<"msize = "<<msize<<std::endl;
+        xdbg<<"mvals["<<msize-1<<"] = "<<mvals[msize-1]<<std::endl;
+        xdbg<<"mvals["<<msize<<"] = "<<mvals[msize]<<std::endl;
         Assert(mvals[msize-1] == maxm);
         Assert(mvals[msize] == maxm+1);
     }
@@ -390,13 +390,14 @@ bool Ellipse::doMeasureShapelet(
     xdbg<<"Norm(Am*b) = "<<Norm(Am*b.vec().subVector(0,msize))<<std::endl;
     xdbg<<"Norm(I-Am*b) = "<<Norm(I-Am*b.vec().subVector(0,msize))<<std::endl;
     b.vec().subVector(msize,bsize).setZero();
-    b.vec() = P.transpose() * b.vec();
+    b.vec().subVector(0,bsize) = P.transpose() * b.vec().subVector(0,bsize);
     xdbg<<"b => "<<b<<std::endl;
 
     if (bCov) {
         bCov->setZero();
         Am.makeInverseATA(bCov->subMatrix(0,msize,0,msize));
-        *bCov = P.transpose() * (*bCov) * P;
+        bCov->subMatrix(0,bsize,0,bsize) = 
+            P.transpose() * bCov->subMatrix(0,bsize,0,bsize) * P;
     }
 #else
     Eigen::SVD<DMatrix> svd = A.svd().sort();
@@ -477,7 +478,7 @@ bool Ellipse::doAltMeasureShapelet(
             psf ?
             sqrt(pow(sigma,2)+pow((*psf)[k].getSigma(),2)) :
             sigma;
-        dbg<<"sigma_obs = "<<sigma_obs<<std::endl;
+        xdbg<<"sigma_obs = "<<sigma_obs<<std::endl;
 
         DDiagMatrix normD(bsize2);
         double val = pow(pixScale/sigma_obs,2) * exp(-2.*real(_mu)) / nExp;
@@ -500,9 +501,9 @@ bool Ellipse::doAltMeasureShapelet(
 
         // b = C^-1 normD At I
         DVector b1 = A.transpose() * I;
-        dbg<<"b1 = "<<b1<<std::endl;
+        xdbg<<"b1 = "<<b1<<std::endl;
         b1 = normD EIGEN_asDiag() * b1;
-        dbg<<"b1 => "<<b1<<std::endl;
+        xdbg<<"b1 => "<<b1<<std::endl;
 
         if (bCov) {
             // cov(I) = diag(sigma_i^2)
@@ -584,7 +585,7 @@ bool Ellipse::doAltMeasureShapelet(
 #else 
             C.lu().solve(b1,&b1);
 #endif
-            dbg<<"b1 /= C => "<<b1<<std::endl;
+            xdbg<<"b1 /= C => "<<b1<<std::endl;
             if (bCov) *cov1 = C.inverse() * (*cov1) * C;
         }
         b.vec() += b1.TMV_subVector(0,bsize);

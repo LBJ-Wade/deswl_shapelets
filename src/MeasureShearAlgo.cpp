@@ -20,7 +20,7 @@ void DoMeasureShear(
     const std::vector<PixelList>& allpix,
     const std::vector<BVec>& psf,
     double galAperture, double maxAperture,
-    int galOrder, int galOrder2, int maxm,
+    int galOrder, int galOrder2, int maxm, int minGalOrder, bool baseOrderOnNu,
     double minFPsf, double maxFPsf, double minGalSize, bool fixCen,
     bool fixSigma, double fixSigmaValue, bool nativeOnly,
     ShearLog& log, BVec& shapelet, 
@@ -164,7 +164,6 @@ void DoMeasureShear(
             double r_offset = sqrt(rsq_offset);
             x_offset /= r_offset*10.;
             y_offset /= r_offset*10.;
-            //std::cout<<"x_offset: "<<x_offset<<"   y_offset: "<<y_offset<<"\n";
             ell_native.setCen(std::complex<double>(x_offset,y_offset));
             dbg<<"After random offset "<<x_offset<<","<<y_offset<<
                 ": cen = "<<ell_native.getCen()<<std::endl;
@@ -262,6 +261,54 @@ void DoMeasureShear(
                 }
             }
         }
+        
+
+        //
+        // Measure the isotropic significance
+        //
+        BVec flux(0,sigma);
+        DMatrix fluxCov(1,1);
+        if (!ell_native.measureShapelet(pix,psf,flux,0,0,0,&fluxCov) ||
+            !(flux(0) > 0) || !(fluxCov(0,0) > 0.) ) {
+            dbg<<"Failed flux measurement of bad flux value: \n";
+            dbg<<"flux = "<<flux(0)<<std::endl;
+            dbg<<"fluxCov = "<<fluxCov(0,0)<<std::endl;
+
+            dbg<<"FLAG SHAPE_BAD_FLUX\n";
+            flag |= SHAPE_BAD_FLUX;
+        }
+        xdbg<<"flux = "<<flux<<std::endl;
+        xdbg<<"fluxCov = "<<fluxCov<<std::endl;
+        if (flux(0) > 0. && fluxCov(0,0) > 0.) {
+            nu = flux(0) / sqrt(fluxCov(0,0));
+            dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<
+                nu<<std::endl;
+        } else {
+            nu = DEFVALNEG;
+            dbg<<"nu set to error value = "<<nu<<std::endl;
+        }
+
+
+        // 
+        // Reduce order if necessary so that
+        // (order+1)*(order+2)/2 < nu
+        //
+        int galOrderInit = galOrder;
+        if (baseOrderOnNu) {
+            int galSize;
+            while (galOrder > minGalOrder) {
+                if (maxm > galOrder) maxm = galOrder;
+                galSize = (maxm+1)*(maxm+2)/2 + (2*maxm+1)*(galOrder-maxm)/2;
+                if (galSize <= nu) break;
+                else --galOrder;
+            }
+            if (galOrder < galOrderInit) {
+                dbg<<"Reduced galOrder to "<<galOrder<<
+                    " so that galSize = "<<galSize<<
+                    " <= nu = "<<nu<<std::endl;
+            }
+        }
+
 
         //
         // Next find the frame in which the native observation is round.
@@ -274,7 +321,7 @@ void DoMeasureShear(
             dbg<<"Round iter = "<<iter<<std::endl;
             flag1 = 0;
             if (ell_round.measure(
-                    pix,galOrder,galOrder2,maxm,sigmaObs,flag1,1.e-3)) {
+                    pix,galOrder,galOrder2,maxm,sigmaObs,flag1,1.e-2)) {
                 ++log._nsNative;
                 dbg<<"Successful round fit:\n";
                 dbg<<"Z = "<<ell_round.getCen()<<std::endl;
@@ -307,7 +354,6 @@ void DoMeasureShear(
                 flag |= SHAPELET_NOT_DECONV;
                 return;
             }
-            ell_round.removeRotation();
             gamma = ell_round.getGamma();
             dbg<<"New center = "<<cen_offset<<std::endl;
             dbg<<"New sigmaObs = "<<sigmaObs<<std::endl;
@@ -389,7 +435,7 @@ void DoMeasureShear(
             // Measure a deconvolving fit in the native frame.
             //
             shapelet.setSigma(sigma);
-            DMatrix shapeCov(shapelet.size(),shapelet.size());
+            DMatrix shapeCov(int(shapelet.size()),int(shapelet.size()));
             if (ell_native.measureShapelet(
                     pix,psf,shapelet,galOrder,galOrder2,galOrder,&shapeCov)) {
                 dbg<<"Successful deconvolving fit:\n";
@@ -403,68 +449,41 @@ void DoMeasureShear(
             }
             dbg<<"Measured deconvolved b_gal = "<<shapelet.vec()<<std::endl;
             xdbg<<"shapeCov = "<<shapeCov<<std::endl;
-
-            //
-            // Also measure the isotropic significance
-            // TODO: Should this be in the frame where galaxy is round?
-            //       Probably doesn't matter.
-            //
-            BVec flux(0,sigma);
-            DMatrix fluxCov(1,1);
-            if (!ell_native.measureShapelet(pix,psf,flux,0,0,0,&fluxCov) ||
-                !(flux(0) > 0) || !(fluxCov(0,0) > 0.) ||
-                shapelet(0) >= flux(0)*3. || shapelet(0) <= flux(0)/3.) {
+            if (shapelet(0) >= flux(0)*3. || shapelet(0) <= flux(0)/3.) {
                 // If the b00 value in the shapelet doesn't match the direct flux
                 // measurement, set a flag.
                 dbg<<"Bad flux value: \n";
                 dbg<<"flux = "<<flux(0)<<std::endl;
-                dbg<<"fluxCov = "<<fluxCov(0,0)<<std::endl;
                 dbg<<"shapelet = "<<shapelet.vec()<<std::endl;
                 dbg<<"flux ratio = "<<flux(0)/shapelet(0)<<std::endl;
-                if (!lastfpsf) {
-                    --log._nsMu;
-                    continue;
-                }
-                dbg<<"FLAG SHAPE_BAD_FLUX\n";
-                flag |= SHAPE_BAD_FLUX;
-            }
-            xdbg<<"flux = "<<flux<<std::endl;
-            xdbg<<"fluxCov = "<<fluxCov<<std::endl;
-            if (flux(0) > 0. && fluxCov(0,0) > 0.) {
-                nu = flux(0) / sqrt(fluxCov(0,0));
-                dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<nu<<std::endl;
-            } else {
-                nu = DEFVALNEG;
-                dbg<<"nu set to error value = "<<nu<<std::endl;
             }
 
             //
             // Next, we find the frame where the deconvolved shape of the
             // galaxy is round.
             //
-            for(int tryOrder=galOrder; tryOrder>=2; --tryOrder) {
+            for(int tryOrder=galOrder; tryOrder>=minGalOrder; --tryOrder) {
                 dbg<<"tryOrder = "<<tryOrder<<std::endl;
                 if (tryOrder < galOrder) {
                     dbg<<"FLAG SHEAR_REDUCED_ORDER\n";
                     flag |= SHEAR_REDUCED_ORDER;
                 }
                 if (maxm > tryOrder) maxm = tryOrder;
-#if 1
                 Ellipse ell_shear = ell_round;
                 if (fixCen) ell_shear.fixCen();
                 if (fixSigma) ell_shear.fixMu();
                 gamma_prev = ell_shear.getGamma();
+                double w = sqrt(sigma/sigmaP);
                 bool success = false;
-                DMatrix cov5(5,5);
+                cov.setZero();
                 for(int iter=1;iter<=MAX_ITER;++iter) {
                     dbg<<"Shear iter = "<<iter<<std::endl;
                     flag1 = 0;
-                    double w = sqrt(sigma/sigmaP);
                     ell_shear.setGamma(
                         (w*ell_shear.getGamma() + ell_round.getGamma())/(w+1.));
                     if (ell_shear.measure(
                             pix,psf,tryOrder,galOrder2,maxm,sigma,flag1,
-                            1.e-4,&cov5)) {
+                            1.e-2,&cov)) {
                         dbg<<"Successful shear fit:\n";
                         dbg<<"Z = "<<ell_shear.getCen()<<std::endl;
                         dbg<<"Mu = "<<ell_shear.getMu()<<std::endl;
@@ -475,7 +494,6 @@ void DoMeasureShear(
                         break;
                     }
 
-                    ell_shear.removeRotation();
                     gamma = ell_shear.getGamma();
                     dbg<<"New gamma = "<<gamma<<std::endl;
                     std::complex<double> deltaGamma = gamma - gamma_prev;
@@ -497,113 +515,18 @@ void DoMeasureShear(
                 }
                 if (success) {
                     ++log._nsGamma;
-                    cov = cov5.TMV_subMatrix(2,4,2,4);
-                    if (!(cov.TMV_det() > 0.)) {
-                        dbg<<"cov has bad determinant: "<<
-                            cov.TMV_det()<<std::endl;
-                        dbg<<"cov = "<<cov<<std::endl;
-                        dbg<<"Full cov = "<<cov5<<std::endl;
-                        dbg<<"FLAG SHEAR_BAD_COVAR\n";
-                        flag |= SHEAR_BAD_COVAR;
-                    }
+                    dbg<<"Successful shear measurement:\n";
+                    dbg<<"shear = "<<gamma<<std::endl;
+                    dbg<<"cov = "<<cov<<std::endl;
                     return;
                 } else {
                     dbg<<"Unsuccessful shear measurement\n"; 
                     dbg<<"shear = "<<gamma<<std::endl;
-                    if (tryOrder == 2) {
+                    if (tryOrder == minGalOrder) {
                         flag |= flag1;
                         dbg<<"flag = "<<flag<<std::endl;
                     }
                 }
-#elif 1
-                Ellipse ell_shear = ell_round;
-                if (fixCen) ell_shear.fixCen();
-                if (fixSigma) ell_shear.fixMu();
-                DMatrix cov5(5,5);
-                long flag1=0;
-                if (ell_shear.measure(
-                        pix,psf,tryOrder,galOrder2,maxm,sigma,flag1,
-                        1.e-4,&cov5)) {
-                    ++log._nsGamma;
-                    ell_shear.removeRotation();
-                    gamma = ell_shear.getGamma();
-                    dbg<<"Successful shear measurement: "<<gamma<<std::endl;
-                    cov = cov5.TMV_subMatrix(2,4,2,4);
-                    if (!(cov.TMV_det() > 0.)) {
-                        dbg<<"cov has bad determinant: "<<
-                            cov.TMV_det()<<std::endl;
-                        dbg<<"cov = "<<cov<<std::endl;
-                        dbg<<"Full cov = "<<cov5<<std::endl;
-                        dbg<<"FLAG SHEAR_BAD_COVAR\n";
-                        flag |= SHEAR_BAD_COVAR;
-                    }
-                    return;
-                } else {
-                    ell_shear.removeRotation();
-                    gamma = ell_shear.getGamma();
-                    dbg<<"Unsuccessful shear measurement\n"; 
-                    dbg<<"shear = "<<gamma<<std::endl;
-                    if (tryOrder == 2) {
-                        flag |= flag1;
-                        dbg<<"flag = "<<flag<<std::endl;
-                    }
-                }
-#else
-                BVec shearedShape(tryOrder,sigma);
-                if (maxm > tryOrder) maxm = tryOrder;
-
-                if (XDEBUG) {
-                    if (ell_round.measureShapelet(
-                            pix,psf,shearedShape,tryOrder,galOrder2,tryOrder)) {
-                        xdbg<<"Successful sheared deconvolving fit:\n";
-                    } else {
-                        xdbg<<"Sheared deconvolving measurement failed\n";
-                    }
-                    xdbg<<"Full m: shearedShape = "<<shearedShape<<std::endl;
-                }
-
-                if (ell_round.measureShapelet(
-                        pix,psf,shearedShape,tryOrder,galOrder2,maxm)) {
-                    dbg<<"Successful sheared deconvolving fit:\n";
-                } else {
-                    dbg<<"Sheared deconvolving measurement failed\n";
-                    continue;
-                }
-                dbg<<"m <= "<<maxm<<": shearedShape = "<<shearedShape<<std::endl;
-
-                Ellipse ell_shear = ell_round;
-                if (fixCen) ell_shear.fixCen();
-                if (fixSigma) ell_shear.fixMu();
-                DMatrix cov5(5,5);
-                long flag1=0;
-                if (ell_shear.findRoundFrame(
-                        shearedShape, true, galOrder2, 1.e-4, 
-                        flag1, &cov5) && flag1==0) {
-                    ++log._nsGamma;
-                    ell_shear.removeRotation();
-                    gamma = ell_shear.getGamma();
-                    dbg<<"Successful shear measurement: "<<gamma<<std::endl;
-                    cov = cov5.TMV_subMatrix(2,4,2,4);
-                    if (!(cov.TMV_det() > 0.)) {
-                        dbg<<"cov has bad determinant: "<<
-                            cov.TMV_det()<<std::endl;
-                        dbg<<"cov = "<<cov<<std::endl;
-                        dbg<<"Full cov = "<<cov5<<std::endl;
-                        dbg<<"FLAG SHEAR_BAD_COVAR\n";
-                        flag |= SHEAR_BAD_COVAR;
-                    }
-                    return;
-                } else {
-                    ell_shear.removeRotation();
-                    gamma = ell_shear.getGamma();
-                    dbg<<"Unsuccessful shear measurement\n"; 
-                    dbg<<"shear = "<<gamma<<std::endl;
-                    if (tryOrder == 2) {
-                        flag |= flag1;
-                        dbg<<"flag = "<<flag<<std::endl;
-                    }
-                }
-#endif
             }
             if (!lastfpsf) continue;
             ++log._nfGamma;
@@ -612,20 +535,20 @@ void DoMeasureShear(
         }
 #ifdef USE_TMV
     } catch (tmv::Error& e) {
-        dbg<<"TMV Error thrown in MeasureShapes\n";
+        dbg<<"TMV Error thrown in MeasureShear\n";
         dbg<<e<<std::endl;
         ++log._nfTmvError;
         dbg<<"FLAG TMV_EXCEPTION\n";
         flag |= TMV_EXCEPTION;
 #endif
     } catch (std::exception& e) {
-        dbg<<"std::exception thrown in MeasureShapes\n";
+        dbg<<"std::exception thrown in MeasureShear\n";
         dbg<<e.what()<<std::endl;
         ++log._nfOtherError;
         dbg<<"FLAG STD_EXCEPTION\n";
         flag |= STD_EXCEPTION;
     } catch (...) {
-        dbg<<"unkown exception in MeasureShapes\n";
+        dbg<<"unkown exception in MeasureShear\n";
         ++log._nfOtherError;
         dbg<<"FLAG UNKNOWN_EXCEPTION\n";
         flag |= UNKNOWN_EXCEPTION;

@@ -9,8 +9,7 @@
 #include "Params.h"
 
 const double MINVARG = 1.e-3; // If less than this then set to this.
-const double MAXVARG = 1.e3; // If more than this then skip.
-
+const double MAXVARG = 0.5; // If more than this then skip.
 
 #if 1
 static const long ok_flags = (
@@ -43,7 +42,7 @@ static double Weight(
     double k0 = f*varg;
     double k1 = f*f;
 
-#if 0
+#if 1
     // No Weight
     double w = 1.;
     double gdwdg = 0.;
@@ -73,7 +72,7 @@ static double Weight(
     double gdwdg = -w*w*w*gsq;
 #endif
 
-#if 1
+#if 0
     // De-weight large g
     int k = 3;
     double w = 1./std::pow(1.+gsq,k);
@@ -113,10 +112,11 @@ static void ReadData(
         raVec.push_back(ra);
         decVec.push_back(dec);
         gVec.push_back(std::complex<double>(g1,g2));
-        // I think this is more accurate for now than the covariance estimates,
-        // but eventually we might want to switch to trace(cov)
-        double varg = 4./(nu*nu);
+        double varg = (c00 + c11)/2.;
         vargVec.push_back(varg);
+        // Correct for a noise bias in the shape measurements.
+        // E(g) = g_true * (1 - 2*sigma^2)
+        //gVec.back() /= (1.-(c00 + c11));
     }
 }
 
@@ -189,6 +189,10 @@ int main(int argc, char **argv)
         sumw += galw;
         //std::cout<<i<<"  "<<g<<"  "<<gsq<<"  "<<esq<<"  "<<vare<<"  "<<galw<<"  "<<shapenoise<<"  "<<sumw<<std::endl;
     }
+    if (sumw == 0.) {
+        sumw = 1.;
+        std::cout<<"sumw = 0.\n";
+    }
     shapenoise /= 2.*sumw; // 2 so shapenoise per component
     std::cout<<"sigma_SN = "<<shapenoise<<std::endl;
 
@@ -211,6 +215,7 @@ int main(int argc, char **argv)
         sumwg += galw*g;
         sumw2g2 += galw*galw*gsq;
     }
+    if (sumw == 0.) { sumw = 1.; resp = 1.; }
     resp /= sumw;
     std::cout<<"resp = "<<resp<<", ngal = "<<nGal<<std::endl;
 

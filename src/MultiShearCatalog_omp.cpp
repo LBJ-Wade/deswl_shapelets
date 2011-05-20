@@ -21,6 +21,8 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
     int galOrder = _params.read<int>("shear_gal_order");
     int galOrder2 = _params.read<int>("shear_gal_order2");
     int maxm = _params.read("shear_maxm",galOrder);
+    int minGalOrder = _params.read("shear_min_gal_order",4);
+    bool baseOrderOnNu = _params.read("shear_base_order_on_nu",false);
     double minFPsf = _params.read("shear_f_psf",1.);
     double maxFPsf = _params.read("shear_max_f_psf",minFPsf);
     double minGalSize = _params.read<double>("shear_min_gal_size");
@@ -80,7 +82,8 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                     // Input data:
                     _pixList[i], _psfList[i],
                     // Parameters:
-                    galAperture, maxAperture, galOrder, galOrder2, maxm,
+                    galAperture, maxAperture,
+                    galOrder, galOrder2, maxm, minGalOrder, baseOrderOnNu,
                     minFPsf, maxFPsf, minGalSize, galFixCen, 
                     galFixSigma, galFixSigmaValue, nativeOnly,
                     // Log information
