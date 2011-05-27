@@ -1378,8 +1378,8 @@ class ExposureProcessor:
     def write_status(self):
         statfile = self.stat['output_files']['stat']
         stdout.write("Writing status file: '%s'\n" % statfile)
-        stdout.write("  error: %s\n" % self.stat['error'])
-        stdout.write("  error_string: '%s'\n" % self.stat['error_string'])
+        stdout.write("  staterr: %s\n" % self.stat['error'])
+        stdout.write("  staterr string: '%s'\n" % self.stat['error_string'])
         json_util.write(self.stat, statfile)
 
 
