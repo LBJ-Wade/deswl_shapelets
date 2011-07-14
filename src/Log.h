@@ -140,7 +140,7 @@ public :
     int _nTot;
     int _nrFlag;
     int _nrMag;
-    int _nrSg;
+    int _nSg;
     int _nrSize;
     int _nObj;
     int _nAllStars;

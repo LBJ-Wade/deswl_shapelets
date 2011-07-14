@@ -35,6 +35,8 @@ void StarFinder::setParams(
     SFKeyAssign(_maxSize,"maxsize");
     SFKeyAssign(_minSg,"minsg");
     SFKeyAssign(_maxSg,"maxsg");
+    SFKeyAssign(_minSgMag,"minsgmag");
+    SFKeyAssign(_maxSgMag,"maxsgmag");
     SFKeyAssign(_minSgFrac,"minsgfrac");
     SFKeyAssign(_isSizeLog,"logsize");
 
@@ -95,6 +97,7 @@ std::vector<PotentialStar*> StarFinder::findStars(
             &PotentialStar::isBrighterThan));
     dbg<<"sorted allobj\n";
 
+
     // First stage:
     // Split area into sections
     // For each secion find as many stars as possible.
@@ -116,19 +119,47 @@ std::vector<PotentialStar*> StarFinder::findStars(
 
     // For each section, find the stars and add to probStars
     const int nSection = qBounds.size();
-    for(int i=0;i<nSection;++i) {
-        dbg<<"i = "<<i<<": bounds = "<<qBounds[i]<<std::endl;
 
+    double fracNObj=0;
+    for (int i=0; i<nObj; ++i) {
+      if(isOkSg(allObj[i]->getSg()) && 
+         isOkSgMag(allObj[i]->getMag())) fracNObj++;
+    }
+    dbg<<"  Found "<<fracNObj<<" with star-galaxy cuts  "<<std::endl;
+    fracNObj/=nObj;
+
+    bool ignoreSgCut=false;
+    if( fracNObj < _minSgFrac ) {
+      dbg<<"  Fraction of objects in star-galaxy range too small: "<<
+        fracNObj<<std::endl;
+      dbg<<"  Ignoring star-galaxy cut selection"<<std::endl;
+      ignoreSgCut=true;
+    }
+
+    
+    if(!ignoreSgCut) {   
+
+      for(int k=0;k<nObj;++k) {
+        
+        if (isOkSg(allObj[k]->getSg()) && isOkSgMag(allObj[k]->getMag())) {
+          probStars.insert(probStars.end(),allObj[k]);
+        }
+      }
+    } else {
+      
+      for(int i=0;i<nSection;++i) {
+        dbg<<"i = "<<i<<": bounds = "<<qBounds[i]<<std::endl;
+        
         // someObj are the objects in this section
         // Note that someObj is automatically sorted by magnitude, since
         // allObj was sorted.
         std::vector<PotentialStar*> someObj;
         for(int k=0;k<nObj;++k) {
-            if (qBounds[i].includes(allObj[k]->getPos())) 
-                someObj.push_back(allObj[k]);
+          if (qBounds[i].includes(allObj[k]->getPos())) 
+            someObj.push_back(allObj[k]);
         }
         dbg<<"added "<<someObj.size()<<" obj\n";
-
+        
         // Does a really quick and dirty fit to the bright stars
         // Basically it takes the 10 smallest of the 50 brightest objects,
         // finds the peakiest 5, then fits their sizes to a 1st order function.
@@ -137,7 +168,7 @@ std::vector<PotentialStar*> StarFinder::findStars(
         double sigma;
         roughlyFitBrightStars(someObj,&fLinear,&sigma);
         dbg<<"fit bright stars: sigma = "<<sigma<<std::endl;
-
+        
         // Calculate the min and max values of the (adjusted) sizes
         double minSize,maxSize;
         findMinMax(someObj,&minSize,&maxSize,fLinear);
@@ -156,7 +187,7 @@ std::vector<PotentialStar*> StarFinder::findStars(
         // _binSize1/2. is the minimum value of "sigma".
         rejectOutliers(qPeakList,_reject1,_binSize1/2.,fLinear);
         dbg<<"rejected outliers, now have "<<nPeak<<" stars\n";
-
+        
         // Use at most 10 (starsPerBin) stars per region to prevent one region 
         // from dominating the fit.  Use the 10 brightest stars to prevent being
         // position biased (as one would if it were based on size
@@ -174,17 +205,18 @@ std::vector<PotentialStar*> StarFinder::findStars(
             }
             probStars.insert(probStars.end(),qPeakList.begin(),qPeakList.end());
         } else {
-            std::sort(qPeakList.begin(),qPeakList.end(),
+          std::sort(qPeakList.begin(),qPeakList.end(),
                       std::mem_fun(&PotentialStar::isBrighterThan));
             probStars.insert(probStars.end(),qPeakList.begin(),
                              qPeakList.begin()+nStarsExpected);
         }
         dbg<<"added to probstars\n";
+      }
+      xdbg<<"done qbounds loop\n";
     }
-    xdbg<<"done qbounds loop\n";
     int nStars = probStars.size();
     dbg<<"nstars = "<<nStars<<std::endl;
-
+    
     // Now we have a first estimate of which objects are stars.
     // Fit a quadratic function to them to characterize the variation in size
     Legendre2D f(totalBounds);
@@ -240,33 +272,47 @@ std::vector<PotentialStar*> StarFinder::findStars(
             }
         }
 
-        // Make fitList, the new list of the 10 brightest stars per section
+        // Make fitList, use sg cuts if enough objects otherwise use the 
+        // list of the 10 brightest stars per section
         std::vector<PotentialStar*> fitList;
-        for(int i=0;i<nSection;++i) {
+        
+        if(!ignoreSgCut) {
+          for(int k=0;k<nObj;++k) {
+            
+            if (isOkSg(allObj[k]->getSg()) && isOkSgMag(allObj[k]->getMag())) {
+              fitList.insert(fitList.end(),allObj[k]);
+            }
+          }
+        } else {
+          
+          dbg<<"  Fraction of objects in star-galaxy range too small "<<std::endl;
+          for(int i=0;i<nSection;++i) {
             // if there are still < 10 stars, give a warning, and
             // just add all the stars to fitList
             if (int(starsList[i].size()) < _starsPerBin) {
-                if (_shouldOutputDesQa) {
-                    std::cout<<"STATUS3BEG Warning: Only "<<
-                        starsList[i].size()<<" stars in section "<<i<<
-                        ". STATUS3END"<<std::endl;
-                }
-                dbg<<"Warning: only "<<starsList[i].size()<<
-                    " stars in section ";
-                dbg<<i<<"  "<<qBounds[i]<<std::endl;
-                fitList.insert(fitList.end(),starsList[i].begin(),
-                               starsList[i].end());
-                shouldRefit = true;
+              if (_shouldOutputDesQa) {
+                std::cout<<"STATUS3BEG Warning: Only "<<
+                  starsList[i].size()<<" stars in section "<<i<<
+                  ". STATUS3END"<<std::endl;
+              }
+              dbg<<"Warning: only "<<starsList[i].size()<<
+                " stars in section ";
+              dbg<<i<<"  "<<qBounds[i]<<std::endl;
+              fitList.insert(fitList.end(),starsList[i].begin(),
+                             starsList[i].end());
+              shouldRefit = true;
             } else {
-                // sort the sublist by magnitude
-                std::sort(starsList[i].begin(),starsList[i].end(),
-                          std::mem_fun(&PotentialStar::isBrighterThan));
-
-                // add the brightest 10 to fitList
-                fitList.insert(fitList.end(),starsList[i].begin(),
-                               starsList[i].begin()+_starsPerBin);
+              // sort the sublist by magnitude
+              std::sort(starsList[i].begin(),starsList[i].end(),
+                        std::mem_fun(&PotentialStar::isBrighterThan));
+              
+              // add the brightest 10 to fitList
+              fitList.insert(fitList.end(),starsList[i].begin(),
+                             starsList[i].begin()+_starsPerBin);
             }
+          }
         }
+         
         // Do all the same stuff as before (refit f, get new min,max,
         // find the peakList again, and reject the outliers)
         nStars = fitList.size();

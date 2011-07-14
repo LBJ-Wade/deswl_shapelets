@@ -261,24 +261,6 @@ int StarCatalog::findStars(FindStarsLog& log)
     const int nObj = size();
     log._nTot = nObj;
 
-    // Check to see if star-galaxy classification failed for this
-    // image by looking at fration of objects with minimum size.
-    // If there are too few objects ignore the star-galaxy cut
-    double fracNObj=0;
-    for (int i=0; i<nObj; ++i) {
-      if(finder.isOkSg(_sg[i]) && finder.isOkSize(_objSize[i])) fracNObj++;
-    }
-    fracNObj/=nObj;
-
-    bool ignoreSgCut=false;
-    if(fracNObj<finder.getMinSgFrac()) {
-      dbg<<" Fraction of objects in star-galaxy range too small: "<<
-        fracNObj<<std::endl;
-      dbg<<" Ignoring star-galaxy cut"<<std::endl;
-      ignoreSgCut=true;
-    }
-
-
     for (int i=0; i<nObj; ++i) {
         // A series of checks
         // Only objects with no flags in SExtractor or updated size calculation
@@ -300,19 +282,15 @@ int StarCatalog::findStars(FindStarsLog& log)
             ++log._nrMag;
             continue;
         }
-        if(!ignoreSgCut) {   
-          if (!finder.isOkSg(_sg[i])) {
-            xdbg<<"Reject "<<i<<" for star-galaxy "<<_sg[i]<<" outside range "<<
-              finder.getMinSg()<<" -- "<<finder.getMaxSg()<<std::endl;
-            ++log._nrSg;
-            continue;
-          }
+        // Count how many are initially selected by star-galaxy cut
+        if (finder.isOkSg(_sg[i]) && finder.isOkSgMag(_mag[i])) {
+          ++log._nSg;
         }
-
+        
         ++count;
         double logObjSize = finder.convertToLogSize(_objSize[i]);
         maybestars.push_back(
-            new PotentialStar(_pos[i],_mag[i],logObjSize,i,""));
+            new PotentialStar(_pos[i],_mag[i],logObjSize,_sg[i],i,""));
     }
     log._nObj = count;
     dbg<<"  Possible Stars: "<<count<<"/"<<size()<<"\n";
@@ -325,6 +303,7 @@ int StarCatalog::findStars(FindStarsLog& log)
 
     _isAStar.resize(size(),0);
     count = 0;
+
     for (int k=0; k<nStars;++k) {
         int i=stars[k]->getIndex();
         if (finder.isOkOutputMag(_mag[i])) {
@@ -476,6 +455,8 @@ void StarCatalog::writeFits(std::string file) const
         writeParamToTable(_params, table, "stars_maxrefititer", intgr);
         writeParamToTable(_params, table, "stars_minsg", dbl);
         writeParamToTable(_params, table, "stars_maxsg", dbl);
+        writeParamToTable(_params, table, "stars_minsgmag", dbl);
+        writeParamToTable(_params, table, "stars_maxsgmag", dbl);
     }
   
 
