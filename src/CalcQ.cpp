@@ -71,9 +71,9 @@ int main(int argc, char* argv[])
             }
             int type = typeMap[name];
             fileType.push_back(type);
-            k1 = doc.find("batch");
+            k1 = doc.find("shear");
             k1 += 6;
-            k2 = doc.find('.',k1);
+            k2 = doc.find('_',k1);
             int batch = strtol(doc.c_str()+k1,0,0);
             //std::cout<<fileType.size()<<" is type "<<type<<" = "<<typeName[type]<<std::endl;
             //std::cout<<fileType.size()<<" is batch "<<batch<<std::endl;

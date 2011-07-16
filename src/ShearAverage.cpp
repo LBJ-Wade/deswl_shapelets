@@ -177,6 +177,9 @@ int main(int argc, char **argv)
 
     const int nGal = idVec.size();
     double shapenoise=0., sumw=0.;
+    const int nPgBins = 10;
+    std::vector<double> Pg(nPgBins,0.);
+    int nPgTot = 0;
 
     for(int i=0;i<nGal;++i) {
         std::complex<double> g = gVec[i];
@@ -187,7 +190,10 @@ int main(int argc, char **argv)
         double galw = Weight(g,varg,0.,dr);
         shapenoise += (gsq - varg) * galw;
         sumw += galw;
-        //std::cout<<i<<"  "<<g<<"  "<<gsq<<"  "<<esq<<"  "<<vare<<"  "<<galw<<"  "<<shapenoise<<"  "<<sumw<<std::endl;
+        double absg = sqrt(gsq);
+        int k = int(floor(absg*nPgBins));
+        if (k >= 0 && k < nPgBins) { ++Pg[k]; ++nPgTot; }
+        std::cout<<i<<"  "<<g<<"  "<<gsq<<"  "<<absg<<"  "<<k<<"  "<<varg<<"  "<<galw<<"  "<<shapenoise<<"  "<<sumw<<std::endl;
     }
     if (sumw == 0.) {
         sumw = 1.;
@@ -195,6 +201,13 @@ int main(int argc, char **argv)
     }
     shapenoise /= 2.*sumw; // 2 so shapenoise per component
     std::cout<<"sigma_SN = "<<shapenoise<<std::endl;
+
+    std::cout<<"nPgTot = "<<nPgTot<<std::endl;
+    std::cout<<"Pg = \n";
+    for(int k=0; k<nPgBins; ++k) {
+        Pg[k] /= nPgTot;
+        std::cout<<(k+0.5)/nPgBins<<"   "<<Pg[k]<<"\n";
+    }
 
     //
     // Calculate responsivity

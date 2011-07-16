@@ -103,7 +103,7 @@ int ShearCatalog::measureShears(
     int galOrder2 = _params.read<int>("shear_gal_order2");
     int maxm = _params.read("shear_maxm",galOrder);
     int minGalOrder = _params.read("shear_min_gal_order",4);
-    bool baseOrderOnNu = _params.read("shear_base_order_on_nu",false);
+    bool baseOrderOnNu = _params.read("shear_base_order_on_nu",true);
     double minFPsf = _params.read("shear_f_psf",1.);
     double maxFPsf = _params.read("shear_max_f_psf",minFPsf);
     double gain = _params.read("image_gain",0.);

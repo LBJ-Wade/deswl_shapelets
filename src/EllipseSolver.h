@@ -23,8 +23,8 @@ public :
     void getCovariance(const DMatrix& b0Cov, DMatrix& cov) const;
     void getInverseCovariance(const DMatrix& b0Cov, DMatrix& invcov) const;
 
-    // CallF takes x and f of length 5, rather than whatever shorter
-    // length that F takex (depending on if things are fixed).
+    // callF takes x and f of length 5, rather than whatever shorter
+    // length that calculateF takes (depending on if things are fixed).
     void callF(const DVector& x, DVector& f) const;
     bool solve(DVector& x, DVector& f) const;
     bool testJ(const DVector& x, DVector& f,

@@ -58,6 +58,7 @@ opts.Add(BoolVariable('IMPORT_PATHS',
             'Import PATH, C_INCLUDE_PATH and LIBRARY_PATH/LD_LIBRARY_PATH environment variables',
             False))
 opts.Add(BoolVariable('IMPORT_ENV','Import full environment from calling shell', False))
+opts.Add(BoolVariable('INCLUDE_PREFIX_PATHS','Add PREFIX/bin, PREFIX/include and PREFIX/lib to corresponding path lists', True))
 
 opts.Add('TMV_DIR','Explicitly give the tmv prefix','')
 opts.Add('CFITSIO_DIR','Explicitly give the cfitsio prefix','')
@@ -401,9 +402,10 @@ def AddExtraPaths(env):
     if env['PREFIX'] == '':
         env['INSTALL_PREFIX'] = default_prefix
     else:
-        AddPath(bin_paths, os.path.join(env['PREFIX'], 'bin'))
-        AddPath(lib_paths, os.path.join(env['PREFIX'], 'lib'))
-        AddPath(cpp_paths, os.path.join(env['PREFIX'], 'include'))
+        if env['INCLUDE_PREFIX_PATHS']:
+            AddPath(bin_paths, os.path.join(env['PREFIX'], 'bin'))
+            AddPath(lib_paths, os.path.join(env['PREFIX'], 'lib'))
+            AddPath(cpp_paths, os.path.join(env['PREFIX'], 'include'))
         env['INSTALL_PREFIX'] = env['PREFIX']
     
 

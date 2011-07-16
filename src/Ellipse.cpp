@@ -172,14 +172,16 @@ bool Ellipse::measure(
     const std::vector<PixelList>& pix,
     const std::vector<BVec>& psf,
     int order, int order2, int maxm,
-    double sigma, long& flag, double thresh, DSmallMatrix22* cov)
-{ return doMeasure(pix,&psf,order,order2,maxm,sigma,flag,thresh,cov); }
+    double sigma, long& flag, double thresh, DSmallMatrix22* cov,
+    const Ellipse* ell_meas)
+{ return doMeasure(pix,&psf,order,order2,maxm,sigma,flag,thresh,cov,ell_meas); }
 
 bool Ellipse::measure(
     const std::vector<PixelList>& pix,
     int order, int order2, int maxm,
-    double sigma, long& flag, double thresh, DSmallMatrix22* cov)
-{ return doMeasure(pix,0,order,order2,maxm,sigma,flag,thresh,cov); }
+    double sigma, long& flag, double thresh, DSmallMatrix22* cov,
+    const Ellipse* ell_meas)
+{ return doMeasure(pix,0,order,order2,maxm,sigma,flag,thresh,cov,ell_meas); }
 
 bool Ellipse::doMeasureShapelet(
     const std::vector<PixelList>& pix,

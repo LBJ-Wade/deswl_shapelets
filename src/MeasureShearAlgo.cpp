@@ -277,8 +277,8 @@ void DoMeasureShear(
             dbg<<"FLAG SHAPE_BAD_FLUX\n";
             flag |= SHAPE_BAD_FLUX;
         }
-        xdbg<<"flux = "<<flux<<std::endl;
-        xdbg<<"fluxCov = "<<fluxCov<<std::endl;
+        dbg<<"flux = "<<flux<<std::endl;
+        dbg<<"fluxCov = "<<fluxCov<<std::endl;
         if (flux(0) > 0. && fluxCov(0,0) > 0.) {
             nu = flux(0) / sqrt(fluxCov(0,0));
             dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<
@@ -316,10 +316,10 @@ void DoMeasureShear(
         Ellipse ell_round = ell_native;
         if (fixCen) ell_round.fixCen();
         if (fixSigma) ell_round.fixMu();
-        std::complex<double> gamma_prev = 0.;
         for(int iter=1;iter<=MAX_ITER;++iter) {
             dbg<<"Round iter = "<<iter<<std::endl;
             flag1 = 0;
+            std::complex<double> gamma_prev = ell_round.getGamma();
             if (ell_round.measure(
                     pix,galOrder,galOrder2,maxm,sigmaObs,flag1,1.e-2)) {
                 ++log._nsNative;
@@ -359,7 +359,6 @@ void DoMeasureShear(
             dbg<<"New sigmaObs = "<<sigmaObs<<std::endl;
             dbg<<"New gamma = "<<gamma<<std::endl;
             std::complex<double> deltaGamma = gamma - gamma_prev;
-            gamma_prev = gamma;
             dbg<<"ell_round = "<<ell_round<<std::endl;
 
             // Get the pixels in an elliptical aperture based on the
@@ -404,6 +403,9 @@ void DoMeasureShear(
         // Start with the specified fPsf, but allow it to increase up to
         // maxFPsf if there are any problems.
         long flag0 = flag;
+        dbg<<"minFPsf = "<<minFPsf<<std::endl;
+        dbg<<"maxFPsf = "<<maxFPsf<<std::endl;
+        Assert(minFPsf <= maxFPsf);
         for(double fPsf=minFPsf; fPsf<=maxFPsf+1.e-3; fPsf+=0.5) {
             flag = flag0; // In case anything was set in a previous iteration.
 
@@ -469,21 +471,22 @@ void DoMeasureShear(
                     flag |= SHEAR_REDUCED_ORDER;
                 }
                 if (maxm > tryOrder) maxm = tryOrder;
+                Ellipse ell_meas = ell_round;
                 Ellipse ell_shear = ell_round;
                 if (fixCen) ell_shear.fixCen();
                 if (fixSigma) ell_shear.fixMu();
-                gamma_prev = ell_shear.getGamma();
                 double w = sqrt(sigma/sigmaP);
                 bool success = false;
                 cov.setZero();
                 for(int iter=1;iter<=MAX_ITER;++iter) {
                     dbg<<"Shear iter = "<<iter<<std::endl;
                     flag1 = 0;
-                    ell_shear.setGamma(
+                    std::complex<double> gamma_prev = ell_shear.getGamma();
+                    ell_meas.setGamma(
                         (w*ell_shear.getGamma() + ell_round.getGamma())/(w+1.));
                     if (ell_shear.measure(
                             pix,psf,tryOrder,galOrder2,maxm,sigma,flag1,
-                            1.e-2,&cov)) {
+                            1.e-2,&cov,&ell_meas)) {
                         dbg<<"Successful shear fit:\n";
                         dbg<<"Z = "<<ell_shear.getCen()<<std::endl;
                         dbg<<"Mu = "<<ell_shear.getMu()<<std::endl;
@@ -497,13 +500,13 @@ void DoMeasureShear(
                     gamma = ell_shear.getGamma();
                     dbg<<"New gamma = "<<gamma<<std::endl;
                     std::complex<double> deltaGamma = gamma - gamma_prev;
-                    gamma_prev = gamma;
                     dbg<<"ell_shear = "<<ell_shear<<std::endl;
 
                     dbg<<"deltaGamma = "<<deltaGamma<<std::endl;
                     if (std::abs(deltaGamma) < MAX_DELTA_GAMMA2) {
                         dbg<<"deltaGamma < "<<MAX_DELTA_GAMMA2<<std::endl;
                         success = true;
+                        flag1 = 0;
                         break;
                     } else if (iter == MAX_ITER) {
                         dbg<<"deltaGamma >= "<<MAX_DELTA_GAMMA2<<std::endl;
@@ -518,6 +521,12 @@ void DoMeasureShear(
                     dbg<<"Successful shear measurement:\n";
                     dbg<<"shear = "<<gamma<<std::endl;
                     dbg<<"cov = "<<cov<<std::endl;
+#if 0
+                    ell_shear.correctForBias(
+                        pix,psf,tryOrder,galOrder2,maxm,sigma,&ell_meas);
+                    gamma = ell_shear.getGamma();
+                    dbg<<"after correct bias: shear => "<<gamma<<std::endl;
+#endif
                     return;
                 } else {
                     dbg<<"Unsuccessful shear measurement\n"; 

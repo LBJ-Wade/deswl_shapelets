@@ -890,6 +890,12 @@ void EllipseSolver::ESImpl::calculateInvCov(
     xdbg<<"jj = "<<jj.colsize()<<" x "<<jj.rowsize()<<std::endl;
     xdbg<<"invcov = "<<invcov.colsize()<<" x "<<invcov.rowsize()<<std::endl;
     invcov = jj.transpose() * fCov.inverse() * jj;
+    xdbg<<"In EllipseSolver calculateInvCov:\n";
+    xdbg<<"bCov = "<<b0Cov<<std::endl;
+    xdbg<<"x = "<<xx<<std::endl;
+    xdbg<<"M = "<<TSD1<<std::endl;
+    xdbg<<"fCov = "<<fCov<<std::endl;
+    xdbg<<"invcov = "<<invcov<<std::endl;
 }
 
 void EllipseSolver::useNumericJ() { _pimpl->numeric_j = true; }

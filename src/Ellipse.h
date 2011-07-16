@@ -58,18 +58,29 @@ public :
     bool measure(
         const std::vector<PixelList>& pix, 
         int order, int order2, int maxm,
-        double sigma, long& flag, double thresh, DSmallMatrix22* cov=0);
+        double sigma, long& flag, double thresh, DSmallMatrix22* cov=0,
+        const Ellipse* ell_meas=0);
     bool measure(
         const std::vector<PixelList>& pix, 
         const std::vector<BVec>& psf,
         int order, int order2, int maxm,
-        double sigma, long& flag, double thresh, DSmallMatrix22* cov=0);
+        double sigma, long& flag, double thresh, DSmallMatrix22* cov=0,
+        const Ellipse* ell_meas=0);
 
     // Given a measured shapelet vector, find the ellipse transformation
     // in which this shapelet vector would be observed to be round.
     bool findRoundFrame(
-        const BVec& b, bool psf, int galOrder2, double thresh,
+        const BVec& b, bool psf, const Ellipse& ell_meas,
+        int galOrder2, double thresh,
         long& flag, const DMatrix* bCov=0, DSmallMatrix22* cov=0);
+
+    // Correct for a bias that comes from the non-linear fitting.
+    // Accurate to 2nd order in the variation.
+    void correctForBias(
+        const std::vector<PixelList>& pix, 
+        const std::vector<BVec>& psf,
+        int order, int order2, int maxm,
+        double sigma, const Ellipse* ell_meas=0);
 
     // Do a really simple and fast measurement to get a good starting point.
     // Only does centroid and size.
@@ -156,7 +167,8 @@ private :
     bool doMeasure(
         const std::vector<PixelList>& pix, 
         const std::vector<BVec>* psf, int order, int order2, int maxm,
-        double sigma, long& flag, double thresh, DSmallMatrix22* cov=0);
+        double sigma, long& flag, double thresh, DSmallMatrix22* cov=0,
+        const Ellipse* ell_meas=0);
 
     bool doMeasureShapelet(
         const std::vector<PixelList>& pix, 
