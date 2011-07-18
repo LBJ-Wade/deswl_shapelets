@@ -1,6 +1,19 @@
 
 -------------------------------------------------------------------------
 
+v0.63
+
+1) Some more work on the low S/N galaxy measurements:
+   - Use higher aperture size
+   - Use higher f_psf
+   - Automatically reduce shapelet order for low S/N objects.
+
+2) Fixed calculation of the shear covariance matrix.
+
+3) Added Bob's new s/g algorithm.
+
+-------------------------------------------------------------------------
+
 v0.62  (2011-04-29) 
 
 1) Shear average now dowe directly in gamma space, rather than by 
