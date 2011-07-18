@@ -963,6 +963,106 @@ def wlse_pbs_path(serun, exposurename, typ='fullpipe', ccd=None):
     return pbsfile
 
 
+#
+# condor submit files and bash scripts
+
+def condor_dir(run, subdir=None):
+    outdir=path_join('~','condor','wl',run)
+    if subdir is not None:
+        outdir=path_join(outdir, subdir)
+    outdir=os.path.expanduser(outdir)
+    return outdir
+
+
+def wlme_condor_name(tilename, band):
+    condorfile=[tilename,band]
+    condorfile='-'.join(condorfile)+'.condor'
+    return condorfile
+    
+def wlme_condor_path(merun, tilename, band):
+    condordir=condor_dir(merun)
+    condorfile=wlme_condor_name(tilename,band)
+    condorfile=path_join(condordir, condorfile)
+    return condorfile
+
+
+def wlse_condor_name(exposurename, typ='fullpipe', ccd=None):
+    condorfile=[exposurename]
+
+    if typ != 'fullpipe':
+        condorfile.append(typ)
+
+    if ccd is not None:
+        condorfile.append('%02i' % int(ccd))
+    condorfile='-'.join(condorfile)+'.condor'
+    return condorfile
+    
+def wlse_condor_path(serun, exposurename, typ='fullpipe', ccd=None):
+    if ccd is not None:
+        subdir='byccd'
+    else:
+        subdir=None
+
+    condordir=condor_dir(serun, subdir=subdir)
+    condorfile=wlse_condor_name(exposurename, typ=typ, ccd=ccd)
+    condorfile=path_join(condordir, condorfile)
+    return condorfile
+
+
+
+def wlme_script_base(tilename, band):
+    script_parts=[tilename,band]
+    script_base='-'.join(scriptfile)
+    return script_base
+
+def wlme_script_name(tilename, band):
+    script_base = wlme_script_base(tilename, band)
+    script_name = script_base+'.sh'
+    return script_name
+    
+def wlme_script_path(merun, tilename, band):
+    scriptdir=condor_dir(merun)
+    scriptfile=wlme_script_name(tilename,band)
+    scriptfile=path_join(scriptdir, scriptfile)
+    return scriptfile
+
+
+def wlse_script_base(exposurename, typ='fullpipe', ccd=None):
+    script_parts=[exposurename]
+
+    if typ != 'fullpipe':
+        script_parts.append(typ)
+
+    if ccd is not None:
+        script_parts.append('%02i' % int(ccd))
+    script_base='-'.join(script_parts)
+    return script_base
+
+def wlse_script_name(exposurename, typ='fullpipe', ccd=None):
+    script_base = wlse_script_base(exposurename, typ=typ, ccd=ccd)
+    script_name = script_base+'.sh'
+    return script_name
+    
+def wlse_script_path(serun, exposurename, typ='fullpipe', ccd=None):
+    if ccd is not None:
+        subdir='byccd'
+    else:
+        subdir=None
+
+    scriptdir=condor_dir(serun, subdir=subdir)
+    scriptfile=wlse_script_name(exposurename, typ=typ, ccd=ccd)
+    scriptfile=path_join(scriptdir, scriptfile)
+    return scriptfile
+
+
+
+
+
+
+
+
+
+
 
 
 def get_info_from_path(filepath, fileclass):

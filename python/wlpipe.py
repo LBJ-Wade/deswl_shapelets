@@ -627,6 +627,267 @@ done
 
     fobj.close()
 
+class SECondorJobs(dict):
+    def __init__(self, wlserun, band, 
+                 type='fullpipe',
+                 nodes=1, ppn=1, nthread=1):
+        """
+        Need to implement nodes, ppn
+        """
+        self['run'] = wlserun
+        self['band'] = band
+        self['type'] = type
+        self['nodes'] = nodes
+        self['ppn'] = ppn
+        self['nthread'] = nthread
+
+        self.rc = deswl.files.Runconfig(self['run'])
+        self['dataset'] = self.rc['dataset']
+
+        # get the file lists
+        self.infodict,self.infodict_file = \
+            deswl.files.collated_redfiles_read(self['dataset'], band, getpath=True)
+        self.fileinfo = self.infodict['flist']
+
+
+    def write(self, dryrun=False):
+        # get unique exposure names
+        edict={}
+        for fi in self.fileinfo:
+            edict[fi['exposurename']] = fi
+        
+        for exposurename in edict:
+            sejob = SECondorJob(self['run'], exposurename, 
+                                type=self['type'],
+                                nodes=self['nodes'], 
+                                ppn=self['ppn'], 
+                                nthread=self['nthread'])
+            sejob.write_submit(dryrun=dryrun)
+            sejob.write_script(dryrun=dryrun)
+
+    def write_byccd(self, dryrun=False):
+        for fi in self.fileinfo:
+            exposurename=fi['exposurename']
+            ccd=fi['ccd']
+
+            sejob = SECondorJob(self['run'], exposurename, ccd=ccd,
+                                type=self['type'],
+                                nodes=self['nodes'], 
+                                ppn=self['ppn'], 
+                                nthread=self['nthread'])
+            sejob.write_submit(dryrun=dryrun)
+            sejob.write_script(dryrun=dryrun)
+
+
+
+ 
+class SECondorJob(dict):
+    def __init__(self, wlserun, exposurename, 
+                 ccd=None, type='fullpipe',
+                 nodes=1, ppn=1, nthread=1):
+        """
+        Need to implement nodes, ppn
+        """
+        self['run'] = wlserun
+        self['exposurename'] = exposurename
+        self['ccd'] = ccd
+        self['type'] = type
+        self['nodes'] = nodes
+        self['ppn'] = ppn
+        self['nthread'] = nthread
+
+    def write_submit(self, verbose=False, dryrun=False):
+        self.make_condor_dir()
+        f=deswl.files.wlse_condor_path(self['run'], 
+                                       self['exposurename'], 
+                                       typ=self['type'], 
+                                       ccd=self['ccd'])
+
+        print "writing to condor submit file:",f 
+        text = self.submit_text()
+        if verbose or dryrun:
+            print text 
+        if not dryrun:
+            with open(f,'w') as fobj:
+                fobj.write(text)
+        else:
+            print "this is just a dry run" 
+
+    def write_script(self, verbose=False, dryrun=False):
+        self.make_condor_dir()
+        f=deswl.files.wlse_script_path(self['run'], 
+                                       self['exposurename'], 
+                                       typ=self['type'], 
+                                       ccd=self['ccd'])
+
+        print "writing to condor script file:",f 
+        text = self.script_text()
+        if verbose or dryrun:
+            print text 
+        if not dryrun:
+            with open(f,'w') as fobj:
+                fobj.write(text)
+
+            print "changing mode of file to executable"
+            os.popen('chmod 755 '+f)
+        else:
+            print "this is just a dry run" 
+
+
+    def submit_text(self):
+        condor_dir = self.condor_dir()
+        script_base = deswl.files.wlse_script_base(self['exposurename'],
+                                                   ccd=self['ccd'],
+                                                   typ=self['type'])
+        submit_text="""
+Universe        = vanilla
+Notification    = Error
+GetEnv          = True
+Notify_user     = esheldon@bnl.gov
++Experiment     = "astro"
+Initialdir      = {condor_dir}
+
+Executable      = {script_base}.sh
+Output          = {script_base}.out
+Error           = {script_base}.err
+Log             = {script_base}.log
+
+Queue\n""".format(condor_dir=condor_dir, script_base=script_base)
+
+        return submit_text
+
+    def script_text(self):
+        rc=deswl.files.Runconfig(self['run'])
+        wl_setup = _make_setup_command('wl',rc['wlvers'])
+        tmv_setup = _make_setup_command('tmv',rc['tmvvers'])
+        esutil_setup = _make_setup_command('esutil', rc['esutilvers'])
+     
+        if self['ccd'] == None:
+            ccd=''
+        else:
+            ccd=self['ccd']
+
+        script_text="""#!/bin/bash
+source /astro/u/astrodat/setup/setup.sh
+source /astro/u/astrodat/products/eups/bin/setups.sh
+{wl_setup}
+{tmv_setup}
+{esutil_setup}
+setup desfiles -r /astro/u/astrodat/products-special/desfiles
+
+export OMP_NUM_THREADS={nthread}
+shear-run                     \\
+     --serun={serun}          \\
+     --nodots                 \\
+     {expname} {ccd} 2>&1
+""".format(wl_setup=wl_setup, 
+           tmv_setup=tmv_setup, 
+           esutil_setup=esutil_setup,
+           nthread=self['nthread'],
+           serun=self['run'],
+           expname=self['exposurename'],
+           ccd=ccd)
+
+        return script_text
+
+    def condor_dir(self):
+        if self['ccd'] is None:
+            return deswl.files.condor_dir(self['run'])
+        else:
+            return deswl.files.condor_dir(self['run'], subdir='byccd')
+
+
+    def make_condor_dir(self):
+        condor_dir = self.condor_dir()
+        if not os.path.exists(condor_dir):
+            print 'making output dir',condor_dir
+            os.makedirs(condor_dir)
+
+
+
+def generate_se_condor(serun, exposurename, outfile, ccd=None,
+                       nodes=1, ppn=1, walltime=None, queue='fast', 
+                       nthread=1):
+
+    """
+
+    Generate the bash script and condor submit file for a given job
+
+    """
+
+    # the job name
+    if ccd is None:
+        jobname=exposurename
+        ccd = ''
+    else:
+        jobname=exposurename+'-%02i' % int(ccd)
+    jobname = jobname.replace('decam-','')
+
+    # The useful log file we redirect from the actual script call
+    logf=outfile+'.log'
+
+    # the generally useless pbslog
+    pbslog_file = os.path.basename(outfile.replace('.pbs','.pbslog'))
+
+    scratch_rootdir=default_scratch_rootdir()
+
+    if walltime is not None:
+        walltime='#PBS -l walltime=%s' % walltime
+    else:
+        walltime=''
+
+    header="""#!/bin/bash
+#PBS -S /bin/bash
+#PBS -N {jobname}
+#PBS -j oe
+#PBS -o {pbslog_file}
+#PBS -m a
+#PBS -V
+#PBS -r n
+#PBS -W umask=0022
+{walltime}
+#PBS -l nodes={nodes}:ppn={ppn}
+#PBS -q {queue}
+
+umask 0022
+
+# The main log file, updated as the script runs
+logf="{logf}"
+
+# get eups ready
+source /global/data/products/eups/bin/setups.sh
+""".format(jobname=jobname, 
+           pbslog_file=pbslog_file, 
+           walltime=walltime, 
+           nodes=nodes, 
+           ppn=ppn, 
+           logf=logf,
+           queue=queue)
+
+    rc=deswl.files.Runconfig(serun)
+    wl_setup = _make_setup_command('wl',rc['wlvers'])
+    tmv_setup = _make_setup_command('tmv',rc['tmvvers'])
+    esutil_setup = _make_setup_command('esutil', rc['esutilvers'])
+    
+    fobj=open(outfile, 'w')
+
+    fobj.write(header)
+
+    fobj.write('%s\n' % wl_setup)
+    fobj.write('%s\n' % tmv_setup)
+    fobj.write('%s\n' % esutil_setup)
+    fobj.write('export OMP_NUM_THREADS=%d\n' % nthread)
+
+    fobj.write("\nshear-run       \\\n")
+    fobj.write('    --serun=%s    \\\n' % serun)
+    #fobj.write('    --rootdir=%s  \\\n' % scratch_rootdir)
+    #fobj.write('    --copyroot    \\\n')
+    fobj.write('    --nodots      \\\n')
+    fobj.write('    %s %s &> "$logf"\n' % (exposurename,ccd))
+
+    fobj.write('\n')
+    fobj.close()
+
 
 
 
@@ -1217,7 +1478,7 @@ class ExposureProcessor:
             raise IOError(self.stat['error_string'])
         
         try:
-            self.wl = deswl.WL(config_fname)
+            self.wl = deswl.WL(str(config_fname))
             if self.stat['nodots']:
                 self.wl.set_param("output_dots","false");
         except RuntimeError as e:
