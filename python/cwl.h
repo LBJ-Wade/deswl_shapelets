@@ -73,7 +73,7 @@ class CWL {
     void measure_shear(string shear_file) throw (const char*);
 
     void print_config();
-    void set_verbosity(bool verbosity);
+    void set_verbose(int verbosity);
 
     /*
     template<typename T, size_t n> size_t array_size(const T (&)[n]) {

@@ -160,6 +160,7 @@ import re
 import datetime
 import shutil
 import pprint
+import logging
 
 import deswl
 
@@ -197,6 +198,7 @@ ERROR_SE_MEASURE_PSF=2**6
 ERROR_SE_MEASURE_SHEAR=2**7
 ERROR_SE_SPLIT_STARS=2**8
 ERROR_SE_IO=2**9
+ERROR_SE_SET_LOG=2**10
 
 
 
@@ -745,6 +747,7 @@ Notification    = Error
 GetEnv          = True
 Notify_user     = esheldon@bnl.gov
 +Experiment     = "astro"
+Requirements    = (CPU_Experiment == "astro")
 Initialdir      = {condor_dir}
 
 Executable      = {script_base}.sh
@@ -803,90 +806,6 @@ shear-run                     \\
             print 'making output dir',condor_dir
             os.makedirs(condor_dir)
 
-
-
-def generate_se_condor(serun, exposurename, outfile, ccd=None,
-                       nodes=1, ppn=1, walltime=None, queue='fast', 
-                       nthread=1):
-
-    """
-
-    Generate the bash script and condor submit file for a given job
-
-    """
-
-    # the job name
-    if ccd is None:
-        jobname=exposurename
-        ccd = ''
-    else:
-        jobname=exposurename+'-%02i' % int(ccd)
-    jobname = jobname.replace('decam-','')
-
-    # The useful log file we redirect from the actual script call
-    logf=outfile+'.log'
-
-    # the generally useless pbslog
-    pbslog_file = os.path.basename(outfile.replace('.pbs','.pbslog'))
-
-    scratch_rootdir=default_scratch_rootdir()
-
-    if walltime is not None:
-        walltime='#PBS -l walltime=%s' % walltime
-    else:
-        walltime=''
-
-    header="""#!/bin/bash
-#PBS -S /bin/bash
-#PBS -N {jobname}
-#PBS -j oe
-#PBS -o {pbslog_file}
-#PBS -m a
-#PBS -V
-#PBS -r n
-#PBS -W umask=0022
-{walltime}
-#PBS -l nodes={nodes}:ppn={ppn}
-#PBS -q {queue}
-
-umask 0022
-
-# The main log file, updated as the script runs
-logf="{logf}"
-
-# get eups ready
-source /global/data/products/eups/bin/setups.sh
-""".format(jobname=jobname, 
-           pbslog_file=pbslog_file, 
-           walltime=walltime, 
-           nodes=nodes, 
-           ppn=ppn, 
-           logf=logf,
-           queue=queue)
-
-    rc=deswl.files.Runconfig(serun)
-    wl_setup = _make_setup_command('wl',rc['wlvers'])
-    tmv_setup = _make_setup_command('tmv',rc['tmvvers'])
-    esutil_setup = _make_setup_command('esutil', rc['esutilvers'])
-    
-    fobj=open(outfile, 'w')
-
-    fobj.write(header)
-
-    fobj.write('%s\n' % wl_setup)
-    fobj.write('%s\n' % tmv_setup)
-    fobj.write('%s\n' % esutil_setup)
-    fobj.write('export OMP_NUM_THREADS=%d\n' % nthread)
-
-    fobj.write("\nshear-run       \\\n")
-    fobj.write('    --serun=%s    \\\n' % serun)
-    #fobj.write('    --rootdir=%s  \\\n' % scratch_rootdir)
-    #fobj.write('    --copyroot    \\\n')
-    fobj.write('    --nodots      \\\n')
-    fobj.write('    %s %s &> "$logf"\n' % (exposurename,ccd))
-
-    fobj.write('\n')
-    fobj.close()
 
 
 
@@ -1375,6 +1294,12 @@ class ExposureProcessor:
 
         self.runconfig = None
 
+        self.logger = logging.getLogger('ExposureProcessor')
+        log_level = keys.get('log_level',logging.ERROR)
+        self.logger.setLevel(log_level)
+
+        self.verbose=0
+
 
     def set_config(self):
         # config file
@@ -1396,11 +1321,12 @@ class ExposureProcessor:
     def load_serun(self):
 
         if self.stat['serun'] is not None:
-            stdout.write("Loading runconfig for serun: '%s'\n" % self.stat['serun'])
+            stdout.write("    Loading runconfig for serun: '%s'\n" % self.stat['serun'])
             stdout.flush()
             try:
                 self.runconfig=deswl.files.Runconfig(self.stat['serun'])
             except RuntimeError as e:
+                self.logger.debug("caught RuntimeError load_serun loading Runconfig")
                 self.stat['error'] = ERROR_SE_IO
                 self.stat['error_string'] = "Error loading run config: '%s'" % e
                 stdout.write(self.stat['error_string']+'\n')
@@ -1412,10 +1338,11 @@ class ExposureProcessor:
 
                 
             # make sure we have consistency in the software versions
-            stdout.write('Verifying runconfig: ...'); stdout.flush()
+            stdout.write('    Verifying runconfig: ...'); stdout.flush()
             try:
                 self.runconfig.verify()
             except ValueError as e:
+                self.logger.debug("caught RuntimeError in load_serun verifying runconfig")
                 self.stat['error'] = ERROR_SE_MISC
                 self.stat['error_string'] = "Error verifying runconfig: '%s'" % e
                 stdout.write(self.stat['error_string']+'\n')
@@ -1460,6 +1387,7 @@ class ExposureProcessor:
             self.stat['tmvvers']=deswl.get_tmv_version()
 
         except RuntimeError as e:
+            self.logger.debug("caught RuntimeError in get_environ")
             self.stat['error'] = ERROR_SE_MISC
             self.stat['error_string'] = unicode(str(e),errors='replace')
             stdout.write(self.stat['error_string']+'\n')
@@ -1481,12 +1409,21 @@ class ExposureProcessor:
             self.wl = deswl.WL(str(config_fname))
             if self.stat['nodots']:
                 self.wl.set_param("output_dots","false");
+            if self.verbose > 0:
+                self.wl.set_verbose(self.verbose)
+            
+            # this will go in the header
+            if self.stat['serun']  is not None:
+                self.wl.set_param("wlserun",self.stat['serun'])
+
         except RuntimeError as e:
             self.stat['error'] = ERROR_SE_LOAD_CONFIG
             self.stat['error_string'] = 'Error loading config: %s' % e
             stdout.write(self.stat['error_string']+'\n')
             raise e
 
+    def set_verbose(self, verbose):
+        self.verbose=int(verbose)
 
     def load_file_lists(self):
         if not hasattr(self,'infodict'):
@@ -1506,12 +1443,15 @@ class ExposureProcessor:
                 raise e
 
     def get_band(self):
-        stdout.write("Getting band for '%s'\n" % self.stat['exposurename'])
+        stdout.write("    Getting band for '%s'..." % self.stat['exposurename'])
         stdout.flush()
         try:
             self.stat['band']=\
                 getband_from_exposurename(self.stat['exposurename'])
+            stdout.write(" '%s'\n" % self.stat['band'])
         except RuntimeError as e:
+            stdout.write('\n')
+            self.logger.debug("caught RuntimeError in get_band")
             self.stat['error'] = ERROR_SE_MISC
             self.stat['error_string'] = unicode(str(e),errors='replace')
             stdout.write(self.stat['error_string']+'\n')
@@ -1521,6 +1461,8 @@ class ExposureProcessor:
         """
         Don't call this, let the processing code call it!
         """
+
+        self.logger.debug("In setup")
 
         # this stuff only needs to be loaded once.
         if not hasattr(self, 'tmv_dir'):
@@ -1545,6 +1487,9 @@ class ExposureProcessor:
     def get_image_cat(self, ccd):
         # Here we rely on the fact that we picked out the unique, newest
         # version for each
+
+        self.logger.debug("Entering get_image_cat")
+
         image=None
         bname = self.stat['exposurename']+'_%02i' % int(ccd)
         for ti in self.infolist:
@@ -1555,6 +1500,7 @@ class ExposureProcessor:
                 break
 
         if image is None:
+            self.logger.debug("caught error loading image/cat")
             self.stat['error'] = ERROR_SE_MISC
             self.stat['error_string'] = \
                 "Exposure ccd '%s' not found in '%s'" % \
@@ -1612,28 +1558,44 @@ class ExposureProcessor:
         stdout.write("Loading images from '%s'\n" % self.stat['image'])
         stdout.flush()
         try:
-            self.wl.load_images(self.stat['image'])
+            self.wl.load_images(str(self.stat['image']))
         except RuntimeError as e:
             # the internal routines currently throw const char* which
             # swig is converting to runtime
+            self.logger.debug("caught error running load_images")
             self.stat['error'] = ERROR_SE_IO
             self.stat['error_string'] = unicode(str(e),errors='replace')
             stdout.write(self.stat['error_string']+'\n')
             raise e
+        except TypeError as e:
+            self.logger.debug("caught type error running load_images, probably string conversion")
+            self.stat['error'] = ERROR_SE_IO
+            self.stat['error_string'] = unicode(str(e),errors='replace')
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+
 
     def load_catalog(self):
 
         stdout.write("Loading catalog from '%s'\n" % self.stat['cat'])
         stdout.flush()
         try:
-            self.wl.load_catalog(self.stat['cat'])
+            self.wl.load_catalog(str(self.stat['cat']))
         except RuntimeError as e:
             # the internal routines currently throw const char* which
             # swig is converting to runtime
+            self.logger.debug("caught error running load_catalog")
             self.stat['error'] = ERROR_SE_IO
             self.stat['error_string'] = unicode(str(e),errors='replace')
             stdout.write(self.stat['error_string']+'\n')
             raise e
+        except TypeError as e:
+            self.logger.debug("caught type error running load_catalog, probably string conversion")
+            self.stat['error'] = ERROR_SE_IO
+            self.stat['error_string'] = unicode(str(e),errors='replace')
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+
 
 
     def write_status(self):
@@ -1756,10 +1718,24 @@ class ExposureProcessor:
 
 
     def set_log(self):
-        qafile=self.stat['output_files']['qa']
-        stdout.write("Setting qa file: '%s'\n" % qafile)
-        stdout.flush()
-        self.wl.set_log(qafile)
+        self.logger.debug("In set_log")
+        try:
+            qafile=self.stat['output_files']['qa']
+            stdout.write("    Setting qa file: '%s'\n" % qafile)
+            stdout.flush()
+            self.wl.set_log(str(qafile))
+        except RuntimeError as e:
+            self.logger.debug("caught internal RuntimeError running set_log")
+            self.stat['error'] = ERROR_SE_SET_LOG
+            self.stat['error_string'] = unicode(str(e),errors='replace')
+        except TypeError as e:
+            self.logger.debug("caught type error running set_log, probably string conversion")
+            self.stat['error'] = ERROR_SE_SET_LOG
+            self.stat['error_string'] = unicode(str(e),errors='replace')
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+
+
 
     def _process_ccd_types(self, types):
 

@@ -10,7 +10,10 @@ ccds in the exposure.
 
 import sys
 from sys import stdout,stderr
+import logging
 import deswl
+
+logging.basicConfig(level=logging.ERROR)
 
 from optparse import OptionParser
 parser = OptionParser(__doc__)
@@ -53,6 +56,8 @@ parser.add_option("--nodots", action='store_true', default=False,
 
 parser.add_option("--debug", default=0,
                   help="Debug verbosity level. 0:none 1:dbg 2:xdbg. Default %default")
+parser.add_option("--pydebug", default=False, action='store_true',
+                  help="Turn on debugging in python.Default %default")
 
 options, args = parser.parse_args(sys.argv[1:])
 types = options.types
@@ -61,7 +66,8 @@ outdir = options.outdir
 rootdir = options.rootdir
 copyroot=options.copyroot
 config_file=options.config
-debug=options.debug
+debug=int(options.debug)
+pydebug=options.pydebug
 
 types = types.split(',')
 nodots=options.nodots
@@ -78,7 +84,7 @@ if len(args) == 3:
 
     ip = deswl.wlpipe.ImageProcessor(config, image, cat, outdir=outdir)
     if debug > 0:
-        ip.set_verbosity(debug)
+        ip.set_verbose(debug)
 
     ip.process(types)
 
@@ -99,8 +105,14 @@ else:
                                         rootdir=rootdir,
                                         nodots=nodots)
 
+    log_level = logging.ERROR
+    if pydebug:
+        log_level = logging.DEBUG
+    ep.logger.setLevel(log_level)
+
     if debug > 0:
-        ep.set_verbosity(debug)
+        ep.set_verbose(debug)
+
     if ccd is None:
         ep.process_ccds(types=types)
     else:

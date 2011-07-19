@@ -62,7 +62,7 @@ void CWL::set_log(string logfile) {
 void CWL::print_config() {
   std::cout<<this->params;
 }
-void CWL::set_verbosity(bool verbosity) {
+void CWL::set_verbose(int verbosity) {
   this->params["verbose"] = verbosity;
   if (params.read<int>("verbose") > 1) XDEBUG = true;
   dbgout = &std::cout;
