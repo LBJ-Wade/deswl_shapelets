@@ -1811,6 +1811,9 @@ class ExposureProcessor:
         # ok, now we at least have the status file name to write to
         try:
             stdout.write('-'*72 + '\n')
+            stdout.write("host: %s\n" % platform.node())
+            stdout.write("ccd:  %02d\n" % ccd)
+
             self.setup()
 
             image,cat = self.get_image_cat(ccd)
@@ -1846,7 +1849,7 @@ class ExposureProcessor:
             stdout.write("Creating output dir: '%s'\n" % outdir)
             os.makedirs(outdir)
 
-    def process_ccds(self, **keys):
+    def process_all_ccds(self, **keys):
         t0=time.time()
         for ccd in xrange(1,62+1):
             self.process_ccd(ccd, **keys)

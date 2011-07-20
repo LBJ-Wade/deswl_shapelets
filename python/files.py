@@ -295,6 +295,29 @@ class Runconfig(object):
     def __repr__(self):
         return pprint.pformat(self.config)
 
+def ftype2fext(ftype_input):
+    ftype=ftype_input.lower()
+
+    if ftype == 'fits' or ftype == 'fit':
+        return 'fits'
+    elif ftype == 'rec' or ftype == 'pya':
+        return 'rec'
+    elif ftype == 'json':
+        return 'json'
+    elif ftype == 'yaml':
+        return 'yaml'
+    elif ftype == 'xml':
+        return 'xml'
+    elif ftype == 'eps':
+        return 'eps'
+    elif ftype == 'ps':
+        return 'ps'
+    elif ftype == 'png':
+        return 'png'
+    else:
+        raise ValueError("Don't know about '%s' files" % ftype)
+
+
 
 def convert_to_degrees(data):
     try:
@@ -567,10 +590,53 @@ def wlse_coldir(serun, fits=False):
         dir=os.path.join(dir,name+'.cols')
     return dir
 
+
+def wlse_test_dir(serun, subdir=None):
+    dir=run_dir('wlbnl',serun)
+    dir = path_join(dir, 'test')
+    if subdir is not None:
+        dir = path_join(dir, subdir)
+
+    return dir
+
+def wlse_test_path(serun, 
+                   subdir=None, 
+                   extra=None,
+                   ext='fits'):
+    """
+    e.g. wlse_test_path('wlse0011t', subdir=['checksg', 'decam--22--44-i-11'],
+                        extra='%02d' % ccd, ext='eps')
+    """
+
+    fname = [serun]
+    if subdir is not None:
+        if isinstance(subdir,(list,tuple)):
+            fname += list(subdir)
+        else:
+            fname += [subdir]
+
+    # extra only goes on the name
+    if extra is not None:
+        if isinstance(extra,(list,tuple)):
+            fname += list(extra)
+        else:
+            fname += [str(extra)]
+
+    fname='-'.join(fname)
+    fname += '.'+ext
+
+    dir = wlse_test_dir(serun, subdir=subdir)
+    outpath = path_join(dir,fname)
+
+    return outpath
+
+
+
 def wlse_collated_dir(serun):
     dir=run_dir('wlbnl',serun)
     dir = path_join(dir, 'collated')
     return dir
+
 
 
 def wlse_collated_path(serun, 
@@ -603,7 +669,7 @@ def wlse_collated_path(serun,
         if objclass in rc.se_collated_filetypes:
             ftype=rc.se_collated_filetypes[objclass]
         else:
-            typ='fits'
+            ftype='fits'
         
     # determine the extension
     fext = esutil.io.ftype2fext(ftype)

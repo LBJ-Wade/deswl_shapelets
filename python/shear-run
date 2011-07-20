@@ -114,7 +114,7 @@ else:
         ep.set_verbose(debug)
 
     if ccd is None:
-        ep.process_ccds(types=types)
+        ep.process_all_ccds(types=types)
     else:
         ep.process_ccd(ccd, types=types)
 
