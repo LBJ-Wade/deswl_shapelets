@@ -539,9 +539,9 @@ def wlse_read(exposurename, ccd, ftype,
               dir=None, 
               rootdir=None, 
               fext=None,
-              header=False, 
-              ext=0, 
-              verbose=False):
+              **keys):
+              #ext=0, 
+              #verbose=False):
 
     fpath=wlse_path(exposurename, ccd, ftype, 
                     serun=serun,
@@ -550,7 +550,7 @@ def wlse_read(exposurename, ccd, ftype,
                     rootdir=rootdir, 
                     fext=fext)
 
-    return esutil.io.read(fpath, header=header, ext=ext, verbose=verbose)
+    return esutil.io.read(fpath, **keys)
 
 def generate_se_filenames(exposurename, ccd, serun=None,
                           rootdir=None, dir=None):
