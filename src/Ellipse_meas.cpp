@@ -63,10 +63,10 @@ static double calculateLikelihood(
     static std::auto_ptr<DMatrix> Gg2;
     static std::auto_ptr<DMatrix> Gth;
 
-    if (!Gg1.get() || Gg1->colsize() < b.size()) {
-        Gg1.reset(new DMatrix(b.size(),b.size()));
-        Gg2.reset(new DMatrix(b.size(),b.size()));
-        Gth.reset(new DMatrix(b.size(),b.size()));
+    if (!Gg1.get() || Gg1->TMV_colsize() < b.size()) {
+        Gg1.reset(new DMatrix(int(b.size()),int(b.size())));
+        Gg2.reset(new DMatrix(int(b.size()),int(b.size())));
+        Gth.reset(new DMatrix(int(b.size()),int(b.size())));
         setupGg1(*Gg1,b.getOrder(),b.getOrder());
         setupGg2(*Gg2,b.getOrder(),b.getOrder());
         setupGth(*Gth,b.getOrder(),b.getOrder());
@@ -83,15 +83,15 @@ static double calculateLikelihood(
     DMatrix S(6,b.size());
     calculateGTransform(dg,2,b.getOrder(),S);
     xdbg<<"S = "<<S<<std::endl;
-    DVector bx = S.rowRange(3,5) * b.vec();
+    DVector bx = TMV_rowRange(S,3,5) * b.vec();
     xdbg<<"db = "<<bx<<std::endl;
-    DMatrix cx = S.rowRange(3,5) * bCov * S.rowRange(3,5).transpose();
+    DMatrix cx = TMV_rowRange(S,3,5) * bCov * TMV_rowRange(S,3,5).transpose();
     xdbg<<"c = "<<cx<<std::endl;
-    double chisq = bx * (bx/cx);
+    double chisq = EIGEN_ToScalar(bx * (cx.inverse() * bx));
     xdbg<<"chisq("<<gamma<<") = "<<chisq<<std::endl;
     double l = exp(-chisq/2.);
     xdbg<<"l = exp(-chisq/2) = "<<l<<std::endl;
-    l /= sqrt(Det(cx));  // ignore the 2pi factor
+    l /= sqrt(cx.TMV_det());  // ignore the 2pi factor
     xdbg<<"l /= sqrt(det(c)) = "<<l<<std::endl;
 
     // So far, this likelihood is a probability density in terms
@@ -105,16 +105,16 @@ static double calculateLikelihood(
     // dbx / dgamma_2 = 1/(1-|g|^2) * S * (Gg2 - g1*Gth) b
     double g1 = real(gamma);
     double g2 = imag(gamma);
-    DVector Gthb = Gth->subMatrix(0,b.size(),0,b.size()) * b.vec();
-    DVector Gg1b = Gg1->subMatrix(0,b.size(),0,b.size()) * b.vec();
-    DVector Gg2b = Gg2->subMatrix(0,b.size(),0,b.size()) * b.vec();
+    DVector Gthb = Gth->TMV_subMatrix(0,b.size(),0,b.size()) * b.vec();
+    DVector Gg1b = Gg1->TMV_subMatrix(0,b.size(),0,b.size()) * b.vec();
+    DVector Gg2b = Gg2->TMV_subMatrix(0,b.size(),0,b.size()) * b.vec();
     DMatrix jac(2,2);
-    jac.col(0) = S.rowRange(3,5) * (Gg1b + g2*Gthb);
-    jac.col(1) = S.rowRange(3,5) * (Gg2b - g1*Gthb);
+    jac.col(0) = TMV_rowRange(S,3,5) * (Gg1b + g2*Gthb);
+    jac.col(1) = TMV_rowRange(S,3,5) * (Gg2b - g1*Gthb);
     jac /= 1.-norm(gamma);
     xdbg<<"jac = "<<jac<<std::endl;
-    xdbg<<"det(jac) = "<<Det(jac)<<std::endl;
-    l *= std::abs(Det(jac));
+    xdbg<<"det(jac) = "<<jac.TMV_det()<<std::endl;
+    l *= std::abs(jac.TMV_det());
     xdbg<<"l *= |det(jac)| => "<<l<<std::endl;
     return l;
 }
@@ -124,7 +124,7 @@ bool Ellipse::findRoundFrame(
     int galOrder2, double thresh,
     long& flag, const DMatrix* bCov, DSmallMatrix22* cov)
 {
-    double trCov = cov ? Trace(*cov) : 0.;
+    double trCov = cov ? cov->trace() : 0.;
     bool doMeanLikelihood = false;
     bool doMaxLikelihood = true;
     //bool doMeanLikelihood = psf && !_isFixedGamma;
@@ -203,7 +203,7 @@ bool Ellipse::findRoundFrame(
         }
 
         dbg<<"done: x = "<<x<<std::endl;
-        dbg<<"Norm(delta x) = "<<Norm(x-xinit)<<std::endl;
+        dbg<<"Norm(delta x) = "<<(x-xinit).norm()<<std::endl;
         *this = ell_meas;
         preShiftBy(std::complex<double>(x(0),x(1))*sigma,
                    std::complex<double>(x(2),x(3)),
@@ -230,7 +230,7 @@ bool Ellipse::findRoundFrame(
                 flag |= SHEAR_BAD_COVAR;
             }
             // update trCov for next section
-            trCov = cov ? Trace(*cov) : 0.;
+            trCov = cov ? cov->trace() : 0.;
         } else if (doMeanLikelihood) {
             // Then need good estimate of trCov for step size.
             Assert(bCov);
@@ -240,7 +240,7 @@ bool Ellipse::findRoundFrame(
             solver.calculateJ(x,f,j);
             solver.getCovariance(*bCov,cov5);
             xdbg<<"cov5 = "<<cov5<<std::endl;
-            trCov = Trace(cov5.TMV_subMatrix(2,4,2,4));
+            trCov = cov5.TMV_subMatrix(2,4,2,4).trace();
         }
     }
 
@@ -269,9 +269,9 @@ bool Ellipse::findRoundFrame(
             dbg<<"Sheared b = "<<b1<<std::endl;
             DMatrix c1 = S * (*bCov) * S.transpose();
             dbg<<"c1 = "<<c1<<std::endl;
-            DVector b2 = b1.subVector(3,5);
-            DMatrix c2 = c1.subMatrix(3,5,3,5);
-            double chisq = b2 * (b2/c2);
+            DVector b2 = b1.TMV_subVector(3,5);
+            DMatrix c2 = c1.TMV_subMatrix(3,5,3,5);
+            double chisq = EIGEN_ToScalar(b2 * (c2.inverse() * b2));
             dbg<<"chisq("<<gamma<<") = "<<chisq<<std::endl;
         }
 #endif
@@ -287,7 +287,8 @@ bool Ellipse::findRoundFrame(
         double suml=0.;
         std::complex<double> sumlg=0.;
         double sumlg1g1=0., sumlg1g2=0., sumlg2g2=0.;
-        DMatrix like(2*Ngrid,2*Ngrid,0.);
+        DMatrix like(2*Ngrid,2*Ngrid);
+        like.setZero();
         dbg<<"g1 = "<<(g1c+(-Ngrid+0.5)*step)<<" ... "<<(g1c+(Ngrid-0.5)*step)<<std::endl;
         dbg<<"g2 = "<<(g2c+(-Ngrid+0.5)*step)<<" ... "<<(g2c+(Ngrid-0.5)*step)<<std::endl;
         for(int i=-Ngrid;i<Ngrid;++i) for(int j=-Ngrid;j<Ngrid;++j) {
@@ -311,7 +312,7 @@ bool Ellipse::findRoundFrame(
             dbg<<"dg * C^-1 * dg = "<<Pg<<std::endl;
             Pg = exp(-Pg/2.);
             dbg<<"exp(-dg * C * dg/2.) = "<<Pg<<std::endl;
-            Pg /= sqrt(Det(*cov));
+            Pg /= sqrt(cov->TMV_det());
             dbg<<"1/sqrt(|C|) exp(-dg * C * dg/2.) = "<<Pg<<std::endl;
             l *= Pg;
 #elif 0
@@ -425,7 +426,7 @@ void Ellipse::correctForBias(
     DMatrix D(galSize2,b.size());
     calculateMuTransform(ell_diff.getMu(),galOrder2,galOrder,D);
 
-    DMatrix M = T.rowRange(1,5) * S * D;
+    DMatrix M = TMV_rowRange(T,1,5) * S * D;
     xdbg<<"M = "<<M<<std::endl;
     DVector Mb = M * b.vec();
     xdbg<<"Mb = "<<Mb<<std::endl;
@@ -489,11 +490,11 @@ void Ellipse::correctForBias(
 #endif
 
     DMatrix J(4,4);
-    J.col(0) = dMdxb.subVector(1,5);
-    J.col(1) = dMdyb.subVector(1,5);
-    J.col(2) = dMdg1b.subVector(1,5);
-    J.col(3) = dMdg2b.subVector(1,5);
-    //J.col(4) = dMdmub.subVector(1,6);
+    J.col(0) = dMdxb.TMV_subVector(1,5);
+    J.col(1) = dMdyb.TMV_subVector(1,5);
+    J.col(2) = dMdg1b.TMV_subVector(1,5);
+    J.col(3) = dMdg2b.TMV_subVector(1,5);
+    //J.col(4) = dMdmub.TMV_subVector(1,6);
     xdbg<<"J = "<<J<<std::endl;
     xdbg<<"J.inv = "<<J.inverse()<<std::endl;
 
@@ -629,11 +630,11 @@ void Ellipse::correctForBias(
     xdbg<<"xCov = "<<xCov<<std::endl;
 
     DVector y(4);
-    y(0) = Trace(H0 * xCov);
-    y(1) = Trace(H1 * xCov);
-    y(2) = Trace(H2 * xCov);
-    y(3) = Trace(H3 * xCov);
-    //y(4) = Trace(H4 * xCov);
+    y(0) = (H0 * xCov).trace();
+    y(1) = (H1 * xCov).trace();
+    y(2) = (H2 * xCov).trace();
+    y(3) = (H3 * xCov).trace();
+    //y(4) = (H4 * xCov).trace();
     xdbg<<"y = "<<y<<std::endl;
 
     DVector bias = -0.5 * y / J;

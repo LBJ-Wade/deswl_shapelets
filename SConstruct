@@ -657,9 +657,13 @@ def DoConfig(env):
     if not env['DEBUG']:
         print 'Debugging turned off'
         env.Append(CPPDEFINES=['NDEBUG'])
-    elif not env['TMV_DEBUG'] and env['WITH_TMV']:
-        print 'Only TMV Debugging turned off'
-        env.Append(CPPDEFINES=['TMVNDEBUG'])
+    elif not env['TMV_DEBUG']:
+        if env['WITH_TMV']:
+            print 'Only TMV Debugging turned off'
+            env.Append(CPPDEFINES=['TMVNDEBUG'])
+        else:
+            print 'Only Eigen Debugging turned off'
+            env.Append(CPPDEFINES=['EIGEN_NO_DEBUG'])
     if env['STATIC'] :
         if env['CXXTYPE'] == 'pgCC':
             env.Append(LINKFLAGS=['-Bstatic'])
