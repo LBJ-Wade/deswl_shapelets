@@ -32,13 +32,13 @@ public :
 #ifdef USE_TMV
         _b((_order+1)*(_order+2)/2,bvec) 
 #else
-            _b(DVector::Map(bvec,(_order+1)*(_order+1)/2))
+            _b(DVector::Map(bvec,(_order+1)*(_order+2)/2))
 #endif
     {} 
 
     BVec(int order, double sigma, const DVector& bvec) :
         _order(order), _sigma(sigma), _b(bvec) 
-    {}
+    { Assert(bvec.size() == (order+1)*(order+2)/2); }
 
     BVec(const BVec& rhs) :
         _order(rhs._order), _sigma(rhs._sigma), _b(rhs._b)

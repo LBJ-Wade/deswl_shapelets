@@ -234,6 +234,7 @@ void MultiShearCatalog::resize(int n)
     _nImagesFound.resize(n, 0);
     _nImagesGotPix.resize(n, 0);
 
+    _measGalOrder.resize(n);
     _shear.resize(n);
     _nu.resize(n);
     _cov.resize(n);
@@ -450,21 +451,29 @@ void MultiShearCatalog::writeFits(std::string file) const
     table->column(colNames[cov00ColNum]).write(cov00,startRow);
     table->column(colNames[cov01ColNum]).write(cov01,startRow);
     table->column(colNames[cov11ColNum]).write(cov11,startRow);
+    table->column(colNames[orderColNum]).write(_measGalOrder,startRow);
 
     for (int i=0; i<nGals; ++i) {
         int row = i+1;
-        long bOrder = _shape[i].getOrder();
-        double bSigma = _shape[i].getSigma();
+        // MJ: measGalOrder keeps track of the order of the shapelet that
+        // was actually measured.  It is <= the full order of the shapelet
+        // vector, but the higher order terms are set to zero.
+        // Since we can't have different numbers of columns for each row, 
+        // we have to write out the full shapelet order for all rows
+        // including the zeros.
+        //
+        //long bOrder = _shape[i].getOrder();
+        //table->column(colNames[orderColNum]).write(&bOrder,1,row);
 
-        table->column(colNames[orderColNum]).write(&bOrder,1,row);
+        double bSigma = _shape[i].getSigma();
         table->column(colNames[sigmaColNum]).write(&bSigma,1,row);
+
         // There is a bug in the CCfits Column::write function that the 
         // first argument has to be S* rather than const S*, even though
         // it is only read from. 
         // Hence the const_cast.
         double* ptr = const_cast<double*>(TMV_cptr(_shape[i].vec()));
         table->column(colNames[coeffsColNum]).write(ptr, nCoeff, 1, row);
-
     }
 
     table->column(colNames[nImagesFoundColNum]).write(_nImagesFound,startRow);
@@ -480,6 +489,7 @@ void MultiShearCatalog::writeAscii(std::string file, std::string delim) const
     Assert(_shear.size() == size());
     Assert(_nu.size() == size());
     Assert(_cov.size() == size());
+    Assert(_measGalOrder.size() == size());
     Assert(_shape.size() == size());
     Assert(_nImagesFound.size() == size());
     Assert(_nImagesGotPix.size() == size());
@@ -511,7 +521,8 @@ void MultiShearCatalog::writeAscii(std::string file, std::string delim) const
             << _nImagesFound[i] << delim
             << _nImagesGotPix[i] << delim
             << _inputFlags[i] << delim
-            << _shape[i].getOrder() << delim
+            //<< _shape[i].getOrder() << delim
+            << _measGalOrder[i] << delim
             << fix6(_shape[i].getSigma()) << delim;
         const int nCoeffs = _shape[i].size();
         for(int j=0;j<nCoeffs;++j)
@@ -599,6 +610,11 @@ void MultiShearCatalog::readFits(std::string file)
     std::string nImagesGotPixCol=_params.get("multishear_nimages_gotpix_col");
     std::string inputFlagsCol=_params.get("multishear_input_flags_col");
 
+    // MJ: This is not really optimal.
+    // We should get this value from the fits header file, since it 
+    // is stored there.  What CCfits command does this?
+    int fullOrder = _params.get("shear_gal_order");
+
     long start=1;
     long end=nRows;
 
@@ -643,18 +659,17 @@ void MultiShearCatalog::readFits(std::string file)
     }
 
     dbg<<"  "<<sigmaCol<<"  "<<orderCol<<std::endl;
-    // temporary
-    std::vector<double> sigma;
-    std::vector<int> order;
+    _measGalOrder.resize(nRows);
+    std::vector<double> sigma; // temporary
     table.column(sigmaCol).read(sigma, start, end);
-    table.column(orderCol).read(order, start, end);
+    table.column(orderCol).read(_measGalOrder, start, end);
 
     _shape.reserve(nRows);
     for (int i=0; i<nRows; ++i) {
         int row=i+1;
 
-        _shape.push_back(BVec(order[i],sigma[i]));
-        int nCoeff=(order[i]+1)*(order[i]+2)/2;
+        _shape.push_back(BVec(fullOrder,sigma[i]));
+        int nCoeff=(fullOrder+1)*(fullOrder+2)/2;
 
         std::valarray<double> coeffs;
         table.column(coeffsCol).read(coeffs, row);
@@ -682,8 +697,11 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
         throw ReadException("Error opening stars file"+file);
     }
 
+    int fullOrder = _params.get("shear_gal_order");
+
     _id.clear(); _skyPos.clear(); _flags.clear();
-    _shear.clear(); _nu.clear(); _cov.clear(); _shape.clear();
+    _shear.clear(); _nu.clear(); _cov.clear();
+    _measGalOrder.clear(); _shape.clear();
     _nImagesFound.clear(); _nImagesGotPix.clear(); _inputFlags.clear();
 
     if (delim == "  ") {
@@ -705,7 +723,8 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
             _nImagesFound.push_back(nfound);
             _nImagesGotPix.push_back(ngotpix);
             _inputFlags.push_back(inflag);
-            _shape.push_back(BVec(bOrder,bSigma));
+            _measGalOrder.push_back(bOrder);
+            _shape.push_back(BVec(fullOrder,bSigma));
             const int nCoeffs = _shape.back().size();
             for(int j=0;j<nCoeffs;++j) 
                 fin >> _shape.back()(j);
@@ -743,7 +762,8 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
             getline(fin,temp,d); _inputFlags.push_back(temp);
             getline(fin,temp,d); bOrder = temp;
             getline(fin,temp,d); bSigma = temp;
-            _shape.push_back(BVec(bOrder,bSigma));
+            _measGalOrder.push_back(bOrder);
+            _shape.push_back(BVec(fullOrder,bSigma));
             const int nCoeffs = _shape.back().size();
             for(int j=0;j<nCoeffs-1;++j) {
                 getline(fin,temp,d); _shape.back()(j) = temp;

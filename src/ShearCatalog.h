@@ -53,6 +53,8 @@ public :
     const std::vector<double> getNuList() const { return _nu; }
     const std::vector<DSmallMatrix22>& getCovList() const 
     { return _cov; }
+    const std::vector<int> getMeasGalOrderList() const 
+    { return _measGalOrder; }
     const std::vector<BVec>& getShapeList() const { return _shape; }
 
     long getId(int i) const { return _id[i]; }
@@ -64,6 +66,7 @@ public :
     std::complex<double> getShear(int i) const { return _shear[i]; }
     double getNu(int i) const { return _nu[i]; }
     const DSmallMatrix22& getCov(int i) const { return _cov[i]; }
+    int getMeasGalOrder(int i) const { return _measGalOrder[i]; }
     const BVec& getShape(int i) const { return _shape[i]; }
 
     const Bounds& getBounds() const { return _bounds; }
@@ -80,6 +83,7 @@ private :
     std::vector<std::complex<double> > _shear;
     std::vector<double> _nu;
     std::vector<DSmallMatrix22 > _cov;
+    std::vector<int> _measGalOrder;
     EIGEN_mutable std::vector<BVec> _shape;
 
     Bounds _bounds;

@@ -11,7 +11,7 @@ void DoMeasureShear(
     const std::vector<PixelList>& allpix,
     const std::vector<BVec>& psf,
     double galAperture, double maxAperture,
-    int galOrder, int galOrder2, int maxm, int minGalOrder, bool baseOrderOnNu,
+    int& galOrder, int galOrder2, int maxm, int minGalOrder, bool baseOrderOnNu,
     double minFPsf, double maxFPsf, double minGalSize, bool fixCen,
     bool fixSigma, double fixSigmaValue, bool nativeOnly,
     ShearLog& log, BVec& shapelet, 

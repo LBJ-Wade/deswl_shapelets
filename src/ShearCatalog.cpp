@@ -106,6 +106,7 @@ ShearCatalog::ShearCatalog(
     int galOrder = _params.read<int>("shear_gal_order");
     BVec shapeDefault(galOrder,1.);
     shapeDefault.vec().TMV_setAllTo(DEFVALNEG);
+    _measGalOrder.resize(nGals,galOrder);
     _shape.resize(nGals,shapeDefault);
 
     Assert(_id.size() == size());
@@ -117,6 +118,7 @@ ShearCatalog::ShearCatalog(
     Assert(_shear.size() == size());
     Assert(_nu.size() == size());
     Assert(_cov.size() == size());
+    Assert(_measGalOrder.size() == size());
     Assert(_shape.size() == size());
 }
 
@@ -131,6 +133,7 @@ ShearCatalog::ShearCatalog(const ConfigFile& params) : _params(params)
     Assert(_shear.size() == size());
     Assert(_nu.size() == size());
     Assert(_cov.size() == size());
+    Assert(_measGalOrder.size() == size());
     Assert(_shape.size() == size());
 }
 
@@ -144,6 +147,7 @@ void ShearCatalog::writeFits(std::string file) const
     Assert(_shear.size() == size());
     Assert(_nu.size() == size());
     Assert(_cov.size() == size());
+    Assert(_measGalOrder.size() == size());
     Assert(_shape.size() == size());
     const int nGals = size();
 
@@ -160,8 +164,8 @@ void ShearCatalog::writeFits(std::string file) const
     std::vector<BVec> interp_psf;
     if (shouldOutputPsf) {
         Assert(_fitPsf);
-        interp_psf.resize( nGals,
-                           BVec(_fitPsf->getPsfOrder(),_fitPsf->getSigma()));
+        interp_psf.resize(
+            nGals,BVec(_fitPsf->getPsfOrder(),_fitPsf->getSigma()));
         for(int i=0;i<nGals;++i) interp_psf[i] = (*_fitPsf)(_pos[i]);
     }
 
@@ -318,14 +322,24 @@ void ShearCatalog::writeFits(std::string file) const
     table->column(colNames[11]).write(cov00,startRow);
     table->column(colNames[12]).write(cov01,startRow);
     table->column(colNames[13]).write(cov11,startRow);
+    table->column(colNames[14]).write(_measGalOrder,startRow);
 
     for (int i=0; i<nGals; ++i) {
         int row = i+1;
-        long bOrder = _shape[i].getOrder();
-        double bSigma = _shape[i].getSigma();
 
-        table->column(colNames[14]).write(&bOrder,1,row);
+        // MJ: measGalOrder keeps track of the order of the shapelet that
+        // was actually measured.  It is <= the full order of the shapelet
+        // vector, but the higher order terms are set to zero.
+        // Since we can't have different numbers of columns for each row, 
+        // we have to write out the full shapelet order for all rows
+        // including the zeros.
+        //
+        //long bOrder = _shape[i].getOrder();
+        //table->column(colNames[14]).write(&bOrder,1,row);
+        
+        double bSigma = _shape[i].getSigma();
         table->column(colNames[15]).write(&bSigma,1,row);
+
         // There is a bug in the CCfits Column::write function that the 
         // first argument has to be S* rather than const S*, even though
         // it is only read from. 
@@ -361,6 +375,7 @@ void ShearCatalog::writeAscii(std::string file, std::string delim) const
     Assert(_shear.size() == size());
     Assert(_nu.size() == size());
     Assert(_cov.size() == size());
+    Assert(_measGalOrder.size() == size());
     Assert(_shape.size() == size());
 
     std::ofstream fout(file.c_str());
@@ -392,7 +407,8 @@ void ShearCatalog::writeAscii(std::string file, std::string delim) const
             << sci8(_cov[i](0,0)) << delim
             << sci8(_cov[i](0,1)) << delim
             << sci8(_cov[i](1,1)) << delim
-            << _shape[i].getOrder() << delim
+            //<< _shape[i].getOrder() << delim
+            << _measGalOrder[i] << delim
             << fix6(_shape[i].getSigma());
         const int nCoeff = _shape[i].size();
         for(int j=0;j<nCoeff;++j)
@@ -497,6 +513,11 @@ void ShearCatalog::readFits(std::string file)
     std::string sigmaCol=_params.get("shear_sigma_col");
     std::string coeffsCol=_params.get("shear_coeffs_col");
 
+    // MJ: This is not really optimal.
+    // We should get this value from the fits header, since it's stored there.  
+    // What is the CCfits command to do this?
+    int fullOrder = _params.get("shear_gal_order");
+
     long start=1;
     long end=nRows;
 
@@ -557,19 +578,16 @@ void ShearCatalog::readFits(std::string file)
     }
 
     dbg<<"  "<<sigmaCol<<"  "<<orderCol<<std::endl;
-    // temporary
-    std::vector<double> sigma(nRows);
-    std::vector<int> order(nRows);
+    std::vector<double> sigma(nRows); // temporary
     table.column(sigmaCol).read(sigma, start, end);
-    table.column(orderCol).read(order, start, end);
+    table.column(orderCol).read(_measGalOrder, start, end);
 
     dbg<<"  "<<coeffsCol<<std::endl;
     _shape.reserve(nRows);
     for (int i=0; i<nRows; ++i) {
-        xxdbg<<"i = "<<i<<std::endl;
         int row=i+1;
 
-        _shape.push_back(BVec(order[i],sigma[i]));
+        _shape.push_back(BVec(fullOrder,sigma[i]));
         int nCoeff=_shape[i].size();
 
         std::valarray<double> coeffs(nCoeff);
@@ -587,8 +605,11 @@ void ShearCatalog::readAscii(std::string file, std::string delim)
         throw ReadException("Error opening stars file"+file);
     }
 
+    int fullOrder = _params.get("shear_gal_order");
+
     _id.clear(); _pos.clear(); _sky.clear(); _noise.clear(); _flags.clear();
-    _skyPos.clear(); _shear.clear(); _nu.clear(); _cov.clear(); _shape.clear();
+    _skyPos.clear(); _shear.clear(); _nu.clear(); _cov.clear();
+    _measGalOrder.clear(); _shape.clear();
 
     if (delim == "  ") {
         ConvertibleString flag;
@@ -607,7 +628,8 @@ void ShearCatalog::readAscii(std::string file, std::string delim)
             _nu.push_back(nu1);
             _cov.push_back(DSmallMatrix22());
             _cov.back() << c00, c01, c01, c11;
-            _shape.push_back(BVec(bOrder,bSigma));
+            _measGalOrder.push_back(bOrder);
+            _shape.push_back(BVec(fullOrder,bSigma));
             const int nCoeff = _shape.back().size();
             for(int j=0; j<nCoeff; ++j)
                 fin >> _shape.back()(j);
@@ -647,7 +669,8 @@ void ShearCatalog::readAscii(std::string file, std::string delim)
             _cov.back() << c00, c01, c01, c11;
             getline(fin,temp,d); bOrder = temp;
             getline(fin,temp,d); bSigma = temp;
-            _shape.push_back(BVec(bOrder,bSigma));
+            _measGalOrder.push_back(bOrder);
+            _shape.push_back(BVec(fullOrder,bSigma));
             const int nCoeff = _shape.back().size();
             for(int j=0;j<nCoeff-1;++j) {
                 getline(fin,temp,d); _shape.back()(j) = temp;

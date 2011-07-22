@@ -39,7 +39,7 @@ bool Ellipse::doMeasure(
     bool doMeanLikelihood = false;
     //bool doMeanLikelihood = psf && !_isFixedGamma;
     if (cov || doMeanLikelihood) 
-        bCov.reset(new DMatrix(b.size(),b.size()));
+        bCov.reset(new DMatrix(int(b.size()),int(b.size())));
 
     if (!ell_meas->doMeasureShapelet(
             pix,psf,b,galOrder,galOrder2,maxm,bCov.get())) {

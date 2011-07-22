@@ -185,18 +185,21 @@ int ShearCatalog::measureShears(
                 }
 
                 // Now measure the shape and shear:
+                _measGalOrder[i] = galOrder;
                 DoMeasureShear(
                     // Input data:
                     pix, psf,
                     // Parameters:
                     galAperture, maxAperture,
-                    galOrder, galOrder2, maxm, minGalOrder, baseOrderOnNu,
+                    _measGalOrder[i], galOrder2, maxm,
+                    minGalOrder, baseOrderOnNu,
                     minFPsf, maxFPsf, minGalSize, galFixCen,
                     galFixSigma, galFixSigmaValue, nativeOnly,
                     // Log information
                     log1,
                     // Ouput values:
                     _shape[i], _shear[i], _cov[i], _nu[i], _flags[i]);
+
 
                 if (!_flags[i]) {
                     dbg<<"Successful shear measurements: \n";

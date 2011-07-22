@@ -867,28 +867,19 @@ void EllipseSolver::ESImpl::calculateInvCov(
     const DMatrix& b0Cov, DMatrix& invcov) const
 {
     xdbg<<"ESImpl: calculateInvCov:\n";
-    //xdbg<<"b0Cov = "<<b0Cov<<std::endl;
 
     // Cov(b') = T S D Cov(b0) Dt St Tt
     // Cov(f) = Cov(b')(1:6,1:6) / b(0)^2
     // Cov(x)^-1 = Jt Cov(f)^-1 J
-    xdbg<<"T = "<<T.colsize()<<" x "<<T.rowsize()<<std::endl;
     DMatrix T1 = T.TMV_subMatrix(1,6,0,bxsize);
-    xdbg<<"T1 = "<<T1.colsize()<<" x "<<T1.rowsize()<<std::endl;
     DMatrix TS1 = T1 * TMV_colRange(S,0,bxsize);
-    xdbg<<"TS1 = "<<TS1.colsize()<<" x "<<TS1.rowsize()<<std::endl;
     DMatrix TSD1 = TS1 * TMV_colRange(D,0,b0size);
-    xdbg<<"TSD1 = "<<TSD1.colsize()<<" x "<<TSD1.rowsize()<<std::endl;
-    xdbg<<"b0Cov = "<<b0Cov.colsize()<<" x "<<b0Cov.rowsize()<<std::endl;
     DMatrix bxCov = TSD1 * b0Cov * TSD1.transpose();
-    xdbg<<"bxCov = "<<bxCov.colsize()<<" x "<<bxCov.rowsize()<<std::endl;
-    //xdbg<<"bxCov = "<<bxCov<<std::endl;
     DMatrix fCov = bxCov / (bx(0)*bx(0));
-    xdbg<<"fCov = "<<fCov<<std::endl;
+#ifdef USE_TMV
     fCov.divideUsing(tmv::SV);
+#endif
 
-    xdbg<<"jj = "<<jj.colsize()<<" x "<<jj.rowsize()<<std::endl;
-    xdbg<<"invcov = "<<invcov.colsize()<<" x "<<invcov.rowsize()<<std::endl;
     invcov = jj.transpose() * fCov.inverse() * jj;
     xdbg<<"In EllipseSolver calculateInvCov:\n";
     xdbg<<"bCov = "<<b0Cov<<std::endl;
@@ -911,10 +902,12 @@ void EllipseSolver::getCovariance(const DMatrix& b0Cov, DMatrix& cov) const
     _pimpl->calculateInvCov(b0Cov,invcov1);
     dbg<<"invcov1 = "<<invcov1<<std::endl;
 
+#ifdef USE_TMV
     if (_shouldUseSvd) {
         invcov1.divideUsing(tmv::SV);
         invcov1.svd().thresh(sqrtEps);
     }
+#endif
 
     DMatrix cov1 = invcov1.inverse();
     dbg<<"cov1 = "<<cov1<<std::endl;

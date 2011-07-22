@@ -761,6 +761,9 @@ int main() try
         std::cout<<"Test Linear:\n";
         Linear lin;
         SETMETHOD(lin);
+#ifdef USEBEST
+        lin.useDogleg();
+#endif
         
         DVector x(N);
         x.setZero();
@@ -791,6 +794,9 @@ int main() try
         double sigma = 1.e-3;
         NonLinear nlin(sigma);
         SETMETHOD(nlin);
+#ifdef USEBEST
+        nlin.useHybrid();
+#endif
 
         nlin.setMinStep(1.e-15);
         DVector x(4);
@@ -818,6 +824,9 @@ int main() try
         double sigma = 1.e-3;
         NonLinear2 nlin(sigma);
         SETMETHOD(nlin);
+#ifdef USEBEST
+        nlin.useHybrid();
+#endif
 
         nlin.setMinStep(1.e-15);
         DVector x(2);

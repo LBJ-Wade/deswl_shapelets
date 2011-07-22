@@ -77,13 +77,15 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                     continue;
                 }
 
+                _measGalOrder[i] = galOrder;
 #if 1
                 DoMeasureShear(
                     // Input data:
                     _pixList[i], _psfList[i],
                     // Parameters:
                     galAperture, maxAperture,
-                    galOrder, galOrder2, maxm, minGalOrder, baseOrderOnNu,
+                    _measGalOrder[i], galOrder2, maxm,
+                    minGalOrder, baseOrderOnNu,
                     minFPsf, maxFPsf, minGalSize, galFixCen, 
                     galFixSigma, galFixSigmaValue, nativeOnly,
                     // Log information
