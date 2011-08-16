@@ -116,7 +116,7 @@ static void ReadData(
         vargVec.push_back(varg);
         // Correct for a noise bias in the shape measurements.
         // E(g) = g_true * (1 - 2*sigma^2)
-        //gVec.back() /= (1.-(c00 + c11));
+        gVec.back() /= (1.-(c00 + c11));
     }
 }
 
