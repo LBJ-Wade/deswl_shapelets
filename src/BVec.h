@@ -2,9 +2,16 @@
 #define BVEC_H
 
 #include "MyMatrix.h"
+#include "Bounds.h"
 #include <complex>
 #include <vector>
 #include "dbg.h"
+
+// Just do declarations for Image, Transformation:
+template <typename T>
+class Image;
+
+class Transformation;
 
 class BVec;
 
@@ -79,6 +86,11 @@ public :
     void normalize() { _b /= _b(0); }
 
     void conjugateSelf();
+
+    void makeImage(
+        Image<double>& im,
+        const Position cen, double sky, const Transformation& trans,
+        double xOffset, double yOffset) const;
 
 private :
 

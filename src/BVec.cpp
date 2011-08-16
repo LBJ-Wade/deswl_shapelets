@@ -3,6 +3,9 @@
 #include "BinomFact.h"
 #include <cmath>
 #include "Params.h"
+#include "Image.h"
+#include "Transformation.h"
+#include "PsiHelper.h"
 
 BVec& BVec::operator=(const AssignableToBVec& rhs)
 {
@@ -45,6 +48,76 @@ void BVec::conjugateSelf()
                 _b(k+1) *= -1.0;
                 k+=2;
             }
+        }
+    }
+}
+
+void BVec::makeImage(
+    Image<double>& im,
+    const Position cen, double sky, const Transformation& trans,
+    double xOffset, double yOffset) const
+{
+    dbg<<"Start makeImage\n";
+    dbg<<"order = "<<getOrder()<<std::endl;
+    dbg<<"sigma = "<<getSigma()<<std::endl;
+    dbg<<"b = "<<*this<<std::endl;
+
+    xdbg<<"cen = "<<cen<<std::endl;
+    double xCen = cen.getX();
+    double yCen = cen.getY();
+
+    // Correct for any needed offset.
+    xCen -= xOffset;
+    yCen -= yOffset;
+    xdbg<<"xCen, yCen = "<<xCen<<" , "<<yCen<<std::endl;
+
+    Assert(xCen >= im.getXMin());
+    Assert(xCen <= im.getXMax());
+    Assert(yCen >= im.getYMin());
+    Assert(yCen <= im.getYMax());
+
+    double sigma = getSigma();
+
+    int nPix = (im.getMaxI()+1)*(im.getMaxJ()+1);
+    dbg<<"nPix = "<<nPix<<std::endl;
+
+    // We take these at the regular pixel locations relative to the center:
+    CDVector Z(nPix);
+
+    DSmallMatrix22 D;
+    trans.getDistortion(cen,D);
+    // This gets us from chip coordinates to sky coordinates:
+    // ( u ) = D ( x )
+    // ( v )     ( y )
+    xdbg<<"D = "<<D<<std::endl;
+    double det = std::abs(D.TMV_det());
+    double pixScale = sqrt(det); // arsec/pixel
+    xdbg<<"pixscale = "<<pixScale<<std::endl;
+
+    double chipX = im.getXMin()-xCen;
+    double peak = 0.;
+    int n=0;
+    for(int i=0;i<=im.getMaxI();++i,chipX+=1.) {
+        double chipY = im.getYMin()-yCen;
+        double u = D(0,0)*chipX+D(0,1)*chipY;
+        double v = D(1,0)*chipX+D(1,1)*chipY;
+        for(int j=0;j<=im.getMaxJ();++j,u+=D(0,1),v+=D(1,1)) {
+            Z(n++) = std::complex<double>(u,v) / sigma;
+        }
+    }
+    Assert(n == nPix);
+
+    // Now calculate the pixel fluxes at each point.
+    DMatrix A(nPix,size());
+    makePsi(A,TMV_vview(Z),_order);
+
+    DVector I = A * vec();
+
+    // Finally write the flux values to the image.
+    n=0;
+    for(int i=0;i<=im.getMaxI();++i) {
+        for(int j=0;j<=im.getMaxJ();++j) {
+            im(i,j) = I(n++);
         }
     }
 }
@@ -865,3 +938,4 @@ void applyPsf(const BVec& bpsf, BVec& b)
     calculatePsfConvolve(bpsf,b.getOrder(),b.getSigma(),C);
     b.vec() = C * b.vec();
 }
+

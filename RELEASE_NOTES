@@ -12,6 +12,13 @@ v0.63
 
 3) Added Bob's new s/g algorithm.
 
+4) Changed output galorder to be the order actually used in the 
+   measurement process, since it may be less than the requested value.
+
+5) Fixed some swig/gcc-4.3 bugs.
+
+6) Switch from pbs to condor.  
+
 -------------------------------------------------------------------------
 
 v0.62  (2011-04-29) 
