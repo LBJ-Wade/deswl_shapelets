@@ -26,6 +26,8 @@ public :
     // callF takes x and f of length 5, rather than whatever shorter
     // length that calculateF takes (depending on if things are fixed).
     void callF(const DVector& x, DVector& f) const;
+    void callJ(const DVector& x, const DVector& f, DMatrix& j) const;
+
     bool solve(DVector& x, DVector& f) const;
     bool testJ(const DVector& x, DVector& f,
                std::ostream* os=0, double relerr=0.) const;

@@ -945,6 +945,29 @@ void EllipseSolver::callF(const DVector& x, DVector& f) const
     EIGEN_Transpose(f) = EIGEN_Transpose(_pimpl->f_short)*_pimpl->U;
 }
 
+void EllipseSolver::callJ(const DVector& x, const DVector& f, DMatrix& j) const
+{
+    Assert(x.size() == 5);
+    Assert(f.size() == 5);
+    Assert(j.TMV_colsize() == 5);
+    Assert(j.TMV_rowsize() == 5);
+    _pimpl->xinit = x;
+    if (_pimpl->fixcen) { _pimpl->fixuc = x[0]; _pimpl->fixvc = x[1]; }
+    if (_pimpl->fixgam) { _pimpl->fixg1 = x[2]; _pimpl->fixg2 = x[3]; }
+    if (_pimpl->fixmu) { _pimpl->fixm = x[4]; }
+
+    _pimpl->x_short = _pimpl->U * x;
+    _pimpl->f_short = _pimpl->U * f;
+
+    DMatrix j_short(_pimpl->U.TMV_colsize(),_pimpl->U.TMV_colsize());
+    j_short = _pimpl->U * j * _pimpl->U.transpose();
+
+    calculateJ(_pimpl->x_short,_pimpl->f_short,j_short);
+
+    j = _pimpl->U.transpose() * j_short * _pimpl->U;
+}
+
+
 bool EllipseSolver::solve(DVector& x, DVector& f) const
 {
     Assert(x.size() == 5);

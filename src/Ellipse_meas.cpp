@@ -217,7 +217,7 @@ bool Ellipse::findRoundFrame(
             solver.useSVD();
             DMatrix cov5(5,5);
             DMatrix j(5,5);
-            solver.calculateJ(x,f,j); // Make sure jj is calculated.
+            solver.callJ(x,f,j); // Make sure jj is calculated.
             solver.getCovariance(*bCov,cov5);
             dbg<<"cov5 = "<<cov5<<std::endl;
             *cov = cov5.TMV_subMatrix(2,4,2,4);
@@ -237,7 +237,7 @@ bool Ellipse::findRoundFrame(
             solver.useSVD();
             DMatrix cov5(5,5);
             DMatrix j(5,5);
-            solver.calculateJ(x,f,j);
+            solver.callJ(x,f,j);
             solver.getCovariance(*bCov,cov5);
             xdbg<<"cov5 = "<<cov5<<std::endl;
             trCov = cov5.TMV_subMatrix(2,4,2,4).trace();

@@ -104,51 +104,66 @@ void doMeasurePsf(
         t1 = tp.tv_sec + tp.tv_usec/1.e6;
     }
 
-    // Create PsfCatalog from StarCatalog
-    psfCat.reset(new PsfCatalog(starCat,params));
+    if (params.read("psf_skip_measurements",false)) {
+        // Option to read existing PsfCatalog rather than remeasure.
+        // (Useful if you only want to redo the fitting step.)
+        psfCat.reset(new PsfCatalog(params));
+        psfCat->read();
 
-    if (isTiming) {
-        gettimeofday(&tp,0);
-        t2 = tp.tv_sec + tp.tv_usec/1.e6;
-        std::cout<<"Time: Create PSFCatalog = "<<t2-t1<<std::endl;
-        t1 = t2;
+        if (isTiming) {
+            gettimeofday(&tp,0);
+            t2 = tp.tv_sec + tp.tv_usec/1.e6;
+            std::cout<<"Time: Read PSFCatalog = "<<t2-t1<<std::endl;
+            t1 = t2;
+        }
+    } else {
+        // Create PsfCatalog from StarCatalog
+        psfCat.reset(new PsfCatalog(starCat,params));
+
+        if (isTiming) {
+            gettimeofday(&tp,0);
+            t2 = tp.tv_sec + tp.tv_usec/1.e6;
+            std::cout<<"Time: Create PSFCatalog = "<<t2-t1<<std::endl;
+            t1 = t2;
+        }
+
+        // Estimate the scale size to use for shapelet decompositions
+        if (sigmaP == 0.)
+            sigmaP = psfCat->estimateSigma(im,weightIm,trans);
+
+        if (isTiming) {
+            gettimeofday(&tp,0);
+            t2 = tp.tv_sec + tp.tv_usec/1.e6;
+            std::cout<<"Time: Estimate Sigma = "<<t2-t1<<std::endl;
+            t1 = t2;
+        }
+
+        // Do the actual PSF measurements
+        int nPsf = psfCat->measurePsf(im,weightIm,trans,sigmaP,log);
+
+        if (isTiming) {
+            gettimeofday(&tp,0);
+            t2 = tp.tv_sec + tp.tv_usec/1.e6;
+            std::cout<<"Time: Measure PSF = "<<t2-t1<<std::endl;
+            t1 = t2;
+        }
+
+        // Write PSF catalog to file
+        psfCat->write();
+
+        if (isTiming) {
+            gettimeofday(&tp,0);
+            t2 = tp.tv_sec + tp.tv_usec/1.e6;
+            std::cout<<"Time: Write PSFCatalog = "<<t2-t1<<std::endl;
+            t1 = t2;
+        }
+
+        if (nPsf == 0) {
+            throw ProcessingException(
+                "No successful PSF measurements");
+        }
     }
 
-    // Estimate the scale size to use for shapelet decompositions
-    if (sigmaP == 0.)
-        sigmaP = psfCat->estimateSigma(im,weightIm,trans);
-
-    if (isTiming) {
-        gettimeofday(&tp,0);
-        t2 = tp.tv_sec + tp.tv_usec/1.e6;
-        std::cout<<"Time: Estimate Sigma = "<<t2-t1<<std::endl;
-        t1 = t2;
-    }
-
-    // Do the actual PSF measurements
-    int nPsf = psfCat->measurePsf(im,weightIm,trans,sigmaP,log);
-
-    if (isTiming) {
-        gettimeofday(&tp,0);
-        t2 = tp.tv_sec + tp.tv_usec/1.e6;
-        std::cout<<"Time: Measure PSF = "<<t2-t1<<std::endl;
-        t1 = t2;
-    }
-
-    // Write PSF catalog to file
-    psfCat->write();
-
-    if (isTiming) {
-        gettimeofday(&tp,0);
-        t2 = tp.tv_sec + tp.tv_usec/1.e6;
-        std::cout<<"Time: Write PSFCatalog = "<<t2-t1<<std::endl;
-        t1 = t2;
-    }
-
-    if (nPsf == 0) {
-        throw ProcessingException(
-            "No successful PSF measurements");
-    }
 
     // Fit the PSF with a polynomial:
     fitPsf.reset(new FittedPsf(*psfCat,params,log));

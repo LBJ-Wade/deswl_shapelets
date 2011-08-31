@@ -51,6 +51,11 @@ public :
         _order(rhs._order), _sigma(rhs._sigma), _b(rhs._b)
     {}
 
+    BVec(const AssignableToBVec& rhs) :
+        _order(rhs.getOrder()), _sigma(rhs.getSigma()), 
+        _b((_order+1)*(_order+2)/2) 
+    { rhs.assignTo(*this); }
+
     ~BVec() {}
 
     BVec& operator=(const AssignableToBVec& rhs);

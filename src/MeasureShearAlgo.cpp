@@ -475,6 +475,7 @@ void DoMeasureShear(
                 Ellipse ell_shear = ell_round;
                 if (fixCen) ell_shear.fixCen();
                 if (fixSigma) ell_shear.fixMu();
+                //ell_shear.fixMu();
                 double w = sqrt(sigma/sigmaP);
                 bool success = false;
                 cov.setZero();
