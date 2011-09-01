@@ -31,7 +31,6 @@ double PsfCatalog::estimateSigma(
     }
 
     // Calculate a good value of sigma to use:
-    // (For this calculation, psfAp is psf_aperture * 1 arcsec.)
     double gain = _params.read("gain",0.);
     double psfAp = _params.read<double>("psf_aperture");
     dbg<<"psfap = "<<psfAp<<std::endl;
@@ -89,15 +88,10 @@ int PsfCatalog::measurePsf(
     bool shouldOutputDots = _params.read("output_dots",false);
     double gain = _params.read("image_gain",0.);
     double psfAp = _params.read<double>("psf_aperture");
-    double psfMaxAp = _params.read<double>("psf_max_aperture");
     bool psfFixCen = _params.read("psf_fix_centroid",false);
     double xOffset = _params.read("cat_x_offset",0.);
     double yOffset = _params.read("cat_y_offset",0.);
     dbg<<"psfap = "<<psfAp<<std::endl;
-    psfAp *= sigmaP;  // arcsec
-    dbg<<"psfap => "<<psfAp<<std::endl;
-    if (psfAp > psfMaxAp) psfAp = psfMaxAp;
-    dbg<<"psfap => "<<psfAp<<std::endl;
 
     int nStars = size();
     dbg<<"nstars = "<<nStars<<std::endl;
