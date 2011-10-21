@@ -120,10 +120,6 @@ def BasicCCFlags(env):
             env.Replace(CCFLAGS=['-O2'])
             if version <= 4.2:
                 env.Append(CCFLAGS=['-fno-strict-aliasing'])
-            if version == 4.4:
-                # Workaround for a bug in gcc 4.4
-                # I don't think it's needed in other versions.
-                env.Append(LIBS=['pthread'])
             if env['WARN']:
                 env.Append(CCFLAGS=['-g3','-Wall','-Werror'])
     
@@ -163,6 +159,11 @@ def BasicCCFlags(env):
     else:
         libs = env['LIBS'].split(' ')
         env.Replace(LIBS=libs)
+
+    if compiler == 'g++' and version == 4.4:
+        # Workaround for a bug in gcc 4.4
+        # I don't think it's needed in other versions.
+        env.AppendUnique(LIBS=['pthread'])
 
     if env['WITH_PROF']:
         env.Append(CCFLAGS=['-pg'])
