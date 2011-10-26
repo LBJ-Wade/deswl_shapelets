@@ -1,20 +1,25 @@
 """
     vim: set ft=python:
-    Order of doing things for SE image processing:
+    Order of doing things for SE image processing
 
-        For DC4 (dc5 things are a *little* easier)
+        I now use the database to figure out what SE files are available
+        for a given *release*.  The release dr012 corresponds to DC6b.
 
-            Find the collated, newest versions of SE "red" images and catalogs
+        Use ~/python/desdb/bin/get-release-runs.py to get a list of runs
+        and then use wget-des/wget-des-parallel to download them.
 
-                deswl.wlpipe.find_collated_redfiles_dc4(dataset, band)
-        For DC5
-                deswl.wlpipe.find_redfiles(dataset, band)
-            
+        Generate md5sums using ~/shell_scripts/checksum-files.  Then verify against 
+          https://desar.cosmology.illinois.edu/DESFiles/desardata/Release/{release}/MD5SUM
+        Here release is all caps.  Use 
+            ~/python/des/bin/checksum-compare.py 
+            or 
+            ~/python/des/src/checksum-compare (compile it)
+        for the comparison.
 
-        dataset is just a label, this command currently will look for all
-        such files. The output gets put under
-            $DESFILES_DIR/(dataset)/(dataset)-images-catalogs-(band).json
-
+        Then, use ~/python/desdb/bin/get-red-info.py to produce a .json file
+        with the image and cat info, including path relative to $DESDATA You
+        should output this to $DESFILES/{release} with a name like
+        {release}-red-{band}-info.json
 
         # create a run name and its configuration
             rc=deswl.files.Runconfig()
@@ -27,11 +32,17 @@
         
         You can send test=True and dryrun=True also
 
+        # create the condor scripts
+        sec=deswl.wlpipe.SECondorJobs(wlserun,band,type='fullpipe', nthread=1)
+        sec.write()
+        OR
+        sec.write_byccd()
 
-        # create pbs scripts, either by pointing or by ccd number
-        # these files execute the shear-run stand alone code
+        OLDER PBS STUFF
+            # create pbs scripts, either by pointing or by ccd number
+            # these files execute the shear-run stand alone code
 
-        generate_se_pbsfiles(serun, band, byccd=False): 
+            generate_se_pbsfiles(serun, band, byccd=False): 
 
         # after running you can check the results.  This will write
         # out lists of successful and unsuccessful jobs
@@ -149,6 +160,7 @@
 
 import sys
 from sys import stdout,stderr
+import traceback
 import platform
 import os
 import glob
@@ -199,209 +211,6 @@ ERROR_SE_MEASURE_SHEAR=2**7
 ERROR_SE_SPLIT_STARS=2**8
 ERROR_SE_IO=2**9
 ERROR_SE_SET_LOG=2**10
-
-
-
-def get_red_filelist(band=None, extra=None, newest=False, return_dict=False):
-    """
-    Send extra="_cat" to get the catalog list
-    """
-
-    command="des-list-files -c red -e ''"
-    if band is not None:
-        command = command + " -b %s" % band
-    if extra is not None:
-        command = command + " -e %s" % extra
-
-    exit_status, flist, serr = execute_command(command, verbose=True)
-
-    if exit_status != 0:
-        raise RuntimeError("des-list-files: exit status: "
-                           "%s stderr: %s" % (exit_status, serr))
-    
-    flist=flist.split('\n')
-    while flist[-1] == '':
-        flist.pop()
-
-    if newest:
-        return select_newest_red_run(flist, return_dict=return_dict)
-    else:
-        return flist
-
-def select_newest_red_run(image_list, return_dict=False):
-    """
-    Return the newest versions in file list based on run.  By default
-    returns the list, but can also return the info dict keyed by
-    exposurename-ccd
-
-    seems to work with cat files too
-    """
-    kinfo={}
-    for imfile in image_list:
-        info=deswl.files.get_info_from_path(imfile, 'red')
-        key=info['exposurename']+'-'+str(info['ccd'])
-        key = '%s-%02i' % (info['exposurename'], info['ccd'])
-        if key in kinfo:
-            stdout.write('found\n')
-            if info['redrun'] > kinfo[key]['redrun']:
-                s='replacing %s > %s\n' % (info['redrun'],kinfo[key]['redrun'])
-                stdout.write(s)
-                kinfo[key]['redrun'] = info['redrun']
-                kinfo[key]['file'] = imfile
-        else:
-            kinfo[key]={}
-            kinfo[key]['redrun'] = info['redrun']
-            kinfo[key]['file'] = imfile
-
-    if return_dict:
-        return kinfo
-    else:
-        keeplist=[]
-        for k in kinfo:
-            keeplist.append(kinfo[k]['file'])
-        return keeplist
-
-
-
-
-def get_matched_red_image_catlist(band=None, combine=True):
-    """
-    Find the newest catalogs and images and match them up
-
-    This is *everything on disk*!
-    """
-    stdout.write('Getting newest image list\n')
-    imdict = get_red_filelist(band=band, newest=True, return_dict=True)
-    stdout.write('Getting newest cat list\n')
-    catdict = get_red_filelist(band=band, newest=True, extra='_cat', 
-                               return_dict=True)
-
-
-    stdout.write('Matching %s images with %s catalogs\n' % 
-                 (len(imdict),len(catdict)) )
-
-
-    if not combine:
-        imlist=[]
-        catlist=[]
-        for key in sorted(imdict):
-            if key in catdict:
-                imlist.append(imdict[key]['file'])
-                catlist.append(catdict[key]['file'])
-        return imlist, catlist
-    else:
-        outlist=[]
-        for key in sorted(imdict):
-            if key in catdict:
-                t={'imfile':imdict[key]['file'],'catfile':catdict[key]['file']}
-                outlist.append(t)
-        stdout.write('Matched %s\n' % len(outlist))
-        return outlist
-
-def find_redfiles(dataset, band):
-    """
-    This function gets a clue from $DESFILES_DIR/{dataset}/{dataset}-runfiles-stat.json
-
-    It loops through the "info" list, se being for single-epoch, and if the
-    "bnlhas" tag is "y" for both red and red_cat, the files are searched for on
-    disk.
-
-    If the counts do not match the expected, an exception is thrown.
-
-    """
-
-    rf = deswl.files.runfiles_stat_read(dataset, 'red')
-
-    stdout.write("Checking %s runs\n" % len(rf['info']))
-    infolist=[]
-
-    DESDATA=deswl.files.des_rootdir()
-    nccd = 62
-    for rf_info in rf['info']:
-        run = rf_info['run']
-        if rf_info['red']['bnlhas'] == 'y' and rf_info['red_cat']['bnlhas'] == 'y':
-            # search the path for the expected red and red_cat files
-            # we assume they are under the same directories for dc5b
-            subdir = deswl.files.filetype_dir('red',run,'red')
-
-            # there will be lots of pointing directories under here.  Search
-            # through them all
-
-
-            pattern = path_join(subdir, 'decam-*-*-%s-*' % band)
-            stdout.write("Searching pattern: %s\n" % pattern)
-            exposure_dirs = glob.glob(pattern)
-            stdout.write("Found: %d exposures\n" % len(exposure_dirs))
-            for exposure_dir in exposure_dirs:
-                exposure = os.path.basename(exposure_dir)
-                #stdout.write("    Exposure: %s\n" % exposure)
-
-                for ccd in xrange(1,nccd+1):
-                    imfile = deswl.files.red_image_path(run, exposure, ccd, check=True)
-                    catfile = deswl.files.red_cat_path(run, exposure, ccd, check=True)
-
-                    info=deswl.files.get_info_from_path(imfile, 'red') 
-
-
-                    imfile = imfile.replace(DESDATA,'$DESDATA')
-                    catfile = catfile.replace(DESDATA,'$DESDATA')
-
-                    info['imfile'] = imfile
-                    info['catfile'] = catfile
-
-                    infolist.append(info)
-
-        else:
-            stdout.write("* Skipping missing run: %s\n" % run)
-
-    # grab just the pointing info
-    pointings = []
-    for info in infolist:
-        imdir = os.path.dirname(info['imfile'])
-        catdir = os.path.dirname(info['catfile'])
-        pointings.append({'imdir':imdir,'catdir':catdir})
-    deswl.files.collated_redfiles_write(dataset, band, infolist)
-
-
-def find_collated_redfiles_dc4(dataset, band):
-    """
-    Get the matched SE image and catalog lists and write to a file
-
-    dataset is just a label, in fact everything from the disk is lumped
-    together.  Need a way to distinguish the old from the new.
-
-    Note if dataset is dc4new, the old dc4 is read and that is used
-    as the basis.  This is because we don't have any other way right
-    not to distinguish dc4 and dc5 files.  Also, dc4new is really
-    just some reformatting of that list
-    """
-
-    if dataset == 'dc4new':
-        stdout.write("Bootstrapping off of 'dc4'\n")
-        fl = deswl.files.collated_redfiles_read('dc4',band)
-        flist = fl['flist']
-    else:
-        flist = get_matched_red_image_catlist(band)
-
-
-    DESDATA=deswl.files.des_rootdir()
-    infolist=[]
-    for fpair in flist:
-        imfile=fpair['imfile']
-        info=deswl.files.get_info_from_path(imfile, 'red') 
-
-        catfile = fpair['catfile']
-
-        imfile = imfile.replace(DESDATA,'$DESDATA')
-        catfile = catfile.replace(DESDATA,'$DESDATA')
-
-        info['imfile'] = imfile
-        info['catfile'] = catfile
-
-        infolist.append(info)
-
-    deswl.files.collated_redfiles_write(dataset, band, infolist)
-
 
 
 def _poll_subprocess(pobj, timeout_in):
@@ -647,9 +456,7 @@ class SECondorJobs(dict):
         self['dataset'] = self.rc['dataset']
 
         # get the file lists
-        self.infodict,self.infodict_file = \
-            deswl.files.collated_redfiles_read(self['dataset'], band, getpath=True)
-        self.fileinfo = self.infodict['flist']
+        self.fileinfo = deswl.files.collated_redfiles_read(self['dataset'], band)
 
 
     def write(self, dryrun=False):
@@ -771,12 +578,16 @@ Queue\n""".format(condor_dir=condor_dir, script_base=script_base)
             ccd=self['ccd']
 
         script_text="""#!/bin/bash
-source /astro/u/astrodat/setup/setup.sh
-source /astro/u/astrodat/products/eups/bin/setups.sh
-{wl_setup}
-{tmv_setup}
-{esutil_setup}
-setup desfiles -r /astro/u/astrodat/products-special/desfiles
+source ~astrodat/setup/setup.sh
+source ~astrodat/setup/setup-modules.sh
+module load use.own
+module unload tmv
+module load tmv/work
+module unload wl
+module load wl/work
+module unload esutil
+module load esutil/work
+module load desfiles
 
 export OMP_NUM_THREADS={nthread}
 shear-run                     \\
@@ -902,9 +713,8 @@ def generate_se_pbsfiles(serun, band, typ='fullpipe', byccd=False, nthread=1):
     dataset = rc['dataset']
 
     # get the file lists
-    infodict,infodict_file = \
+    fileinfo,info_file = \
         deswl.files.collated_redfiles_read(dataset, band, getpath=True)
-    fileinfo = infodict['flist']
 
 
     if byccd:
@@ -965,7 +775,7 @@ def generate_se_pbsfiles(serun, band, typ='fullpipe', byccd=False, nthread=1):
         %s
     Which should be a unique list of files.  When duplicateis are present
     the newest based on run ids was chosen.
-    \n""" % infodict_file
+    \n""" % info_file
 
     readme.write(mess)
     readme.close()
@@ -1150,13 +960,13 @@ class ImageProcessor(deswl.WL):
     def __init__(self, config, image, cat, **args):
         deswl.WL.__init__(self, config)
 
-        self.config_file = config
-        self.image_file = image
-        self.cat_file = cat
+        self.config_url = config
+        self.image_url = image
+        self.cat_url = cat
 
         outdir = args.get('outdir',None)
         if outdir is None:
-            outdir = os.path.dirname(self.cat_file)
+            outdir = os.path.dirname(self.cat_url)
         self.outdir = outdir
         if self.outdir == '':
             self.outdir = '.'
@@ -1166,7 +976,7 @@ class ImageProcessor(deswl.WL):
         self.imcat_loaded = False
 
     def set_output_names(self):
-        out_base = os.path.basename(self.cat_file)
+        out_base = os.path.basename(self.cat_url)
         out_base = out_base.replace('_cat.fits','')
         out_base = out_base.replace('.fits','')
         out_base = out_base.replace('.fit','')
@@ -1179,10 +989,10 @@ class ImageProcessor(deswl.WL):
             self.names[type] = out_base+'-'+type+'.fits'
 
     def load_data(self):
-        stdout.write('Loading %s\n' % self.image_file)
-        self.load_images(self.image_file)
-        stdout.write('Loading %s\n' % self.cat_file)
-        self.load_catalog(self.cat_file)
+        stdout.write('Loading %s\n' % self.image_url)
+        self.load_images(self.image_url)
+        stdout.write('Loading %s\n' % self.cat_url)
+        self.load_catalog(self.cat_url)
         self.imcat_loaded = True
 
     def process(self, types=['stars','psf','shear','split']):
@@ -1244,7 +1054,7 @@ class ImageProcessor(deswl.WL):
         for num in splitnum:
             nstr = str(num)
 
-            t = ImageProcessor(self.config_file, self.image_file, self.cat_file, 
+            t = ImageProcessor(self.config_url, self.image_url, self.cat_url, 
                                outdir=self.outdir) 
 
             t.names['psf'] = t.names['psf'+nstr]
@@ -1426,16 +1236,14 @@ class ExposureProcessor:
         self.verbose=int(verbose)
 
     def load_file_lists(self):
-        if not hasattr(self,'infodict'):
+        if not hasattr(self,'infolist'):
             try:
-                idict, ifile=\
+                info, ifile=\
                         deswl.files.collated_redfiles_read(self.stat['dataset'], 
                                                            self.stat['band'], 
                                                            getpath=True)
-                self.infodict=idict
-                self.infodict_file=ifile
-                self.infolist = self.infodict['flist']
-                self.stat['infodict_file'] = ifile
+                self.infolist = info
+                self.stat['info_url'] = ifile
             except IOError as e:
                 self.stat['error'] = ERROR_SE_IO
                 self.stat['error_string'] = 'Error loading file lists: %s' % e
@@ -1491,12 +1299,11 @@ class ExposureProcessor:
         self.logger.debug("Entering get_image_cat")
 
         image=None
-        bname = self.stat['exposurename']+'_%02i' % int(ccd)
+        expname=self.stat['exposurename']
         for ti in self.infolist:
-            tbname=deswl.files.remove_fits_extension(ti['basename'])
-            if tbname == bname:
-                image=ti['imfile']
-                cat=ti['catfile']
+            if ti['exposurename'] == expname and ti['ccd'] == ccd:
+                image=ti['image_url']
+                cat=ti['cat_url']
                 break
 
         if image is None:
@@ -1504,7 +1311,7 @@ class ExposureProcessor:
             self.stat['error'] = ERROR_SE_MISC
             self.stat['error_string'] = \
                 "Exposure ccd '%s' not found in '%s'" % \
-                             (bname, self.infodict_file)
+                             (bname, self.info_file)
             raise ValueError(self.stat['error_string'])
         image = os.path.expandvars(image)
         cat = os.path.expandvars(cat)
@@ -1512,6 +1319,7 @@ class ExposureProcessor:
 
 
     def get_output_filenames(self, ccd):
+
         try:
             fdict=deswl.files.generate_se_filenames(self.stat['exposurename'],
                                                     ccd,
@@ -1548,11 +1356,10 @@ class ExposureProcessor:
             raise e
         except:
             self.stat['error'] = ERROR_SE_UNKNOWN
-            self.stat['error_string'] = "Unexpected error: '%s'" % sys.exc_info()[0]
+            self.stat['error_string'] = "Unexpected error: '%s'" % traceback.format_exc()
             stdout.write(self.stat['error_string']+'\n')
             stdout.write('%s\n' % self.stat)
             raise RuntimeError(self.stat['error_string'])
-
     def load_images(self):
 
         stdout.write("Loading images from '%s'\n" % self.stat['image'])
@@ -1600,6 +1407,10 @@ class ExposureProcessor:
 
     def write_status(self):
         statfile = self.stat['output_files']['stat']
+        d=os.path.dirname(statfile)
+        if not os.path.exists(d):
+            os.makedirs(d)
+
         stdout.write("Writing status file: '%s'\n" % statfile)
         stdout.write("  staterr: %s\n" % self.stat['error'])
         stdout.write("  staterr string: '%s'\n" % self.stat['error_string'])
@@ -1808,6 +1619,7 @@ class ExposureProcessor:
 
         self.stat['ccd'] = ccd
 
+
         # ok, now we at least have the status file name to write to
         try:
             stdout.write('-'*72 + '\n')
@@ -1831,13 +1643,11 @@ class ExposureProcessor:
             if self.stat['error'] == 0:
                 # this was an unexpected error
                 self.stat['error'] = ERROR_SE_UNKNOWN
-                self.stat['error_string'] = \
-                        "Unexpected error: '%s'" % sys.exc_info()[0]
+                self.stat['error_string'] = "Unexpected error: '%s'" % traceback.format_exc()
             else:
                 # we caught this exception already and set an
                 # error state.  Just proceed and write the status file
                 pass
-        
         self.write_status()
         if self.stat['copyroot']:
             self.copy_root()
@@ -2002,27 +1812,24 @@ def run_shear(exposurename,
 
     # info on all the unique, newest tiles and catalogs
     stdout.write('\n')
-    infodict, infodict_file=\
+    infolist, info_file=\
         deswl.files.collated_redfiles_read(dataset, band, getpath=True)
 
-    infolist=infodict['flist']
     stdout.write('\n')
 
     # Here we rely on the fact that we picked out the unique, newest
     # version for each
     image=None
-    bname = exposurename+'_%02i' % int(ccd)
     for ti in infolist:
-        tbname=deswl.files.remove_fits_extension(ti['basename'])
-        if tbname == bname:
-            image=ti['imfile']
-            cat=ti['catfile']
+        if exposurename == ti['exposurename'] and ti['ccd'] == ccd:
+            image=ti['image_url']
+            cat=ti['cat_url']
             break
 
 
     if image is None:
         raise ValueError("Exposure ccd '%s' not found in '%s'" % \
-                         (bname, infodict_file))
+                         (bname, info_file))
 
     fdict=deswl.files.generate_se_filenames(exposurename,ccd,
                                             serun=serun, 
@@ -2054,7 +1861,7 @@ def run_shear(exposurename,
     stat['ESUTIL_DIR'] = esutil_dir
     stat['WL_DIR'] = wl_dir
     stat['DESFILES_DIR'] = desfiles_dir
-    stat['infodict_file'] = infodict_file
+    stat['info_url'] = info_file
     stat['exposurename'] = exposurename
     stat['ccd'] = ccd
     stat['outdir'] = outdir
@@ -2066,8 +1873,8 @@ def run_shear(exposurename,
     stat['cleanup'] = cleanup
     stat['debug'] = debug
 
-    stat['imfile'] = image
-    stat['catfile'] = cat
+    stat['image_url'] = image
+    stat['cat_url'] = cat
     stat['hostname'] = platform.node()
     stat['date'] = datetime.datetime.now().strftime("%Y-%m-%d-%X")
     for f in fdict:
@@ -2089,7 +1896,7 @@ def run_shear(exposurename,
     stdout.write('    ESUTIL_DIR: %s\n' % esutil_dir)
     stdout.write('    WL_DIR: %s\n' % wl_dir)
     stdout.write('    DESFILES_DIR: %s\n' % desfiles_dir)
-    stdout.write('    infodict_file: %s\n' % infodict_file)
+    stdout.write('    info_file: %s\n' % info_file)
     stdout.write('    exposurename: %s\n' % exposurename)
     stdout.write('    ccd: %s\n' % ccd)
     stdout.write('    outdir: %s\n' % outdir)
@@ -2162,8 +1969,7 @@ def check_shear(serun, band, rootdir=None, outdir=None):
     rc=deswl.files.Runconfig(serun)
     dataset = rc['dataset']
 
-    infodict=deswl.files.collated_redfiles_read(dataset, band)
-    infolist = infodict['flist']
+    infolist=deswl.files.collated_redfiles_read(dataset, band)
 
     badlist=[]
     goodlist=[]
@@ -2282,7 +2088,7 @@ def check_shear_qa(badlist):
 def check_shear_input_images(badlist, ext=1):
     import pyfits
     for b in badlist:
-        imfile=b['imfile']
+        imfile=b['image_url']
         stdout.write('\nReading %s[%s]\n' % (imfile,ext))
         try:
             data=pyfits.getdata(imfile,ext=ext)
@@ -2312,209 +2118,11 @@ def _find_wl_output(wlserun, src, typename, mohrify=False):
         stdout.write("WL file not found: %s\n" % fname)
         return False
     else:
-        src[typename+'file'] = fname
+        src[typename+'_path'] = fname
         return True
 
 
 
-
-
-
-def find_collated_coaddfiles(dataset, band, localid, 
-                             withsrc=True, 
-                             serun=None, mohrify=False,
-                             rootdir=None,
-                             verbosity=1, dowrite=True):
-    """
-
-    Find coadd files on the local disk.  The collated_coaddfiles, created
-    from the db, is used as the starting point.
-
-    If withsrc=True then the SE images that went into the coadd are also
-    searched for.
-
-    If serun is not None then the corresponding WL outputs for the SE images
-    are searched for.
-    
-    and collate with the input source
-    SE images and the weak lensing SE outputs.
-
-    Also if srclist is in the dictionaries these files are also searched for as
-    well as the corresponding fitpsf file needed for input into the multishear
-    code, and the shear catalog for SE.  For the fitpsf files you must enter
-    serun.
-
-    """
-
-
-    # note newest=False since we haven't discovered the newest yet
-    output_path = deswl.files.collated_coaddfiles_path(dataset, band, 
-                                                       withsrc=withsrc,
-                                                       serun=serun,
-                                                       newest=False,
-                                                       localid=localid)
-    if os.path.exists(output_path) and dowrite:
-        raise ValueError("Output file already exists: %s" % output_path)
-    stdout.write('Output file: %s\n' % output_path)
-
-    infodict = deswl.files.collated_coaddfiles_read(dataset, band,
-                                                    withsrc=withsrc)
-    #allinfo=infodict['info']
-
-    # where to look
-    if rootdir is None:
-        rootdir=getenv_check('DESDATA')
-
-
-    n_srcmissing=0
-    n_srcshort=0
-    n_catmissing=0
-    n_imagemissing=0
-    output = []
-
-    if 'srclist' in allinfo[0]:
-        stdout.write("Checking for sources\n")
-        checksources=True
-    else:
-        checksources=False
-
-    for info in allinfo:
-        
-        imfile=deswl.files.coadd_image_path(info['catalogrun'], 
-                                            info['tilename'], 
-                                            band, 
-                                            rootdir=rootdir, 
-                                            check=True)
-        catfile=deswl.files.coadd_cat_path(info['catalogrun'], 
-                                           info['tilename'], 
-                                           band, 
-                                           rootdir=rootdir, 
-                                           check=True)
-
-        srcfound=True
-        catfound=True
-        imfound=True
-        if imfile is None:
-            imfound=False
-            n_imagemissing += 1
-
-        if catfile is None:
-            catfound=False
-            n_catmissing += 1
-
-        srclist=[]
-        if checksources and imfound and catfound:
-            for src in info['srclist']:
-                keepsrc = True
-                srcfile=deswl.files.red_image_path(src['run'], 
-                                                   src['exposurename'], 
-                                                   src['ccd'],
-                                                   check=True, 
-                                                   rootdir=rootdir)
-                if srcfile is None:
-                    keepsrc=False
-                else:
-                    src['srcfile'] = srcfile
-
-
-                # check for the fitted psf file and shear file
-                if serun is not None and keepsrc:
-                    for ftype in ['fitpsf','shear']:
-                        res=_find_wl_output(serun,src,ftype,mohrify=mohrify)
-                        if not res:
-                            keepsrc=False
-                
-                if keepsrc:
-                    srclist.append(src)
-
-            if len(srclist) < len(info['srclist']):
-                stdout.write("Found fewer sources than listed %s/%s\n" \
-                             % (len(srclist), len(info['srclist'])))
-                n_srcshort += 1
-                if len(srclist) == 0:
-                    stdout.write("skipping the rest for this coadd %s\n" \
-                                 % imfile)
-                    srcfound=False
-                    n_srcmissing += 1
-
-        if catfound and imfound and \
-                ( (checksources and len(srclist) > 0) or (not checksources)):
-            info['catfile'] = catfile
-            info['imfile'] = imfile
-            if checksources:
-                info['srclist'] = srclist
-            output.append(info)
-
-    stdout.write("\nout of %s coadds\n" % len(allinfo))
-    stdout.write("  n_imagemissing = %s\n" % n_imagemissing)
-    stdout.write("  n_catmissing = %s\n" % n_catmissing)
-    stdout.write("  n_srcmissing = %s\n" % n_srcmissing)
-    stdout.write("  Of the good ones, n_srcshort = %s\n" % n_srcshort)
-    stdout.write("  (may not be unique)\n")
-    stdout.write("Keeping %s\n" % len(output))
-
-    stdout.write("Output file: %s\n" % output_path)
-
-    if dowrite:
-        outdir = os.path.dirname(output_path)
-        if not os.path.exists(outdir):
-            os.makedirs(outdir)
-        outdict={'rootdir':rootdir, 'info': output}
-        json_util.write(outdict, output_path)
-        stdout.write("\n  * Don't forget to check it into SVN!!!\n\n")
-
-
-def get_newest_coaddfiles(dataset, band, localid, withsrc=True, serun=None, 
-                          dowrite=True):
-    """
-    Take an output file from find_collated_coaddfiles() and return only the
-    newest version of each tile (by coaddrun-catalogrun) 
-    """
-
-
-    output_path = deswl.files.collated_coaddfiles_path(dataset, band, 
-                                                       withsrc=withsrc,
-                                                       serun=serun,
-                                                       newest=True,
-                                                       localid=localid)
-
-    if os.path.exists(output_path) and dowrite:
-        raise ValueError("Output file already exists: %s" % output_path)
-    stdout.write('Output file: %s\n' % output_path)
-
-
-    infodict=deswl.files.collated_coaddfiles_read(dataset, band, 
-                                                  localid=localid,
-                                                  withsrc=withsrc,
-                                                  newest=False,
-                                                  serun=serun)
-
-    # get the list of info
-    allinfo=infodict['info']
-
-    tmpdict={}
-    for info in allinfo:
-        tilename=info['tilename']
-        if tilename not in tmpdict:
-            tmpdict[tilename] = info
-        else:
-            # If this is newer, copy it over the existing one
-            oldinfo=tmpdict[tilename]
-            oldkey = oldinfo['coaddrun']+'-'+oldinfo['catalogrun']
-            newkey = info['coaddrun']+'-'+info['catalogrun']
-            if newkey > oldkey:
-                stdout.write("Replacing '%s' with '%s'\n" % (oldkey,newkey))
-                tmpdict[tilename] = info
-
-    # convert to list for py3k
-    values = list( tmpdict.values() )
-    output = {'info': values, 'rootdir':infodict['rootdir']}
-
-    stdout.write('Finally keeping %s/%s\n' % (len(tmpdict), len(allinfo)))
-    stdout.write('Output file: %s\n' % output_path)
-
-    if dowrite:
-        json_util.write(output, output_path)
 
 def generate_me_srclist(dataset, band, localid, serun, tileinfo):
     """
@@ -2547,7 +2155,7 @@ def generate_me_srclists(dataset, band, localid, serun):
     Generate multiepoch srclists for the given dataset and band.
     """
 
-    infodict, tileinfo_file=\
+    infodict, tileinfo_url=\
             deswl.files.collated_coaddfiles_read(dataset, 
                                                  band, 
                                                  localid=localid,
@@ -2658,7 +2266,7 @@ def generate_me_pbsfiles(merun, band):
     serun   = rc['serun']
 
     # get the file lists
-    infodict,tileinfo_file = \
+    infodict,tileinfo_url = \
         deswl.files.collated_coaddfiles_read(dataset, band, 
                                              localid=localid,
                                              serun=serun,getpath=True)
@@ -2697,7 +2305,7 @@ def generate_me_pbsfiles(merun, band):
         %s
     Which should be a unique list of tiles.  When duplicate tiles are present
     the newest based on coaddrun-catalogrun was chosen.
-    \n""" % tileinfo_file
+    \n""" % tileinfo_url
 
     readme.write(mess)
     readme.close()
@@ -2916,7 +2524,7 @@ def run_multishear(tilename, band,
 
     # info on all the unique, newest tiles and catalogs
     stdout.write('\n')
-    infodict, tileinfo_file=\
+    infodict, tileinfo_url=\
         deswl.files.collated_coaddfiles_read(dataset, band, 
                                              localid=localid,
                                              serun=serun,
@@ -2929,18 +2537,18 @@ def run_multishear(tilename, band,
     coaddimage=None
     for ti in tileinfo:
         if ti['tilename'] == tilename:
-            coaddimage=ti['imfile']
-            coaddcat=ti['catfile']
+            coaddimage=ti['image_url']
+            coaddcat=ti['cat_url']
             break
 
     if coaddimage is None:
         raise ValueError("Tilename '%s' not found in '%s'" % \
-                         (tilename, tileinfo_file))
+                         (tilename, tileinfo_url))
 
     fdict=deswl.files.generate_me_filenames(tilename, band, 
                                             merun=merun, dir=outdir, 
                                             rootdir=rootdir)
-    multishear_file=fdict['multishear']
+    multishear_url=fdict['multishear']
 
 
     fdict['config'] = config
@@ -2973,7 +2581,7 @@ def run_multishear(tilename, band,
     stat['WL_DIR'] = wl_dir
     stat['DESFILES_DIR'] = desfiles_dir
     stat['executable'] = executable
-    stat['tileinfo_file'] = tileinfo_file
+    stat['tileinfo_url'] = tileinfo_url
     stat['tilename'] = tilename
     stat['band'] = band
     stat['srclist'] = srclist
@@ -2987,7 +2595,7 @@ def run_multishear(tilename, band,
 
     stat['coaddimage'] = coaddimage
     stat['coaddcat'] = coaddcat
-    stat['multishear_file'] = multishear_file
+    stat['multishear_url'] = multishear_url
     stat['hostname'] = platform.node()
     stat['date'] = datetime.datetime.now().strftime("%Y-%m-%d-%X")
 
@@ -3010,7 +2618,7 @@ def run_multishear(tilename, band,
     stdout.write('    WL_DIR: %s\n' % wl_dir)
     stdout.write('    DESFILES_DIR: %s\n' % desfiles_dir)
     stdout.write('    executable: %s\n' % executable)
-    stdout.write('    tileinfo file: %s\n' % tileinfo_file)
+    stdout.write('    tileinfo file: %s\n' % tileinfo_url)
     stdout.write('    tilename: %s\n' % tilename)
     stdout.write('    band: %s\n' % band)
     stdout.write('    outdir: %s\n' % outdir)

@@ -159,7 +159,7 @@ class Runconfig(object):
             run_type: 
                 'wlse' or 'wlme'
             dataset: 
-                e.g. 'dc5b'
+                e.g. 'dc5b' or 'dr012'
             wl_config: 
                 Location of the weak lensing config you want to use for this
                 run. E.g. '$DESFILES_DIR/wl.config/wl05.config' Such
@@ -336,6 +336,13 @@ def convert_to_degrees(data):
 
 def des_rootdir():
     return getenv_check('DESDATA')
+
+def hdfs_rootdir():
+    """
+    Root dir in hhdfs
+    """
+    return 'hdfs:///user/esheldon/DES'
+
 
 
 def fileclass_dir(fileclass, rootdir=None):
@@ -811,8 +818,9 @@ def collated_redfiles_dir(dataset, html=False):
     return desfiles_dir
 
 def collated_redfiles_name(dataset, band):
-    name=[dataset,'images','catalogs']
-    name.append(band)
+    #name=[dataset,'images','catalogs']
+    #name.append(band)
+    name=[dataset,'red',band,'info']
     name = '-'.join(name)
     name += '.json'
     return name
@@ -822,19 +830,19 @@ def collated_redfiles_path(dataset, band, html=False):
     name = collated_redfiles_name(dataset, band)
     return path_join(tdir, name)
 
-_redfiles_cache={'dataset':None,'band':None,'data':None,'filename':None}
+_redfiles_cache={'dataset':None,'band':None,'data':None,'url':None}
 def collated_redfiles_read(dataset, band, getpath=False):
     if (_redfiles_cache['dataset'] == dataset 
             and _redfiles_cache['band'] == band):
         stdout.write('Re-using redfiles cache\n')
-        f=_redfiles_cache['filename']
+        f=_redfiles_cache['url']
         tileinfo=_redfiles_cache['data']
     else:
         f=collated_redfiles_path(dataset, band)
-        stdout.write('Reading tileinfo file: %s\n' % f)
+        stdout.write('Reading red info file: %s\n' % f)
         tileinfo=json_util.read(f)
 
-        _redfiles_cache['filename'] = f
+        _redfiles_cache['url'] = f
         _redfiles_cache['data'] = tileinfo
         _redfiles_cache['dataset'] = dataset
         _redfiles_cache['band'] = band
@@ -843,22 +851,6 @@ def collated_redfiles_read(dataset, band, getpath=False):
         return tileinfo, f
     else:
         return tileinfo
-
-def collated_redfiles_write(dataset, band, flist):
-    f=collated_redfiles_path(dataset, band)
-    fdir=os.path.dirname(f)
-    if not os.path.exists(fdir):
-        stdout.write("Creating directory tree: %s\n" % fdir)
-        os.makedirs(fdir)
-
-    output={'rootdir':deswl.files.des_rootdir(),
-            'hostname': platform.node(),
-            'flist':flist}
-
-    stdout.write('Writing red info file: %s\n' % f)
-    json_util.write(output, f)
-    stdout.write("    Don't forget to check it into SVN!!!!!\n")
-
 
 def collated_redfiles_write_web(dataset, band):
     json_file=collated_redfiles_path(dataset, band)
@@ -888,8 +880,8 @@ def collated_redfiles_write_web(dataset, band):
     pdata['flist'] = []
     for f in flist:
 
-        imfile=f['imfile']#.replace(DESDATA,'$DESDATA')
-        catfile=f['catfile']#.replace(DESDATA,'$DESDATA')
+        imfile=f['image_path']#.replace(DESDATA,'$DESDATA')
+        catfile=f['cat_path']#.replace(DESDATA,'$DESDATA')
 
         imdir=os.path.dirname(imfile)
         catdir=os.path.dirname(catfile)
