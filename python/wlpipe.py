@@ -554,7 +554,7 @@ Notification    = Error
 GetEnv          = True
 Notify_user     = esheldon@bnl.gov
 +Experiment     = "astro"
-Requirements    = (CPU_Experiment == "astro")
+Requirements    = (CPU_Experiment == "astro") && (TotalSlots == 12 || TotalSlots == 8)
 Initialdir      = {condor_dir}
 
 Executable      = {script_base}.sh
