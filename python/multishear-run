@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-    multishear-run [options] tilename band
+    multishear-run coadd_id merun
 """
 
 import sys
@@ -10,45 +10,8 @@ import deswl
 from optparse import OptionParser
 parser = OptionParser(__doc__)
 
-parser.add_option("--merun", default=None,
-    help="The run identifier. If sent a runconfig is "
-         "read and verified against current settings. The outdir will be "
-         "set to the usual place (see below)")
-
-parser.add_option("--dataset", default=None,
-                  help="dataset. e.g. 'dc4coadd'")
-parser.add_option("--localid", default=None,
-                  help="local id. , e.g. 'tutti2'")
-parser.add_option("--serun", default=None,
-                  help="SE shear run, e.g. 'wlse000001'")
-
-
-parser.add_option("--srclist", default=None,
- help="srclist file name.  Overrides the default srclist.")
-
-
-parser.add_option("--outdir", default=None,
-                  help="Where to place the output file. Default "
-                       " is '.' if the merun is not sent,"
-                       " but if merun is sent it will be"
-                       " $DESDATA/wlbnl/{merun}/tilename")
-parser.add_option("--rootdir", default=None,
-    help="Specify the data root directory. Default $DESDATA")
-parser.add_option("--copyroot", action='store_true', default=False,
-    help="Copy output files to the default path under $DESDATA")
-parser.add_option("--cleanup", action='store_true', default=False,
- help="If copyroot and cleanup then the local copy of each output is deleted.")
-
 parser.add_option("--nodots", action='store_true', default=False,
  help="Don't print progress dots.")
-
-parser.add_option("--writelog", action='store_true', default=False,
- help="Write QS/STATUS messages to a QA log file")
-
-#parser.add_option("--redirect", dest="redirect",
-#                  action='store_true', default=False,
-#                  help="redirect stdout/stderr to files with the usual names")
-
 parser.add_option("--debug", default=0,
     help="Debug verbosity level. 0:none 1:dbg 2:xdbg. Default %default")
 
@@ -56,43 +19,10 @@ options, args = parser.parse_args(sys.argv[1:])
 
 if len(args) < 2:
     parser.print_help()
-    stdout.write('\nExample:\n    multishear-run DES2215-2853 i\n')
-    stdout.write('\nFor more information see the documentation for\n')
-    stdout.write('    deswl.wlpipe.run_multishear\n\n')
-    #stdout.write('Library Documentation:'+\
-    #             deswl.wlpipe.run_multishear.__doc__)
     sys.exit(45)
 
-tilename=args[0]
-band=args[1]
-merun=options.merun
-outdir = options.outdir
-rootdir = options.rootdir
-copyroot=options.copyroot
-cleanup=options.cleanup
-dataset=options.dataset
-localid=options.localid
-serun=options.serun
-#redirect=options.redirect
+coadd_id=int(args[0])
+merun=args[1]
 
-srclist=options.srclist
-debug=options.debug
-
-writelog=options.writelog
-
-nodots=options.nodots
-
-deswl.wlpipe.run_multishear(tilename, band, 
-                            merun=merun,
-                            srclist=srclist,
-                            outdir=outdir, 
-                            rootdir=rootdir,
-                            copyroot=copyroot,
-                            cleanup=cleanup,
-                            dataset=dataset, 
-                            localid=localid,
-                            serun=serun,
-                            debug=debug,
-                            writelog=writelog,
-                            nodots=nodots)
-
+cp=deswl.wlpipe.CoaddProcessor(coadd_id, merun, 
+                               nodots=options.nodots, debug=options.debug)

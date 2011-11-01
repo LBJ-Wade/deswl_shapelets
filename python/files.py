@@ -2,7 +2,7 @@ from sys import stdout,stderr
 import platform
 import os
 import re
-import esutil
+import esutil as eu
 from esutil import json_util
 from esutil.ostools import path_join, getenv_check
 
@@ -133,9 +133,9 @@ class Runconfig(object):
     def generate_new_runconfig(self, 
                                run_type, 
                                dataset, 
+                               band,
                                wl_config,
                                run_name=None,
-                               localid=None, 
                                test=False, 
                                dryrun=False, 
                                pyvers=None,
@@ -160,6 +160,8 @@ class Runconfig(object):
                 'wlse' or 'wlme'
             dataset: 
                 e.g. 'dc5b' or 'dr012'
+            band:
+                'g','r','i','z','Y'
             wl_config: 
                 Location of the weak lensing config you want to use for this
                 run. E.g. '$DESFILES_DIR/wl.config/wl05.config' Such
@@ -179,16 +181,12 @@ class Runconfig(object):
 
             comment: Add an additional comment.
 
-            localid: 
-                Required for wlme runs.  What is this again?
         """
 
         # wlme runs depend on wlse runs
         if run_type == 'wlme':
             if 'serun' not in extra:
                 raise RuntimeError("You must send serun=something for wlme")
-            if localid is None:
-                raise RuntimeError("You must send localid= for wlme runs")
 
 
         if run_name is None:
@@ -201,7 +199,7 @@ class Runconfig(object):
         if pyvers is None:
             pyvers=deswl.get_python_version()
         if esutilvers is None:
-            esutilvers=esutil.version()
+            esutilvers=eu.version()
         if wlvers is None:
             wlvers=deswl.version()
         if tmvvers is None:
@@ -209,6 +207,7 @@ class Runconfig(object):
 
         runconfig={'run':run_name, 
                    'run_type':run_type,
+                   'band':band,
                    'fileclass': fileclass,
                    'pyvers':pyvers, 
                    'esutilvers': esutilvers,
@@ -219,9 +218,6 @@ class Runconfig(object):
 
         if comment is not None:
             runconfig['comment'] = comment
-
-        if localid is not None:
-            runconfig['localid'] = localid
 
         for e in extra:
             if e not in runconfig:
@@ -241,14 +237,14 @@ class Runconfig(object):
         """
 
         verify current setup against the run config, make sure all versions and
-        such are the same.  This does not check the data set or localid or
+        such are the same.  This does not check the data set or or
         serun for merun runconfigs.
 
         """
 
         vdict={}
         vdict['wlvers']=deswl.version()
-        vdict['esutilvers']=esutil.version()
+        vdict['esutilvers']=eu.version()
         vdict['tmvvers']=deswl.get_tmv_version()
         vdict['pyvers']=deswl.get_python_version()
 
@@ -294,6 +290,7 @@ class Runconfig(object):
 
     def __repr__(self):
         return pprint.pformat(self.config)
+
 
 def ftype2fext(ftype_input):
     ftype=ftype_input.lower()
@@ -557,7 +554,7 @@ def wlse_read(exposurename, ccd, ftype,
                     rootdir=rootdir, 
                     fext=fext)
 
-    return esutil.io.read(fpath, **keys)
+    return eu.io.read(fpath, **keys)
 
 def generate_se_filenames(exposurename, ccd, serun=None,
                           rootdir=None, dir=None):
@@ -679,7 +676,7 @@ def wlse_collated_path(serun,
             ftype='fits'
         
     # determine the extension
-    fext = esutil.io.ftype2fext(ftype)
+    fext = eu.io.ftype2fext(ftype)
 
 
     # add delimiter info to the file name
@@ -714,7 +711,7 @@ def wlse_collated_read(serun,
     fpath=wlse_collated_path(serun, objclass, ftype=ftype, delim=delim, 
                              region=region, dir=dir)
 
-    return esutil.io.read(fpath, header=header, 
+    return eu.io.read(fpath, header=header, 
                           rows=rows, columns=columns, fields=fields,
                           norecfile=norecfile, verbose=verbose, 
                           ext=ext) 
@@ -755,7 +752,7 @@ def wlme_basename(tilename, band, ftype, merun=None, extra=None, ext=None):
     return name
 
 
-def wlme_path(tilename, band, ftype, merun=None, 
+def wlme_url(tilename, band, ftype, merun=None, 
               extra=None, 
               dir=None, rootdir=None, ext=None):
     """
@@ -786,12 +783,12 @@ def generate_me_filenames(tilename, band,
 
     # output file names
     for ftype in rc.me_filetypes:
-        name= wlme_path(tilename,
-                        band,
-                        ftype,
-                        merun=merun,
-                        dir=dir,
-                        rootdir=rootdir)
+        name= wlme_url(tilename,
+                       band,
+                       ftype,
+                       merun=merun,
+                       dir=dir,
+                       rootdir=rootdir)
         fdict[ftype] = name
 
 
@@ -802,7 +799,7 @@ def generate_me_filenames(tilename, band,
 def runfiles_stat_read(dataset, type):
     name=runfiles_stat_name(dataset, type)
     stdout.write("Reading runfiles stat: %s\n" % name)
-    return esutil.io.read(name)
+    return eu.io.read(name)
 
 def runfiles_stat_name(dataset, type):
     dir=collated_redfiles_dir(dataset)
@@ -863,7 +860,7 @@ def collated_redfiles_write_web(dataset, band):
     if not os.path.exists(html_dir):
         os.makedirs(html_dir)
 
-    data = esutil.io.read(json_file)
+    data = eu.io.read(json_file)
     flist = data['flist']
 
     #DESDATA=data['rootdir']
@@ -893,87 +890,75 @@ def collated_redfiles_write_web(dataset, band):
             pdata['flist'].append( {'imdir':imdir,'catdir':catdir} )
 
 
-    esutil.io.write(dat_file,pdata,verbose=True)
+    eu.io.write(dat_file,pdata,verbose=True)
                                     
 
 
 
 
-def collated_coaddfiles_dir(dataset, localid=None):
+# 
+# This is a coadd info list that also has 'srclist'
+def coadd_info_dir(dataset):
     desfiles_dir=getenv_check('DESFILES_DIR')
     desfiles_dir = path_join(desfiles_dir,dataset)
-    if localid is not None:
-        desfiles_dir=path_join(desfiles_dir, localid)
     return desfiles_dir
 
 
-# need to rationalize these names
-def collated_coaddfiles_name(dataset, band, 
-                             withsrc=True, 
-                             serun=None,
-                             localid=None, 
-                             newest=True):
-    name=[dataset,'images','catalogs']
-    if withsrc:
-        name.append('withsrc')
-
-    if localid is not None:
-        name.append(localid)
-        if newest:
-            name.append('newest')
-
-    if serun is not None:
-        name.append(serun)
-    name.append(band)
-
-    return '-'.join(name)+'.json'
-
-def collated_coaddfiles_path(dataset, band, 
-                             withsrc=True, 
-                             serun=None,
-                             localid=None, 
-                             newest=True):
-    tdir=collated_coaddfiles_dir(dataset, localid=localid)
-    name = collated_coaddfiles_name(dataset, band, 
-                                    withsrc=withsrc, 
-                                    serun=serun,
-                                    localid=localid, 
-                                    newest=newest)
+def coadd_info_url(dataset, band, srclist=False):
+    if srclist:
+        name=[dataset,'coadd',band,'srclist']
+    else:
+        name=[dataset,'coadd',band,'info']
+    name = '-'.join(name)+'.pyobj'
+    tdir=coadd_info_dir(dataset)
     return path_join(tdir, name)
 
-def collated_coaddfiles_read(dataset, band, 
-                             withsrc=True, 
-                             serun=None,
-                             localid=None, 
-                             newest=True, 
-                             getpath=False):
-    f=collated_coaddfiles_path(dataset, band, 
-                               withsrc=withsrc, 
-                               serun=serun,
-                               localid=localid, 
-                               newest=newest)
-    stdout.write('Reading tileinfo file: %s\n' % f)
-    tileinfo=json_util.read(f)
-    if getpath:
-        return tileinfo, f
+_coadd_info_cache={'dataset':None,
+                   'band':None,
+                   'data':None,
+                   'url':None,
+                   'has_srclist':None}
+
+def coadd_info_read(dataset, band, srclist=False, geturl=False):
+
+    if (_coadd_info_cache['dataset'] == dataset 
+            and _coadd_info_cache['band'] == band 
+            and _coadd_info_cache['has_srclist']==srclist):
+        stdout.write('Re-using coadd info cache\n')
+        url=_coadd_info_cache['url']
+        data=_coadd_info_cache['data']
     else:
-        return tileinfo
+        url=coadd_info_url(dataset,band,srclist=srclist)
+        print 'Reading coadd info:',url
+        data=eu.io.read(url)
+
+        _coadd_info_cache['dataset'] = dataset
+        _coadd_info_cache['band'] = band
+        _coadd_info_cache['data'] = data
+        _coadd_info_cache['url'] = url
+        _coadd_info_cache['has_srclist'] = srclist
+
+    if geturl:
+        return data, url
+    else:
+        return data
 
 
 
-def wlme_srclist_dir(dataset, localid):
-    sdir=collated_coaddfiles_dir(dataset, localid=localid)
-    sdir=path_join(sdir, 'multishear-srclists')
+#
+# these are lists of srcfile,shearfile,fitpsffile
+# for input to multishear
+#
+def wlme_srclist_dir(dataset,serun):
+    sdir=coadd_inputs_dir(dataset)
+    sdir=path_join(sdir, 'multishear-srclists-%s' % serun)
     return sdir
-def wlme_srclist_name(tilename, band, serun):
-    srclist=[tilename,band,serun,'srclist']
-    srclist='-'.join(srclist)+'.dat'
-    return srclist
-    
 
-def wlme_srclist_path(dataset, localid, tilename, band, serun):
-    dir=wlme_srclist_dir(dataset, localid)
-    srclist=wlme_srclist_name(tilename,band,serun)
+def wlme_srclist_url(dataset, tilename, band, serun):
+    dir=wlme_srclist_dir(dataset,serun)
+
+    srclist=[dataset,serun,tilename,band,'srclist']
+    srclist='-'.join(srclist)+'.dat'
     return path_join(dir, srclist)
 
 

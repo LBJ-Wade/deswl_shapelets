@@ -55,73 +55,23 @@
         deswl.files.wlse_collated_path(serun, 'badlist')
 
     For coadds, using multishear:
-        On a machine that can directly access the desdm database:
+        Use 
+            ~/python/desdb/bin/get-coadd-info.py
+        To generate the coadd list in $DESFILES_DIR/{dataset}
+            ~/python/desdb/bin/get-coadd-input-images.py
+        To generate the list with associated input source images
 
-            import deswl
-            deswl.oracle.collate_coadd_catim(band,collated_file,
-                                             getsrc=True)
-
-
-        For DC4 I'm putting all this stuff into the nyu repo 'desfiles':
-            $DESFILES_DIR/dc4coadd
-        Generally
-          $DESFILES_DIR/(dataset)/(dataset)-images-catalogs-(band).json
-          $DESFILES_DIR/(dataset)/(dataset)-images-catalogs-withsrc-(band).json
-
-        This data is not really versioned.  The product should be installed and
-        set up so that DESFILES_DIR is set (this is also done by setup wl).
-
-        To process data on your local machine, you need to find the files on
-        local disk:
-
-            deswl.wlpipe.find_collated_coaddfiles(dataset, band, localid, 
-                                                  withsrc=True,
-                                                  serun=None,
-                                                  rootdir=None,
-                                                  verbosity=1,
-                                                  dowrite=True)
-        most common usage will be
-            find_collated_coaddfiles(dataset, band, localid, serun=something)
-        because this will be the input to the coadd stuff later.
-
-        I'm keeping these here:
-            $DESFILES_DIR/(dataset)/(localid)/
-               (dataset)-images-catalogs-withsrc-(localid)-(band).json
-
-        And to get the newest versions, send that file to:
-            deswl.wlpipe.get_newest_coaddfiles(infofile, output_file)
-
-
-        Stored in
-            $DESFILES_DIR/(dataset)/(localid)/
-              (dataset)-images-catalogs-withsrc-(localid)-newest-(band).json
-
-
-        Then this file is used to generate source lists (SE images that 
-        contribute to the coadd tiles) for input to multishear.
-
-            deswl.wlpipe.generate_me_srclists(dataset,band,localid,serun)
-
-        Which calls generate_me_srclist.  This will put files under the
-        given output directory.  Results are usually checked into desfiles 
-        under
-            $DESFILES_DIR/(dataset)/(localid)/multishear-srclist/
-                          (tilename)-(band)-srclist.dat
-
-
-
+        Then you can generate the inputs for multishear with
+            deswl.wlpipe.generate_me_srclists(dataset,band,serun)
+        puts files in $DESFILES_DIR/{dataset}/multishear-srclists-{serun}
+        These dataset is a release but could change.
 
 
         create a run name and its configuration
             rc=deswl.files.Runconfig()
-            rc.generate_new_runconfig('wlme',dataset,localid=,serrun=)
+            rc.generate_new_runconfig('wlme',dataset,serun=)
 
         You can send test=True and dryrun=True also
-
-        
-
-
-        CHECK THE ABOVE FILES INTO SVN!!!
 
 
         To write out the pbs files needed to process the new run:
@@ -193,8 +143,6 @@ def default_dataset(run_type):
     if run_type == 'wlse':
         return 'dc4new'
 
-def default_localid():
-    return 'tutti2'
 def default_serun():
     return 'wlse000001'
 def default_scratch_rootdir():
@@ -568,9 +516,9 @@ Queue\n""".format(condor_dir=condor_dir, script_base=script_base)
 
     def script_text(self):
         rc=deswl.files.Runconfig(self['run'])
-        wl_setup = _make_setup_command('wl',rc['wlvers'])
-        tmv_setup = _make_setup_command('tmv',rc['tmvvers'])
-        esutil_setup = _make_setup_command('esutil', rc['esutilvers'])
+        wl_load = _make_load_command('wl',rc['wlvers'])
+        tmv_load = _make_load_command('tmv',rc['tmvvers'])
+        esutil_load = _make_load_command('esutil', rc['esutilvers'])
      
         if self['ccd'] == None:
             ccd=''
@@ -580,13 +528,9 @@ Queue\n""".format(condor_dir=condor_dir, script_base=script_base)
         script_text="""#!/bin/bash
 source ~astrodat/setup/setup.sh
 source ~astrodat/setup/setup-modules.sh
-module load use.own
-module unload tmv
-module load tmv/work
-module unload wl
-module load wl/work
-module unload esutil
-module load esutil/work
+{tmv_load}
+{wl_load}
+{esutil_load}
 module load desfiles
 
 export OMP_NUM_THREADS={nthread}
@@ -594,9 +538,9 @@ shear-run                     \\
      --serun={serun}          \\
      --nodots                 \\
      {expname} {ccd} 2>&1
-""".format(wl_setup=wl_setup, 
-           tmv_setup=tmv_setup, 
-           esutil_setup=esutil_setup,
+""".format(wl_load=wl_load, 
+           tmv_load=tmv_load, 
+           esutil_load=esutil_load,
            nthread=self['nthread'],
            serun=self['run'],
            expname=self['exposurename'],
@@ -616,172 +560,6 @@ shear-run                     \\
         if not os.path.exists(condor_dir):
             print 'making output dir',condor_dir
             os.makedirs(condor_dir)
-
-
-
-
-
-
-def generate_se_pbsfile(serun, exposurename, outfile, ccd=None,
-                        nodes=1, ppn=1, walltime=None, queue='fast', 
-                        nthread=1):
-
-    """
-    """
-
-    # the job name
-    if ccd is None:
-        jobname=exposurename
-        ccd = ''
-    else:
-        jobname=exposurename+'-%02i' % int(ccd)
-    jobname = jobname.replace('decam-','')
-
-    # The useful log file we redirect from the actual script call
-    logf=outfile+'.log'
-
-    # the generally useless pbslog
-    pbslog_file = os.path.basename(outfile.replace('.pbs','.pbslog'))
-
-    scratch_rootdir=default_scratch_rootdir()
-
-    if walltime is not None:
-        walltime='#PBS -l walltime=%s' % walltime
-    else:
-        walltime=''
-
-    header="""#!/bin/bash
-#PBS -S /bin/bash
-#PBS -N {jobname}
-#PBS -j oe
-#PBS -o {pbslog_file}
-#PBS -m a
-#PBS -V
-#PBS -r n
-#PBS -W umask=0022
-{walltime}
-#PBS -l nodes={nodes}:ppn={ppn}
-#PBS -q {queue}
-
-umask 0022
-
-# The main log file, updated as the script runs
-logf="{logf}"
-
-# get eups ready
-source /global/data/products/eups/bin/setups.sh
-""".format(jobname=jobname, 
-           pbslog_file=pbslog_file, 
-           walltime=walltime, 
-           nodes=nodes, 
-           ppn=ppn, 
-           logf=logf,
-           queue=queue)
-
-    rc=deswl.files.Runconfig(serun)
-    wl_setup = _make_setup_command('wl',rc['wlvers'])
-    tmv_setup = _make_setup_command('tmv',rc['tmvvers'])
-    esutil_setup = _make_setup_command('esutil', rc['esutilvers'])
-    
-    fobj=open(outfile, 'w')
-
-    fobj.write(header)
-
-    fobj.write('%s\n' % wl_setup)
-    fobj.write('%s\n' % tmv_setup)
-    fobj.write('%s\n' % esutil_setup)
-    fobj.write('export OMP_NUM_THREADS=%d\n' % nthread)
-
-    fobj.write("\nshear-run       \\\n")
-    fobj.write('    --serun=%s    \\\n' % serun)
-    #fobj.write('    --rootdir=%s  \\\n' % scratch_rootdir)
-    #fobj.write('    --copyroot    \\\n')
-    fobj.write('    --nodots      \\\n')
-    fobj.write('    %s %s &> "$logf"\n' % (exposurename,ccd))
-
-    fobj.write('\n')
-    fobj.close()
-
-
-
-
-def generate_se_pbsfiles(serun, band, typ='fullpipe', byccd=False, nthread=1): 
-
-    stdout.write("Creating pbs files\n")
-
-    rc = deswl.files.Runconfig(serun)
-    dataset = rc['dataset']
-
-    # get the file lists
-    fileinfo,info_file = \
-        deswl.files.collated_redfiles_read(dataset, band, getpath=True)
-
-
-    if byccd:
-        outdir=deswl.files.pbs_dir(serun, subdir='byccd')
-    else:
-        outdir=deswl.files.pbs_dir(serun)
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
-
-
-    if typ == 'fullpipe':
-        submit_fname = 'submit.sh'
-    else:
-        submit_fname = 'submit-%s.sh' % typ
-    submit_fname=os.path.join(outdir, submit_fname)
-
-    if byccd:
-        submit_fname=submit_fname.replace('submit','submit-byccd')
-
-    submit=open(submit_fname, 'w')
-
-    if not byccd:
-        # get unique exposure names
-        edict={}
-        for fi in fileinfo:
-            edict[fi['exposurename']] = fi
-        
-        for exposurename in edict:
-            outfile = deswl.files.wlse_pbs_path(serun,exposurename,typ=typ)
-            stdout.write('Writing pbs file: %s\n' % outfile)
-            if typ == 'checkpsf':
-                generate_se_checkpsf_pbsfile(serun, exposurename, outfile)
-            else:
-                generate_se_pbsfile(serun, exposurename, outfile, nthread=nthread)
-
-            bfile = os.path.basename(outfile)
-            submit.write('echo -n "%s "; qsub %s\n' % (bfile,bfile))
-    else:
-        for fi in fileinfo:
-            exposurename=fi['exposurename']
-            ccd=fi['ccd']
-
-            outfile = deswl.files.wlse_pbs_path(serun,exposurename,
-                                                ccd=ccd,typ=typ)
-            stdout.write('Writing pbs file: %s\n' % outfile)
-            generate_se_pbsfile(serun, exposurename, outfile, ccd=ccd)
-
-            submit.write('qsub %s\n' % os.path.basename(outfile))
-
-    
-    submit.close()
-
-    readme_fname=os.path.join(outdir, 'README')
-    stdout.write('Creating %s\n' % readme_fname)
-    readme=open(readme_fname, 'w')
-    mess="""
-    Input file list: 
-        %s
-    Which should be a unique list of files.  When duplicateis are present
-    the newest based on run ids was chosen.
-    \n""" % info_file
-
-    readme.write(mess)
-    readme.close()
-
-
-
 
 
 
@@ -1079,6 +857,7 @@ class ExposureProcessor:
         want to have state available and always write the
         status file.
         """
+        raise ValueError("fix it so you have to send serun")
         self.all_types = ['stars','psf','shear','split']
 
         # things in stat will get written to the status QA
@@ -2116,50 +1895,172 @@ def _find_wl_output(wlserun, src, typename, mohrify=False):
         return True
 
 
+class MECondorJob(dict):
+    def __init__(self, coadd_id, merun, nthread=None):
+        """
+        Note merun implies a dataset which, combined with tilename and band,
+        makes a unique id.
+        """
+        self.runconfig=deswl.files.Runconfig(merun)
+        self['dataset'] = self.runconfig['dataset']
+        self['band'] = self.runconfig['band']
+
+        info=deswl.files.coadd_info_read(self['dataset'],
+                                         self['band'],
+                                         srclist=True)
+
+        # will use cache if needed
+        self['coadd_id'] = coadd_id
+        self['merun'] = merun
+        self['nthread'] = nthread
+
+    def write_submit(self, verbose=False, dryrun=False):
+        self.make_condor_dir()
+        f=deswl.files.wlse_condor_path(self['run'], 
+                                       self['exposurename'], 
+                                       typ=self['type'], 
+                                       ccd=self['ccd'])
+
+        print "writing to condor submit file:",f 
+        text = self.submit_text()
+        if verbose or dryrun:
+            print text 
+        if not dryrun:
+            with open(f,'w') as fobj:
+                fobj.write(text)
+        else:
+            print "this is just a dry run" 
+
+    def write_script(self, verbose=False, dryrun=False):
+        self.make_condor_dir()
+        f=deswl.files.wlse_script_path(self['run'], 
+                                       self['exposurename'], 
+                                       typ=self['type'], 
+                                       ccd=self['ccd'])
+
+        print "writing to condor script file:",f 
+        text = self.script_text()
+        if verbose or dryrun:
+            print text 
+        if not dryrun:
+            with open(f,'w') as fobj:
+                fobj.write(text)
+
+            print "changing mode of file to executable"
+            os.popen('chmod 755 '+f)
+        else:
+            print "this is just a dry run" 
 
 
-def generate_me_srclist(dataset, band, localid, serun, tileinfo):
+    def submit_text(self):
+        condor_dir = self.condor_dir()
+        script_base = deswl.files.wlse_script_base(self['exposurename'],
+                                                   ccd=self['ccd'],
+                                                   typ=self['type'])
+        submit_text="""
+Universe        = vanilla
+Notification    = Error
+GetEnv          = True
+Notify_user     = esheldon@bnl.gov
++Experiment     = "astro"
+Requirements    = (CPU_Experiment == "astro") && (TotalSlots == 12 || TotalSlots == 8)
+Initialdir      = {condor_dir}
+
+Executable      = {script_base}.sh
+Output          = {script_base}.out
+Error           = {script_base}.err
+Log             = {script_base}.log
+
+Queue\n""".format(condor_dir=condor_dir, script_base=script_base)
+
+        return submit_text
+
+    def script_text(self):
+        rc=deswl.files.Runconfig(self['run'])
+        wl_load = _make_load_command('wl',rc['wlvers'])
+        tmv_load = _make_load_command('tmv',rc['tmvvers'])
+        esutil_load = _make_load_command('esutil', rc['esutilvers'])
+     
+        if self['ccd'] == None:
+            ccd=''
+        else:
+            ccd=self['ccd']
+
+        thread_text=''
+        if self['nthread'] is not None:
+            thread_text='export OMP_NUM_THREADS=%s' % self['nthread']
+
+        script_text="""#!/bin/bash
+source ~astrodat/setup/setup.sh
+source ~astrodat/setup/setup-modules.sh
+module load use.own
+{tmv_load}
+{wl_load}
+{esutil_load}
+module load desfiles
+
+{thread_text}
+multishear-run {coadd_id} {merun} 2>&1
+""".format(coadd_id=self['coadd_id'],
+           merun=self['merun'],
+           wl_load=wl_load, 
+           tmv_load=tmv_load, 
+           esutil_load=esutil_load,
+           thread_text=thread_text)
+
+        return script_text
+
+    def condor_dir(self):
+        return deswl.files.condor_dir(self['run'])
+
+    def make_condor_dir(self):
+        condor_dir = self.condor_dir()
+        if not os.path.exists(condor_dir):
+            print 'making output dir',condor_dir
+            os.makedirs(condor_dir)
+
+
+
+
+def generate_me_srclist(coadd_inputs, serun):
     """
-    Generate an input file for multishear for the input tileinfo dict, which
-    should describe a single tile version.  
+    Generate an input file for multishear. The input
+    is a coadd info dict with srclist
 
-    This just writes out what is stored in the tile info structure
-    (found_coaddinfo).
+    each line is 
+        srcfile,shearfile,fitpsf
+
+    where the shearfile and fitpsf correspond to the input serun.
+
     """
 
-    tilename=tileinfo['tilename']
-    band=tileinfo['band']
-    fpath=deswl.files.wlme_srclist_path(dataset,localid,tilename,band,serun)
+    dataset=coadd_inputs['release'] #  need to generalize
+    tilename=coadd_inputs['tilename']
+    band=coadd_inputs['band']
+    fpath=deswl.files.wlme_srclist_url(dataset,tilename,band,serun)
     outdir=os.path.dirname(fpath)
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
     stdout.write('Writing multishear input file: %s\n' % fpath)
 
-
     fobj=open(fpath, 'w')
-    for s in tileinfo['srclist']:
-        line = '%s %s %s\n' % (s['srcfile'],s['shearfile'],s['fitpsffile'])
+    for s in coadd_inputs['srclist']:
+        names=deswl.files.generate_se_filenames(s['exposurename'],s['ccd'],serun=serun)
+        srcpath=os.path.expandvars(s['path'])
+        line = '%s %s %s\n' % (srcpath,names['shear'],names['fitpsf'])
         fobj.write(line)
 
     fobj.close()
 
-def generate_me_srclists(dataset, band, localid, serun):
+def generate_me_srclists(dataset, band, serun):
     """
     Generate multiepoch srclists for the given dataset and band.
     """
 
-    infodict, tileinfo_url=\
-            deswl.files.collated_coaddfiles_read(dataset, 
-                                                 band, 
-                                                 localid=localid,
-                                                 serun=serun,
-                                                 getpath=True)
-    tileinfo=infodict['info']
-
-
-    for ti in tileinfo:
-        generate_me_srclist(dataset, band, localid, serun, ti)
+    cinfo = deswl.files.coadd_info_read(dataset,band,srclist=True)
+    for id in cinfo:
+        generate_me_srclist(cinfo[id],serun)
 
 def _make_setup_command(prodname, vers):
     """
@@ -2173,137 +2074,17 @@ def _make_setup_command(prodname, vers):
 
     return setup_command
 
-def generate_me_pbsfile(merun, tilename, band, outfile,
-                        nodes=1, ppn=8, walltime=None,
-                        queue='fast'):
-
-    # the job name
-    jobname=tilename+'-'+band
-
-    # The useful log file we redirect from the actual script call
-    logf=outfile+'.log'
-
-    # the generally useless pbslog
-    pbslog_file = os.path.basename(outfile.replace('.pbs','.pbslog'))
-
-    scratch_rootdir=default_scratch_rootdir()
-
-    if walltime is not None:
-        walltime='#PBS -l walltime=%s' % walltime
+def _make_load_command(modname, vers):
+    """
+    convention is that trunk is exported to ~/exports/modname-work
+    """
+    load_command = "module unload {modname} && module load {modname}".format(modname=modname)
+    if vers == 'trunk' and modname != 'desfiles':
+        load_command += '/work'
     else:
-        walltime=''
+        load_command += '/%s' % vers
 
-    header="""#!/bin/bash
-#PBS -S /bin/bash
-#PBS -N {jobname}
-#PBS -j oe
-#PBS -o {pbslog_file}
-#PBS -m a
-#PBS -V
-#PBS -r n
-#PBS -W umask=0022
-{walltime}
-#PBS -l nodes={nodes}:ppn={ppn}
-#PBS -q {queue}
-
-umask 0022
-
-# The main log file, updated as the script runs
-logf="{logf}"
-
-# get eups ready
-source /global/data/products/eups/bin/setups.sh
-""".format(jobname=jobname, 
-           pbslog_file=pbslog_file, 
-           walltime=walltime, 
-           nodes=nodes, 
-           ppn=ppn, 
-           logf=logf,
-           queue=queue)
-    rc=deswl.files.Runconfig(merun)
-
-    # tmv,esutil must come after wl if wl is not current
-    wl_setup = _make_setup_command('wl',rc['wlvers'])
-    tmv_setup = _make_setup_command('tmv',rc['tmvvers'])
-    esutil_setup = _make_setup_command('esutil', rc['esutilvers'])
-    
-    fobj=open(outfile, 'w')
-
-    fobj.write(header)
-    fobj.write('%s\n' % wl_setup)
-    fobj.write('%s\n' % tmv_setup)
-    fobj.write('%s\n' % esutil_setup)
-
-
-    fobj.write("\nmultishear-run    \\\n")
-    fobj.write('    --merun=%s    \\\n' % merun)
-    fobj.write('    --rootdir=%s  \\\n' % scratch_rootdir)
-    fobj.write('    --copyroot    \\\n')
-    fobj.write('    --cleanup     \\\n')
-    #fobj.write('    --nodots      \\\n')
-    fobj.write('    --writelog    \\\n')
-    fobj.write('    %s %s &> "$logf"\n' % (tilename, band))
-
-    fobj.write('\n')
-    fobj.close()
-
-def generate_me_pbsfiles(merun, band): 
-    """
-    generate_me_pbsfiles(merun, band)
-    """
-
-    stdout.write("Creating pbs files\n")
-
-    rc = deswl.files.Runconfig(merun)
-    dataset = rc['dataset']
-    localid = rc['localid']
-    serun   = rc['serun']
-
-    # get the file lists
-    infodict,tileinfo_url = \
-        deswl.files.collated_coaddfiles_read(dataset, band, 
-                                             localid=localid,
-                                             serun=serun,getpath=True)
-    tileinfo = infodict['info']
-
-
-
-    outdir=deswl.files.pbs_dir(merun)
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
-
-
-    submit_fname=os.path.join(outdir, 'submit.sh')
-    submit=open(submit_fname, 'w')
-
-
-
-    for ti in tileinfo:
-        tilename=ti['tilename']
-        band=ti['band']
-
-        outfile = deswl.files.wlme_pbs_path(merun,tilename,band)
-        stdout.write('Writing pbs file: %s\n' % outfile)
-        generate_me_pbsfile(merun, tilename, band, outfile)
-
-        submit.write('qsub %s\n' % os.path.basename(outfile))
-
-    
-    submit.close()
-
-    readme_fname=os.path.join(outdir, 'README')
-    stdout.write('Creating %s\n' % readme_fname)
-    readme=open(readme_fname, 'w')
-    mess="""
-    Input file list: 
-        %s
-    Which should be a unique list of tiles.  When duplicate tiles are present
-    the newest based on coaddrun-catalogrun was chosen.
-    \n""" % tileinfo_url
-
-    readme.write(mess)
-    readme.close()
-
+    return load_command
 
 
 
@@ -2371,7 +2152,6 @@ def run_multishear(tilename, band,
                    cleanup=False,
                    merun=None,
                    dataset=None, 
-                   localid=None,
                    serun=None,
                    srclist=None,
                    writelog=False,
@@ -2387,7 +2167,6 @@ def run_multishear(tilename, band,
                                 cleanup=False,
                                 merun=None,
                                 dataset=None, 
-                                localid=None,
                                 serun=None,
                                 srclist=None,
                                 writelog=False,
@@ -2404,13 +2183,12 @@ def run_multishear(tilename, band,
     the file
 
         $DESFILES_DIR/(dataset)/
-           (dataset)-images-catalogs-withsrc-(localid)-newest-(band).json
+           (dataset)-images-catalogs-withsrc-newest-(band).json
 
     This contains a list of the newest versions of all the unique tiles.  The
     exececutable file for multishear and the config file are under $WL_DIR/bin
-    and $WL_DIR/etc.  Note the variables 'dataset' and 'localid', which default
-    to dataset='dc4coadd' and localid='tutti'.  The localid may be relevant since
-    different sites may contain different newest versions.
+    and $WL_DIR/etc.  Note the variables 'dataset' and which default
+    to dataset='dc4coadd'.
 
     The input source list is in 
         $DESFILES_DIR/(dataset)/multishear-srclists/
@@ -2432,7 +2210,7 @@ def run_multishear(tilename, band,
         merun: The multi-epoch run identifier.  If sent then the default output 
             directory is $DESDATA/wlbnl/run/me_shapelet/tilename.
             The merun= keyword is sent to multishear and added to the
-            header.  An merun implies and overrides dataset and localid.
+            header.  An merun implies and overrides dataset.
         outdir: The output directory.  Default '.'.  If merun is sent the
             default directory is the "standard" place.  See below.
         rootdir: The root directory when merun sent.  Default is $DESDATA.
@@ -2444,9 +2222,6 @@ def run_multishear(tilename, band,
         dataset:  The dataset to use.  This tells the code how to get the
             list of available tiles (see above).  Default is 
             is used if merun is not sent.  see default_dataset()
-        localid:  The localid holding the files.  The available tile list may
-            be different on different machines.  Default is used if
-            merun is not sent. see default_localid()
         serun:  The serun used to generate the SE shear input for the
             srclist.  Default defined in default_serun()
         srclist: The list of input SE images used to create the coadd.  If
@@ -2468,7 +2243,6 @@ def run_multishear(tilename, band,
             outdir = deswl.files.wlme_dir(merun, tilename, rootdir=rootdir)
 
         dataset=runconfig['dataset']
-        localid=runconfig['localid']
         serun=runconfig['serun']
     else:
         runconfig=None
@@ -2477,8 +2251,6 @@ def run_multishear(tilename, band,
 
         if dataset is None:
             dataset = default_dataset('wlme')
-        if localid is None:
-            localid = default_localid()
         if serun is None:
             serun = default_serun()
 
@@ -2514,13 +2286,12 @@ def run_multishear(tilename, band,
     # source list can be determined from tilename/band
     if srclist is None:
         srclist=\
-            deswl.files.wlme_srclist_path(dataset,localid,tilename,band,serun)
+            deswl.files.wlme_srclist_path(dataset,tilename,band,serun)
 
     # info on all the unique, newest tiles and catalogs
     stdout.write('\n')
     infodict, tileinfo_url=\
         deswl.files.collated_coaddfiles_read(dataset, band, 
-                                             localid=localid,
                                              serun=serun,
                                              getpath=True)
     tileinfo=infodict['info']
@@ -2564,7 +2335,6 @@ def run_multishear(tilename, band,
         #stat['runconfig'] = 'unspecified'
 
     stat['dataset'] = dataset
-    stat['localid'] = localid
     stat['serun'] = serun
     stat['pyvers'] = pyvers
     stat['esutilvers'] = esutilvers
@@ -2602,7 +2372,6 @@ def run_multishear(tilename, band,
         for key in runconfig:
             stdout.write("        rc['%s']: %s\n" % (key, runconfig[key]))
     stdout.write('    dataset: %s\n' % dataset)
-    stdout.write('    data localid: %s\n' % localid)
     stdout.write('    serun: %s\n' % serun)
     stdout.write('    python version: %s\n' % pyvers)
     stdout.write('    tmv version: %s\n' % tmvvers)
@@ -2681,12 +2450,10 @@ def check_multishear(merun, band,
 
     rc=deswl.files.Runconfig(merun)
     dataset=rc['dataset']
-    localid=rc['localid']
     serun=rc['serun']
 
     if tilelist is None:
         infodict=deswl.files.collated_coaddfiles_read(dataset, band, 
-                                                      localid=localid,
                                                       serun=serun)
         tileinfo=infodict['info']
     else:
