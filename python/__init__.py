@@ -75,6 +75,6 @@ except:
 
 import wlpipe
 import files
-import oracle
+#import oracle
 
 

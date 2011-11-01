@@ -23,7 +23,7 @@
 
         # create a run name and its configuration
             rc=deswl.files.Runconfig()
-            rc.generate_new_runconfig('wlse', dataset, wl_config)
+            rc.generate_new_runconfig('se', dataset, wl_config)
 
         Note I've started setting wl_config here, instead of using
         what is under etc. This allows us to use the same version
@@ -33,7 +33,7 @@
         You can send test=True and dryrun=True also
 
         # create the condor scripts
-        sec=deswl.wlpipe.SECondorJobs(wlserun,band,type='fullpipe', nthread=1)
+        sec=deswl.wlpipe.SECondorJobs(serun,band,type='fullpipe', nthread=1)
         sec.write()
         OR
         sec.write_byccd()
@@ -51,8 +51,8 @@
 
         # the files written are these.  Need to make it bandpass 
         # dependent
-        deswl.files.wlse_collated_path(serun, 'goodlist')
-        deswl.files.wlse_collated_path(serun, 'badlist')
+        deswl.files.se_collated_path(serun, 'goodlist')
+        deswl.files.se_collated_path(serun, 'badlist')
 
     For coadds, using multishear:
         Use 
@@ -69,7 +69,7 @@
 
         create a run name and its configuration
             rc=deswl.files.Runconfig()
-            rc.generate_new_runconfig('wlme',dataset,serun=)
+            rc.generate_new_runconfig('me',dataset,serun=)
 
         You can send test=True and dryrun=True also
 
@@ -137,14 +137,6 @@ else:
     inputfunc = raw_input
 
 
-def default_dataset(run_type):
-    if run_type == 'wlme':
-        return 'dc4coadd'
-    if run_type == 'wlse':
-        return 'dc4new'
-
-def default_serun():
-    return 'wlse000001'
 def default_scratch_rootdir():
     return '/scratch/users/esheldon/DES'
 
@@ -853,23 +845,28 @@ class ImageProcessor(deswl.WL):
 class ExposureProcessor:
     def __init__(self, exposurename, **keys):
         """
+        Send serun= or dataset= to disambiguate
+
         We don't load anything in the constructor because we
         want to have state available and always write the
         status file.
         """
-        raise ValueError("fix it so you have to send serun")
         self.all_types = ['stars','psf','shear','split']
 
         # things in stat will get written to the status QA
         # file
         self.stat = {}
         
-        self.stat['exposurename'] = exposurename
-        self.stat['serun']     = keys.get('serun',None)
-        self.stat['config']    = keys.get('config',None)
-        self.stat['outdir']    = keys.get('outdir',None)
-        self.stat['copyroot']  = keys.get('copyroot',False)
-        self.stat['nodots']    = keys.get('nodots',False)
+        self.stat['exposurename']   = exposurename
+        self.stat['serun']          = keys.get('serun',None)
+        self.stat['dataset']        = keys.get('dataset',None)
+        self.stat['config']         = keys.get('config',None)
+        self.stat['outdir']         = keys.get('outdir',None)
+        self.stat['copyroot']       = keys.get('copyroot',False)
+        self.stat['nodots']         = keys.get('nodots',False)
+
+        if self.stat['dataset'] is None and self.stat['serun'] is None:
+            raise ValueError("send either dataset or serun")
 
         DESDATA = deswl.files.des_rootdir()
         self.stat['DESDATA'] = DESDATA
@@ -888,6 +885,223 @@ class ExposureProcessor:
         self.logger.setLevel(log_level)
 
         self.verbose=0
+
+    def process_all_ccds(self, **keys):
+        t0=time.time()
+        for ccd in xrange(1,62+1):
+            self.process_ccd(ccd, **keys)
+            stdout.flush()
+        ptime(time.time() - t0, format='Time for all 62 ccds: %s\n')
+        stdout.flush()
+
+
+    def process_ccd(self, ccd, **keys):
+        t0=time.time()
+
+        stdout.write('-'*72 + '\n')
+
+        self.stat['error']        = 0
+        self.stat['error_string'] = ''
+
+        self.stat['types'] = keys.get('types',self.all_types)
+
+        # set file names in self.stat
+        self.set_output_filenames(ccd,clear=True)
+
+        self.stat['ccd'] = ccd
+
+
+        # ok, now we at least have the status file name to write to
+        stdout.write("host: %s\n" % platform.node())
+        stdout.write("ccd:  %02d\n" % ccd)
+
+        self.setup()
+
+        image,cat = self.get_image_cat(ccd)
+
+        self.stat['image'] = image
+        self.stat['cat'] = cat
+
+        self.make_output_dir()
+
+        # interacting with C++.  We want to catch certain errors
+        # and just log them by type.  This is because internally
+        # just throw char* since defining our own exceptions in
+        # there is a pain
+        try:
+            self.load_images()
+            self.load_catalog()
+            self.set_log()
+            self._process_ccd_types(self.stat['types'])
+        except:
+            if self.stat['error'] == 0:
+                # this was an unexpected error
+                self.stat['error'] = ERROR_SE_UNKNOWN
+                self.stat['error_string'] = "Unexpected error: '%s'" % traceback.format_exc()
+            else:
+                # we caught this exception already and set an
+                # error state.  Just proceed and write the status file
+                pass
+        self.write_status()
+        if self.stat['copyroot']:
+            self.copy_root()
+        ptime(time.time() - t0, format='Time to process ccd: %s\n')
+
+    def set_output_filenames(self, ccd, clear=False):
+
+        fdict=deswl.files.generate_se_filenames(self.stat['exposurename'],
+                                                ccd,
+                                                serun=self.stat['serun'], 
+                                                dir=self.stat['outdir'], 
+                                                rootdir=self.stat['rootdir'])
+        for k in fdict:
+            fdict[k] = os.path.expandvars(fdict[k])
+        self.stat['output_files'] = fdict
+
+        # if outdir was none, we picked a proper dir
+        if self.stat['outdir'] is None:
+            self.stat['outdir'] = os.path.dirname(fdict['stars'])
+
+        if clear:
+            for k in fdict:
+                if os.path.exists(fdict[k]):
+                    print 'Removing existing file:',fdict[k]
+                    os.remove(fdict[k])
+    def setup(self):
+        """
+        Don't call this, let the process_ccd/process_all_ccds call it
+        """
+
+        self.logger.debug("In setup")
+
+        # this stuff only needs to be loaded once.
+        if not hasattr(self, 'tmv_dir'):
+
+            stdout.write('running setup\n'); stdout.flush()
+
+            self.get_band()
+            self.get_proc_environ()
+
+            # only loads if not serun is not None.  Will override the dataset
+            if self.stat['serun'] is not None:
+                self.load_serun()
+
+            #self.set_outdir()
+            self.set_config()
+
+            self.load_wl()
+
+            self.load_file_lists()
+
+    def get_image_cat(self, ccd):
+        # Here we rely on the fact that we picked out the unique, newest
+        # version for each
+
+        self.logger.debug("Entering get_image_cat")
+
+        image=None
+        expname=self.stat['exposurename']
+        for ti in self.infolist:
+            if ti['exposurename'] == expname and ti['ccd'] == ccd:
+                image=ti['image_url']
+                cat=ti['cat_url']
+                break
+
+        if image is None:
+            self.logger.debug("caught error loading image/cat")
+            self.stat['error'] = ERROR_SE_MISC
+            self.stat['error_string'] = \
+                "Exposure ccd '%s' not found in '%s'" % \
+                             (bname, self.info_file)
+            raise ValueError(self.stat['error_string'])
+        image = os.path.expandvars(image)
+        cat = os.path.expandvars(cat)
+        return image,cat
+
+    def load_images(self):
+
+        stdout.write("Loading images from '%s'\n" % self.stat['image'])
+        stdout.flush()
+        try:
+            self.wl.load_images(str(self.stat['image']))
+        except RuntimeError as e:
+            # the internal routines currently throw const char* which
+            # swig is converting to runtime
+            self.logger.debug("caught error running load_images")
+            self.stat['error'] = ERROR_SE_IO
+            self.stat['error_string'] = unicode(str(e),errors='replace')
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+        except TypeError as e:
+            self.logger.debug("caught type error running load_images, probably string conversion")
+            self.stat['error'] = ERROR_SE_IO
+            self.stat['error_string'] = unicode(str(e),errors='replace')
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+
+    def load_catalog(self):
+
+        stdout.write("Loading catalog from '%s'\n" % self.stat['cat'])
+        stdout.flush()
+        try:
+            self.wl.load_catalog(str(self.stat['cat']))
+        except RuntimeError as e:
+            # the internal routines currently throw const char* which
+            # swig is converting to runtime
+            self.logger.debug("caught error running load_catalog")
+            self.stat['error'] = ERROR_SE_IO
+            self.stat['error_string'] = unicode(str(e),errors='replace')
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+        except TypeError as e:
+            self.logger.debug("caught type error running load_catalog, probably string conversion")
+            self.stat['error'] = ERROR_SE_IO
+            self.stat['error_string'] = unicode(str(e),errors='replace')
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+
+    def set_log(self):
+        """
+        log is actually the QA file.
+
+        Interacts with C++, need some error processing because error strings
+        sometimes get corrupted
+        """
+        self.logger.debug("In set_log")
+        try:
+            qafile=self.stat['output_files']['qa']
+            stdout.write("    Setting qa file: '%s'\n" % qafile)
+            stdout.flush()
+            self.wl.set_log(str(qafile))
+        except RuntimeError as e:
+            self.logger.debug("caught internal RuntimeError running set_log")
+            self.stat['error'] = ERROR_SE_SET_LOG
+            self.stat['error_string'] = unicode(str(e),errors='replace')
+        except TypeError as e:
+            self.logger.debug("caught type error running set_log, probably string conversion")
+            self.stat['error'] = ERROR_SE_SET_LOG
+            self.stat['error_string'] = unicode(str(e),errors='replace')
+            stdout.write(self.stat['error_string']+'\n')
+            raise e
+
+    def _process_ccd_types(self, types):
+
+        self.stars_loaded=False
+        self.psf_loaded=False
+        self.shear_loaded=False
+
+        if 'stars' in types:
+            self.run_findstars()
+
+        if 'psf' in types:
+            self.run_measurepsf()
+
+        if 'shear' in types:
+            self.run_shear() 
+
+        if 'split' in types:
+            self.run_split()
+
 
 
     def set_config(self):
@@ -909,39 +1123,17 @@ class ExposureProcessor:
 
     def load_serun(self):
 
-        if self.stat['serun'] is not None:
-            stdout.write("    Loading runconfig for serun: '%s'\n" % self.stat['serun'])
-            stdout.flush()
-            try:
-                self.runconfig=deswl.files.Runconfig(self.stat['serun'])
-            except RuntimeError as e:
-                self.logger.debug("caught RuntimeError load_serun loading Runconfig")
-                self.stat['error'] = ERROR_SE_IO
-                self.stat['error_string'] = "Error loading run config: '%s'" % e
-                stdout.write(self.stat['error_string']+'\n')
-                raise e
-            except IOError as e:
-                self.stat['error'] = ERROR_SE_IO
-                self.stat['error_string'] = "Error loading run config: '%s'" % e
-                raise e
+        stdout.write("    Loading runconfig for serun: '%s'\n" % self.stat['serun'])
+        stdout.flush()
+        self.runconfig=deswl.files.Runconfig(self.stat['serun'])
+            
+        # make sure we have consistency in the software versions
+        stdout.write('    Verifying runconfig: ...'); stdout.flush()
+        self.runconfig.verify()
 
-                
-            # make sure we have consistency in the software versions
-            stdout.write('    Verifying runconfig: ...'); stdout.flush()
-            try:
-                self.runconfig.verify()
-            except ValueError as e:
-                self.logger.debug("caught RuntimeError in load_serun verifying runconfig")
-                self.stat['error'] = ERROR_SE_MISC
-                self.stat['error_string'] = "Error verifying runconfig: '%s'" % e
-                stdout.write(self.stat['error_string']+'\n')
-                raise e
+        stdout.write('OK\n'); stdout.flush()
 
-            stdout.write('OK\n'); stdout.flush()
-
-            self.stat['dataset'] = self.runconfig['dataset']
-        else:
-            self.runconfig=None
+        self.stat['dataset'] = self.runconfig['dataset']
 
     def set_outdir(self):
         """
@@ -964,23 +1156,10 @@ class ExposureProcessor:
         stdout.write("    outdir: '%s'\n" % self.stat['outdir'])
 
 
-    def get_environ(self):
-        try:
-            self.stat['TMV_DIR']=getenv_check('TMV_DIR')
-            self.stat['WL_DIR']=getenv_check('WL_DIR')
-            self.stat['ESUTIL_DIR']=getenv_check('ESUTIL_DIR')
-            self.stat['DESFILES_DIR']=getenv_check('DESFILES_DIR')
-            self.stat['pyvers']=deswl.get_python_version()
-            self.stat['esutilvers']=esutil.version()
-            self.stat['wlvers']=deswl.version()
-            self.stat['tmvvers']=deswl.get_tmv_version()
-
-        except RuntimeError as e:
-            self.logger.debug("caught RuntimeError in get_environ")
-            self.stat['error'] = ERROR_SE_MISC
-            self.stat['error_string'] = unicode(str(e),errors='replace')
-            stdout.write(self.stat['error_string']+'\n')
-            raise e
+    def get_proc_environ(self):
+        e=deswl.files.get_proc_environ()
+        for k in e:
+            selt.stat[k] = e[k]
 
     def load_wl(self):
         # usually is saved as $DESFILES_DIR/..
@@ -1016,171 +1195,22 @@ class ExposureProcessor:
 
     def load_file_lists(self):
         if not hasattr(self,'infolist'):
-            try:
-                info, ifile=\
-                        deswl.files.collated_redfiles_read(self.stat['dataset'], 
-                                                           self.stat['band'], 
-                                                           getpath=True)
-                self.infolist = info
-                self.stat['info_url'] = ifile
-            except IOError as e:
-                self.stat['error'] = ERROR_SE_IO
-                self.stat['error_string'] = 'Error loading file lists: %s' % e
-                stdout.write(self.stat['error_string']+'\n')
-                raise e
+            info, ifile=\
+                    deswl.files.collated_redfiles_read(self.stat['dataset'], 
+                                                       self.stat['band'], 
+                                                       getpath=True)
+            self.infolist = info
+            self.stat['info_url'] = ifile
 
     def get_band(self):
         stdout.write("    Getting band for '%s'..." % self.stat['exposurename'])
         stdout.flush()
-        try:
-            self.stat['band']=\
-                getband_from_exposurename(self.stat['exposurename'])
-            stdout.write(" '%s'\n" % self.stat['band'])
-        except RuntimeError as e:
-            stdout.write('\n')
-            self.logger.debug("caught RuntimeError in get_band")
-            self.stat['error'] = ERROR_SE_MISC
-            self.stat['error_string'] = unicode(str(e),errors='replace')
-            stdout.write(self.stat['error_string']+'\n')
-            raise e
-
-    def setup(self):
-        """
-        Don't call this, let the processing code call it!
-        """
-
-        self.logger.debug("In setup")
-
-        # this stuff only needs to be loaded once.
-        if not hasattr(self, 'tmv_dir'):
-
-            stdout.write('running setup\n'); stdout.flush()
-
-            self.get_band()
-            self.get_environ()
-            self.stat['dataset']=default_dataset('wlse')
-
-            # only loads if not None.  Will override the runconfig
-            # and dataset
-            self.load_serun()
-
-            #self.set_outdir()
-            self.set_config()
-
-            self.load_wl()
-
-            self.load_file_lists()
-
-    def get_image_cat(self, ccd):
-        # Here we rely on the fact that we picked out the unique, newest
-        # version for each
-
-        self.logger.debug("Entering get_image_cat")
-
-        image=None
-        expname=self.stat['exposurename']
-        for ti in self.infolist:
-            if ti['exposurename'] == expname and ti['ccd'] == ccd:
-                image=ti['image_url']
-                cat=ti['cat_url']
-                break
-
-        if image is None:
-            self.logger.debug("caught error loading image/cat")
-            self.stat['error'] = ERROR_SE_MISC
-            self.stat['error_string'] = \
-                "Exposure ccd '%s' not found in '%s'" % \
-                             (bname, self.info_file)
-            raise ValueError(self.stat['error_string'])
-        image = os.path.expandvars(image)
-        cat = os.path.expandvars(cat)
-        return image,cat
+        self.stat['band']=\
+            getband_from_exposurename(self.stat['exposurename'])
+        stdout.write(" '%s'\n" % self.stat['band'])
 
 
-    def get_output_filenames(self, ccd):
 
-        try:
-            fdict=deswl.files.generate_se_filenames(self.stat['exposurename'],
-                                                    ccd,
-                                                    serun=self.stat['serun'], 
-                                                    dir=self.stat['outdir'], 
-                                                    rootdir=self.stat['rootdir'])
-            for k in fdict:
-                fdict[k] = os.path.expandvars(fdict[k])
-            self.stat['output_files'] = fdict
-
-            # if outdir was none, we picked a proper dir
-            if self.stat['outdir'] is None:
-                self.stat['outdir'] = os.path.dirname(fdict['stars'])
-
-        except RuntimeError as e:
-            self.stat['error'] = ERROR_SE_MISC
-            self.stat['error_string'] = unicode(str(e),errors='replace')
-            stdout.write(self.stat['error_string']+'\n')
-            # since we cannot write to a file, just convert it
-            # to a string
-            stdout.write('%s\n' % pprint.pprint(self.stat))
-            raise e
-        except AttributeError as e:
-            self.stat['error'] = ERROR_SE_MISC
-            self.stat['error_string'] = unicode(str(e),errors='replace')
-            stdout.write(self.stat['error_string']+'\n')
-            stdout.write('%s\n' % pprint.pprint(self.stat))
-            raise e
-        except NameError as e:
-            self.stat['error'] = ERROR_SE_MISC
-            self.stat['error_string'] = unicode(str(e),errors='replace')
-            stdout.write(self.stat['error_string']+'\n')
-            stdout.write('%s\n' % pprint.pprint(self.stat))
-            raise e
-        except:
-            self.stat['error'] = ERROR_SE_UNKNOWN
-            self.stat['error_string'] = "Unexpected error: '%s'" % traceback.format_exc()
-            stdout.write(self.stat['error_string']+'\n')
-            stdout.write('%s\n' % self.stat)
-            raise RuntimeError(self.stat['error_string'])
-    def load_images(self):
-
-        stdout.write("Loading images from '%s'\n" % self.stat['image'])
-        stdout.flush()
-        try:
-            self.wl.load_images(str(self.stat['image']))
-        except RuntimeError as e:
-            # the internal routines currently throw const char* which
-            # swig is converting to runtime
-            self.logger.debug("caught error running load_images")
-            self.stat['error'] = ERROR_SE_IO
-            self.stat['error_string'] = unicode(str(e),errors='replace')
-            stdout.write(self.stat['error_string']+'\n')
-            raise e
-        except TypeError as e:
-            self.logger.debug("caught type error running load_images, probably string conversion")
-            self.stat['error'] = ERROR_SE_IO
-            self.stat['error_string'] = unicode(str(e),errors='replace')
-            stdout.write(self.stat['error_string']+'\n')
-            raise e
-
-
-    def load_catalog(self):
-
-        stdout.write("Loading catalog from '%s'\n" % self.stat['cat'])
-        stdout.flush()
-        try:
-            self.wl.load_catalog(str(self.stat['cat']))
-        except RuntimeError as e:
-            # the internal routines currently throw const char* which
-            # swig is converting to runtime
-            self.logger.debug("caught error running load_catalog")
-            self.stat['error'] = ERROR_SE_IO
-            self.stat['error_string'] = unicode(str(e),errors='replace')
-            stdout.write(self.stat['error_string']+'\n')
-            raise e
-        except TypeError as e:
-            self.logger.debug("caught type error running load_catalog, probably string conversion")
-            self.stat['error'] = ERROR_SE_IO
-            self.stat['error_string'] = unicode(str(e),errors='replace')
-            stdout.write(self.stat['error_string']+'\n')
-            raise e
 
 
 
@@ -1307,43 +1337,8 @@ class ExposureProcessor:
             raise e
 
 
-    def set_log(self):
-        self.logger.debug("In set_log")
-        try:
-            qafile=self.stat['output_files']['qa']
-            stdout.write("    Setting qa file: '%s'\n" % qafile)
-            stdout.flush()
-            self.wl.set_log(str(qafile))
-        except RuntimeError as e:
-            self.logger.debug("caught internal RuntimeError running set_log")
-            self.stat['error'] = ERROR_SE_SET_LOG
-            self.stat['error_string'] = unicode(str(e),errors='replace')
-        except TypeError as e:
-            self.logger.debug("caught type error running set_log, probably string conversion")
-            self.stat['error'] = ERROR_SE_SET_LOG
-            self.stat['error_string'] = unicode(str(e),errors='replace')
-            stdout.write(self.stat['error_string']+'\n')
-            raise e
 
 
-
-    def _process_ccd_types(self, types):
-
-        self.stars_loaded=False
-        self.psf_loaded=False
-        self.shear_loaded=False
-
-        if 'stars' in types:
-            self.run_findstars()
-
-        if 'psf' in types:
-            self.run_measurepsf()
-
-        if 'shear' in types:
-            self.run_shear() 
-
-        if 'split' in types:
-            self.run_split()
 
     def copy_root(self):
         """
@@ -1384,67 +1379,12 @@ class ExposureProcessor:
 
 
 
-    def process_ccd(self, ccd, **keys):
-        t0=time.time()
-
-        self.stat['error']        = 0
-        self.stat['error_string'] = ''
-
-        self.stat['types'] = keys.get('types',self.all_types)
-        # set file names in self.stat
-        # if this fails we can't even write the status file, so let the
-        # exceptions fall through
-        self.get_output_filenames(ccd)
-
-        self.stat['ccd'] = ccd
-
-
-        # ok, now we at least have the status file name to write to
-        try:
-            stdout.write('-'*72 + '\n')
-            stdout.write("host: %s\n" % platform.node())
-            stdout.write("ccd:  %02d\n" % ccd)
-
-            self.setup()
-
-            image,cat = self.get_image_cat(ccd)
-
-            self.stat['image'] = image
-            self.stat['cat'] = cat
-
-
-            self.make_output_dir()
-            self.load_images()
-            self.load_catalog()
-            self.set_log()
-            self._process_ccd_types(self.stat['types'])
-        except:
-            if self.stat['error'] == 0:
-                # this was an unexpected error
-                self.stat['error'] = ERROR_SE_UNKNOWN
-                self.stat['error_string'] = "Unexpected error: '%s'" % traceback.format_exc()
-            else:
-                # we caught this exception already and set an
-                # error state.  Just proceed and write the status file
-                pass
-        self.write_status()
-        if self.stat['copyroot']:
-            self.copy_root()
-        ptime(time.time() - t0, format='Time to process ccd: %s\n')
 
     def make_output_dir(self):
         outdir=self.stat['outdir']
         if not os.path.exists(outdir):
             stdout.write("Creating output dir: '%s'\n" % outdir)
             os.makedirs(outdir)
-
-    def process_all_ccds(self, **keys):
-        t0=time.time()
-        for ccd in xrange(1,62+1):
-            self.process_ccd(ccd, **keys)
-            stdout.flush()
-        ptime(time.time() - t0, format='Time for all 62 ccds: %s\n')
-        stdout.flush()
 
 
 def run_shear(exposurename, 
@@ -1894,13 +1834,97 @@ def _find_wl_output(wlserun, src, typename, mohrify=False):
         src[typename+'_path'] = fname
         return True
 
+class CoaddTileProcessor(dict):
+    """
+    Very basic: Takes a dictionary "config" with at least
+        wlconfig
+        image
+        cat
+        srclist
+        shear
+        qa
+        stat
+    runs multishear on the specified files.  Note config here is different than
+    the run config or the wl config, it's just a dict with enough info to
+    process the image.
+
+    If merun= is in the dict, it will be sent as wlmerun= and written
+    to the header.
+
+    If  nodots is in the dict, and True, then output_dots=false is sent.
+
+    If debug_file is present the debug_file= is sent and verbose is set.  If
+    debug is present verbose will have that value, otherwise 0 (same as no
+    debug).
+
+    Anything in config will be also be written to the stat file. 
+
+    """
+    def __init__(self, fdict):
+        for k in fdict:
+            self[k] = fdict[k]
+
+        wl_dir=getenv_check('WL_DIR')
+        ex=path_join(wl_dir, 'bin','multishear')
+        self['executable']= ex
+        self['timeout'] = 2*60*60 # two hours
+
+    def run(self):
+        command=self.get_command()
+        # stdout will go to the qafile.
+        # stderr is not directed
+        exit_status, oret, eret = eu.ostools.exec_process(command,
+                                                          timeout=timeout,
+                                                          stdout_file=qafile,
+                                                          stderr_file=None)
+
+        self['exit_status'] = exit_status
+        print 'exit_status:',exit_status
+
+        self.write_status()
+
+    def get_command(self):
+
+        command=[self['executable'],
+                 self['wlconfig'],
+                 'coadd_srclist='+self['srclist'],
+                 'coaddimage_file='+self['coaddimage'],
+                 'coaddcat_file='+self['coaddcat'],
+                 'multishear_file='+self['multishear'],
+                 'multishear_sky_method=NEAREST']
+
+        if 'nodots' in self:
+            if self['nodots']:
+                command.append('output_dots=false')
+
+        if 'merun' in self:
+            command.append('wlmerun=%s' % self['merun'])
+
+        if 'debug_file' in self:
+            command.append('debug_file=%s' % self['debug_file'])
+            debug=self.get('debug',0)
+            command.append('verbose=%s' % debug)
+
+        return command
+
+    def write_status(self):
+        """
+        Add a bunch of new things to self and write self out as the stat file
+        """
+        json_util.write(self, self['stat'])
+
+
 
 class MECondorJob(dict):
-    def __init__(self, coadd_id, merun, nthread=None):
+    def __init__(self, merun, coadd_id=None, tilename=None, nthread=None):
         """
-        Note merun implies a dataset which, combined with tilename and band,
-        makes a unique id.
+        Note merun implies a dataset which, combined with tilename,
+        implies the band.
         """
+
+        if coadd_id is None and tilename is None:
+            raise ValueError("Send coadd_id= or tilename=")
+
         self.runconfig=deswl.files.Runconfig(merun)
         self['dataset'] = self.runconfig['dataset']
         self['band'] = self.runconfig['band']
@@ -1958,7 +1982,7 @@ class MECondorJob(dict):
                                                    ccd=self['ccd'],
                                                    typ=self['type'])
         submit_text="""
-Universe        = vanilla
+Universe        = parallel
 Notification    = Error
 GetEnv          = True
 Notify_user     = esheldon@bnl.gov
@@ -2037,7 +2061,7 @@ def generate_me_srclist(coadd_inputs, serun):
     dataset=coadd_inputs['release'] #  need to generalize
     tilename=coadd_inputs['tilename']
     band=coadd_inputs['band']
-    fpath=deswl.files.wlme_srclist_url(dataset,tilename,band,serun)
+    fpath=deswl.files.me_srclist_url(dataset,tilename,band,serun)
     outdir=os.path.dirname(fpath)
     if not os.path.exists(outdir):
         os.makedirs(outdir)
@@ -2240,7 +2264,7 @@ def run_multishear(tilename, band,
         runconfig.verify()
         stdout.write('OK\n')
         if outdir is None:
-            outdir = deswl.files.wlme_dir(merun, tilename, rootdir=rootdir)
+            outdir = deswl.files.me_dir(merun, tilename, rootdir=rootdir)
 
         dataset=runconfig['dataset']
         serun=runconfig['serun']
@@ -2250,7 +2274,7 @@ def run_multishear(tilename, band,
             outdir='.'
 
         if dataset is None:
-            dataset = default_dataset('wlme')
+            dataset = default_dataset('me')
         if serun is None:
             serun = default_serun()
 
@@ -2286,7 +2310,7 @@ def run_multishear(tilename, band,
     # source list can be determined from tilename/band
     if srclist is None:
         srclist=\
-            deswl.files.wlme_srclist_path(dataset,tilename,band,serun)
+            deswl.files.me_srclist_path(dataset,tilename,band,serun)
 
     # info on all the unique, newest tiles and catalogs
     stdout.write('\n')

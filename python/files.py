@@ -12,25 +12,37 @@ import deswl
 # for separating file elements
 file_el_sep = '-'
 
-class Runconfig(object):
+def get_proc_environ():
+    e={}
+    e['TMV_DIR']=getenv_check('TMV_DIR')
+    e['WL_DIR']=getenv_check('WL_DIR')
+    e['ESUTIL_DIR']=getenv_check('ESUTIL_DIR')
+    e['DESFILES_DIR']=getenv_check('DESFILES_DIR')
+    e['pyvers']=deswl.get_python_version()
+    e['esutilvers']=esutil.version()
+    e['wlvers']=deswl.version()
+    e['tmvvers']=deswl.get_tmv_version()
+    return e
+
+class Runconfig(dict):
     def __init__(self, run=None):
         
         self.run=run
         self.fileclass='wlbnl'
 
         self.run_types={}
-        self.run_types['wlse'] = {'name':'wlse',
-                                  'fileclass': self.fileclass, 
-                                  'filetype':'se_shapelet',
-                                  'runvarname':'serun'}
-        self.run_types['wlme'] = {'name':'wlme',
-                                  'fileclass': self.fileclass, 
-                                  'filetype':'me_shapelet',
-                                  'runvarname': 'merun'}
+        self.run_types['se'] = {'name':'se',
+                                'fileclass': self.fileclass, 
+                                'filetype':'se_shapelet',
+                                'runvarname':'serun'}
+        self.run_types['me'] = {'name':'me',
+                                'fileclass': self.fileclass, 
+                                'filetype':'me_shapelet',
+                                'runvarname': 'merun'}
 
 
         self.fileclasses = {}
-        self.fileclasses['wlse'] = self.fileclass
+        self.fileclasses['se'] = self.fileclass
 
 
         self.se_executables = ['findstars','measurepsf','measureshear']
@@ -61,7 +73,7 @@ class Runconfig(object):
                                       'goodlist':'json',
                                       'gal':'fits'}
 
-        self.me_filetypes = ['multishear','qa',  'stat']
+        self.me_filetypes = ['multishear','qa','stat']
         self.me_fext       = {'multishear':'.fits',
                               'qa':'.dat',
                               'stat':'.json'}
@@ -69,7 +81,6 @@ class Runconfig(object):
 
         self.me_executables = ['multishear']
 
-        self.config={}
         if run is not None:
             self.load(run)
 
@@ -88,9 +99,9 @@ class Runconfig(object):
         return path_join(rdir, run+'-config.json')
     
 
-    def generate_new_runconfig_name(self, run_type, test=False):
+    def generate_new_runconfig_name(self, run_type, band, test=False, old=False):
         """
-        generates a new name like run_type000002, checking against names in
+        generates a new name like se013i, checking against names in
         the runconfig directory
         """
 
@@ -101,32 +112,24 @@ class Runconfig(object):
 
         i=0
         run_name=self._run_name_from_type_number(run_type, i, test=test)
-        run_name_old=self._run_name_from_type_number_old(run_type, i, test=test)
 
         fullpath=self.getpath(run_name)
-        fullpath_old=self.getpath(run_name_old)
         while os.path.exists(fullpath) or os.path.exists(fullpath_old):
             i+=1
             run_name=self._run_name_from_type_number(run_type, i, test=test)
-            run_name_old=self._run_name_from_type_number_old(run_type, i, test=test)
             fullpath=self.getpath(run_name)
-            fullpath_old=self.getpath(run_name_old)
 
         return run_name
 
-    def _run_name_from_type_number_old(self, run_type, number, test=False):
-        if test:
-            name='%stest%04i' % (run_type, number)
+    def _run_name_from_type_number(self, run_type, band, number, test=False, old=False):
+        if old:
+            name='%(type)s%(num)04i' % {'type':run_type, 'num':number}
         else:
-            name='%s%04i' % (run_type, number)
-        return name
-
-
-    def _run_name_from_type_number(self, run_type, number, test=False):
+            name='%(type)s%(num)03i%(band)s' % {'type':run_type,
+                                                'num':number,
+                                                'band':band}
         if test:
-            name='%s%04it' % (run_type, number)
-        else:
-            name='%s%04i' % (run_type, number)
+            name += 't'
         return name
 
 
@@ -143,6 +146,7 @@ class Runconfig(object):
                                wlvers=None,
                                tmvvers=None,
                                comment=None,
+                               old=False,
                                **extra):
         """
         Class:
@@ -157,7 +161,7 @@ class Runconfig(object):
             rc.generate_new_runconfig(run_type, dataset, wl_config, keywords)
         Inputs:
             run_type: 
-                'wlse' or 'wlme'
+                'se' or 'me'
             dataset: 
                 e.g. 'dc5b' or 'dr012'
             band:
@@ -169,10 +173,10 @@ class Runconfig(object):
 
         Keywords:
             run_name: 
-                e.g. wlse0003 or wlse0007t.  If not sent, will be generated.
+                e.g. se003i or me007zt.  If not sent, will be generated.
             test: 
                 If true, this is a test run. Generated names will be like
-                wlse0008t
+                se008t
             dryrun: 
                 If true, just show what would have been written to the file.
 
@@ -183,14 +187,14 @@ class Runconfig(object):
 
         """
 
-        # wlme runs depend on wlse runs
-        if run_type == 'wlme':
+        # me runs depend on se runs
+        if run_type == 'me':
             if 'serun' not in extra:
-                raise RuntimeError("You must send serun=something for wlme")
+                raise RuntimeError("You must send serun=something for me")
 
 
         if run_name is None:
-            run_name=self.generate_new_runconfig_name(run_type, test=test)
+            run_name=self.generate_new_runconfig_name(run_type, band, test=test,old=old)
 
         fileclass = self.run_types[run_type]['fileclass']
         filetype = self.run_types[run_type]['filetype']
@@ -242,14 +246,11 @@ class Runconfig(object):
 
         """
 
-        vdict={}
-        vdict['wlvers']=deswl.version()
-        vdict['esutilvers']=eu.version()
-        vdict['tmvvers']=deswl.get_tmv_version()
-        vdict['pyvers']=deswl.get_python_version()
+        vdict = get_proc_environ()
 
-        for type in vdict:
-            vers=self.config[type]
+        #for type in vdict:
+        for type in ['wlvers','esutilvers','tmvvers','pyvers']:
+            vers=self[type]
             cvers=vdict[type]
             if vers != cvers:
                 # check for possiblity we are using a local install of trunk
@@ -263,33 +264,18 @@ class Runconfig(object):
 
 
     def load(self, run):
-        self.config = self.read(run)
+        config = self.read(run)
+        for k in config:
+            self[k] = config[k]
         self.run=run
 
     def read(self, run):
         name=self.getpath(run)
         if not os.path.exists(name):
-            mess="runconfig '%s' not found at %s\n" % (run, name)
+            mess="runconfig '%s' not found for %s\n" % (run, name)
             raise RuntimeError(mess)
         runconfig = json_util.read(name)
         return runconfig
-
-    def asdict(self):
-        from copy import copy
-        conf=copy(self.config)
-        return conf
-
-    def __getitem__(self, name):
-        if name in self.config:
-            return self.config[name]
-        else:
-            raise KeyError("%s" % name)
-
-    def __iter__(self):
-        return self.config.__iter__()
-
-    def __repr__(self):
-        return pprint.pformat(self.config)
 
 
 def ftype2fext(ftype_input):
@@ -479,15 +465,15 @@ def mohrify_name(name):
 # se means single epoch
 # me means multi-epoch
 
-def wlse_dir(run, exposurename, rootdir=None):
+def se_dir(run, exposurename, rootdir=None):
     rc=Runconfig()
 
-    fileclass=rc.run_types['wlse']['fileclass']
+    fileclass=rc.run_types['se']['fileclass']
     rundir=run_dir(fileclass, run, rootdir=rootdir)
     dir=path_join(rundir, exposurename)
     return dir
 
-def wlse_basename(exposurename, ccd, ftype,
+def se_basename(exposurename, ccd, ftype,
                   serun=None,
                   mohrify=False, fext=None):
 
@@ -508,14 +494,14 @@ def wlse_basename(exposurename, ccd, ftype,
 
 
 
-def wlse_path(exposurename, ccd, ftype, 
+def se_path(exposurename, ccd, ftype, 
               serun=None,
               mohrify=False, 
               dir=None, 
               rootdir=None, 
               fext=None):
     """
-    name=wlse_path(exposurename, ccd, ftype, serun=None,
+    name=se_path(exposurename, ccd, ftype, serun=None,
                    mohrify=False, rootdir=None, fext=None)
     Return the SE output file name for the given inputs
     """
@@ -526,18 +512,18 @@ def wlse_path(exposurename, ccd, ftype,
 
     if dir is None:
         if serun is not None:
-            dir = wlse_dir(serun, exposurename, rootdir=rootdir)
+            dir = se_dir(serun, exposurename, rootdir=rootdir)
         else:
             dir=os.path.abspath('.')
 
-    name = wlse_basename(exposurename, ccd, ftype_use, 
+    name = se_basename(exposurename, ccd, ftype_use, 
                          serun=serun,
                          mohrify=mohrify, fext=fext)
     path=path_join(dir,name)
     return path
 
 
-def wlse_read(exposurename, ccd, ftype, 
+def se_read(exposurename, ccd, ftype, 
               serun=None,
               mohrify=False, 
               dir=None, 
@@ -547,7 +533,7 @@ def wlse_read(exposurename, ccd, ftype,
               #ext=0, 
               #verbose=False):
 
-    fpath=wlse_path(exposurename, ccd, ftype, 
+    fpath=se_path(exposurename, ccd, ftype, 
                     serun=serun,
                     mohrify=mohrify, 
                     dir=dir, 
@@ -565,7 +551,7 @@ def generate_se_filenames(exposurename, ccd, serun=None,
     # output file names
     for ftype in rc.se_filetypes:
 
-        name= wlse_path(exposurename, 
+        name= se_path(exposurename, 
                         ccd, 
                         ftype,
                         serun=serun,
@@ -576,17 +562,17 @@ def generate_se_filenames(exposurename, ccd, serun=None,
 
     return fdict
 
-def wlse_coldir_open(serun):
+def se_coldir_open(serun):
     import columns
-    coldir=wlse_coldir(serun)
+    coldir=se_coldir(serun)
 
     cols = columns.Columns(coldir)
     return cols
     
 
-def wlse_coldir(serun, fits=False):
+def se_coldir(serun, fits=False):
     #dir=run_dir('wlbnl',serun)
-    dir = wlse_collated_dir(serun)
+    dir = se_collated_dir(serun)
     name = serun
     if fits:
         dir=os.path.join(dir,name+'-fits')
@@ -595,7 +581,7 @@ def wlse_coldir(serun, fits=False):
     return dir
 
 
-def wlse_test_dir(serun, subdir=None):
+def se_test_dir(serun, subdir=None):
     dir=run_dir('wlbnl',serun)
     dir = path_join(dir, 'test')
     if subdir is not None:
@@ -603,12 +589,12 @@ def wlse_test_dir(serun, subdir=None):
 
     return dir
 
-def wlse_test_path(serun, 
+def se_test_path(serun, 
                    subdir=None, 
                    extra=None,
                    ext='fits'):
     """
-    e.g. wlse_test_path('wlse0011t', subdir=['checksg', 'decam--22--44-i-11'],
+    e.g. se_test_path('se011it', subdir=['checksg', 'decam--22--44-i-11'],
                         extra='%02d' % ccd, ext='eps')
     """
 
@@ -629,21 +615,21 @@ def wlse_test_path(serun,
     fname='-'.join(fname)
     fname += '.'+ext
 
-    dir = wlse_test_dir(serun, subdir=subdir)
+    dir = se_test_dir(serun, subdir=subdir)
     outpath = path_join(dir,fname)
 
     return outpath
 
 
 
-def wlse_collated_dir(serun):
+def se_collated_dir(serun):
     dir=run_dir('wlbnl',serun)
     dir = path_join(dir, 'collated')
     return dir
 
 
 
-def wlse_collated_path(serun, 
+def se_collated_path(serun, 
                        objclass, 
                        ftype=None, 
                        delim=None,
@@ -691,13 +677,13 @@ def wlse_collated_path(serun,
     fname += '.'+fext
 
     if dir is None:
-        dir = wlse_collated_dir(serun)
+        dir = se_collated_dir(serun)
     outpath = path_join(dir,fname)
 
     return outpath
 
 
-def wlse_collated_read(serun, 
+def se_collated_read(serun, 
                        objclass, 
                        ftype=None, 
                        delim=None,
@@ -708,7 +694,7 @@ def wlse_collated_read(serun,
                        rows=None,columns=None,fields=None,
                        norecfile=False, verbose=False):
 
-    fpath=wlse_collated_path(serun, objclass, ftype=ftype, delim=delim, 
+    fpath=se_collated_path(serun, objclass, ftype=ftype, delim=delim, 
                              region=region, dir=dir)
 
     return eu.io.read(fpath, header=header, 
@@ -717,17 +703,17 @@ def wlse_collated_read(serun,
                           ext=ext) 
 
 
-def wlme_dir(merun, tilename, rootdir=None):
+def me_dir(merun, tilename, rootdir=None):
     rc=Runconfig()
 
-    fileclass=rc.run_types['wlme']['fileclass']
+    fileclass=rc.run_types['me']['fileclass']
     rundir=run_dir(fileclass, merun, rootdir=rootdir)
     wldir=os.path.join(rundir, tilename)
     return wldir
 
 
 
-def wlme_basename(tilename, band, ftype, merun=None, extra=None, ext=None):
+def me_basename(tilename, band, ftype, merun=None, extra=None, ext=None):
     """
     basename for multi-epoch weak lensing output files
     """
@@ -752,9 +738,9 @@ def wlme_basename(tilename, band, ftype, merun=None, extra=None, ext=None):
     return name
 
 
-def wlme_url(tilename, band, ftype, merun=None, 
-              extra=None, 
-              dir=None, rootdir=None, ext=None):
+def me_url(tilename, band, ftype, merun=None, 
+           extra=None, 
+           dir=None, rootdir=None, ext=None):
     """
     Return a multi-epoch shear output file name
 
@@ -764,11 +750,11 @@ def wlme_url(tilename, band, ftype, merun=None,
 
     if dir is None:
         if merun is not None:
-            dir = wlme_dir(merun, tilename, rootdir=rootdir)
+            dir = me_dir(merun, tilename, rootdir=rootdir)
         else:
             dir='.'
 
-    name = wlme_basename(tilename, band, ftype, 
+    name = me_basename(tilename, band, ftype, 
                          merun=merun, extra=extra, ext=ext)
     name = path_join(dir, name)
     return name
@@ -783,7 +769,7 @@ def generate_me_filenames(tilename, band,
 
     # output file names
     for ftype in rc.me_filetypes:
-        name= wlme_url(tilename,
+        name= me_url(tilename,
                        band,
                        ftype,
                        merun=merun,
@@ -904,36 +890,33 @@ def coadd_info_dir(dataset):
     return desfiles_dir
 
 
-def coadd_info_url(dataset, band, srclist=False):
+def coadd_info_url(dataset, srclist=False):
     if srclist:
-        name=[dataset,'coadd',band,'srclist']
+        name=[dataset,'coadd','srclist']
     else:
-        name=[dataset,'coadd',band,'info']
+        name=[dataset,'coadd','info']
     name = '-'.join(name)+'.pyobj'
     tdir=coadd_info_dir(dataset)
     return path_join(tdir, name)
 
 _coadd_info_cache={'dataset':None,
-                   'band':None,
                    'data':None,
                    'url':None,
                    'has_srclist':None}
 
-def coadd_info_read(dataset, band, srclist=False, geturl=False):
+def coadd_info_read(dataset, srclist=False, geturl=False):
 
     if (_coadd_info_cache['dataset'] == dataset 
-            and _coadd_info_cache['band'] == band 
             and _coadd_info_cache['has_srclist']==srclist):
         stdout.write('Re-using coadd info cache\n')
         url=_coadd_info_cache['url']
         data=_coadd_info_cache['data']
     else:
-        url=coadd_info_url(dataset,band,srclist=srclist)
+        url=coadd_info_url(dataset,srclist=srclist)
         print 'Reading coadd info:',url
         data=eu.io.read(url)
 
         _coadd_info_cache['dataset'] = dataset
-        _coadd_info_cache['band'] = band
         _coadd_info_cache['data'] = data
         _coadd_info_cache['url'] = url
         _coadd_info_cache['has_srclist'] = srclist
@@ -943,19 +926,102 @@ def coadd_info_read(dataset, band, srclist=False, geturl=False):
     else:
         return data
 
+def coadd_info_select(dataset, ids=None, tiles=None, bands=None, srclist=False):
+    """
+    Select from the input id or tile list.  Id and tile can be scalar
+    or list/tupe.
+    
+    id is faster since that is they key, but keys by tile will be added as you
+    go.
+
+    """
+
+    if ids is not None:
+        return coadd_info_select_ids(dataset, ds, srclist=srclist)
+    elif tiles is not None:
+        return coadd_info_select_tile(dataset, tiles, bands=None, srclist=srclist)
+    else:
+        raise ValueError("send either id= or tiles=")
+
+def coadd_info_select_ids(dataset, ids, srclist=False):
+
+    cinfo=coadd_info_read(dataset, srclist=srclist)
+    if isinstance(ids,(list,tuple)): 
+        output=[]
+        for id in ids:
+            ci=_extract_coadd_info_id(cinfo, id)
+            output.append(ci)
+    else:
+        output = _extract_coadd_info_id(cinfo, ids)
+
+    return output
+
+def _extract_coadd_info_id(cinfo, id):
+    try:
+        ci = cinfo[id]
+    except KeyError:
+        msg='id %s not found in coadd info for dataset %s'
+        msg=msg % (id,_coadd_info_cache['dataset'])
+        raise KeyError(msg)
+
+    return ci
+
+def coadd_info_select_tile(dataset, tiles, bands=None, srclist=False):
+
+    cinfo=coadd_info_read(dataset, srclist=srclist)
+    if isinstance(tiles,(list,tuple)): 
+        output=[]
+        for tile in tiles:
+            ci=_extract_coadd_info_tile(cinfo, tile, bands=bands)
+            output.append(ci)
+    else:
+        output = _extract_coadd_info_tile(cinfo, tiles)
+
+    return output
+
+def _extract_coadd_info_tile(cinfo, tile):
+    for key in cinfo:
+        ci=cinfo[key]
+        if ci['tilename'] == tile:
+            # also cache this tilename as key
+            cinfo[tile] = ci
+            return ci
+
+    msg='tile %s not found in coadd info for dataset %s'
+    msg=msg % (tile,_coadd_info_cache['dataset'])
+    raise ValueError(msg)
+
+def _extract_coadd_info_tile_band(cinfo, tile, bands):
+    if not isinstance(bands,(type,list)):
+        bands=[bands]
+
+    for key in cinfo:
+        ci=cinfo[key]
+        for band in bands:
+            if ci['tilename'] == tile and ci['band'] == band:
+                # also cache this tilename-band as key
+                tk='%s-%s' % (tile,band)
+                cinfo[tk] = ci
+                return ci
+
+    msg='tile %s band %s not found in coadd info for dataset %s band %s'
+    msg=msg % (tile,band,_coadd_info_cache['dataset'])
+    raise ValueError(msg)
 
 
+
+#
 #
 # these are lists of srcfile,shearfile,fitpsffile
 # for input to multishear
 #
-def wlme_srclist_dir(dataset,serun):
+def me_srclist_dir(dataset,serun):
     sdir=coadd_inputs_dir(dataset)
     sdir=path_join(sdir, 'multishear-srclists-%s' % serun)
     return sdir
 
-def wlme_srclist_url(dataset, tilename, band, serun):
-    dir=wlme_srclist_dir(dataset,serun)
+def me_srclist_url(dataset, tilename, band, serun):
+    dir=me_srclist_dir(dataset,serun)
 
     srclist=[dataset,serun,tilename,band,'srclist']
     srclist='-'.join(srclist)+'.dat'
@@ -971,19 +1037,19 @@ def pbs_dir(run, subdir=None):
     return outdir
 
 
-def wlme_pbs_name(tilename, band):
+def me_pbs_name(tilename, band):
     pbsfile=[tilename,band]
     pbsfile='-'.join(pbsfile)+'.pbs'
     return pbsfile
     
-def wlme_pbs_path(merun, tilename, band):
+def me_pbs_path(merun, tilename, band):
     pbsdir=pbs_dir(merun)
-    pbsfile=wlme_pbs_name(tilename,band)
+    pbsfile=me_pbs_name(tilename,band)
     pbsfile=path_join(pbsdir, pbsfile)
     return pbsfile
 
 
-def wlse_pbs_name(exposurename, typ='fullpipe', ccd=None):
+def se_pbs_name(exposurename, typ='fullpipe', ccd=None):
     pbsfile=[exposurename]
 
     if typ != 'fullpipe':
@@ -994,14 +1060,14 @@ def wlse_pbs_name(exposurename, typ='fullpipe', ccd=None):
     pbsfile='-'.join(pbsfile)+'.pbs'
     return pbsfile
     
-def wlse_pbs_path(serun, exposurename, typ='fullpipe', ccd=None):
+def se_pbs_path(serun, exposurename, typ='fullpipe', ccd=None):
     if ccd is not None:
         subdir='byccd'
     else:
         subdir=None
 
     pbsdir=pbs_dir(serun, subdir=subdir)
-    pbsfile=wlse_pbs_name(exposurename, typ=typ, ccd=ccd)
+    pbsfile=se_pbs_name(exposurename, typ=typ, ccd=ccd)
     pbsfile=path_join(pbsdir, pbsfile)
     return pbsfile
 
@@ -1017,19 +1083,19 @@ def condor_dir(run, subdir=None):
     return outdir
 
 
-def wlme_condor_name(tilename, band):
+def me_condor_name(tilename, band):
     condorfile=[tilename,band]
     condorfile='-'.join(condorfile)+'.condor'
     return condorfile
     
-def wlme_condor_path(merun, tilename, band):
+def me_condor_path(merun, tilename, band):
     condordir=condor_dir(merun)
-    condorfile=wlme_condor_name(tilename,band)
+    condorfile=me_condor_name(tilename,band)
     condorfile=path_join(condordir, condorfile)
     return condorfile
 
 
-def wlse_condor_name(exposurename, typ='fullpipe', ccd=None):
+def se_condor_name(exposurename, typ='fullpipe', ccd=None):
     condorfile=[exposurename]
 
     if typ != 'fullpipe':
@@ -1040,37 +1106,37 @@ def wlse_condor_name(exposurename, typ='fullpipe', ccd=None):
     condorfile='-'.join(condorfile)+'.condor'
     return condorfile
     
-def wlse_condor_path(serun, exposurename, typ='fullpipe', ccd=None):
+def se_condor_path(serun, exposurename, typ='fullpipe', ccd=None):
     if ccd is not None:
         subdir='byccd'
     else:
         subdir=None
 
     condordir=condor_dir(serun, subdir=subdir)
-    condorfile=wlse_condor_name(exposurename, typ=typ, ccd=ccd)
+    condorfile=se_condor_name(exposurename, typ=typ, ccd=ccd)
     condorfile=path_join(condordir, condorfile)
     return condorfile
 
 
 
-def wlme_script_base(tilename, band):
+def me_script_base(tilename, band):
     script_parts=[tilename,band]
     script_base='-'.join(scriptfile)
     return script_base
 
-def wlme_script_name(tilename, band):
-    script_base = wlme_script_base(tilename, band)
+def me_script_name(tilename, band):
+    script_base = me_script_base(tilename, band)
     script_name = script_base+'.sh'
     return script_name
     
-def wlme_script_path(merun, tilename, band):
+def me_script_path(merun, tilename, band):
     scriptdir=condor_dir(merun)
-    scriptfile=wlme_script_name(tilename,band)
+    scriptfile=me_script_name(tilename,band)
     scriptfile=path_join(scriptdir, scriptfile)
     return scriptfile
 
 
-def wlse_script_base(exposurename, typ='fullpipe', ccd=None):
+def se_script_base(exposurename, typ='fullpipe', ccd=None):
     script_parts=[exposurename]
 
     if typ != 'fullpipe':
@@ -1081,19 +1147,19 @@ def wlse_script_base(exposurename, typ='fullpipe', ccd=None):
     script_base='-'.join(script_parts)
     return script_base
 
-def wlse_script_name(exposurename, typ='fullpipe', ccd=None):
-    script_base = wlse_script_base(exposurename, typ=typ, ccd=ccd)
+def se_script_name(exposurename, typ='fullpipe', ccd=None):
+    script_base = se_script_base(exposurename, typ=typ, ccd=ccd)
     script_name = script_base+'.sh'
     return script_name
     
-def wlse_script_path(serun, exposurename, typ='fullpipe', ccd=None):
+def se_script_path(serun, exposurename, typ='fullpipe', ccd=None):
     if ccd is not None:
         subdir='byccd'
     else:
         subdir=None
 
     scriptdir=condor_dir(serun, subdir=subdir)
-    scriptfile=wlse_script_name(exposurename, typ=typ, ccd=ccd)
+    scriptfile=se_script_name(exposurename, typ=typ, ccd=ccd)
     scriptfile=path_join(scriptdir, scriptfile)
     return scriptfile
 

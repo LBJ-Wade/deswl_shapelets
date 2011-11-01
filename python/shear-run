@@ -5,7 +5,8 @@ OR
     %prog [options] exposurename [ ccd ]
 
 Run an exposure through the weak lensing code. If ccd is not sent, process all
-ccds in the exposure.
+ccds in the exposure.  When sending exposurename, you must specify an serun=
+or a dataset=
 """
 
 import sys
@@ -41,8 +42,8 @@ parser.add_option("-t","--types",default="stars,psf,shear",
                   help="Comma separated list indicating which"
                        " types of processing to perform stars,psf,shear,split.  Default %default")
 
-#parser.add_option("--dataset", default=None,
-#                  help="dataset. e.g. 'dc4'")
+parser.add_option("--dataset", default=None,
+                  help="dataset. e.g. 'dr012'. If serun is sent, dataset will be automatically determined")
 #parser.add_option("--cleanup", action='store_true', default=False,
 # help="If copyroot and cleanup then the local copy of each output is deleted.")
 
@@ -60,17 +61,11 @@ parser.add_option("--pydebug", default=False, action='store_true',
                   help="Turn on debugging in python.Default %default")
 
 options, args = parser.parse_args(sys.argv[1:])
-types = options.types
-serun=options.serun
-outdir = options.outdir
-rootdir = options.rootdir
-copyroot=options.copyroot
-config_file=options.config
-debug=int(options.debug)
-pydebug=options.pydebug
 
+types = options.types
 types = types.split(',')
-nodots=options.nodots
+
+debug=int(options.debug)
 
 
 if len(args) < 1:
@@ -82,7 +77,7 @@ if len(args) == 3:
     image = args[1]
     cat = args[2]
 
-    ip = deswl.wlpipe.ImageProcessor(config, image, cat, outdir=outdir)
+    ip = deswl.wlpipe.ImageProcessor(config, image, cat, outdir=options.outdir)
     if debug > 0:
         ip.set_verbose(debug)
 
@@ -98,15 +93,16 @@ else:
         ccd=None
 
     ep = deswl.wlpipe.ExposureProcessor(exposurename,
-                                        serun=serun,
-                                        config=config_file,
-                                        outdir=outdir,
-                                        copyroot=copyroot,
-                                        rootdir=rootdir,
-                                        nodots=nodots)
+                                        serun=options.serun,    # only need serun OR dataset
+                                        dataset=options.dataset,
+                                        config=options.config,
+                                        outdir=options.outdir,
+                                        copyroot=options.copyroot,
+                                        rootdir=options.rootdir,
+                                        nodots=options.nodots)
 
     log_level = logging.ERROR
-    if pydebug:
+    if options.pydebug:
         log_level = logging.DEBUG
     ep.logger.setLevel(log_level)
 
