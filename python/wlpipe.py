@@ -55,27 +55,29 @@
         deswl.files.se_collated_path(serun, 'badlist')
 
     For coadds, using multishear:
-        Use 
-            ~/python/desdb/bin/get-coadd-info.py
-        To generate the coadd list in $DESFILES_DIR/{dataset}
-            ~/python/desdb/bin/get-coadd-input-images.py
-        To generate the list with associated input source images
+        First generate a run with a dataset/band/serun.  This will
+        generate an merun and define everything we need.
 
-        Then you can generate the inputs for multishear with
-            deswl.wlpipe.generate_me_inputss(dataset,band,serun)
-        puts files in $DESFILES_DIR/{dataset}/multishear-srclists-{serun}
-        These dataset is a release but could change.
-
-
-        create a run name and its configuration
             rc=deswl.files.Runconfig()
-            rc.generate_new_runconfig('me',dataset,serun=)
+            rc.generate_new_runconfig('me', dataset, wl_config, serun=, test=)
 
-        You can send test=True and dryrun=True also
+        This script will then generate the single epoch input images and
+        shear/fitpsf lists
 
+            bin/generate-me-seinputs.py 
 
-        To write out the pbs files needed to process the new run:
-            deswl.wlpipe.generate_me_pbsfiles(merun,band)
+        Notes
+            - use deswl.files.me_inputs_url(merun,tile,band) to get urls
+            - this requires desdb and cx_Oracle to work
+            - this does not get installed in the install /bin directory.
+
+            - For other users, you can generate flat files with the coadd info.
+
+                To generate the coadd list in $DESFILES_DIR/{dataset}
+                    ~/python/desdb/bin/get-coadd-info.py
+                To generate the list with associated input source images
+                    ~/python/desdb/bin/get-coadd-srclist.py
+
 
 
         Running the code is easiest from the stand-alone wrapper
@@ -2044,119 +2046,6 @@ multishear-run {coadd_id} {merun} 2>&1
             os.makedirs(condor_dir)
 
 
-class MultishearSEInputs:
-    def __init__(self, merun):
-        self.merun=merun
-        self.rc=deswl.files.Runconfig(self.merun)
-
-    def generate_all_inputs(self):
-        """
-        Generate all inputs for the input merun
-        """
-        self._ensure_connected()
-        query="""
-        select
-            id
-        from
-            %(release)s_files
-        where
-            filetype='coadd'
-            and band='%(band)s'\n""" % {'release':self.rc['dataset'],
-                                       'band':self.rc['band']}
-        res=self.conn.quick(query)
-        if len(res) == 1:
-            raise ValueError("Found no coadds for release %s "
-                             "band %s" % (self.rc['dataset'],self.rc['band']))
-
-        for r in res:
-            id=r['id']
-            self.generate_inputs(id=id)
-       
-    def generate_inputs(self, id=None, tilename=None):
-        import desdb
-        if tilename is None and id is None:
-            raise ValueError("Send tilename or id")
-        if id is None:
-            id=self.get_id(tilename)
-        elif tilename is None:
-            tilename=self.get_tilename(id)
-
-        c=desdb.files.Coadd(id=id)
-        c.load(srclist=True)
-
-        url=self.get_url(tilename=tilename)
-        url=os.path.expandvars(url)
-        d=os.path.dirname(url)
-        if not os.path.exists(d):
-            os.makedirs(d)
-
-        print 'writing me inputs:',url
-        with open(url,'w') as fobj:
-            for s in c.srclist:
-                names=deswl.files.generate_se_filenames(s['exposurename'],
-                                                        s['ccd'],
-                                                        serun=self.rc['serun'])
-
-                line = '%s %s %s\n' % (s['path'],names['shear'],names['fitpsf'])
-                fobj.write(line)
-
-    def get_url(self, id=None, tilename=None):
-        """
-        Get the location of the single-epoch input list
-        for the input coadd_id or tilename.
-
-        If the url does not exist, and generate=True, the
-        data are generated and written.
-        """
-        
-        if tilename is None and id is None:
-            raise ValueError("Send tilename or id")
-        if tilename is None:
-            tilename=self.get_tilename(id)
-        url=deswl.files.me_inputs_url(self.merun, tilename, self.rc['band'])
-        return url
-
-    def get_tilename(self, id):
-        self._ensure_connected()
-        query="""
-        select
-            tilename
-        from
-            coadd
-        where
-            id=%(id)d\n""" % {'id':id}
-
-        res=self.conn.quick(query)
-        if len(res) != 1:
-            raise ValueError("Expected a single match for id "
-                             "%s, found %s" % (id,len(res)))
-        return res[0]['tilename']
-
-    def get_id(self, tile):
-        self._ensure_connected()
-        query="""
-        select
-            id
-        from
-            %(release)s_files
-        where
-            filetype='coadd'
-            and tilename='%(tile)s'
-            and band='%(band)s'\n""" % {'tile':tile,
-                                        'band':self.rc['band'],
-                                        'release':self.rc['dataset']}
-        res=self.conn.quick(query)
-        if len(res) != 1:
-            raise ValueError("Expected a single match for tilename "
-                             "%s, found %s" % (tile,len(res)))
-        return res[0]['id']
-
-
-
-    def _ensure_connected(self):
-        if not hasattr(self, 'conn'):
-            import desdb
-            self.conn=desdb.Connection()
 
 
 def _make_load_command(modname, vers):

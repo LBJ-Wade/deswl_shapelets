@@ -12,8 +12,8 @@ ReadFileList=env['__readfunc']
 
 # for the /bin directory
 #wlrun_file=env.File('wl-run.py')
-multishear_run_file=env.File('multishear-run')
-shear_run_file=env.File('shear-run')
+multishear_run_file=env.File('bin/multishear-run')
+shear_run_file=env.File('bin/shear-run')
 
 bin_install_subdir = 'bin'
 bin_targets = [multishear_run_file, shear_run_file]

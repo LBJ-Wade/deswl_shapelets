@@ -1019,6 +1019,7 @@ def _extract_coadd_info_tile_band(cinfo, tile, bands):
 # these are lists of srcfile,shearfile,fitpsffile
 # for input to multishear
 #
+
 def me_inputs_dir(merun):
     rc=Runconfig(merun)
     d=os.path.join('$DESFILES_DIR',
@@ -1032,6 +1033,121 @@ def me_inputs_url(merun, tilename, band):
     inputs=[tilename,band,merun,'inputs']
     inputs='-'.join(inputs)+'.dat'
     return path_join(d, inputs)
+
+class MultishearSEInputs:
+    def __init__(self, merun):
+        self.merun=merun
+        self.rc=Runconfig(self.merun)
+
+    def generate_all_inputs(self):
+        """
+        Generate all inputs for the input merun
+        """
+        self._ensure_connected()
+        query="""
+        select
+            id
+        from
+            %(release)s_files
+        where
+            filetype='coadd'
+            and band='%(band)s'\n""" % {'release':self.rc['dataset'],
+                                       'band':self.rc['band']}
+        res=self.conn.quick(query)
+        if len(res) == 1:
+            raise ValueError("Found no coadds for release %s "
+                             "band %s" % (self.rc['dataset'],self.rc['band']))
+
+        for r in res:
+            id=r['id']
+            self.generate_inputs(id=id)
+       
+    def generate_inputs(self, id=None, tilename=None):
+        import desdb
+        if tilename is None and id is None:
+            raise ValueError("Send tilename or id")
+        if id is None:
+            id=self.get_id(tilename)
+        elif tilename is None:
+            tilename=self.get_tilename(id)
+
+        c=desdb.files.Coadd(id=id)
+        c.load(srclist=True)
+
+        url=self.get_url(tilename=tilename)
+        url=os.path.expandvars(url)
+        d=os.path.dirname(url)
+        if not os.path.exists(d):
+            os.makedirs(d)
+
+        print 'writing me inputs:',url
+        with open(url,'w') as fobj:
+            for s in c.srclist:
+                names=generate_se_filenames(s['exposurename'],
+                                            s['ccd'],
+                                            serun=self.rc['serun'])
+
+                line = '%s %s %s\n' % (s['path'],names['shear'],names['fitpsf'])
+                fobj.write(line)
+
+    def get_url(self, id=None, tilename=None):
+        """
+        Get the location of the single-epoch input list
+        for the input coadd_id or tilename.
+
+        If the url does not exist, and generate=True, the
+        data are generated and written.
+        """
+        
+        if tilename is None and id is None:
+            raise ValueError("Send tilename or id")
+        if tilename is None:
+            tilename=self.get_tilename(id)
+        url=me_inputs_url(self.merun, tilename, self.rc['band'])
+        return url
+
+    def get_tilename(self, id):
+        self._ensure_connected()
+        query="""
+        select
+            tilename
+        from
+            coadd
+        where
+            id=%(id)d\n""" % {'id':id}
+
+        res=self.conn.quick(query)
+        if len(res) != 1:
+            raise ValueError("Expected a single match for id "
+                             "%s, found %s" % (id,len(res)))
+        return res[0]['tilename']
+
+    def get_id(self, tile):
+        self._ensure_connected()
+        query="""
+        select
+            id
+        from
+            %(release)s_files
+        where
+            filetype='coadd'
+            and tilename='%(tile)s'
+            and band='%(band)s'\n""" % {'tile':tile,
+                                        'band':self.rc['band'],
+                                        'release':self.rc['dataset']}
+        res=self.conn.quick(query)
+        if len(res) != 1:
+            raise ValueError("Expected a single match for tilename "
+                             "%s, found %s" % (tile,len(res)))
+        return res[0]['id']
+
+
+
+    def _ensure_connected(self):
+        if not hasattr(self, 'conn'):
+            import desdb
+            self.conn=desdb.Connection()
+
 
 
 
