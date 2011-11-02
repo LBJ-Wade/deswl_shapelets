@@ -33,7 +33,7 @@
         You can send test=True and dryrun=True also
 
         # create the condor scripts
-        sec=deswl.wlpipe.SECondorJobs(serun,band,type='fullpipe', nthread=1)
+        sec=deswl.wlpipe.SECondorJobs(serun,type='fullpipe', nthread=1)
         sec.write()
         OR
         sec.write_byccd()
@@ -67,7 +67,7 @@
             bin/generate-me-seinputs.py 
 
         Notes
-            - use deswl.files.me_inputs_url(merun,tile,band) to get urls
+            - use deswl.files.me_seinputs_url(merun,tile,band) to get urls
             - this requires desdb and cx_Oracle to work
             - this does not get installed in the install /bin directory.
 
@@ -381,13 +381,13 @@ done
     fobj.close()
 
 class SECondorJobs(dict):
-    def __init__(self, wlserun, band, 
+    def __init__(self, serun, band, 
                  type='fullpipe',
                  nodes=1, ppn=1, nthread=1):
         """
         Need to implement nodes, ppn
         """
-        self['run'] = wlserun
+        self['run'] = serun
         self['band'] = band
         self['type'] = type
         self['nodes'] = nodes
@@ -433,13 +433,13 @@ class SECondorJobs(dict):
 
  
 class SECondorJob(dict):
-    def __init__(self, wlserun, exposurename, 
+    def __init__(self, serun, exposurename, 
                  ccd=None, type='fullpipe',
                  nodes=1, ppn=1, nthread=1):
         """
         Need to implement nodes, ppn
         """
-        self['run'] = wlserun
+        self['run'] = serun
         self['exposurename'] = exposurename
         self['ccd'] = ccd
         self['type'] = type
@@ -2260,7 +2260,7 @@ def run_multishear(tilename, band,
     # source list can be determined from tilename/band
     if srclist is None:
         srclist=\
-            deswl.files.me_inputs_path(dataset,tilename,band,serun)
+            deswl.files.me_seinputs_url(dataset,tilename,band,serun)
 
     # info on all the unique, newest tiles and catalogs
     stdout.write('\n')

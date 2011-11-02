@@ -6,6 +6,7 @@ Generate the input list for multishear. Each row is
 
 Requires desdb and cx_Oracle
 """
+import sys
 import deswl
 from optparse import OptionParser
 parser = OptionParser(__doc__)
@@ -17,5 +18,5 @@ if len(args) < 1:
 
 merun=args[0]
 
-mi=deswl.files.MultishearSEInputs(merun)
+mi=deswl.files.MultishearSrclist(merun)
 mi.generate_all_inputs()

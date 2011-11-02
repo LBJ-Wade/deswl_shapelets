@@ -1020,15 +1020,15 @@ def _extract_coadd_info_tile_band(cinfo, tile, bands):
 # for input to multishear
 #
 
-def me_inputs_dir(merun):
+def me_seinputs_dir(merun):
     rc=Runconfig(merun)
     d=os.path.join('$DESFILES_DIR',
                    rc['dataset'],
                    'multishear-inputs-%s' % merun)
     return d
 
-def me_inputs_url(merun, tilename, band):
-    d=me_inputs_dir(merun)
+def me_seinputs_url(merun, tilename, band):
+    d=me_seinputs_dir(merun)
 
     inputs=[tilename,band,merun,'inputs']
     inputs='-'.join(inputs)+'.dat'
@@ -1087,7 +1087,7 @@ class MultishearSEInputs:
                                             s['ccd'],
                                             serun=self.rc['serun'])
 
-                line = '%s %s %s\n' % (s['path'],names['shear'],names['fitpsf'])
+                line = '%s %s %s\n' % (s['url'],names['shear'],names['fitpsf'])
                 fobj.write(line)
 
     def get_url(self, id=None, tilename=None):
@@ -1103,7 +1103,7 @@ class MultishearSEInputs:
             raise ValueError("Send tilename or id")
         if tilename is None:
             tilename=self.get_tilename(id)
-        url=me_inputs_url(self.merun, tilename, self.rc['band'])
+        url=me_seinputs_url(self.merun, tilename, self.rc['band'])
         return url
 
     def get_tilename(self, id):
@@ -1148,6 +1148,9 @@ class MultishearSEInputs:
             import desdb
             self.conn=desdb.Connection()
 
+#
+# scripts for running a tile. These will be used by condor
+#
 
 
 
