@@ -5,22 +5,12 @@
 One of the following
     multishear-run -r merun -i coadd_id
     multishear-run -r merun -t tilename
-    multishear-run -c wlconfig -d dataset -i coadd_id
-    multishear-run -c wlconfig -d dataset -t tilename -b band
 
-There are also long versions of each switch.
-
-Basically you need enough info to determine the paths.  Since dataset and
-band are implied by a run, that is enough.  If only dataset then you need
-both tilename and band to fully specify.  You also need to give the
-weak lensing config file.
+tilename is sufficient because merun implies a dataset and band.  There are
+also long versions of each switch.
 
 sending tilename instead of coadd_id will be slower since the data are
 keyed by id.
-
-Obviously the versions without an merun are only for testing purposes.
-
-We could also use the run id of the coadd but that is too unwieldy.
 """
 
 import sys
@@ -33,10 +23,6 @@ parser = OptionParser(__doc__)
 parser.add_option("-r","--merun",default="", help="multi-epoch run")
 parser.add_option("-i","--id",default=None, help="coadd file id")
 parser.add_option("-t","--tile",default="", help="tile name")
-
-parser.add_option("-d","--dataset",default="", help="Data set, e.g. 'dr012'")
-parser.add_option("-c","--config",default="", help="wl.config file url")
-parser.add_option("-b","--band",default="", help="bandpass")
 
 parser.add_option("-o","--outdir",default=None, 
     help="output dir. Defaults to '.' when running by dataset or the "
@@ -70,30 +56,8 @@ def procopts_merun(options):
 
     return conf, ci
 
-def procopts_dataset(options):
-    conf={}
-    if options.config and options.id:
-        ci=deswl.files.coadd_info_select(options.dataset,options.band,
-                                         ids=options.id)
-    elif options.config and options.tile and options.band:
-        ci=deswl.files.coadd_info_select(options.dataset,options.band,
-                                         tiles=options.tile)
-    else:
-        parser.print_help()
-        sys.exit(45)
-    
-    conf['wlconfig'] = options.config
-
-    return conf, ci
-
 def procopts(options):
-    if options.merun:
-        conf, ci = procopts_merun(options)
-    elif options.dataset:
-        conf, ci = procopts_dataset(options)
-    else:
-        parser.print_help()
-        sys.exit(45)
+    conf, ci = procopts_merun(options)
 
     conf['tilename']  = ci['tilename']
     conf['band']      = ci['band']

@@ -110,13 +110,17 @@ class Runconfig(dict):
                  "of: (%s)" % (run_type, ', '.join(self.run_types))
             raise ValueError(mess)
 
-        i=0
-        run_name=self._run_name_from_type_number(run_type, i, test=test)
+        if run_type == 'me':
+            i=3
+        else:
+            i=13
+
+        run_name=self._run_name_from_type_number(run_type, band, i, test=test)
 
         fullpath=self.getpath(run_name)
-        while os.path.exists(fullpath) or os.path.exists(fullpath_old):
+        while os.path.exists(fullpath):
             i+=1
-            run_name=self._run_name_from_type_number(run_type, i, test=test)
+            run_name=self._run_name_from_type_number(run_type, band, i, test=test)
             fullpath=self.getpath(run_name)
 
         return run_name
@@ -1015,17 +1019,19 @@ def _extract_coadd_info_tile_band(cinfo, tile, bands):
 # these are lists of srcfile,shearfile,fitpsffile
 # for input to multishear
 #
-def me_srclist_dir(dataset,serun):
-    sdir=coadd_inputs_dir(dataset)
-    sdir=path_join(sdir, 'multishear-srclists-%s' % serun)
-    return sdir
+def me_inputs_dir(merun):
+    rc=Runconfig(merun)
+    d=os.path.join('$DESFILES_DIR',
+                   rc['dataset'],
+                   'multishear-inputs-%s' % merun)
+    return d
 
-def me_srclist_url(dataset, tilename, band, serun):
-    dir=me_srclist_dir(dataset,serun)
+def me_inputs_url(merun, tilename, band):
+    d=me_inputs_dir(merun)
 
-    srclist=[dataset,serun,tilename,band,'srclist']
-    srclist='-'.join(srclist)+'.dat'
-    return path_join(dir, srclist)
+    inputs=[tilename,band,merun,'inputs']
+    inputs='-'.join(inputs)+'.dat'
+    return path_join(d, inputs)
 
 
 

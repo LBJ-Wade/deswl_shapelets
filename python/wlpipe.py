@@ -62,7 +62,7 @@
         To generate the list with associated input source images
 
         Then you can generate the inputs for multishear with
-            deswl.wlpipe.generate_me_srclists(dataset,band,serun)
+            deswl.wlpipe.generate_me_inputss(dataset,band,serun)
         puts files in $DESFILES_DIR/{dataset}/multishear-srclists-{serun}
         These dataset is a release but could change.
 
@@ -2045,58 +2045,120 @@ multishear-run {coadd_id} {merun} 2>&1
 
 
 
+class MEInputs:
+    def __init__(self, merun):
+        self.merun=merun
+        self.rc=deswl.files.Runconfig(self.merun)
 
-def generate_me_srclist(coadd_inputs, serun):
-    """
-    Generate an input file for multishear. The input
-    is a coadd info dict with srclist
+    def generate_all_inputs(self):
+        """
+        Generate all inputs for the input merun
+        """
+        self._ensure_connected()
+        query="""
+        select
+            id
+        from
+            %(release)s_files
+        where
+            filetype='coadd'
+            and band='%(band)s'\n""" % {'release':self.rc['dataset'],
+                                       'band':self.rc['band']}
+        res=self.conn.quick(query)
+        if len(res) == 1:
+            raise ValueError("Found no coadds for release %s "
+                             "band %s" % (self.rc['dataset'],self.rc['band']))
 
-    each line is 
-        srcfile,shearfile,fitpsf
+        for r in res:
+            id=r['id']
+            self.generate_inputs(id=id)
+       
+    def generate_inputs(self, id=None, tilename=None):
+        import desdb
+        if tilename is None and id is None:
+            raise ValueError("Send tilename or id")
+        if id is None:
+            id=self.get_id(tilename)
+        elif tilename is None:
+            tilename=self.get_tilename(id)
 
-    where the shearfile and fitpsf correspond to the input serun.
+        c=desdb.files.Coadd(id=id)
+        c.load(srclist=True)
 
-    """
+        url=self.get_url(tilename=tilename)
+        url=os.path.expandvars(url)
+        d=os.path.dirname(url)
+        if not os.path.exists(d):
+            os.makedirs(d)
 
-    dataset=coadd_inputs['release'] #  need to generalize
-    tilename=coadd_inputs['tilename']
-    band=coadd_inputs['band']
-    fpath=deswl.files.me_srclist_url(dataset,tilename,band,serun)
-    outdir=os.path.dirname(fpath)
-    if not os.path.exists(outdir):
-        os.makedirs(outdir)
+        print 'writing me inputs:',url
+        with open(url,'w') as fobj:
+            for s in c.srclist:
+                names=deswl.files.generate_se_filenames(s['exposurename'],
+                                                        s['ccd'],
+                                                        serun=self.rc['serun'])
 
-    stdout.write('Writing multishear input file: %s\n' % fpath)
+                line = '%s %s %s\n' % (s['path'],names['shear'],names['fitpsf'])
+                fobj.write(line)
 
-    fobj=open(fpath, 'w')
-    for s in coadd_inputs['srclist']:
-        names=deswl.files.generate_se_filenames(s['exposurename'],s['ccd'],serun=serun)
-        srcpath=os.path.expandvars(s['path'])
-        line = '%s %s %s\n' % (srcpath,names['shear'],names['fitpsf'])
-        fobj.write(line)
+    def get_url(self, id=None, tilename=None):
+        """
+        Get the location of the single-epoch input list
+        for the input coadd_id or tilename.
 
-    fobj.close()
+        If the url does not exist, and generate=True, the
+        data are generated and written.
+        """
+        
+        if tilename is None and id is None:
+            raise ValueError("Send tilename or id")
+        if tilename is None:
+            tilename=self.get_tilename(id)
+        url=deswl.files.me_inputs_url(self.merun, tilename, self.rc['band'])
+        return url
 
-def generate_me_srclists(dataset, band, serun):
-    """
-    Generate multiepoch srclists for the given dataset and band.
-    """
+    def get_tilename(self, id):
+        self._ensure_connected()
+        query="""
+        select
+            tilename
+        from
+            coadd
+        where
+            id=%(id)d\n""" % {'id':id}
 
-    cinfo = deswl.files.coadd_info_read(dataset,band,srclist=True)
-    for id in cinfo:
-        generate_me_srclist(cinfo[id],serun)
+        res=self.conn.quick(query)
+        if len(res) != 1:
+            raise ValueError("Expected a single match for id "
+                             "%s, found %s" % (id,len(res)))
+        return res[0]['tilename']
 
-def _make_setup_command(prodname, vers):
-    """
-    convention is that trunk is exported to ~/exports/prodname-work
-    """
-    setup_command = "setup %s" % prodname
-    if vers == 'trunk' and prodname != 'desfiles':
-        setup_command += ' -r ~/exports/%s-work' % prodname
-    else:
-        setup_command += ' %s' % vers
+    def get_id(self, tile):
+        self._ensure_connected()
+        query="""
+        select
+            id
+        from
+            %(release)s_files
+        where
+            filetype='coadd'
+            and tilename='%(tile)s'
+            and band='%(band)s'\n""" % {'tile':tile,
+                                        'band':self.rc['band'],
+                                        'release':self.rc['dataset']}
+        res=self.conn.quick(query)
+        if len(res) != 1:
+            raise ValueError("Expected a single match for tilename "
+                             "%s, found %s" % (tile,len(res)))
+        return res[0]['id']
 
-    return setup_command
+
+
+    def _ensure_connected(self):
+        if not hasattr(self, 'conn'):
+            import desdb
+            self.conn=desdb.Connection()
+
 
 def _make_load_command(modname, vers):
     """
@@ -2310,7 +2372,7 @@ def run_multishear(tilename, band,
     # source list can be determined from tilename/band
     if srclist is None:
         srclist=\
-            deswl.files.me_srclist_path(dataset,tilename,band,serun)
+            deswl.files.me_inputs_path(dataset,tilename,band,serun)
 
     # info on all the unique, newest tiles and catalogs
     stdout.write('\n')
