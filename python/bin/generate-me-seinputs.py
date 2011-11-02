@@ -18,5 +18,5 @@ if len(args) < 1:
 
 merun=args[0]
 
-mi=deswl.files.MultishearSrclist(merun)
+mi=deswl.files.MultishearSEInputs(merun)
 mi.generate_all_inputs()
