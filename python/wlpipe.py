@@ -2044,8 +2044,7 @@ multishear-run {coadd_id} {merun} 2>&1
             os.makedirs(condor_dir)
 
 
-
-class MEInputs:
+class MultishearSEInputs:
     def __init__(self, merun):
         self.merun=merun
         self.rc=deswl.files.Runconfig(self.merun)
