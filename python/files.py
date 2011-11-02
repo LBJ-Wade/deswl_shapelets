@@ -707,83 +707,6 @@ def se_collated_read(serun,
                           ext=ext) 
 
 
-def me_dir(merun, tilename, rootdir=None):
-    rc=Runconfig()
-
-    fileclass=rc.run_types['me']['fileclass']
-    rundir=run_dir(fileclass, merun, rootdir=rootdir)
-    wldir=os.path.join(rundir, tilename)
-    return wldir
-
-
-
-def me_basename(tilename, band, ftype, merun=None, extra=None, ext=None):
-    """
-    basename for multi-epoch weak lensing output files
-    """
-
-
-    if ext is None:
-        rc=Runconfig()
-        if ftype in rc.me_fext:
-            ext=rc.me_fext[ftype]
-        else:
-            ext='.fits'
-
-    name=[tilename,band,ftype]
-    
-    if merun is not None:
-        name=[merun] + name
-
-    if extra is not None:
-        name.append(extra)
-
-    name=file_el_sep.join(name)+ext
-    return name
-
-
-def me_url(tilename, band, ftype, merun=None, 
-           extra=None, 
-           dir=None, rootdir=None, ext=None):
-    """
-    Return a multi-epoch shear output file name
-
-    currently just for multishear and logs, etc 
-    """
-
-
-    if dir is None:
-        if merun is not None:
-            dir = me_dir(merun, tilename, rootdir=rootdir)
-        else:
-            dir='.'
-
-    name = me_basename(tilename, band, ftype, 
-                         merun=merun, extra=extra, ext=ext)
-    name = path_join(dir, name)
-    return name
-
-
-def generate_me_filenames(tilename, band, 
-                          merun=None, dir=None, rootdir=None):
-
-    fdict={}
-
-    rc=deswl.files.Runconfig()
-
-    # output file names
-    for ftype in rc.me_filetypes:
-        name= me_url(tilename,
-                       band,
-                       ftype,
-                       merun=merun,
-                       dir=dir,
-                       rootdir=rootdir)
-        fdict[ftype] = name
-
-
-    return fdict
-
 
 
 def runfiles_stat_read(dataset, type):
@@ -1012,7 +935,174 @@ def _extract_coadd_info_tile_band(cinfo, tile, bands):
     msg=msg % (tile,band,_coadd_info_cache['dataset'])
     raise ValueError(msg)
 
+#
+# multishear output files
+#
 
+def me_dir(merun, tilename, rootdir=None):
+    rc=Runconfig()
+
+    fileclass=rc.run_types['me']['fileclass']
+    rundir=run_dir(fileclass, merun, rootdir=rootdir)
+    wldir=os.path.join(rundir, tilename)
+    return wldir
+
+def me_basename(tilename, band, ftype, merun=None, extra=None, ext=None):
+    """
+    basename for multi-epoch weak lensing output files
+    """
+
+
+    if ext is None:
+        rc=Runconfig()
+        if ftype in rc.me_fext:
+            ext=rc.me_fext[ftype]
+        else:
+            ext='.fits'
+
+    name=[tilename,band,ftype]
+    
+    if merun is not None:
+        name=[merun] + name
+
+    if extra is not None:
+        name.append(extra)
+
+    name=file_el_sep.join(name)+ext
+    return name
+
+def me_url(tilename, band, ftype, merun=None, 
+           extra=None, 
+           dir=None, rootdir=None, ext=None):
+    """
+    Return a multi-epoch shear output file name
+
+    currently just for multishear and logs, etc 
+    """
+
+
+    if dir is None:
+        if merun is not None:
+            dir = me_dir(merun, tilename, rootdir=rootdir)
+        else:
+            dir='.'
+
+    name = me_basename(tilename, band, ftype, 
+                         merun=merun, extra=extra, ext=ext)
+    name = path_join(dir, name)
+    return name
+
+def generate_me_output_urls(tilename, band, 
+                            merun=None, dir=None, rootdir=None):
+    """
+    This is the files output by multishear
+    """
+
+    fdict={}
+
+    rc=deswl.files.Runconfig()
+
+    # output file names
+    for ftype in rc.me_filetypes:
+        name= me_url(tilename,
+                     band,
+                     ftype,
+                     merun=merun,
+                     dir=dir,
+                     rootdir=rootdir)
+        fdict[ftype] = name
+
+
+    return fdict
+
+
+#
+# generates the input image/catalog urls using the database. Generates
+# the single epoch # list url using me_seinputs_url
+#
+# gets the wl config from the runconfig
+#
+# gets the output files from generate_me_output_urls
+#
+class MultishearFiles:
+    """
+    Generate the input file names, output file names, and condor file names
+    """
+    def __init__(self, merun, conn=None):
+        self.merun=merun
+        self.rc=Runconfig(self.merun)
+
+        if conn is None:
+            import desdb
+            self.conn=desdb.Connection()
+        else:
+            self.conn=conn
+
+
+    def get_all_files(self):
+        self._ensure_connected()
+        query="""
+        select
+            id,tilename,band
+        from
+            %(release)s_files
+        where
+            filetype='coadd'
+            and band='%(band)s'\n""" % {'release':self.rc['dataset'],
+                                        'band':self.rc['band']}
+        res=self.conn.quick(query)
+        if len(res) == 1:
+            raise ValueError("Found no coadds for release %s "
+                             "band %s" % (self.rc['dataset'],self.rc['band']))
+
+        all_fdicts=[]
+        for r in res:
+            print '%s-%s' % (r['tilename'],r['band'])
+            id=r['id']
+            fdict=self.get_files(id=id)
+            all_fdicts.append(fdict)
+        return all_fdicts
+
+    def get_files(self, 
+                  id=None, 
+                  tilename=None,
+                  dir=None):
+        import desdb
+        """
+        Call with
+            f=get_files(id=)
+        or
+            f=get_files(tilename=)
+
+        Send dir= to pick a different output directory
+        """
+
+        # first the coadd image and catalog
+        c=desdb.files.Coadd(id=id, 
+                            band=self.rc['band'], 
+                            dataset=self.rc['dataset'], 
+                            tilename=tilename, 
+                            conn=self.conn)
+        c.load()
+
+        # now get the output files
+        outfiles=generate_me_output_urls(c['tilename'], 
+                                         self.rc['band'], 
+                                         merun=self.merun, 
+                                         dir=dir)
+
+        files={}
+        files['wl_config'] = os.path.expandvars(self.rc['wl_config'])
+        files['image'] = c['image_url']
+        files['cat'] = c['cat_url']
+
+        srclist = me_seinputs_url(self.merun, c['tilename'], self.rc['band'])
+        files['srclist'] = os.path.expandvars(srclist)
+
+        for k in outfiles:
+            files[k] = outfiles[k]
+
+        return files
 
 #
 #
@@ -1035,6 +1125,10 @@ def me_seinputs_url(merun, tilename, band):
     return path_join(d, inputs)
 
 class MultishearSEInputs:
+    """
+    This is the single epoch inputs, use MultishearInputs to just generate
+    the input file names for multishear.
+    """
     def __init__(self, merun):
         self.merun=merun
         self.rc=Runconfig(self.merun)
@@ -1064,6 +1158,7 @@ class MultishearSEInputs:
        
     def generate_inputs(self, id=None, tilename=None):
         import desdb
+        self._ensure_connected()
         if tilename is None and id is None:
             raise ValueError("Send tilename or id")
         if id is None:
@@ -1071,7 +1166,7 @@ class MultishearSEInputs:
         elif tilename is None:
             tilename=self.get_tilename(id)
 
-        c=desdb.files.Coadd(id=id)
+        c=desdb.files.Coadd(id=id, conn=self.conn)
         c.load(srclist=True)
 
         url=self.get_url(tilename=tilename)
@@ -1093,7 +1188,7 @@ class MultishearSEInputs:
     def get_url(self, id=None, tilename=None):
         """
         Get the location of the single-epoch input list
-        for the input coadd_id or tilename.
+        for the input id or tilename.
 
         If the url does not exist, and generate=True, the
         data are generated and written.
@@ -1148,8 +1243,178 @@ class MultishearSEInputs:
             import desdb
             self.conn=desdb.Connection()
 
+
+
+class MultishearCondorJob(dict):
+    def __init__(self, merun, 
+                 id=None, 
+                 tilename=None, 
+                 nthread=None, 
+                 dir=None,
+                 conn=None,
+                 verbose=False,
+                 dryrun=False):
+        """
+        Note merun implies a dataset which, combined with tilename,
+        implies the band.
+        """
+        if id is None and tilename is None:
+            raise ValueError("Send id= or tilename=")
+
+        self.rc=deswl.files.Runconfig(merun)
+        self['dataset'] = self.rc['dataset']
+        self['band'] = self.rc['band']
+
+        self['id'] = id
+        self['tilename'] = tilename
+        self['run'] = merun
+        self['nthread'] = nthread
+        self['verbose']=verbose
+        self['dryrun']=dryrun
+
+        if conn is None:
+            import desdb
+            self.conn=desdb.Connection()
+        else:
+            self.conn=conn
+
+        mfobj=MultishearFiles(merun, conn=self.conn)
+        self['config'] = mfobj.get_files(id=id, tilename=tilename,dir=dir)
+        self['config']['nodots']=True
+        self['config']['merun']=merun
+
+        self['config_file']=me_config_path(self['run'],self['tilename'],self['band'])
+        self['script_file']=me_script_path(self['run'],self['tilename'],self['band'])
+        self['condor_file']=me_condor_path(self['run'],self['tilename'],self['band'])
+
+    def write_all(self):
+        self.write_config()
+        self.write_script()
+        self.write_condor()
+
+    def write_condor(self):
+        self.make_condor_dir()
+
+        print "writing to condor submit file:",self['condor_file']
+        text = self.condor_text()
+        if self['verbose'] or self['dryrun']:
+            print text 
+        if not self['dryrun']:
+            with open(self['condor_file'],'w') as fobj:
+                fobj.write(text)
+        else:
+            print "this is just a dry run" 
+
+    def write_script(self):
+        self.make_condor_dir()
+
+        print "writing to condor script file:",self['script_file']
+        text = self.script_text()
+        if self['verbose'] or self['dryrun']:
+            print text 
+        if not self['dryrun']:
+            with open(self['script_file'],'w') as fobj:
+                fobj.write(text)
+
+            print "changing mode of file to executable"
+            os.popen('chmod 755 '+self['script_file'])
+        else:
+            print "this is just a dry run" 
+
+
+    def write_config(self):
+        """
+        This is the config meaning the list of files and parameters
+        for input to multishear, not the wl config
+        """
+        self.make_condor_dir()
+
+        print "writing to config file:",self['config_file']
+        if self['verbose'] or self['dryrun']:
+            pprint.pprint(self.mf)
+
+        if not self['dryrun']:
+            with open(self['config_file'],'w') as fobj:
+                eu.json_util.write(self['config'], fobj)
+
+    def condor_text(self):
+        condor_dir = self.condor_dir()
+        script_base = me_script_base(self['tilename'],self['band'])
+        condor_text="""
+Universe        = parallel
+Notification    = Error
+GetEnv          = True
+Notify_user     = esheldon@bnl.gov
++Experiment     = "astro"
+Requirements    = (CPU_Experiment == "astro") && (TotalSlots == 12 || TotalSlots == 8)
+Initialdir      = {condor_dir}
+
+Executable      = {script_base}.sh
+Output          = {script_base}.out
+Error           = {script_base}.err
+Log             = {script_base}.log
+
+Queue\n""".format(condor_dir=condor_dir, script_base=script_base)
+
+        return condor_text
+
+
+    def script_text(self):
+        rc=self.rc
+        wl_load = _make_load_command('wl',rc['wlvers'])
+        tmv_load = _make_load_command('tmv',rc['tmvvers'])
+        esutil_load = _make_load_command('esutil', rc['esutilvers'])
+     
+        thread_text=''
+        if self['nthread'] is not None:
+            thread_text='export OMP_NUM_THREADS=%s' % self['nthread']
+
+        script_text="""#!/bin/bash
+source ~astrodat/setup/setup.sh
+source ~astrodat/setup/setup-modules.sh
+module load use.own
+{tmv_load}
+{wl_load}
+{esutil_load}
+module load desfiles
+
+{thread_text}
+multishear-run -c {config_file}
+""".format(wl_load=wl_load, 
+           tmv_load=tmv_load, 
+           esutil_load=esutil_load,
+           thread_text=thread_text,
+           config_file=os.path.basename(self['config_file']))
+
+        return script_text
+
+    def condor_dir(self):
+        return deswl.files.condor_dir(self['run'])
+
+    def make_condor_dir(self):
+        condor_dir = self.condor_dir()
+        if not os.path.exists(condor_dir):
+            print 'making output dir',condor_dir
+            os.makedirs(condor_dir)
+
+
+def _make_load_command(modname, vers):
+    """
+    convention is that trunk is exported to ~/exports/modname-work
+    """
+    load_command = "module unload {modname} && module load {modname}".format(modname=modname)
+    if vers == 'trunk' and modname != 'desfiles':
+        load_command += '/work'
+    else:
+        load_command += '/%s' % vers
+
+    return load_command
+
+
+
+
 #
-# scripts for running a tile. These will be used by condor
+# old pbs scripts for running a tile. These will be used by condor
 #
 
 
@@ -1246,7 +1511,7 @@ def se_condor_path(serun, exposurename, typ='fullpipe', ccd=None):
 
 def me_script_base(tilename, band):
     script_parts=[tilename,band]
-    script_base='-'.join(scriptfile)
+    script_base='-'.join(script_parts)
     return script_base
 
 def me_script_name(tilename, band):
@@ -1259,6 +1524,17 @@ def me_script_path(merun, tilename, band):
     scriptfile=me_script_name(tilename,band)
     scriptfile=path_join(scriptdir, scriptfile)
     return scriptfile
+
+def me_config_path(merun, tilename, band):
+    """
+    This is the file with all the paths and parameters,
+    not a wl_config
+    """
+    
+    f=me_script_path(merun, tilename, band)
+    f=f[0:f.rfind('.')]+'-config.json'
+    return f
+
 
 
 def se_script_base(exposurename, typ='fullpipe', ccd=None):

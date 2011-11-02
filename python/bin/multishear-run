@@ -2,7 +2,18 @@
 """
     %prog [options]
 
-One of the following
+You can send have all the info in a configuration file containing a dictionary.
+
+    multishear-run -c configfile
+
+It should have these file  names
+        wl_config image cat srclist shear qa stat
+and optionally these
+        nodots merun debug debug_file
+
+Using one of the following the file names will be determined via
+the database
+
     multishear-run -r merun -i coadd_id
     multishear-run -r merun -t tilename
 
@@ -19,6 +30,10 @@ import deswl
 
 from optparse import OptionParser
 parser = OptionParser(__doc__)
+
+parser.add_option("-c","--config",default="", 
+        help="Name of config file with all file names and variables. Other options "
+             "are ignored in this case")
 
 parser.add_option("-r","--merun",default="", help="multi-epoch run")
 parser.add_option("-i","--id",default=None, help="coadd file id")
@@ -51,7 +66,7 @@ def procopts_merun(options):
         sys.exit(45)
 
     conf['dataset'] = rc['dataset']
-    conf['wlconfig'] = rc['wl_config']
+    conf['wl_config'] = rc['wl_config']
     conf['merun'] = options.merun
 
     return conf, ci
@@ -76,19 +91,25 @@ def add_environ(conf):
 
 def add_outputs(conf, outdir=None):
     merun=conf.get('merun',None)
-    fdict=deswl.files.generate_me_filenames(conf['tilename'], conf['band'],
-                                            merun=merun, dir=outdir)
+    fdict=deswl.files.generate_me_output_urls(conf['tilename'], conf['band'],
+                                              merun=merun, dir=outdir)
 
 def main():
+    import pprint
     options, args = parser.parse_args(sys.argv[1:])
 
-    conf=procopts(options)
-    add_environ(conf)
-    add_outputs(conf, outdir=options.outdir)
+    if options.config is not None:
+        with open(options.config) as fobj:
+            import json
+            conf=json.load(fobj)
+    else:
+        conf=procopts(options)
+        add_environ(conf)
+        add_outputs(conf, outdir=options.outdir)
 
     ctp = deswl.wlpipe.CoaddTileProcessor(conf)
-    print ctp
-    print ctp.get_command()
-    #ctp.run()
+    #pprint.pprint(ctp)
+    #pprint.pprint(ctp.get_command())
+    ctp.run()
 
 main()

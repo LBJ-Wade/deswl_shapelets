@@ -129,6 +129,7 @@ import logging
 import deswl
 
 import esutil
+import esutil as eu
 from esutil.ostools import path_join, getenv_check
 from esutil import json_util
 from esutil.misc import ptime
@@ -1839,11 +1840,11 @@ def _find_wl_output(wlserun, src, typename, mohrify=False):
 class CoaddTileProcessor(dict):
     """
     Very basic: Takes a dictionary "config" with at least
-        wlconfig
+        wl_config
         image
         cat
         srclist
-        shear
+        multishear
         qa
         stat
     runs multishear on the specified files.  Note config here is different than
@@ -1866,17 +1867,18 @@ class CoaddTileProcessor(dict):
         for k in fdict:
             self[k] = fdict[k]
 
-        wl_dir=getenv_check('WL_DIR')
-        ex=path_join(wl_dir, 'bin','multishear')
-        self['executable']= ex
+        self['executable']= 'multishear'
         self['timeout'] = 2*60*60 # two hours
 
     def run(self):
+        self.make_outdir()
         command=self.get_command()
         # stdout will go to the qafile.
         # stderr is not directed
+
+        qafile=open(self['qa'],'w')
         exit_status, oret, eret = eu.ostools.exec_process(command,
-                                                          timeout=timeout,
+                                                          timeout=self['timeout'],
                                                           stdout_file=qafile,
                                                           stderr_file=None)
 
@@ -1888,10 +1890,10 @@ class CoaddTileProcessor(dict):
     def get_command(self):
 
         command=[self['executable'],
-                 self['wlconfig'],
+                 self['wl_config'],
                  'coadd_srclist='+self['srclist'],
-                 'coaddimage_file='+self['coaddimage'],
-                 'coaddcat_file='+self['coaddcat'],
+                 'coaddimage_file='+self['image'],
+                 'coaddcat_file='+self['cat'],
                  'multishear_file='+self['multishear'],
                  'multishear_sky_method=NEAREST']
 
@@ -1916,149 +1918,14 @@ class CoaddTileProcessor(dict):
         json_util.write(self, self['stat'])
 
 
-
-class MECondorJob(dict):
-    def __init__(self, merun, coadd_id=None, tilename=None, nthread=None):
-        """
-        Note merun implies a dataset which, combined with tilename,
-        implies the band.
-        """
-
-        if coadd_id is None and tilename is None:
-            raise ValueError("Send coadd_id= or tilename=")
-
-        self.runconfig=deswl.files.Runconfig(merun)
-        self['dataset'] = self.runconfig['dataset']
-        self['band'] = self.runconfig['band']
-
-        info=deswl.files.coadd_info_read(self['dataset'],
-                                         self['band'],
-                                         srclist=True)
-
-        # will use cache if needed
-        self['coadd_id'] = coadd_id
-        self['merun'] = merun
-        self['nthread'] = nthread
-
-    def write_submit(self, verbose=False, dryrun=False):
-        self.make_condor_dir()
-        f=deswl.files.wlse_condor_path(self['run'], 
-                                       self['exposurename'], 
-                                       typ=self['type'], 
-                                       ccd=self['ccd'])
-
-        print "writing to condor submit file:",f 
-        text = self.submit_text()
-        if verbose or dryrun:
-            print text 
-        if not dryrun:
-            with open(f,'w') as fobj:
-                fobj.write(text)
-        else:
-            print "this is just a dry run" 
-
-    def write_script(self, verbose=False, dryrun=False):
-        self.make_condor_dir()
-        f=deswl.files.wlse_script_path(self['run'], 
-                                       self['exposurename'], 
-                                       typ=self['type'], 
-                                       ccd=self['ccd'])
-
-        print "writing to condor script file:",f 
-        text = self.script_text()
-        if verbose or dryrun:
-            print text 
-        if not dryrun:
-            with open(f,'w') as fobj:
-                fobj.write(text)
-
-            print "changing mode of file to executable"
-            os.popen('chmod 755 '+f)
-        else:
-            print "this is just a dry run" 
-
-
-    def submit_text(self):
-        condor_dir = self.condor_dir()
-        script_base = deswl.files.wlse_script_base(self['exposurename'],
-                                                   ccd=self['ccd'],
-                                                   typ=self['type'])
-        submit_text="""
-Universe        = parallel
-Notification    = Error
-GetEnv          = True
-Notify_user     = esheldon@bnl.gov
-+Experiment     = "astro"
-Requirements    = (CPU_Experiment == "astro") && (TotalSlots == 12 || TotalSlots == 8)
-Initialdir      = {condor_dir}
-
-Executable      = {script_base}.sh
-Output          = {script_base}.out
-Error           = {script_base}.err
-Log             = {script_base}.log
-
-Queue\n""".format(condor_dir=condor_dir, script_base=script_base)
-
-        return submit_text
-
-    def script_text(self):
-        rc=deswl.files.Runconfig(self['run'])
-        wl_load = _make_load_command('wl',rc['wlvers'])
-        tmv_load = _make_load_command('tmv',rc['tmvvers'])
-        esutil_load = _make_load_command('esutil', rc['esutilvers'])
-     
-        if self['ccd'] == None:
-            ccd=''
-        else:
-            ccd=self['ccd']
-
-        thread_text=''
-        if self['nthread'] is not None:
-            thread_text='export OMP_NUM_THREADS=%s' % self['nthread']
-
-        script_text="""#!/bin/bash
-source ~astrodat/setup/setup.sh
-source ~astrodat/setup/setup-modules.sh
-module load use.own
-{tmv_load}
-{wl_load}
-{esutil_load}
-module load desfiles
-
-{thread_text}
-multishear-run {coadd_id} {merun} 2>&1
-""".format(coadd_id=self['coadd_id'],
-           merun=self['merun'],
-           wl_load=wl_load, 
-           tmv_load=tmv_load, 
-           esutil_load=esutil_load,
-           thread_text=thread_text)
-
-        return script_text
-
-    def condor_dir(self):
-        return deswl.files.condor_dir(self['run'])
-
-    def make_condor_dir(self):
-        condor_dir = self.condor_dir()
-        if not os.path.exists(condor_dir):
-            print 'making output dir',condor_dir
-            os.makedirs(condor_dir)
+    def make_outdir(self):
+        d=os.path.dirname(self['qa'])
+        if not os.path.exists(d):
+            print 'making output dir:',d
+            os.makedirs(d)
 
 
 
-
-def _make_load_command(modname, vers):
-    """
-    convention is that trunk is exported to ~/exports/modname-work
-    """
-    load_command = "module unload {modname} && module load {modname}".format(modname=modname)
-    if vers == 'trunk' and modname != 'desfiles':
-        load_command += '/work'
-    else:
-        load_command += '/%s' % vers
-
-    return load_command
 
 
 
@@ -2284,7 +2151,7 @@ def run_multishear(tilename, band,
         raise ValueError("Tilename '%s' not found in '%s'" % \
                          (tilename, tileinfo_url))
 
-    fdict=deswl.files.generate_me_filenames(tilename, band, 
+    fdict=deswl.files.generate_me_output_urls(tilename, band, 
                                             merun=merun, dir=outdir, 
                                             rootdir=rootdir)
     multishear_url=fdict['multishear']
@@ -2387,7 +2254,7 @@ def run_multishear(tilename, band,
 
     if copyroot:
         fdict_def=\
-            deswl.files.generate_me_filenames(tilename, band, merun=merun)
+            deswl.files.generate_me_output_urls(tilename, band, merun=merun)
         # see if they point to the same thing.
         if fdict['stat'] != fdict_def['stat']:
             dirname=os.path.dirname(fdict_def['stat'])
@@ -2440,7 +2307,7 @@ def check_multishear(merun, band,
     badlist=[]
     for ti in tileinfo:
         tilename=ti['tilename']
-        fdict=deswl.files.generate_me_filenames(tilename, band, 
+        fdict=deswl.files.generate_me_output_urls(tilename, band, 
                                                 merun=merun, rootdir=rootdir)
 
         
