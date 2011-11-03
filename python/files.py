@@ -1040,7 +1040,6 @@ class MultishearFiles:
 
 
     def get_all_files(self):
-        self._ensure_connected()
         query="""
         select
             id,tilename,band
@@ -1050,11 +1049,13 @@ class MultishearFiles:
             filetype='coadd'
             and band='%(band)s'\n""" % {'release':self.rc['dataset'],
                                         'band':self.rc['band']}
+        print query
         res=self.conn.quick(query)
         if len(res) == 1:
             raise ValueError("Found no coadds for release %s "
                              "band %s" % (self.rc['dataset'],self.rc['band']))
 
+        print 'getting all the file sets'
         all_fdicts=[]
         for r in res:
             print '%s-%s' % (r['tilename'],r['band'])
@@ -1067,7 +1068,6 @@ class MultishearFiles:
                   id=None, 
                   tilename=None,
                   dir=None):
-        import desdb
         """
         Call with
             f=get_files(id=)
@@ -1076,6 +1076,7 @@ class MultishearFiles:
 
         Send dir= to pick a different output directory
         """
+        import desdb
 
         # first the coadd image and catalog
         c=desdb.files.Coadd(id=id, 
@@ -1095,6 +1096,8 @@ class MultishearFiles:
         files['wl_config'] = os.path.expandvars(self.rc['wl_config'])
         files['image'] = c['image_url']
         files['cat'] = c['cat_url']
+        files['id'] = c['image_id']
+        files['tilename'] = c['tilename']
 
         srclist = me_seinputs_url(self.merun, c['tilename'], self.rc['band'])
         files['srclist'] = os.path.expandvars(srclist)
@@ -1129,15 +1132,21 @@ class MultishearSEInputs:
     This is the single epoch inputs, use MultishearInputs to just generate
     the input file names for multishear.
     """
-    def __init__(self, merun):
+    def __init__(self, merun, conn=None):
         self.merun=merun
         self.rc=Runconfig(self.merun)
+
+        if conn is None:
+            import desdb
+            self.conn=desdb.Connection()
+        else:
+            self.conn=conn
+
 
     def generate_all_inputs(self):
         """
         Generate all inputs for the input merun
         """
-        self._ensure_connected()
         query="""
         select
             id
@@ -1158,7 +1167,6 @@ class MultishearSEInputs:
        
     def generate_inputs(self, id=None, tilename=None):
         import desdb
-        self._ensure_connected()
         if tilename is None and id is None:
             raise ValueError("Send tilename or id")
         if id is None:
@@ -1202,7 +1210,6 @@ class MultishearSEInputs:
         return url
 
     def get_tilename(self, id):
-        self._ensure_connected()
         query="""
         select
             tilename
@@ -1218,7 +1225,6 @@ class MultishearSEInputs:
         return res[0]['tilename']
 
     def get_id(self, tile):
-        self._ensure_connected()
         query="""
         select
             id
@@ -1237,16 +1243,14 @@ class MultishearSEInputs:
         return res[0]['id']
 
 
-
-    def _ensure_connected(self):
-        if not hasattr(self, 'conn'):
-            import desdb
-            self.conn=desdb.Connection()
-
-
-
 class MultishearCondorJob(dict):
+    """
+    You most certainly want to run the script
+        generate-me-condor merun
+    Instead of use this directly
+    """
     def __init__(self, merun, 
+                 files=None,
                  id=None, 
                  tilename=None, 
                  nthread=None, 
@@ -1257,30 +1261,33 @@ class MultishearCondorJob(dict):
         """
         Note merun implies a dataset which, combined with tilename,
         implies the band.
+
+        Or send files= (get_files from MultishearFiles) for quicker 
+        results, no sql calls required.
         """
-        if id is None and tilename is None:
-            raise ValueError("Send id= or tilename=")
+        if id is None and tilename is None and files is None:
+            raise ValueError("Send id= or tilename= or files=")
 
         self.rc=deswl.files.Runconfig(merun)
         self['dataset'] = self.rc['dataset']
         self['band'] = self.rc['band']
 
-        self['id'] = id
-        self['tilename'] = tilename
         self['run'] = merun
         self['nthread'] = nthread
         self['verbose']=verbose
         self['dryrun']=dryrun
 
-        if conn is None:
-            import desdb
-            self.conn=desdb.Connection()
-        else:
-            self.conn=conn
 
-        mfobj=MultishearFiles(merun, conn=self.conn)
-        self['config'] = mfobj.get_files(id=id, tilename=tilename,dir=dir)
-        self['config']['nodots']=True
+        if files is not None:
+            self['config'] = files
+        else:
+            mfobj=MultishearFiles(merun, conn=conn)
+            self['config'] = mfobj.get_files(id=id, tilename=tilename,dir=dir)
+
+        self['id'] = self['config']['id']
+        self['tilename'] = self['config']['tilename']
+
+        #self['config']['nodots']=True
         self['config']['merun']=merun
 
         self['config_file']=me_config_path(self['run'],self['tilename'],self['band'])

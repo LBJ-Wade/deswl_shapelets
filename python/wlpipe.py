@@ -1876,7 +1876,9 @@ class CoaddTileProcessor(dict):
         # stdout will go to the qafile.
         # stderr is not directed
 
+        stderr.write("opening qa file for output (stdout): %s\n" % self['qa'])
         qafile=open(self['qa'],'w')
+        stderr.write("running command: \n%s\n" % '  \\\n\t'.join(command))
         exit_status, oret, eret = eu.ostools.exec_process(command,
                                                           timeout=self['timeout'],
                                                           stdout_file=qafile,

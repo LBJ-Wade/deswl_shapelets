@@ -14,9 +14,11 @@ ReadFileList=env['__readfunc']
 #wlrun_file=env.File('wl-run.py')
 multishear_run_file=env.File('bin/multishear-run')
 shear_run_file=env.File('bin/shear-run')
+me_condor_file=env.File('bin/generate-me-condor')
+me_seinputs_file=env.File('bin/generate-me-seinputs')
 
 bin_install_subdir = 'bin'
-bin_targets = [multishear_run_file, shear_run_file]
+bin_targets = [multishear_run_file, shear_run_file,me_condor_file,me_seinputs_file]
 
 
 # for the /lib/pythonX/site-packages directory

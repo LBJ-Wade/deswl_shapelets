@@ -1,0 +1,58 @@
+#!/usr/bin/env python
+"""
+    %prog merun
+
+Generate all scripts/config files/condor submit for the given merun.
+"""
+
+import sys
+import deswl
+from deswl.files import MultishearFiles,MultishearCondorJob
+
+from optparse import OptionParser
+parser = OptionParser(__doc__)
+
+def main():
+
+    options, args = parser.parse_args(sys.argv[1:])
+    if len(args) < 1:
+        parser.print_help()
+        sys.exit(45)
+
+    merun=args[0]
+
+    mfobj=MultishearFiles(merun)
+    all_files=mfobj.get_all_files()
+    ntile=len(all_files)
+    for i,fdict in enumerate(all_files):
+        print '%d/%d' % (i+1,ntile)
+        mc=MultishearCondorJob(merun,files=fdict)
+        mc.write_all()
+
+    return
+    import desdb
+    rc=Runconfig(merun)
+    conn=desdb.Connection()
+    query="""
+    select
+        id,tilename,band
+    from
+        %(release)s_files
+    where
+        filetype='coadd'
+        and band='%(band)s'\n""" % {'release':rc['dataset'],
+                                    'band':rc['band']}
+    res=conn.quick(query)
+    nres=len(res)
+    if nres == 0:
+        raise ValueError("Found no coadds for release %s "
+                         "band %s" % (self.rc['dataset'],self.rc['band']))
+    for i,r in enumerate(res):
+        print '%d/%d' % (i+1,nres)
+        id=r['id']
+        mc=MultishearCondorJob(merun,id=id)
+        mc.write_all()
+        print '-'*70
+
+main()
+
