@@ -11,7 +11,7 @@ class PotentialStar {
 public:
     PotentialStar(Position pos, double mag, double size, double sg, long index,
                   const std::string& line) :
-      _pos(pos), _mag(mag), _size(size), _sg(sg), _index(index), _line(line) 
+      _pos(pos), _mag(mag), _size(size), _index(index), _sg(sg), _line(line) 
     {}
 
     ~PotentialStar() {}

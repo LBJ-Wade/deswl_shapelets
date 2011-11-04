@@ -92,16 +92,16 @@ int main(int argc, char* argv[])
             int group = groupMap[groupIds];
             fileGroup.push_back(group);
         }
-        assert(nType == typeMap.size());
-        assert(nType == typeName.size());
-        assert(nGroup == groupMap.size());
-        assert(nGroup == groupType.size());
-        assert(nGroup == groupBatch.size());
-        assert(nFile == idMap.size());
-        assert(nFile == fileId.size());
-        assert(nFile == fileType.size());
-        assert(nFile == fileGroup.size());
-        assert(nFile == fileEc.size());
+        assert(nType == int(typeMap.size()));
+        assert(nType == int(typeName.size()));
+        assert(nGroup == int(groupMap.size()));
+        assert(nGroup == int(groupType.size()));
+        assert(nGroup == int(groupBatch.size()));
+        assert(nFile == int(idMap.size()));
+        assert(nFile == int(fileId.size()));
+        assert(nFile == int(fileType.size()));
+        assert(nFile == int(fileGroup.size()));
+        assert(nFile == int(fileEc.size()));
         std::cout<<"Cheat codes:\n";
         for(int i=0;i<nType;++i) {
             std::cout<<i<<"  =  "<<typeName[i]<<std::endl;

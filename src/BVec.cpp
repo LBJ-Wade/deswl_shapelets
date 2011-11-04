@@ -95,7 +95,6 @@ void BVec::makeImage(
     xdbg<<"pixscale = "<<pixScale<<std::endl;
 
     double chipX = im.getXMin()-xCen;
-    double peak = 0.;
     int n=0;
     for(int i=0;i<=im.getMaxI();++i,chipX+=1.) {
         double chipY = im.getYMin()-yCen;
