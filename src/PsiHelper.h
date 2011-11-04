@@ -17,7 +17,7 @@
 // The input z vector has the position of each pixel.
 // The optional coeff parameter specifies a coefficient to multiply each row.
 void makePsi(
-    DMatrix& psi, CDVectorView z, int order, const DVector* coeff=0);
+    DMatrix& psi, CDVectorView z, int order, const DVectorView* coeff=0);
 
 // Same thing, but for a single pixel.
 void makePsi(DVector& psi, std::complex<double> z, int order);

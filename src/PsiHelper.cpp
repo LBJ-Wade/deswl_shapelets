@@ -18,7 +18,7 @@
 // remotely efficient, so I separate this out with an ifdef, rather than
 // use the TMV and EIGEN macros.
 
-void makePsi(DMatrix& psi, CDVectorView z, int order, const DVector* coeff)
+void makePsi(DMatrix& psi, CDVectorView z, int order, const DVectorView* coeff)
 {
     // For p>=q:
     //

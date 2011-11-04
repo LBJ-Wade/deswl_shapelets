@@ -347,11 +347,13 @@ bool Ellipse::doMeasureShapelet(
             const int nPix = pix[k].size();
             nx = n+nPix;
             DMatrix A1(nPix,bsize2);
-            makePsi(A1,Z.TMV_subVector(n,nx),order2,&W);
+            DVectorView W1 = W.TMV_subVector(n,nx);
+            makePsi(A1,Z.TMV_subVector(n,nx),order2,&W1);
             TMV_rowRange(A,n,nx) = A1 * C;
         }
     } else {
-        makePsi(A,TMV_vview(Z),order,&W);
+        DVectorView W1 = TMV_view(W);
+        makePsi(A,TMV_vview(Z),order,&W1);
     }
     const double MAX_CONDITION = 1.e8;
 
