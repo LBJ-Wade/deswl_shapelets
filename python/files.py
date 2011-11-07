@@ -325,9 +325,6 @@ def des_rootdir():
     return getenv_check('DESDATA')
 
 def hdfs_rootdir():
-    """
-    Root dir in hhdfs
-    """
     return 'hdfs:///user/esheldon/DES'
 
 
@@ -707,17 +704,6 @@ def se_collated_read(serun,
                           ext=ext) 
 
 
-
-
-def runfiles_stat_read(dataset, type):
-    name=runfiles_stat_name(dataset, type)
-    stdout.write("Reading runfiles stat: %s\n" % name)
-    return eu.io.read(name)
-
-def runfiles_stat_name(dataset, type):
-    dir=collated_redfiles_dir(dataset)
-    name = '%s-%s-runfiles-stat.json' % (dataset,type)
-    return path_join(dir, name)
 
 
 def collated_redfiles_dir(dataset, html=False):

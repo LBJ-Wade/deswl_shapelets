@@ -1,0 +1,48 @@
+#!/usr/bin/env python
+"""
+    %prog serun
+
+Generate all scripts/config files/condor submit for the given serun.
+"""
+
+import sys
+from sys import stderr
+import deswl
+from deswl.files import MultishearFiles,MultishearCondorJob
+import desdb
+
+from optparse import OptionParser
+parser = OptionParser(__doc__)
+
+def main():
+
+    options, args = parser.parse_args(sys.argv[1:])
+    if len(args) < 1:
+        parser.print_help()
+        sys.exit(45)
+
+    serun=args[0]
+
+    rc=deswl.files.Runconfig(serun)
+    rc.verify()
+
+    query="""
+    select 
+        id,run,file_exposure_name,ccd 
+    from 
+        %(release)s_files 
+    where 
+        filetype='red' and band='%(band)s'\n""" % {'release':rc['dataset'],
+                                                   'band':rc['band']}
+
+    conn=desdb.Connection()
+    res=conn.quick(query, show=True)
+
+    nexp=len(res)
+    for i,r in enumerate(res):
+        print '%d/%d' % (i+1,nres)
+        job=deswl.files.SECondorJob(serun, res['file_exposure_name'])
+        job.write_all()
+
+main()
+
