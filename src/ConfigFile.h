@@ -54,8 +54,250 @@
 #include <stdexcept>
 #include <limits>
 
+#ifndef NOTHROW
 #include "Params.h"
+#endif
+
 #include "dbg.h"
+#include "TMV.h"
+
+template <class T>
+struct ConvertibleStringTraits
+{
+    enum { is_bool = false };
+    enum { is_vector = false };
+    enum { is_string = false };
+    enum { is_cstring = false };
+};
+
+template <>
+struct ConvertibleStringTraits<bool>
+{
+    enum { is_bool = true };
+    enum { is_vector = false };
+    enum { is_string = false };
+    enum { is_cstring = false };
+};
+
+template <class T>
+struct ConvertibleStringTraits<std::vector<T> >
+{
+    enum { is_bool = false };
+    enum { is_vector = true };
+    enum { is_string = false };
+    enum { is_cstring = false };
+};
+
+template <class T>
+struct ConvertibleStringTraits<std::basic_string<T> >
+{
+    enum { is_bool = false };
+    enum { is_vector = false };
+    enum { is_string = true };
+    enum { is_cstring = false };
+};
+
+template <>
+struct ConvertibleStringTraits<const char*>
+{
+    enum { is_bool = false };
+    enum { is_vector = false };
+    enum { is_string = false };
+    enum { is_cstring = true };
+};
+
+// Get rid of const or ref:
+template <class T>
+struct ConvertibleStringTraits<T&> : public ConvertibleStringTraits<T> {};
+template <class T>
+struct ConvertibleStringTraits<const T> : public ConvertibleStringTraits<T> {};
+template <class T>
+struct ConvertibleStringTraits<const T&> : public ConvertibleStringTraits<T> {};
+
+
+template <int algo, class T>
+struct ConvertibleStringOpT;
+
+template <class T>
+struct ConvertibleStringOpT<1,T> // Normal case
+{
+    static T call(const std::string& s) 
+    {
+        //std::cout<<"Convert s = \""<<s<<"\" to type "<<tmv::TMV_Text(T())<<std::endl;
+#ifdef Use_Zero_Default
+        if (s == "") return T();
+#endif
+
+        T ret;
+        std::stringstream ss(s);
+
+        // This bit is needed to get the oct and hex to work:
+        // I haven't incorporated it into the below vector conversion,
+        // so those always need to be decimal.
+        if (std::numeric_limits<T>::is_integer) {
+            if (s[0] == '0') {
+                if ((s)[1] == 'x' || s[1] == 'X') {
+                    ss >> std::hex;
+                } else {
+                    ss >> std::oct;
+                }
+            }
+        }
+        ss >> ret;
+        if (!ss) {
+            std::string err="Could not convert ConvertibleString to input type ";
+            err += typeid(T).name();
+            err += std::string(": s = ") + s;
+#ifndef NOTHROW
+            std::cerr<<err<<std::endl; 
+            exit(1); 
+#else
+            throw ParameterException(err);
+#endif
+        }
+        //std::cout<<"ret = "<<ret<<std::endl;
+        return ret;
+    }
+};
+
+template <class T>
+struct ConvertibleStringOpT<2,std::vector<T> > // T is a vector
+{
+    static std::vector<T> call(const std::string& s) 
+    {
+        //std::cout<<"Convert s = \""<<s<<"\" to type std::vector<"<<tmv::TMV_Text(T())<<">"<<std::endl;
+#ifdef Use_Zero_Default
+        if (s == "") return std::vector<T>();
+#endif
+
+        // Two syntaxes: "{1.,2.,3.}" or "1. 2. 3."
+        if (s[0] == '{') {
+            // Using "{1.,2.,3.}" syntax
+
+            int i1 = s.find_first_not_of(" \t\n\r\f",1);
+            if (i1 == int(std::string::npos)) {
+                std::string err="Could not convert ConvertibleString to input type ";
+                err += std::string("std::vector<")+typeid(T).name()+">";
+                err += std::string(": s = ") + s;
+
+#ifdef NOTHROW
+                std::cerr<<err<<std::endl; 
+                exit(1); 
+                return std::vector<T>(); 
+#else
+                throw ParameterException(err);
+#endif
+            }
+            if (s[i1] == '}') {
+                // string is empty: "{ }"
+                //std::cout<<" --> null vector\n";
+                return std::vector<T>();
+            }
+
+            int nComma = std::count(s.begin(),s.end(),',');
+            std::vector<T> ret(nComma+1);
+
+            int i2 = s.find_first_of("},",i1);
+            int j = 0;
+
+            while (s[i2] != '}') {
+                std::string s2 = s.substr(i1,i2-i1);
+                std::stringstream ss(s2);
+                ss >> ret[j++];
+                i1 = i2+1;
+                i2 = s.find_first_of("},",i1);
+            }
+            {
+                // Do last element
+                std::string s2 = s.substr(i1,i2-i1);
+                std::stringstream ss(s2);
+                ss >> ret[j];
+            }
+            if (j != nComma) {
+                std::string err="Could not convert ConvertibleString to input type ";
+                err += std::string("std::vector<")+typeid(T).name()+">";
+                err += std::string(": s = ") + s;
+
+#ifdef NOTHROW
+                std::cerr<<err<<std::endl; 
+                exit(1); 
+                return std::vector<T>(); 
+#else
+                throw ParameterException(err);
+#endif
+            }
+            //std::cout<<" --> vector with size "<<ret.size()<<std::endl;
+            return ret;
+        } else {
+            // Using "1. 2. 3." syntax
+            std::stringstream ss(s);
+            std::vector<T> ret;
+            T x;
+            while (ss >> x) ret.push_back(x);
+            //std::cout<<" --> vector with size "<<ret.size()<<std::endl;
+            return ret;
+        }
+    }
+};
+
+template <class T>
+struct ConvertibleStringOpT<3,T> // T is bool
+{
+    static T call(const std::string& s) 
+    {
+        //std::cout<<"Convert s = \""<<s<<"\" to type bool"<<std::endl;
+#ifdef Use_Zero_Default
+        if (*this == "") return false;
+#endif
+
+        // make string all caps
+        std::string sup = s;
+        for ( std::string::iterator p = sup.begin(); p != sup.end(); ++p )
+            *p = toupper(*p); 
+
+        if ( sup=="FALSE" || sup=="F" || sup=="NO" || sup=="N" ||
+             sup=="0" || sup=="NONE" ) {
+            //std::cout<<" --> false\n";
+            return false;
+        } else if ( sup=="TRUE" || sup=="T" || sup=="YES" || sup=="Y" ||
+                    sup=="1" ) {
+            //std::cout<<" --> true\n";
+            return true;
+        } else {
+            std::string err=
+                "Could not convert ConvertibleString to input type bool"
+                ": s = " + s;
+#ifdef NOTHROW
+            std::cerr<<err<<std::endl; 
+            exit(1);
+            return false;
+#else
+            throw ParameterException(err);
+#endif
+            //std::cout<<" --> error\n";
+        }
+    }
+};
+
+template <class T>
+struct ConvertibleStringOpT<4,T> // T is std::string
+{
+    static T call(const std::string& s) 
+    {
+        //std::cout<<"Convert s = \""<<s<<"\" to type std::string"<<std::endl;
+        return s; 
+    }
+};
+
+template <class T>
+struct ConvertibleStringOpT<5,T> // T is C-style string
+{
+    static T call(const std::string& s) 
+    {
+        //std::cout<<"Convert s = \""<<s<<"\" to C-style string"<<std::endl;
+        return s.c_str(); 
+    }
+};
 
 #ifdef __INTEL_COMPILER
 #pragma warning (disable : 444)
@@ -79,180 +321,115 @@ class ConvertibleString : public std::string
 {
 
 public:
-    ConvertibleString() : std::string("") {};
-    ConvertibleString(const std::string s) : std::string(s) {}
+    ConvertibleString() : std::string("")
+    {
+        //std::cout<<"Blank constructor : _s = "<<*this<<std::endl;
+    }
+    ConvertibleString(const std::string& s) : std::string(s) 
+    {
+        //std::cout<<"String constructor : _s = "<<*this<<std::endl;
+    }
 
     template <typename T> 
     explicit ConvertibleString(const T& x)
-    { *this = x; }
+    { 
+        //std::cout<<"T constructor : x = "<<x<<std::endl;
+        *this = x; 
+        //std::cout<<"Done T constructor : _s = "<<*this<<std::endl;
+    }
 
-    template <typename T> 
-    explicit ConvertibleString(const std::vector<T>& x)
-    { *this = x; }
-
-    ~ConvertibleString() {};
+    ~ConvertibleString() {}
 
     ConvertibleString& operator=(const std::string& rhs)
     {
-        std::string::operator=(rhs); 
+        //std::cout<<"op= string : rhs = "<<rhs<<std::endl;
+        std::string::operator=(rhs);
+        //std::cout<<"Done op= string : _s = "<<*this<<std::endl;
         return *this;
     }
 
     template <typename T> 
     ConvertibleString& operator=(const T& x)
     {
+        //std::cout<<"op= T : x = "<<x<<std::endl;
         std::stringstream oss;
         oss << x;
         *this = oss.str();
+        //std::cout<<"Done op= T : _s = "<<*this<<std::endl;
         return *this;
     }
 
     template <typename T> 
     ConvertibleString& operator=(const std::vector<T>& x)
     {
+        //std::cout<<"op= std::vector<T> : x.size = "<<x.size()<<std::endl;
         std::stringstream oss;
         const int n = x.size();
         if (n > 0) oss << x[0];
         for(int i=1;i<n;++i) oss << ' ' << x[i];
         *this = oss.str();
+        //std::cout<<"Done op= std::vector<T> : _s = "<<*this<<std::endl;
         return *this;
     }
 
     template <typename T> 
     operator T() const 
     {
-#ifdef Use_Zero_Default
-        if (*this == "") return T();
-#endif
-
-        std::string err="Could not convert ConvertibleString to input type ";
-        err += typeid(T).name();
-        err += std::string(": this = ") + *this;
-        T temp;
-        std::stringstream ss(*this);
-
-        // This bit is needed to get the oct and hex to work:
-        // I haven't incorporated it into the below vector conversion,
-        // so those always need to be decimal.
-        if (std::numeric_limits<T>::is_integer) {
-            if ((*this)[0] == '0') {
-                if ((*this)[1] == 'x' || (*this)[1] == 'X') {
-                    ss >> std::hex;
-                } else {
-                    ss >> std::oct;
-                }
-            }
-        }
-        ss >> temp;
-        if (!ss) {
-#ifndef NOTHROW
-            std::cerr<<err<<std::endl; 
-            exit(1); 
-#else
-            throw ParameterException(err);
-#endif
-        }
-        return temp;
+        //std::cout<<"op T _s = "<<*this<<std::endl;
+        const int algo =
+            ConvertibleStringTraits<T>::is_vector ? 2 :
+            ConvertibleStringTraits<T>::is_bool ? 3 :
+            ConvertibleStringTraits<T>::is_string ? 4 :
+            ConvertibleStringTraits<T>::is_cstring ? 5 :
+            1;
+        //std::cout<<"algo = "<<algo<<std::endl;
+        return ConvertibleStringOpT<algo,T>::call(*this);
     }
 
-    template <typename T> 
-    operator std::vector<T>() const 
-    {
-#ifdef Use_Zero_Default
-        if (*this == "") return std::vector<T>();
+#if 0
+    // Now a few things to make it work more like a string
+    friend std::string operator+(
+        const std::string& s1, const ConvertibleString& s2)
+    { return s1 + s2._s; }
+    friend std::string operator+(
+        const ConvertibleString& s1, const std::string& s2)
+    { return s1._s + s2; }
+    friend std::string operator+(
+        const char* s1, const ConvertibleString& s2)
+    { return s1 + s2._s; }
+    friend std::string operator+(
+        const ConvertibleString& s1, const char* s2)
+    { return s1._s + s2; }
+
+    bool operator==(const std::string& s2) const
+    { return _s == s2; }
+    bool operator==(const char* s2) const
+    { return _s == s2; }
+    friend bool operator==(const std::string s1, const ConvertibleString& s2)
+    { return s1 == s2._s; }
+    friend bool operator==(const char* s1, const ConvertibleString& s2)
+    { return s1 == s2._s; }
+
+    void write(std::ostream& os) const
+    { os << _s; }
+    void read(std::istream& is)
+    { is >> _s; }
+
+private :
+    std::string _s;
 #endif
-
-        std::string err="Could not convert ConvertibleString to input type ";
-        err += std::string("std::vector<")+typeid(T).name()+">";
-        err += std::string(": this = ") + *this;
-
-        // Two syntaxes: "{1.,2.,3.}" or "1. 2. 3."
-        if ((*this)[0] == '{') {
-            // Using "{1.,2.,3.}" syntax
-
-            int i1 = this->find_first_not_of(" \t\n\r\f",1);
-            if (i1 == int(std::string::npos)) {
-#ifdef NOTHROW
-                std::cerr<<err<<std::endl; 
-                exit(1); 
-                return std::vector<T>(); 
-#else
-                throw ParameterException(err);
-#endif
-        }
-        if ((*this)[i1] == '}') {
-            // string is empty: "{ }"
-            return std::vector<T>();
-        }
-
-        int nComma = std::count(this->begin(),this->end(),',');
-        std::vector<T> ret(nComma+1);
-
-        int i2 = this->find_first_of("},",i1);
-        int j = 0;
-
-        while ((*this)[i2] != '}') {
-            std::string s = this->substr(i1,i2-i1);
-                std::stringstream ss(s);
-                ss >> ret[j++];
-        i1 = i2+1;
-        i2 = this->find_first_of("},",i1);
-        }
-        {
-            // Do last element
-            std::string s = this->substr(i1,i2-i1);
-                std::stringstream ss(s);
-                ss >> ret[j];
-        }
-        if (j != nComma) {
-        throw ParameterException(err);
-        }
-        return ret;
-        } else {
-            // Using "1. 2. 3." syntax
-            std::stringstream ss(*this);
-            std::vector<T> ret;
-            T x;
-            while (ss >> x) ret.push_back(x);
-            return ret;
-        }
-    }
-
 };
 #ifdef __INTEL_COMPILER
 #pragma warning (default : 444)
 #endif
 
-template <> inline ConvertibleString::operator bool() const
-{
-#ifdef Use_Zero_Default
-    if (*this == "") return false;
-#endif
+#if 0
 
-    // make string all caps
-    std::string sup = *this;
-    for ( std::string::iterator p = sup.begin(); p != sup.end(); ++p )
-        *p = toupper(*p); 
-
-    if ( sup=="FALSE" || sup=="F" || sup=="NO" || sup=="N" ||
-         sup=="0" || sup=="NONE" ) {
-        return false;
-    } else if ( sup=="TRUE" || sup=="T" || sup=="YES" || sup=="Y" ||
-                sup=="1" ) {
-        return true;
-    } else {
-        std::string err=
-            "Could not convert ConvertibleString to input type bool"
-            ": this = " + *this;
-#ifdef NOTHROW
-        std::cerr<<err<<std::endl; 
-        exit(1);
-        return false;
-#else
-        throw ParameterException(err);
+std::ostream& operator<<(std::ostream& os, const ConvertibleString& s)
+{ s.write(os); return os; }
+std::istream& operator>>(std::istream& is, ConvertibleString& s)
+{ s.read(is); return is; }
 #endif
-    }
-}
 
 class ConfigFile 
 {
@@ -378,8 +555,11 @@ T ConfigFile::read(const std::string& key) const
 #endif
     }
     T ret;
+#ifndef NOTHROW
     try {
+#endif
         ret = p->second;
+#ifndef NOTHROW
     } catch (ParameterException& e) {
         xdbg<<"Caught ParameterException: \n"<<e.what()<<std::endl;
         throw ParameterException(
@@ -388,6 +568,7 @@ T ConfigFile::read(const std::string& key) const
             " to given type.\nCaught error from ConvertibleString: \n" +
             e.what());
     }
+#endif
     return ret;
 }
 
@@ -404,8 +585,11 @@ T ConfigFile::read( const std::string& key, const T& value ) const
         return value;
     } else {
         T ret;
+#ifndef NOTHROW
         try {
+#endif
             ret = p->second;
+#ifndef NOTHROW
         } catch (ParameterException& e) {
             xdbg<<"Caught ParameterException: \n"<<e.what()<<std::endl;
             throw ParameterException(
@@ -414,6 +598,7 @@ T ConfigFile::read( const std::string& key, const T& value ) const
                 " to given type.\nCaught error from ConvertibleString: \n" +
                 e.what());
         }
+#endif
         return ret;
     }
 }
@@ -430,8 +615,11 @@ bool ConfigFile::readInto( T& var, const std::string& key ) const
     MapCIt p = _contents.find(key2);
     bool isFound = ( p != _contents.end() );
     if(isFound) {
+#ifndef NOTHROW
         try {
+#endif
             var = p->second;
+#ifndef NOTHROW
         } catch (ParameterException& e) {
             xdbg<<"Caught ParameterException: \n"<<e.what()<<std::endl;
             throw ParameterException(
@@ -440,6 +628,7 @@ bool ConfigFile::readInto( T& var, const std::string& key ) const
                 " to given type.\nCaught error from ConvertibleString: \n" +
                 e.what());
         }
+#endif
     }
     return isFound;
 }
@@ -457,8 +646,11 @@ bool ConfigFile::readInto(
     MapCIt p = _contents.find(key2);
     bool isFound = ( p != _contents.end() );
     if(isFound) {
+#ifndef NOTHROW
         try {
+#endif
             var = p->second;
+#ifndef NOTHROW
         } catch (ParameterException& e) {
             xdbg<<"Caught ParameterException: \n"<<e.what()<<std::endl;
             throw ParameterException(
@@ -467,6 +659,7 @@ bool ConfigFile::readInto(
                 " to given type.\nCaught error from ConvertibleString: \n" +
                 e.what());
         }
+#endif
     } else {
         var = value;
     }

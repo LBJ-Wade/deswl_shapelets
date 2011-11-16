@@ -71,8 +71,9 @@ private:
 };
 
 template <typename T>
-struct BoundForm 
+class BoundForm 
 {
+public:
     const Form& f;
     T val;
     BoundForm(const Form& f_, T val_) : f(f_), val(val_) {}

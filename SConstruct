@@ -30,6 +30,7 @@ default_prefix = '/usr/local'
 
 # This helps us determine of openmp is available
 openmp_mingcc_vers = 4.1
+openmp_minclang_vers = 3.1
 openmp_minicpc_vers = 9.0
 openmp_minpgcc_vers = 6.0
 
@@ -123,6 +124,13 @@ def BasicCCFlags(env):
             if env['WARN']:
                 env.Append(CCFLAGS=['-g3','-Wall','-Werror'])
     
+        elif compiler == 'clang++':
+            env.Replace(CCFLAGS=['-O2'])
+            if version <= 4.2:
+                env.Append(CCFLAGS=['-fno-strict-aliasing'])
+            if env['WARN']:
+                env.Append(CCFLAGS=['-g3','-Wall','-Werror'])
+    
         elif compiler == 'icpc':
             env.Replace(CCFLAGS=['-O2'])
             if version >= 10:
@@ -176,6 +184,7 @@ def AddOpenMPFlag(env):
     the compiler.
 
     g++ uses -fopemnp
+    clang++ uses -fopemnp
     icpc uses -openmp
     pgCC uses -mp
     
@@ -195,6 +204,19 @@ def AddOpenMPFlag(env):
         # However, it seems to be safe for both (???), so I always include it.
         # If it turns out to break something, I'll have to revisit this.
         xlib = ['pthread','gcc_eh']
+        # Also add a #define to let program know that linking will use openmp
+        # even for object files that don't.
+        env.Append(CPPDEFINES=['OPENMP_LINK'])
+        #env.Append(CCFLAGS=['-fopenmp'])
+    elif compiler == 'clang++':
+        if version < openmp_minclang_vers: 
+            print 'No OpenMP support for clang versions before ',openmp_minclang_vers
+            return
+        flag = ['-fopenmp']
+        #ldflag = []
+        #xlib = ['gomp','gfortran','pthread']
+        ldflag = ['-fopenmp']
+        xlib = ['pthread']
         # Also add a #define to let program know that linking will use openmp
         # even for object files that don't.
         env.Append(CPPDEFINES=['OPENMP_LINK'])
@@ -247,6 +269,10 @@ def GetCompilerVersion(env):
         versionflag = '--version'
         linenum=1
         # pgCC puts the version number on the second line of output.
+    elif 'clang++' in compiler :
+        compilertype = 'clang++'
+        versionflag = '--version'
+        linenum=0
     elif 'g++' in compiler :
         compilertype = 'g++'
         versionflag = '--version'

@@ -694,8 +694,9 @@ namespace mv {
     }; // Vector
 
     //--------------------------------------------------------------------------
-    struct SVD 
+    class SVD 
     { 
+    public:
         Matrix<double> u;
         SqMatrix<double> v;
         Vector<double> w;
@@ -712,8 +713,9 @@ namespace mv {
     };
 
     template <class T>
-    struct LUD 
+    class LUD 
     {
+    public:
         SqMatrix<T> lu;
         valarray<size_t> indx;
         T det;

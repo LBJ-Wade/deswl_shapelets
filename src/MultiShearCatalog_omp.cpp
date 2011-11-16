@@ -30,7 +30,9 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
     bool galFixSigma = _params.keyExists("shear_force_sigma");
     double galFixSigmaValue = _params.read("shear_force_sigma",0.);
     bool shouldOutputDots = _params.read("output_dots",false);
+#ifdef _OPENMP
     bool shouldOutputDesQa = _params.read("des_qa",false); 
+#endif
     bool nativeOnly = _params.read("shear_native_only",false);
 
     int nSuccess = 0;

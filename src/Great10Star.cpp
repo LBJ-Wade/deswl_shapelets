@@ -9,7 +9,7 @@
 
 int main(int argc, char **argv) try 
 {
-    const double PI = 3.141592653589793;
+    //const double PI = 3.141592653589793;
 
     ConfigFile params;
     if (basicSetup(argc,argv,params,"g10star")) return EXIT_FAILURE;
