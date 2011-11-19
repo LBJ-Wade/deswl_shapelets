@@ -209,10 +209,19 @@ bool Ellipse::doMeasureShapelet(
 
     std::complex<double> m = exp(-_mu)/sqrt(1.-gsq);
 
+    int bsize = (order+1)*(order+2)/2;
+    xdbg<<"bsize = "<<bsize<<std::endl;
+    int bsize2 = (order2+1)*(order2+2)/2;
+    xdbg<<"bsize2 = "<<bsize2<<std::endl;
+
     int nTot = 0;
     const int nExp = pix.size();
     for(int i=0;i<nExp;++i) nTot += pix[i].size();
-    xdbg<<"ntot = "<<nTot<<" in "<<nExp<<" images\n";
+    dbg<<"ntot = "<<nTot<<" in "<<nExp<<" images\n";
+    if (nTot < bsize) {
+        dbg<<"Too few pixels for given order.\n";
+        return false;
+    }
 
     DVector I(nTot);
     DVector W(nTot);
@@ -238,11 +247,6 @@ bool Ellipse::doMeasureShapelet(
     //xdbg<<"I = "<<I<<std::endl;
     //xdbg<<"W = "<<W<<std::endl;
     
-    int bsize = (order+1)*(order+2)/2;
-    xdbg<<"bsize = "<<bsize<<std::endl;
-    int bsize2 = (order2+1)*(order2+2)/2;
-    xdbg<<"bsize2 = "<<bsize2<<std::endl;
-
 #ifdef USE_TMV
     // Figure out a permutation that puts all the m <= maxm first.
     // I don't know how to do this with Eigen, but I don't really 
