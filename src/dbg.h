@@ -16,6 +16,8 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <sstream>
+#include <fstream>
 
 #if defined(__GNUC__) && defined(OPENMP_LINK)
 extern __thread std::ostream* dbgout;
@@ -55,5 +57,20 @@ struct AssertFailureException :
         } \
     } while(false)
 #endif
+
+static std::string memory_usage(std::ostream* os=0) 
+{
+    std::ostringstream mem;
+    std::ifstream proc("/proc/self/status");
+    std::string s;
+    while(getline(proc, s), !proc.fail()) {
+        if (os) *os << "proc line = "<<s<<std::endl;
+        if(s.substr(0, 6) == "VmSize") {
+            mem << s;
+            //return mem.str();
+        }
+    }
+    return mem.str();
+}
 
 #endif

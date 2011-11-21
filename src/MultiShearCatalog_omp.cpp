@@ -165,6 +165,7 @@ static void getImagePixList(
     const Image<double>*const skyMap,
     double galAperture, double maxAperture, double xOffset, double yOffset)
 {
+    dbg<<"Start getImagePixList: memort_usage = "<<memory_usage()<<std::endl;
     Assert(psfList.size() == pixList.size());
     Assert(seShearList.size() == pixList.size());
     Assert(seSizeList.size() == pixList.size());
@@ -259,10 +260,12 @@ static void getImagePixList(
     xdbg<<"pixlist.size = "<<pixList.size()<<std::endl;
 
     flag = 0;
+    dbg<<"Before getPixList: memort_usage = "<<memory_usage()<<std::endl;
     getPixList(
         im,pixList.back(),pos,
         sky,noise,gain,weightIm,trans,galAp,xOffset,yOffset,flag);
     xdbg<<"Got pixellist, flag = "<<flag<<std::endl;
+    dbg<<"After getPixList: memort_usage = "<<memory_usage()<<std::endl;
 
     // Make sure not (edge or < 10 pixels) although edge is already
     // checked above
@@ -286,6 +289,7 @@ static void getImagePixList(
         inputFlags |= flag;
         pixList.pop_back();
     }
+    dbg<<"Done getImagePixList: memort_usage = "<<memory_usage()<<std::endl;
 }
 
 // Get pixel lists from the file specified in params
@@ -417,7 +421,7 @@ void MultiShearCatalog::getImagePixelLists(
     double xOffset = _params.read("cat_x_offset",0.);
     double yOffset = _params.read("cat_y_offset",0.);
 #ifdef _OPENMP
-    //#pragma omp parallel for
+//#pragma omp for schedule(static)
 #endif
     for (int i=0; i<nGals; ++i) {
         if (_flags[i]) continue;
@@ -434,6 +438,7 @@ void MultiShearCatalog::getImagePixelLists(
     // Keep track of how much memory we are using.
     // TODO: introduce a parameter max_memory and check to make sure
     // we stay within the allowed memory usage.
+    dbg<<"Done getImagePixList loop: memort_usage = "<<memory_usage()<<std::endl;
     dbg<<"Using image# "<<seIndex;
     dbg<<"... Memory Usage in MultiShearCatalog = ";
     dbg<<calculateMemoryFootprint()<<" MB";

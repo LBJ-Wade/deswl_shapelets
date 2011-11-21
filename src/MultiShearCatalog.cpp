@@ -1,6 +1,7 @@
 
 #include <valarray>
 #include <CCfits/CCfits>
+#include <sstream>
 
 #include "CoaddCatalog.h"
 #include "ConfigFile.h"
@@ -26,11 +27,15 @@ MultiShearCatalog::MultiShearCatalog(
     _flags(coaddCat.getFlagsList()), _skyBounds(coaddCat.getSkyBounds()),
     _params(params)
 {
+    dbg<<"Start MultiShearCatalog constructor\n";
+    dbg<<"memory_usage = "<<memory_usage()<<std::endl;
     resize(coaddCat.size());
+    dbg<<"after resize, memory_usage = "<<memory_usage()<<std::endl;
 
     // Read the names of the component image and catalog files from
     // the srclist file (given as params.coadd_srclist)
     readFileLists();
+    dbg<<"after readfilelists, memory_usage = "<<memory_usage()<<std::endl;
 }
 
 std::vector<Bounds> MultiShearCatalog::splitBounds()
@@ -62,17 +67,20 @@ int MultiShearCatalog::getPixels(const Bounds& bounds)
 
     const int nPix = _pixList.size();
 
+    dbg<<"Start getPixels: memory_usage = "<<memory_usage()<<std::endl;
     for (int i=0;i<nPix;++i) {
         _pixList[i].clear();
         _psfList[i].clear();
         _seShearList[i].clear();
         _seSizeList[i].clear();
     }
+    dbg<<"After clear: memory_usage = "<<memory_usage()<<std::endl;
 
     bool shouldOutputDesQa = _params.read("des_qa",false); 
 
     try {
         dbg<<"Start GetPixels for b = "<<bounds<<std::endl;
+        memory_usage(dbgout);
         // Loop over the files and read pixel lists for each object.
         // The Transformation and FittedPSF constructors get the name
         // information from the parameter file, so we use that to set the 
@@ -82,6 +90,7 @@ int MultiShearCatalog::getPixels(const Bounds& bounds)
 #ifdef ONLY_N_IMAGES
             if (iFile >= ONLY_N_IMAGES) break;
 #endif
+            dbg<<"iFile = "<<iFile<<std::endl;
 
             // Get the file names
             Assert(iFile < int(_imageFileList.size()));
@@ -108,10 +117,13 @@ int MultiShearCatalog::getPixels(const Bounds& bounds)
             }
 
             // Load the pixels
+            dbg<<"Before load pixels: memory_usage = "<<memory_usage()<<std::endl;
             getImagePixelLists(iFile,bounds);
+            dbg<<"After load pixels: memory_usage = "<<memory_usage()<<std::endl;
             dbg<<"\n";
         }
     } catch (std::bad_alloc) {
+        dbg<<"Caught bad_alloc\n";
         if (shouldOutputDesQa) std::cerr<<"STATUS5BEG ";
         std::cerr
             << "Memory exhausted in MultShearCatalog.\n"
@@ -127,6 +139,8 @@ int MultiShearCatalog::getPixels(const Bounds& bounds)
             << "Lower the parameter \"multishear_section_size\".  "
             << "(Current value = "<<_params["multishear_section_size"]<<")"
             << std::endl;
+        std::string mem = memory_usage(dbgout);
+        dbg<<"memory_usage = "<<mem<<std::endl;
         exit(1);
     }
 
