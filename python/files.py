@@ -19,7 +19,7 @@ def get_proc_environ():
     e['ESUTIL_DIR']=getenv_check('ESUTIL_DIR')
     e['DESFILES_DIR']=getenv_check('DESFILES_DIR')
     e['pyvers']=deswl.get_python_version()
-    e['esutilvers']=esutil.version()
+    e['esutilvers']=eu.version()
     e['wlvers']=deswl.version()
     e['tmvvers']=deswl.get_tmv_version()
     return e
@@ -1254,7 +1254,7 @@ class MultishearCondorJob(dict):
         if id is None and tilename is None and files is None:
             raise ValueError("Send id= or tilename= or files=")
 
-        self.rc=deswl.files.Runconfig(merun)
+        self.rc=Runconfig(merun)
         self['dataset'] = self.rc['dataset']
         self['band'] = self.rc['band']
 
@@ -1382,13 +1382,269 @@ multishear-run -c {config_file}
         return script_text
 
     def condor_dir(self):
-        return deswl.files.condor_dir(self['run'])
+        return condor_dir(self['run'])
 
     def make_condor_dir(self):
         condor_dir = self.condor_dir()
         if not os.path.exists(condor_dir):
             print 'making output dir',condor_dir
             os.makedirs(condor_dir)
+
+
+class MultishearWQJob(dict):
+    """
+    You most certainly want to run the script
+        generate-me-wq merun
+    Instead of use this directly
+    """
+    def __init__(self, merun, 
+                 files=None,
+                 id=None, 
+                 tilename=None, 
+                 nthread=None, 
+                 dir=None,
+                 conn=None,
+                 verbose=False,
+                 dryrun=False):
+        """
+        Note merun implies a dataset which, combined with tilename,
+        implies the band.
+
+        Or send files= (get_files from MultishearFiles) for quicker 
+        results, no sql calls required.
+        """
+        if id is None and tilename is None and files is None:
+            raise ValueError("Send id= or tilename= or files=")
+
+        self.rc=Runconfig(merun)
+        self['dataset'] = self.rc['dataset']
+        self['band'] = self.rc['band']
+
+        self['run'] = merun
+        self['nthread'] = nthread
+        self['verbose']=verbose
+        self['dryrun']=dryrun
+
+
+        if files is not None:
+            self['config'] = files
+        else:
+            mfobj=MultishearFiles(merun, conn=conn)
+            self['config'] = mfobj.get_files(id=id, tilename=tilename,dir=dir)
+
+        self['id'] = self['config']['id']
+        self['tilename'] = self['config']['tilename']
+
+        #self['config']['nodots']=True
+        self['config']['merun']=merun
+
+        self['job_file']=me_wq_path(self['run'],self['tilename'])
+        self['config_file']=me_config_path(self['run'],self['tilename'])
+        self['log_file']=os.path.basename(self['job_file']).replace('yaml','out')
+
+    def write_all(self):
+        self.write_config()
+        self.write_job_file()
+
+    def write_job_file(self):
+        make_wq_dir(self['run'])
+
+        print "writing to wq job file:",self['job_file']
+        text = self.job_file_text()
+        if self['verbose'] or self['dryrun']:
+            print text 
+        if not self['dryrun']:
+            with open(self['job_file'],'w') as fobj:
+                fobj.write(text)
+        else:
+            print "this is just a dry run" 
+
+    def write_config(self):
+        """
+        This is the config meaning the list of files and parameters
+        for input to multishear, not the wl config
+        """
+        import yaml
+        make_wq_dir(self['run'])
+
+        print "writing to config file:",self['config_file']
+        if self['verbose'] or self['dryrun']:
+            print yaml.dump(self.mf)
+
+        if not self['dryrun']:
+            with open(self['config_file'],'w') as fobj:
+                for k in self['config']:
+                    # I want it a bit prettier...
+                    kk = k+': '
+                    fobj.write('%-15s %s\n' % (kk,self['config'][k]))
+                #yaml.dump(self['config'], fobj)
+
+
+    def job_file_text(self):
+        job_name=self['tilename'] + '-'+self['band']
+        groups = '[gen3,gen4,gen5]'
+
+        rc=self.rc
+        wl_load = _make_load_command('wl',rc['wlvers'])
+        tmv_load = _make_load_command('tmv',rc['tmvvers'])
+        esutil_load = _make_load_command('esutil', rc['esutilvers'])
+     
+        thread_text='\n'
+        if self['nthread'] is not None:
+            thread_text='\nexport OMP_NUM_THREADS=%s' % self['nthread']
+
+        text="""
+command: |
+    source ~astrodat/setup/setup.sh
+    source ~/.dotfiles/bash/astro.bnl.gov/modules.sh
+    {esutil_load}
+    {tmv_load}
+    {wl_load}
+    {thread_text}
+    multishear-run -c {config_file} &> {log_file}
+
+groups: {groups}
+mode: bynode
+priority: low
+job_name: {job_name}\n""".format(wl_load=wl_load, 
+                                 esutil_load=esutil_load,
+                                 tmv_load=tmv_load, 
+                                 thread_text=thread_text,
+                                 config_file=os.path.basename(self['config_file']),
+                                 log_file=self['log_file'],
+                                 groups=groups, 
+                                 job_name=job_name)
+
+        return text
+
+
+class SEWQJobs(dict):
+    def __init__(self, serun, type='fullpipe'):
+        """
+        implement byccd and other types
+        """
+        import desdb
+        self['run'] = serun
+        self['type'] = type
+
+        self.rc = Runconfig(self['run'])
+        self['dataset'] = self.rc['dataset']
+
+        self.conn=desdb.Connection()
+
+
+    def write(self, dryrun=False):
+        import desdb
+
+        make_wq_dir(self['run'])
+        
+        query = """
+        select 
+            distinct(file_exposure_name) 
+        from 
+            %(release)s_files
+        where 
+            filetype = 'red'
+            and band = '%(band)s'\n""" % {'release':self.rc['dataset'],
+                                          'band':self.rc['band']}
+
+        print query
+        curs = self.conn.cursor()
+        curs.execute(query)
+
+        n=0
+        submit_script = os.path.join(wq_dir(self['run']),'submit-all.sh')
+        with open(submit_script,'w') as submit:
+            for r in curs:
+                expname = r[0]
+                print expname
+
+                jobfile=os.path.basename(se_wq_path(self['run'],expname))
+                logfile=jobfile.replace('.yaml','.wqlog')
+                submit.write('nohup wq sub %s &> %s &\n' % (jobfile,logfile))
+
+                sejob = SEWQJob(self['run'], expname, type=self['type'])
+                # this is the wq job file: wq sub jobfile
+                sejob.write_jobfile(dryrun=dryrun)
+
+                n += 1
+
+            print 'total:',n
+ 
+class SEWQJob(dict):
+    def __init__(self, serun, expname, ccd=None, type='fullpipe'):
+        self['run'] = serun
+        self['expname'] = expname
+        self['ccd'] = ccd
+        self['type'] = type
+
+    def write_jobfile(self, verbose=False, dryrun=False):
+        make_wq_dir(self['run'])
+
+        f=se_wq_path(self['run'], 
+                     self['expname'], 
+                     type=self['type'], 
+                     ccd=self['ccd'])
+
+        print "writing to wq job file:",f 
+        text = self.job_file_text()
+        if verbose or dryrun:
+            print text 
+        if not dryrun:
+            with open(f,'w') as fobj:
+                fobj.write(text)
+        else:
+            print "this is just a dry run" 
+
+
+    def job_file_text(self):
+
+        groups = '[gen3,gen4,gen5]'
+
+        ccd=self['ccd']
+        tname = se_wq_path(self['run'], self['expname'],ccd=ccd,type=self['type'])
+        tname = os.path.basename(tname)
+        log_name = tname.replace('.yaml','.out')
+
+        rc=Runconfig(self['run'])
+        wl_load = _make_load_command('wl',rc['wlvers'])
+        tmv_load = _make_load_command('tmv',rc['tmvvers'])
+        esutil_load = _make_load_command('esutil', rc['esutilvers'])
+     
+        if ccd == None:
+            ccd=''
+
+        text = """
+command: |
+    source ~astrodat/setup/setup.sh
+    source ~/.dotfiles/bash/astro.bnl.gov/modules.sh
+    %(esutil_load)s
+    %(tmv_load)s
+    %(wl_load)s
+
+    export OMP_NUM_THREADS=1
+    shear-run                     \\
+         --serun=%(serun)s        \\
+         --nodots                 \\
+         %(expname)s %(ccd)s &> %(log)s
+
+group: %(groups)s
+priority: low
+job_name: %(job_name)s\n""" % {'esutil_load':esutil_load,
+                               'tmv_load':tmv_load,
+                               'wl_load':wl_load,
+                               'serun':self['run'],
+                               'expname':self['expname'],
+                               'ccd':ccd,
+                               'log':log_name,
+                               'groups':groups,
+                               'job_name':self['expname']}
+
+
+        return text
+
+
+
 
 
 def _make_load_command(modname, vers):
@@ -1455,6 +1711,78 @@ def se_pbs_path(serun, exposurename, typ='fullpipe', ccd=None):
     return pbsfile
 
 
+
+
+
+
+#
+# new wq stuff
+#
+
+def wq_dir(run, subdir=None):
+    outdir=path_join('~','des-wq',run)
+    if subdir is not None:
+        outdir=path_join(outdir, subdir)
+    outdir=os.path.expanduser(outdir)
+    return outdir
+
+def make_wq_dir(run, subdir=None):
+
+    d = wq_dir(run, subdir=None)
+
+    if not os.path.exists(d):
+        print 'making output dir',d
+        os.makedirs(d)
+
+
+
+def se_wq_path(run, exposurename, type='fullpipe', ccd=None):
+    wqfile=[exposurename]
+
+    if type != 'fullpipe':
+        wqfile.append(type)
+
+    if ccd is not None:
+        wqfile.append('%02i' % int(ccd))
+
+    wqfile='-'.join(wqfile)+'.yaml'
+
+    if ccd is not None:
+        subdir='byccd'
+    else:
+        subdir=None
+
+    d = wq_dir(run, subdir=subdir)
+
+    wqpath=path_join(d, wqfile)
+    return wqpath
+
+
+def me_wq_path(run, tilename):
+    rc = Runconfig(run)
+    band = rc['band']
+
+
+    f=[tilename,band]
+    f='-'.join(f)+'.yaml'
+
+    d = wq_dir(run)
+
+    wqpath=path_join(d, f)
+    return wqpath
+
+def me_config_path(merun, tilename):
+    """
+    This is the file with all the paths and parameters,
+    not a wl_config
+    """
+    
+    f=me_wq_path(merun, tilename)
+    f=f[0:f.rfind('.')]+'-config.yaml'
+    return f
+
+
+
 #
 # condor submit files and bash scripts
 
@@ -1518,15 +1846,6 @@ def me_script_path(merun, tilename, band):
     scriptfile=path_join(scriptdir, scriptfile)
     return scriptfile
 
-def me_config_path(merun, tilename, band):
-    """
-    This is the file with all the paths and parameters,
-    not a wl_config
-    """
-    
-    f=me_script_path(merun, tilename, band)
-    f=f[0:f.rfind('.')]+'-config.json'
-    return f
 
 
 

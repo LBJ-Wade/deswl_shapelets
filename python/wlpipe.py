@@ -16,33 +16,19 @@
             ~/python/des/src/checksum-compare (compile it)
         for the comparison.
 
-        Then, use ~/python/desdb/bin/get-red-info.py to produce a .json file
-        with the image and cat info, including path relative to $DESDATA You
-        should output this to $DESFILES/{release} with a name like
-        {release}-red-{band}-info.json
-
         # create a run name and its configuration
             rc=deswl.files.Runconfig()
-            rc.generate_new_runconfig('se', dataset, wl_config)
+            rc.generate_new_runconfig('se', dataset, band, wl_config)
 
-        Note I've started setting wl_config here, instead of using
-        what is under etc. This allows us to use the same version
-        of code but run with a different configuration.
-        I keep these in $DESFILES_DIR/wl.config, e.g. wl01.config
+        Note I've started setting wl_config here, instead of using what is
+        under etc. This allows us to use the same version of code but run with
+        a different configuration.  I keep these in $DESFILES_DIR/wl.config,
+        e.g. wl01.config
         
         You can send test=True and dryrun=True also
 
-        # create the condor scripts
-        sec=deswl.wlpipe.SECondorJobs(serun,type='fullpipe', nthread=1)
-        sec.write()
-        OR
-        sec.write_byccd()
-
-        OLDER PBS STUFF
-            # create pbs scripts, either by pointing or by ccd number
-            # these files execute the shear-run stand alone code
-
-            generate_se_pbsfiles(serun, band, byccd=False): 
+        # create the wq job files and submit script
+        generate-se-wq se014it
 
         # after running you can check the results.  This will write
         # out lists of successful and unsuccessful jobs
@@ -59,12 +45,16 @@
         generate an merun and define everything we need.
 
             rc=deswl.files.Runconfig()
-            rc.generate_new_runconfig('me', dataset, wl_config, serun=, test=)
+            rc.generate_new_runconfig('me', dataset, band, wl_config, serun=, test=)
 
         This script will then generate the single epoch input images and
-        shear/fitpsf lists
+        shear/fitpsf lists for input to each tile processing
 
-            bin/generate-me-seinputs.py 
+            generate-me-seinputs merun
+
+        This will generate the wq job files
+
+            generate-me-wq merun
 
         Notes
             - use deswl.files.me_seinputs_url(merun,tile,band) to get urls
@@ -90,8 +80,9 @@
         This sets up wl/desfiles/tmv/ccfits/cfitsio as well.  Then from the
         command line:
 
-            multishear-run [options] tilename band
+            multishear-run -c configfile
 
+        Where configfile has all the data you need to process the tile.
 
     Using your own local install of wl:
         Say you have an svn checkout in ~/svn/wl and you want the local
@@ -1011,6 +1002,7 @@ class ExposureProcessor:
                 break
 
         if image is None:
+            bname = '%s-%s' % (ti['exposurename'],ti['ccd'])
             self.logger.debug("caught error loading image/cat")
             self.stat['error'] = ERROR_SE_MISC
             self.stat['error_string'] = \
@@ -1162,7 +1154,7 @@ class ExposureProcessor:
     def get_proc_environ(self):
         e=deswl.files.get_proc_environ()
         for k in e:
-            selt.stat[k] = e[k]
+            self.stat[k] = e[k]
 
     def load_wl(self):
         # usually is saved as $DESFILES_DIR/..

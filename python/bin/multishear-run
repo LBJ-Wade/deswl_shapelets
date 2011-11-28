@@ -100,8 +100,8 @@ def main():
 
     if options.config is not None:
         with open(options.config) as fobj:
-            import json
-            conf=json.load(fobj)
+            import yaml
+            conf=yaml.load(fobj)
     else:
         conf=procopts(options)
         add_environ(conf)
