@@ -58,7 +58,7 @@ struct AssertFailureException :
     } while(false)
 #endif
 
-static std::string memory_usage(std::ostream* os=0) 
+inline std::string memory_usage(std::ostream* os=0) 
 {
     std::ostringstream mem;
     std::ifstream proc("/proc/self/status");

@@ -378,6 +378,9 @@ void MultiShearCatalog::getImagePixelLists(
     std::auto_ptr<Image<double> > weightIm;
     if (_skyBounds.includes(seSkyBounds)) {
         image.reset(new Image<double>(_params,weightIm));
+    } else if (!_skyBounds.intersects(invBounds)) {
+        dbg<<"Skipping index "<<seIndex<<" because invBounds doesn't intersect\n";
+        return;
     } else {
         Bounds intersect = invBounds & _skyBounds;
         dbg<<"intersect = invb & skybounds = "<<intersect<<std::endl;
