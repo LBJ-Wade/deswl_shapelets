@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-    %prog merun
+    %prog [options] merun
 
 Generate all wq job files for the given merun.
 """
@@ -11,6 +11,7 @@ from deswl.files import MultishearFiles,MultishearWQJob
 
 from optparse import OptionParser
 parser = OptionParser(__doc__)
+parser.add_option("-g","--groups",default=None, help="groups for queue")
 
 def main():
 
@@ -30,7 +31,7 @@ def main():
     for i,fdict in enumerate(all_files):
         print '%d/%d' % (i+1,ntile)
         fdict['nodots'] = True
-        mc=MultishearWQJob(merun,files=fdict)
+        mc=MultishearWQJob(merun,files=fdict,groups=options.groups)
         mc.write_all()
 
         job_file = os.path.basename(mc['job_file'])

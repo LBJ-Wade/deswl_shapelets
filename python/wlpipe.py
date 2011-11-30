@@ -1874,6 +1874,9 @@ class CoaddTileProcessor(dict):
             debug=self.get('debug',0)
             command.append('verbose=%s' % debug)
 
+        if 'multishear_section_size' in self:
+            command.append('multishear_section_size=%s' % self['multishear_section_size'])
+
         return command
 
     def write_status(self):

@@ -1455,6 +1455,7 @@ class MultishearWQJob(dict):
                  nthread=None, 
                  dir=None,
                  conn=None,
+                 groups=None,
                  verbose=False,
                  dryrun=False):
         """
@@ -1492,6 +1493,13 @@ class MultishearWQJob(dict):
         self['job_file']=me_wq_path(self['run'],self['tilename'])
         self['config_file']=me_config_path(self['run'],self['tilename'])
         self['log_file']=os.path.basename(self['job_file']).replace('yaml','out')
+
+
+        if groups is None:
+            groups = '[gen3,gen4,gen5]'
+        else:
+            groups = '['+groups+']'
+        self['groups'] = groups
 
     def write_all(self):
         self.write_config()
@@ -1540,7 +1548,7 @@ class MultishearWQJob(dict):
 
     def job_file_text(self):
         job_name=self['tilename'] + '-'+self['band']
-        groups = '[gen3,gen4,gen5]'
+        groups = self['groups']
 
         rc=self.rc
         wl_load = _make_load_command('wl',rc['wlvers'])
@@ -1562,7 +1570,7 @@ command: |
     {thread_text}
     multishear-run -c {config_file} &> {log_file}
 
-groups: {groups}
+group: {groups}
 mode: bynode
 priority: low
 job_name: {job_name}\n""".format(wl_load=wl_load, 
