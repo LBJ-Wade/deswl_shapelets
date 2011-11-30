@@ -1731,53 +1731,24 @@ def check_shear(serun, band, rootdir=None, outdir=None):
             info['error_string'] = estring
 
             if error_code != 0:
-                stdout.write("'%s': error: %s: '%s'\n" % (fdict['stat'],error_code,estring))
+                print "'%s': error: %s: '%s'" % (fdict['stat'],error_code,estring)
                 info['failtype'] = 'Processing error'
                 problem_found=True
                 badlist.append(info)
 
-        """
-        for ftype in ['stars','fitpsf','psf','shear','qa','stat']:
-            fpath=fdict[ftype]
-            if not os.path.exists(fpath):
-                stdout.write("%s file missing: %s\n" % (ftype,fpath))
-                info['failtype'] = ftype
-                problem_found=True
-                badlist.append(info)
-                # break out of file type loop
-            elif ftype == 'stat':
-                try:
-                    stat=json_util.read(fpath)
-                except ValueError as e:
-                    stdout.write("Error reading file: %s\n" % fpath)
-                    raise ValueError(e)
-
-                error_code = int( stat['error'] )
-                estring = stat['error_string']
-                info['error'] = error_code
-                info['error_string'] = estring
-
-                if error_code != 0:
-                    stdout.write("'%s': error: %s: '%s'\n" % (fpath,error_code,estring))
-                    info['failtype'] = 'error'
-                    problem_found=True
-                    badlist.append(info)
-        """
-
         if not problem_found:
             goodlist.append(info)
 
-    stdout.write('Found %s/%s problems\n' % (len(badlist),len(infolist)))
+    print 'Found %s/%s problems' % (len(badlist),len(infolist))
 
-    goodfile=deswl.files.wlse_collated_path(serun, 'goodlist')
-    badfile=deswl.files.wlse_collated_path(serun, 'badlist')
-    dir=deswl.files.wlse_collated_dir(serun)
-    if not os.path.exists(dir):
-        stdout.write("Creating output dir: %s\n" % dir)
-        os.makedirs(dir)
-    stdout.write("Writing goodlist: %s\n" % goodfile)
+    goodfile=deswl.files.se_collated_path(serun, 'goodlist')
+    badfile=deswl.files.se_collated_path(serun, 'badlist')
+
+    eu.ostools.makedirs_fromfile(goodfile)
+
+    print "Writing goodlist: %s",goodfile
     json_util.write(goodlist, goodfile)
-    stdout.write("Writing badlist: %s\n" % badfile)
+    print "Writing badlist: %s",badfile
     json_util.write(badlist, badfile)
     
 
@@ -2275,7 +2246,7 @@ def run_multishear(tilename, band,
     ptime(tm2-tm1, format='multishear execution time: %s\n')
 
 
-def check_multishear(merun, band,
+def check_multishear(merun, 
                      rootdir=None, 
                      tilelist=None,
                      badlist_file=None):

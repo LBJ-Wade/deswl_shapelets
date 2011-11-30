@@ -1,0 +1,88 @@
+#!/usr/bin/env python
+"""
+    %prog merun
+
+Check the outputs for the input run
+"""
+
+import sys, os
+import deswl
+from deswl.files import MultishearFiles
+import esutil as eu
+from esutil import json_util
+
+from optparse import OptionParser
+parser = OptionParser(__doc__)
+
+def main():
+
+    options, args = parser.parse_args(sys.argv[1:])
+    if len(args) < 1:
+        parser.print_help()
+        sys.exit(45)
+
+    merun=args[0]
+    rc=deswl.files.Runconfig(merun)
+
+    mfobj=MultishearFiles(merun)
+    all_files=mfobj.get_all_files()
+    ntile=len(all_files)
+
+    badlist=[]
+    goodlist=[]
+    for i,fdict in enumerate(all_files):
+        print '%d/%d' % (i+1,ntile)
+
+        tilename=fdict['tilename']
+        band=rc['band']
+
+
+        statfile=fdict['stat']
+        qafile=fdict['qa']
+        msfile=fdict['multishear']
+
+        error_found=False
+        missing=[]
+        if not os.path.exists(statfile):
+            missing.append('statfile')
+            error_found=True
+        if not os.path.exists(qafile):
+            missing.append('qa')
+            error_found=True
+        if not os.path.exists(msfile):
+            missing.append('multishear')
+            error_found=True
+
+        if len(missing) > 0:
+            missmess=','.join(missing)
+            print '%s-%s: %s missing' % (tilename,band,missmess)
+            print '    %s' % fdict['stat']
+
+        if 'statfile' not in missing:
+            stat=json_util.read(statfile)
+            exit_status= stat['exit_status']
+            if exit_status != 0:
+                print "%s-%s: Found non-zero exit status %s in stat file %s" % \
+                                (tilename,band,exit_status,statfile)
+                error_found=True
+            
+        if error_found:
+            badlist.append(fdict)
+        else:
+            goodlist.append(fdict)
+
+    print 'Found %s/%s problems\n' % (len(badlist),len(all_files))
+
+    goodfile=deswl.files.me_collated_path(merun, 'goodlist')
+    badfile=deswl.files.me_collated_path(merun, 'badlist')
+
+    eu.ostools.makedirs_fromfile(goodfile)
+
+    print "Writing goodlist:",goodfile
+    json_util.write(goodlist, goodfile)
+    print "Writing badlist:",badfile
+    json_util.write(badlist, badfile)
+    
+
+main()
+

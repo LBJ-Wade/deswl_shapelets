@@ -32,7 +32,7 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
         t1 = tp.tv_sec + tp.tv_usec/1.e6;
     }
 
-    bool shouldOutputDots = params.read("output_dots",false);
+    bool shouldOutputInfo = params.read("output_info",true);
 
     // Read the coadd catalog.
     CoaddCatalog coaddCat(params);
@@ -96,13 +96,13 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
     for(size_t i=0;i<sectionBounds.size();++i) {
         dbg<<"Starting section "<<(i+1)<<"/"<<sectionBounds.size()<<std::endl;
         dbg<<sectionBounds[i]<<std::endl;
-        if (shouldOutputDots) {
+        if (shouldOutputInfo) {
             std::cerr<<"Starting section ";
             std::cerr<<(i+1)<<"/"<<sectionBounds.size()<<std::endl;
         }
         // Load the pixel information for each galaxy in the section.
         int nPix = shearCat.getPixels(sectionBounds[i]);
-        if (shouldOutputDots)
+        if (shouldOutputInfo)
             std::cerr<<nPix<<" galaxies in this section.\n";
 
         if (isTiming) {
@@ -118,7 +118,7 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
 
         nShear += nShear1;
         dbg<<"After MeasureShears: nshear = "<<nShear1<<"  "<<nShear<<std::endl;
-        if (shouldOutputDots) {
+        if (shouldOutputInfo) {
             std::cerr<<std::endl;
             std::cerr<<nShear1<<" successful shear measurements ";
             std::cerr<<"(total so far: "<<nShear<<")\n";
@@ -156,7 +156,7 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
     dbg<<"Breakdown of flags:\n";
     if (dbgout) PrintFlags(shearCat.getFlagsList(),*dbgout);
 
-    if (shouldOutputDots) {
+    if (shouldOutputInfo) {
         std::cerr
             <<std::endl
             <<"Success rate: "<<log._nsGamma<<"/"<<log._nGoodIn

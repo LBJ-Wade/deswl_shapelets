@@ -2,7 +2,7 @@
 """
     %prog merun
 
-Generate all wq job filesfor the given merun, and an overall submit script.
+Generate all wq job files for the given merun.
 """
 
 import sys, os
@@ -21,27 +21,21 @@ def main():
 
     merun=args[0]
 
-    submit_script = os.path.join(deswl.files.wq_dir(merun,'submit-all.sh'))
-    print 'writing overall submit script:',submit_script
     deswl.files.make_wq_dir(merun)
 
     mfobj=MultishearFiles(merun)
     all_files=mfobj.get_all_files()
     ntile=len(all_files)
 
-    with open(submit_script,'w') as submit:
+    for i,fdict in enumerate(all_files):
+        print '%d/%d' % (i+1,ntile)
+        fdict['nodots'] = True
+        mc=MultishearWQJob(merun,files=fdict)
+        mc.write_all()
 
-        for i,fdict in enumerate(all_files):
-            print '%d/%d' % (i+1,ntile)
-            mc=MultishearWQJob(merun,files=fdict)
-            mc.write_all()
+        job_file = os.path.basename(mc['job_file'])
+        wqlog = job_file.replace('yaml','wqlog')
 
-            job_file = os.path.basename(mc['job_file'])
-            wqlog = job_file.replace('yaml','wqlog')
-
-            submit.write('echo %s\n' % job_file)
-            submit.write('nohup wq sub %s &> %s &\n' % (job_file,wqlog))
-            submit.write('sleep 1\n')
 
 main()
 

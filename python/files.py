@@ -68,10 +68,11 @@ class Runconfig(dict):
                               'debug':'.dat',
                               'stat':   '.json',
                               'checkpsf':'.rec'}
-        self.se_collated_type = ['badlist','goodlist','collated']
         self.se_collated_filetypes = {'badlist':'json',
                                       'goodlist':'json',
                                       'gal':'fits'}
+        self.me_collated_filetypes = {'badlist':'json', 'goodlist':'json'}
+
 
         self.me_filetypes = ['multishear','qa','stat']
         self.me_fext       = {'multishear':'.fits',
@@ -573,7 +574,7 @@ def se_coldir_open(serun):
 
 def se_coldir(serun, fits=False):
     #dir=run_dir('wlbnl',serun)
-    dir = se_collated_dir(serun)
+    dir = collated_dir(serun)
     name = serun
     if fits:
         dir=os.path.join(dir,name+'-fits')
@@ -623,7 +624,7 @@ def se_test_path(serun,
 
 
 
-def se_collated_dir(serun):
+def collated_dir(serun):
     dir=run_dir('wlbnl',serun)
     dir = path_join(dir, 'collated')
     return dir
@@ -631,11 +632,11 @@ def se_collated_dir(serun):
 
 
 def se_collated_path(serun, 
-                       objclass, 
-                       ftype=None, 
-                       delim=None,
-                       region=None,
-                       dir=None):
+                     objclass, 
+                     ftype=None, 
+                     delim=None,
+                     region=None,
+                     dir=None):
     """
     Can add more functionality later
     """
@@ -678,10 +679,60 @@ def se_collated_path(serun,
     fname += '.'+fext
 
     if dir is None:
-        dir = se_collated_dir(serun)
+        dir = collated_dir(serun)
     outpath = path_join(dir,fname)
 
     return outpath
+
+def me_collated_path(merun, 
+                     objclass, 
+                     ftype=None, 
+                     delim=None,
+                     region=None):
+    fname=[merun,objclass]
+
+    # add a region identifier
+    if region is not None:
+        if isinstance(region, list):
+            regstr=[str(r) for r in region]
+            regstr = '-'.join(regstr)
+        else:
+            regstr=str(region)
+        addstr='region%s' % regstr
+        fname.append(addstr)
+
+    fname='-'.join(fname)
+
+
+    # determine the file type
+    if ftype is None:
+        rc=Runconfig()
+        if objclass in rc.me_collated_filetypes:
+            ftype=rc.me_collated_filetypes[objclass]
+        else:
+            ftype='fits'
+        
+    # determine the extension
+    fext = eu.io.ftype2fext(ftype)
+
+
+    # add delimiter info to the file name
+    if fext == 'rec' and delim is not None:
+        if delim == '\t':
+            fname += '-tab'
+        elif delim == ',':
+            fname += '-csv'
+        else:
+            raise ValueError,'delim should be , or tab'
+
+    fname += '.'+fext
+
+    dir = collated_dir(merun)
+    outpath = path_join(dir,fname)
+
+    return outpath
+
+
 
 
 def se_collated_read(serun, 
@@ -1474,9 +1525,16 @@ class MultishearWQJob(dict):
         if not self['dryrun']:
             with open(self['config_file'],'w') as fobj:
                 for k in self['config']:
-                    # I want it a bit prettier...
+                    # I want it a bit prettier so writing my own, but will have
+                    # to be careful
                     kk = k+': '
-                    fobj.write('%-15s %s\n' % (kk,self['config'][k]))
+                    val = self['config'][k]
+                    if isinstance(val,bool):
+                        if val:
+                            val='true'
+                        else:
+                            val='false'
+                    fobj.write('%-15s %s\n' % (kk,val))
                 #yaml.dump(self['config'], fobj)
 
 
@@ -1495,6 +1553,7 @@ class MultishearWQJob(dict):
 
         text="""
 command: |
+    hostname
     source ~astrodat/setup/setup.sh
     source ~/.dotfiles/bash/astro.bnl.gov/modules.sh
     {esutil_load}
@@ -1553,21 +1612,18 @@ class SEWQJobs(dict):
         curs.execute(query)
 
         n=0
-        submit_script = os.path.join(wq_dir(self['run']),'submit-all.sh')
-        with open(submit_script,'w') as submit:
-            for r in curs:
-                expname = r[0]
-                print expname
+        for r in curs:
+            expname = r[0]
+            print expname
 
-                jobfile=os.path.basename(se_wq_path(self['run'],expname))
-                logfile=jobfile.replace('.yaml','.wqlog')
-                submit.write('nohup wq sub %s &> %s &\n' % (jobfile,logfile))
+            jobfile=os.path.basename(se_wq_path(self['run'],expname))
+            logfile=jobfile.replace('.yaml','.wqlog')
 
-                sejob = SEWQJob(self['run'], expname, type=self['type'])
-                # this is the wq job file: wq sub jobfile
-                sejob.write_jobfile(dryrun=dryrun)
+            sejob = SEWQJob(self['run'], expname, type=self['type'])
+            # this is the wq job file: wq sub jobfile
+            sejob.write_jobfile(dryrun=dryrun)
 
-                n += 1
+            n += 1
 
             print 'total:',n
  
@@ -1616,6 +1672,7 @@ class SEWQJob(dict):
 
         text = """
 command: |
+    hostname
     source ~astrodat/setup/setup.sh
     source ~/.dotfiles/bash/astro.bnl.gov/modules.sh
     %(esutil_load)s
@@ -1623,10 +1680,7 @@ command: |
     %(wl_load)s
 
     export OMP_NUM_THREADS=1
-    shear-run                     \\
-         --serun=%(serun)s        \\
-         --nodots                 \\
-         %(expname)s %(ccd)s &> %(log)s
+    shear-run --serun=%(serun)s --nodots %(expname)s %(ccd)s &> %(log)s
 
 group: %(groups)s
 priority: low
