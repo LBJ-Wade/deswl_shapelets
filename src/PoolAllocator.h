@@ -98,6 +98,7 @@ public:
     void destroy(pointer p) { PoolAlloc::destruct(p); }
 
     static void dump(std::ostream& os) { mem.dump(os); };
+    static void summary(std::ostream& os) { mem.summary(os); };
 
     static size_t totalMemoryUsed() { return mem.totalMemoryUsed(); }
 
