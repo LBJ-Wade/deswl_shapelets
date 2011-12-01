@@ -19,6 +19,10 @@
 #include <sstream>
 #include <fstream>
 
+#ifdef MEM_TEST
+#include "mmgr.h"
+#endif
+
 #if defined(__GNUC__) && defined(OPENMP_LINK)
 extern __thread std::ostream* dbgout;
 extern __thread bool XDEBUG;
@@ -62,6 +66,7 @@ inline std::string memory_usage(std::ostream* os=0)
 {
     std::ostringstream mem;
     std::ifstream proc("/proc/self/status");
+    if (!proc) return "Could not open /proc/self/status";
     std::string s;
     while(getline(proc, s), !proc.fail()) {
         if (os) *os << "proc line = "<<s<<std::endl;

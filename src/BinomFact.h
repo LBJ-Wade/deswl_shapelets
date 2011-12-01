@@ -2,6 +2,8 @@
 #ifndef BinomFactH
 #define BinomFactH
 
+#include "dbg.h"
+
 double fact(int i);
 double sqrtfact(int i);
 double binom(int i,int j);

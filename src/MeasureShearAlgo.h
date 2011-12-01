@@ -2,6 +2,7 @@
 #define MeasureShearAlgo_H
 
 #include <vector>
+#include "dbg.h"
 #include "BVec.h"
 #include "MyMatrix.h"
 #include "Log.h"

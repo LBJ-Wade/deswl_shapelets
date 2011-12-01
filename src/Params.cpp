@@ -2,6 +2,21 @@
 #include "Params.h"
 #include "ConfigFile.h"
 
+std::string FlagText(long flag)
+{
+    std::string ret = "(";
+    bool first = true;
+    for(long flagNum = 0; flagNum < NFLAGS; ++flagNum) {
+        if (flag & (1 << flagNum)) {
+            if (first) first = false; 
+            else ret += ",";
+            ret += flagName[flagNum];
+        }
+    }
+    ret += ")";
+    return ret;
+}
+
 void PrintFlags(const std::vector<long>& flags, std::ostream& os)
 {
     const int nObj = flags.size();

@@ -2,9 +2,9 @@
 #include <valarray>
 #include <CCfits/CCfits>
 
+#include "dbg.h"
 #include "InputCatalog.h"
 #include "StarCatalog.h"
-#include "dbg.h"
 #include "Name.h"
 #include "Params.h"
 #include "Image.h"

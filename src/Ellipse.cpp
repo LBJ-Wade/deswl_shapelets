@@ -1,8 +1,8 @@
 
-#include "Ellipse.h"
 #include <cmath>
-#include "dbg.h"
 #include <fstream>
+#include "dbg.h"
+#include "Ellipse.h"
 #include "PsiHelper.h"
 #include "Params.h"
 
@@ -207,7 +207,7 @@ bool Ellipse::doMeasureShapelet(
     double gsq = std::norm(_gamma);
     Assert(gsq < 1.);
 
-    std::complex<double> m = exp(-_mu)/sqrt(1.-gsq);
+    std::complex<double> mm = exp(-_mu)/sqrt(1.-gsq);
 
     int bsize = (order+1)*(order+2)/2;
     xdbg<<"bsize = "<<bsize<<std::endl;
@@ -239,7 +239,7 @@ bool Ellipse::doMeasureShapelet(
             I(n) = pix[k][i].getFlux()*pix[k][i].getInverseSigma();
             W(n) = pix[k][i].getInverseSigma();
             std::complex<double> z1 = pix[k][i].getPos();
-            std::complex<double> z2 = m*((z1-_cen) - _gamma*conj(z1-_cen));
+            std::complex<double> z2 = mm*((z1-_cen) - _gamma*conj(z1-_cen));
             Z(n) = z2 / sigma_obs;
         }
     }

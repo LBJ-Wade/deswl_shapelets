@@ -142,7 +142,7 @@ int main(int argc, char* argv[])
             std::cout<<"  "<<fileType[i]<<"  "<<fileGroup[i];
         } else {
             groupDiff.push_back(diff);
-            nFileInGroup.push_back(1.);
+            nFileInGroup.push_back(1);
             ++nGroup;
         }
         std::cout<<std::endl;

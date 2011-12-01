@@ -1,7 +1,7 @@
 
-#include "PsiHelper.h"
 #include <vector>
 #include "dbg.h"
+#include "PsiHelper.h"
 #include "Params.h"
 
 // Here is the order of p,q along the indices of psi:

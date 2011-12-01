@@ -4,8 +4,8 @@
 #include <vector>
 #include <stdexcept>
 
-#include "Function2D.h"
 #include "dbg.h"
+#include "Function2D.h"
 
 Constant2D::Constant2D(std::istream& fin) : Function2D()
 {
@@ -550,7 +550,7 @@ void Function2D::outlierFit(
     xdbg<<"done outlier fit\n";
 }
 
-inline double betai(double a,double b,double x);
+static double betai(double a,double b,double x);
 
 inline bool Equivalent(double chisq1,double chisq2, int n1, int n2,
                        double equivProb)
@@ -673,7 +673,7 @@ inline double gammln(double x)
     return -temp+log(2.5066282746310005*ser/x);
 }
 
-inline double betai(double a,double b,double x)
+static double betai(double a,double b,double x)
 {
     if (x<0.0 || x>1.0) throw std::runtime_error("Bad x in betai");
     if (x==0.0) return 0.;

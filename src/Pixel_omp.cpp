@@ -10,24 +10,18 @@ PixelList::PixelList(const int n) :
 {}
 
 PixelList::PixelList(const PixelList& rhs) :
-    _shouldUsePool(false), _v1(new std::vector<Pixel>(rhs.size())) 
-{
-    if (rhs._shouldUsePool) 
-        std::copy(rhs._v2->begin(),rhs._v2->end(),_v1->begin());
-    else *_v1 = *rhs._v1;
-}
+    _shouldUsePool(rhs._shouldUsePool), _v1(rhs._v1), _v2(rhs._v2) 
+{}
 
 PixelList& PixelList::operator=(const PixelList& rhs)
 {
-    if (size() != rhs.size()) resize(rhs.size());
-
-    if (_shouldUsePool) {
-        if (rhs._shouldUsePool) *_v2 = *rhs._v2;
-        else std::copy(rhs._v1->begin(),rhs._v1->end(),_v2->begin());
-    } else {
-        if (rhs._shouldUsePool) 
-            std::copy(rhs._v2->begin(),rhs._v2->end(),_v1->begin());
-        else *_v1 = *rhs._v1;
+    _shouldUsePool = rhs._shouldUsePool;
+    _v1 = rhs._v1;
+#ifdef _OPENMP
+#pragma omp critical (PixelList)
+#endif
+    {
+        _v2 = rhs._v2;
     }
     return *this;
 }
@@ -56,6 +50,17 @@ void PixelList::usePool()
         _v2.reset(new std::vector<Pixel,PoolAllocPixel>());
     }
     _shouldUsePool = true; 
+#endif
+}
+
+void PixelList::dumpPool(std::ostream& os) 
+{
+#ifdef PIXELLIST_USE_POOL
+    os<<"Dump Pool: \n";
+    if (XDEBUG) PoolAllocPixel::dump(os);
+    else PoolAllocPixel::summary(os);
+#else
+    os<<"Not using PoolAlloc\n";
 #endif
 }
 

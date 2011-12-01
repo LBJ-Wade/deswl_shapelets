@@ -1,6 +1,6 @@
 
-#include "ConfigFile.h"
 #include "dbg.h"
+#include "ConfigFile.h"
 #include "Params.h"
 #include "Log.h"
 #include "MultiShearCatalog.h"
@@ -71,6 +71,7 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                         std::cerr<<"."; std::cerr.flush(); 
                     }
                 }
+                dbg<<"galaxy "<<i<<":\n";
 
                 if (_pixList[i].size() == 0) {
                     dbg<<"no valid single epoch images.\n";
@@ -78,6 +79,8 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                     _flags[i] = NO_SINGLE_EPOCH_IMAGES;
                     continue;
                 }
+
+                dbg<<"Using "<<_pixList[i].size()<<" epochs\n";
 
                 _measGalOrder[i] = galOrder;
 #if 1
@@ -165,7 +168,6 @@ static void getImagePixList(
     const Image<double>*const skyMap,
     double galAperture, double maxAperture, double xOffset, double yOffset)
 {
-    dbg<<"Start getImagePixList: memort_usage = "<<memory_usage()<<std::endl;
     Assert(psfList.size() == pixList.size());
     Assert(seShearList.size() == pixList.size());
     Assert(seSizeList.size() == pixList.size());
@@ -174,7 +176,7 @@ static void getImagePixList(
 
     // First, figure out a good starting point for the nonlinear solver:
     Position pos;
-    dbg<<"skypos = "<<skyPos<<std::endl;
+    xdbg<<"skypos = "<<skyPos<<std::endl;
     invTrans.transform(skyPos,pos);
     xdbg<<"invtrans(skypos) = "<<pos<<std::endl;
 
@@ -216,6 +218,8 @@ static void getImagePixList(
         return;
     }
 
+    xdbg<<"Start getImagePixList: mem = "<<memory_usage()<<std::endl;
+
     // Find the nearest object in the shear catalog:
     int nearest = shearCatTree.findNearestTo(pos);
 
@@ -253,30 +257,38 @@ static void getImagePixList(
         inputFlags |= flag;
     }
 
+    xdbg<<"Before push_back(PixelLise) mem = "<<memory_usage()<<std::endl;
+    xdbg<<"pixlist.size = "<<pixList.size()<<std::endl;
     pixList.push_back(PixelList());
+    xdbg<<"pixlist.size => "<<pixList.size()<<std::endl;
+    xdbg<<"After push_back(PixelLise) mem = "<<memory_usage()<<std::endl;
 #ifdef PIXELLIST_BLOCK
     pixList.back().usePool();
 #endif
-    xdbg<<"pixlist.size = "<<pixList.size()<<std::endl;
 
     flag = 0;
-    dbg<<"Before getPixList: memort_usage = "<<memory_usage()<<std::endl;
+    xdbg<<"Before getPixList mem = "<<memory_usage()<<std::endl;
     getPixList(
         im,pixList.back(),pos,
         sky,noise,gain,weightIm,trans,galAp,xOffset,yOffset,flag);
-    xdbg<<"Got pixellist, flag = "<<flag<<std::endl;
-    dbg<<"After getPixList: memort_usage = "<<memory_usage()<<std::endl;
+    xdbg<<"Got pixellist, flag = "<<FlagText(flag)<<std::endl;
+    xdbg<<"After getPixList mem = "<<memory_usage()<<std::endl;
+    
 
     // Make sure not (edge or < 10 pixels) although edge is already
     // checked above
     if (flag == 0) {
-        dbg<<"pixlist.size = "<<pixList.size()<<std::endl;
+        xdbg<<"Before psfList.push_back(psf): mem = "<<memory_usage()<<std::endl;
+        xdbg<<"psflist.size = "<<psfList.size()<<std::endl;
         psfList.push_back(psf);
+        xdbg<<"psflist.size => "<<psfList.size()<<std::endl;
+        xdbg<<"After psfList.push_back(psf): mem = "<<memory_usage()<<std::endl;
 
         // If object in the ShearCatalog is within 1 arcsec of the position
         // then assume it is the correct object.
         // Otherwise put in 0's to indicate we don't have an initial
         // guess for this object (on this image).
+        xdbg<<"Before seShearList, seSizeList mem = "<<memory_usage()<<std::endl;
         if (std::abs(shearCat.getPos(nearest) - pos) < 1.) { 
             seShearList.push_back(shearCat.getShear(nearest));
             seSizeList.push_back(shearCat.getShape(nearest).getSigma());
@@ -284,12 +296,17 @@ static void getImagePixList(
             seShearList.push_back(0.);
             seSizeList.push_back(0.);
         }
+        xdbg<<"After seShearList, seSizeList mem = "<<memory_usage()<<std::endl;
         ++nImagesGotPix;
     } else {
         inputFlags |= flag;
+        xdbg<<"Before pixList.pop_back: mem = "<<memory_usage()<<std::endl;
+        xdbg<<"pixlist.size = "<<pixList.size()<<std::endl;
         pixList.pop_back();
+        xdbg<<"pixlist.size => "<<pixList.size()<<std::endl;
+        xdbg<<"After pixList.pop_back: mem = "<<memory_usage()<<std::endl;
     }
-    dbg<<"Done getImagePixList: memort_usage = "<<memory_usage()<<std::endl;
+    xdbg<<"Done getImagePixList: mem = "<<memory_usage()<<std::endl;
 }
 
 // Get pixel lists from the file specified in params
@@ -423,6 +440,7 @@ void MultiShearCatalog::getImagePixelLists(
     const int nGals = size();
     double xOffset = _params.read("cat_x_offset",0.);
     double yOffset = _params.read("cat_y_offset",0.);
+    dbg<<"Before getImagePixList loop: memory_usage = "<<memory_usage()<<std::endl;
 #ifdef _OPENMP
 //#pragma omp for schedule(static)
 #endif
@@ -441,7 +459,8 @@ void MultiShearCatalog::getImagePixelLists(
     // Keep track of how much memory we are using.
     // TODO: introduce a parameter max_memory and check to make sure
     // we stay within the allowed memory usage.
-    dbg<<"Done getImagePixList loop: memort_usage = "<<memory_usage()<<std::endl;
+    dbg<<"Done getImagePixList loop: memory_usage = "<<memory_usage()<<std::endl;
+    if (dbgout) PixelList::dumpPool(*dbgout);
     dbg<<"Using image# "<<seIndex;
     dbg<<"... Memory Usage in MultiShearCatalog = ";
     dbg<<calculateMemoryFootprint()<<" MB";

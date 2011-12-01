@@ -1,8 +1,8 @@
 
-#include "BinomFact.h"
 #include <cassert>
 #include <cmath>
 #include <vector>
+#include "BinomFact.h"
 
 double fact(int i)
 {

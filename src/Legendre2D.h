@@ -2,6 +2,7 @@
 #define LEGENDRE2D_H
 
 #include <iostream>
+#include "dbg.h"
 #include "Function2D.h"
 
 class Legendre2D : public Function2D

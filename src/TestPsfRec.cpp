@@ -4,10 +4,8 @@
 #include <string>
 
 #include "dbg.h"
-
 #include "PsfCatalog.h"
 #include "FittedPsf.h"
-
 #include "ConfigFile.h"
 #include "fp.h" // Generated with xxd -i fitsparams.config fp.h
 

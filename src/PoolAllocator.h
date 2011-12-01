@@ -4,6 +4,8 @@
 // This is based on a pool_allocator found at:
 // http://www.codeguru.com/cpp/cpp/cpp_mfc/stl/article.php/c4079
 
+#include <ostream>
+#include "dbg.h"
 #include "Pool.h"
 
 // Note: Most of the names of things here are mandated by the standard
@@ -95,7 +97,7 @@ public:
 
     void destroy(pointer p) { PoolAlloc::destruct(p); }
 
-    static void dump() { mem.dump(); };
+    static void dump(std::ostream& os) { mem.dump(os); };
 
     static size_t totalMemoryUsed() { return mem.totalMemoryUsed(); }
 

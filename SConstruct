@@ -494,29 +494,36 @@ int main()
     print 'Checking for correct TMV linkage... (this may take a little while)'
     context.Message('Checking for correct TMV linkage... ')
 
-    if not context.TryCompile(tmv_source_file,'.cpp'):
+    if context.TryCompile(tmv_source_file,'.cpp'):
+
+        result = (
+            CheckLibs(context,['tmv_symband','tmv'],tmv_source_file) or
+            CheckLibs(context,['tmv_symband','tmv','irc','imf'],tmv_source_file) )
+        
+        # If that didn't work, we might need to add the openmp flag to the 
+        # linking step, since scons's MergeFlags function doesn't seem 
+        # to recognize it, so it gets ignored.
+        if not result and not env['WITH_OPENMP']:
+            env1 = context.env.Clone()
+            AddOpenMPFlag(env1)
+            context.env['LINKFLAGS'] = env1['LINKFLAGS']
+            result = (
+                CheckLibs(context,['tmv_symband','tmv'],tmv_source_file) or
+                CheckLibs(context,['tmv_symband','tmv','irc','imf'],tmv_source_file) )
+
+        if not result:
+            context.Result(0)
+            print 'Error: TMV file failed to link correctly'
+            Exit(1)
+
+        context.Result(1)
+        return 1
+
+    else:
         context.Result(0)
         print 'Error: TMV file failed to compile.'
         Exit(1)
 
-    if not CheckLibs(context,['tmv_symband','tmv'],tmv_source_file):
-        # If that didn't work, we might need to add the openmp flag to the 
-        # linking step, since scons's MergeFlags function doesn't seem 
-        # to recognize it, so it gets ignored.
-        if not env['WITH_OPENMP']:
-            env1 = context.env.Clone()
-            AddOpenMPFlag(env1)
-            context.env['LINKFLAGS'] = env1['LINKFLAGS']
-            if not CheckLibs(context,['tmv_symband','tmv'],tmv_source_file):
-                context.Result(0)
-                print 'Error: TMV file failed to link correctly'
-                Exit(1)
-        else:
-            context.Result(0)
-            print 'Error: TMV file failed to link correctly'
-            Exit(1)
-    context.Result(1)
-    return 1
 
 
 def CheckEigen(context):
@@ -645,9 +652,11 @@ def DoLibraryAndHeaderChecks(config):
         config.env.AppendUnique(LINKFLAGS=tmv_link_dict['LINKFLAGS'])
         config.env.AppendUnique(LINKFLAGS=tmv_link_dict['CCFLAGS'])
         config.env.AppendUnique(LIBPATH=tmv_link_dict['LIBPATH'])
-        #tmv_link_dict['LINKFLAGS'] += tmv_link_dict['CCFLAGS']
-        #tmv_link_dict['CCFLAGS'] = []
-        #config.env.MergeFlags(tmv_link_dict)
+        
+        if compiler == 'g++' and '-openmp' in config.env['LINKFLAGS']:
+            config.env['LINKFLAGS'].remove('-openmp')
+            config.env.AppendUnique(LINKFLAGS='-fopenmp')
+
 
         config.CheckTMV()
         config.env.Append(CPPDEFINES=['USE_TMV'])

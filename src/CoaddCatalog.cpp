@@ -115,7 +115,7 @@ void CoaddCatalog::read()
             INPUT_FLAG<<std::endl;
         // S/N = 1.086 / magErr (= 2.5*log(e) / magErr)
         double maxMagErr = 1.086/minNu;
-        dbg<<"(Corresponds to max mag_err = "<<minNu<<")\n";
+        dbg<<"(Corresponds to max mag_err = "<<maxMagErr<<")\n";
         for(int i=0;i<nObj;++i) {
             if (_magErr[i] > maxMagErr) _flags[i] = INPUT_FLAG;
         }

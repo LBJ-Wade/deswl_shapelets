@@ -1,5 +1,5 @@
-#include "ExecuteCommand.h"
 #include <cstdio>
+#include "ExecuteCommand.h"
 
 void executeCommand(
     std::string command, std::string& result,

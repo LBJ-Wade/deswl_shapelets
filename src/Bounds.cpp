@@ -1,5 +1,5 @@
-#include "Bounds.h"
 #include <vector>
+#include "Bounds.h"
 
 void Position::read(std::istream& fin)
 { double x,y; fin >> x >> y; _z = std::complex<double>(x,y); }

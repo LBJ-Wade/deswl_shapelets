@@ -3,8 +3,8 @@
 #include <fstream>
 #include <CCfits/CCfits>
 
-#include "FittedPsf.h"
 #include "dbg.h"
+#include "FittedPsf.h"
 #include "Function2D.h"
 #include "Legendre2D.h"
 #include "Name.h"

@@ -5,6 +5,7 @@
 #include <vector>
 #include <ostream>
 #include <cmath>
+#include "dbg.h"
 
 // Default value for various measured quantities
 #define DEFVALPOS 9999
@@ -82,6 +83,7 @@ static const char*const flagName[NFLAGS] = {
     "SHEAR_DIDNT_CONVERGE"
 };
 
+std::string FlagText(long flag);
 void PrintFlags(const std::vector<long>& flags, std::ostream& os);
 
 // Errors specific to the weak lensing code

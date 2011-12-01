@@ -1,13 +1,6 @@
 
 #include <valarray>
-#include "Image.h"
-#include "FittedPsf.h"
-#include "Log.h"
-#include "CoaddCatalog.h"
-#include "MultiShearCatalog.h"
-#include "BasicSetup.h"
 #include <sys/time.h>
-
 #include <iostream>
 #include <fstream>
 
@@ -18,6 +11,16 @@
 #include <valgrind/memcheck.h>
 #endif
 #endif
+
+#include "Image.h"
+#include "FittedPsf.h"
+#include "Log.h"
+#include "CoaddCatalog.h"
+#include "MultiShearCatalog.h"
+#include "BasicSetup.h"
+
+// If desired stop after this many sections.
+//#define ENDAT 2
 
 static void doMeasureMultiShear(ConfigFile& params, ShearLog& log) 
 {
@@ -94,6 +97,9 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
     long nShear = 0;
     std::vector<Bounds> sectionBounds = shearCat.splitBounds();
     for(size_t i=0;i<sectionBounds.size();++i) {
+#ifdef ENDAT
+        if (i == ENDAT) break;
+#endif
         dbg<<"Starting section "<<(i+1)<<"/"<<sectionBounds.size()<<std::endl;
         dbg<<sectionBounds[i]<<std::endl;
         if (shouldOutputInfo) {

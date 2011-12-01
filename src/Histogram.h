@@ -5,6 +5,7 @@
 
 #include <vector>
 #include <iostream>
+#include "dbg.h"
 
 template <typename T>
 class Histogram {

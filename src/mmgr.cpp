@@ -51,7 +51,7 @@
 //
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-#ifdef MEMTEST
+#ifdef MEM_TEST
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -118,7 +118,7 @@
 // -DOC- Enable this sucker if you really want to stress-test your app's memory usage, or to help find hard-to-find bugs
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-#define	STRESS_TEST
+//#define	STRESS_TEST
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // -DOC- Enable this sucker if you want to stress-test your app's error-handling. Set RANDOM_FAIL to the percentage of failures you
@@ -230,6 +230,38 @@ static	void	doCleanupLogOnFirstRun()
     unlink("memory.log");
     cleanupLogOnFirstRun = false;
   }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------
+
+static	void	log(const char *format, ...)
+{
+  // Build the buffer
+
+  static char buffer[2048];
+  va_list	ap;
+  va_start(ap, format);
+  vsprintf(buffer, format, ap);
+  va_end(ap);
+
+  // Cleanup the log?
+
+  if (cleanupLogOnFirstRun) doCleanupLogOnFirstRun();
+
+  // Open the log file
+
+  FILE	*fp = fopen("memory.log", "ab");
+
+  // If you hit this assert, then the memory logger is unable to log information to a file (can't open the file for some
+  // reason.) You can interrogate the variable 'buffer' to see what was supposed to be logged (but won't be.)
+  m_assert(fp);
+
+  if (!fp) return;
+
+  // Spit out the data to the log
+
+  fprintf(fp, "%s\r\n", buffer);
+  fclose(fp);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -352,15 +384,24 @@ static	void	*calculateReportedAddress(const void *actualAddress)
 
 static	void	wipeWithPattern(sAllocUnit *allocUnit, unsigned long pattern, const unsigned int originalReportedSize = 0)
 {
+#ifdef TEST_MEMORY_MANAGER
+  //log("ENTER wipeWithPattern");
+#endif
   // For a serious test run, we use wipes of random a random value. However, if this causes a crash, we don't want it to
   // crash in a differnt place each time, so we specifically DO NOT call srand. If, by chance your program calls srand(),
   // you may wish to disable that when running with a random wipe test. This will make any crashes more consistent so they
   // can be tracked down easier.
 
+#ifdef TEST_MEMORY_MANAGER
+  //log("initial pattern = %u",pattern);
+#endif
   if (randomWipe)
   {
     pattern = ((rand() & 0xff) << 24) | ((rand() & 0xff) << 16) | ((rand() & 0xff) << 8) | (rand() & 0xff);
   }
+#ifdef TEST_MEMORY_MANAGER
+  //log("actual pattern = %u",pattern);
+#endif
 
   // -DOC- We should wipe with 0's if we're not in debug mode, so we can help hide bugs if possible when we release the
   // product. So uncomment the following line for releases.
@@ -377,11 +418,23 @@ static	void	wipeWithPattern(sAllocUnit *allocUnit, unsigned long pattern, const 
 
     long	*lptr = (long *) ((char *)allocUnit->reportedAddress + originalReportedSize);
     int	length = allocUnit->reportedSize - originalReportedSize;
+    int nlongs = length / sizeof(long);
+#ifdef TEST_MEMORY_MANAGER
+    //log("lptr = 0x%X, lenth = %d",lptr,length);
+    //log("sizeof(long) = %d",sizeof(long));
+    //log("nlongs = %d",nlongs);
+#endif
     int	i;
-    for (i = 0; i < (length >> 2); i++, lptr++)
+    for (i = 0; i < nlongs; i++, lptr++)
     {
+#ifdef TEST_MEMORY_MANAGER
+      //log("i = %d, lptr = 0x%X",i,lptr);
+#endif
       *lptr = pattern;
     }
+#ifdef TEST_MEMORY_MANAGER
+    //log("after fill reported size");
+#endif
 
     // Fill the remainder
 
@@ -391,10 +444,16 @@ static	void	wipeWithPattern(sAllocUnit *allocUnit, unsigned long pattern, const 
     {
       *cptr = (pattern & (0xff << shiftCount)) >> shiftCount;
     }
+#ifdef TEST_MEMORY_MANAGER
+    //log("after fill remainder");
+#endif
   }
 
   // Write in the prefix/postfix bytes
 
+#ifdef TEST_MEMORY_MANAGER
+    //log("write prefix/postfix bytes");
+#endif
   long		*pre = (long *) allocUnit->actualAddress;
   long		*post = (long *) ((char *)allocUnit->actualAddress + allocUnit->actualSize - paddingSize * sizeof(long));
   for (unsigned int i = 0; i < paddingSize; i++, pre++, post++)
@@ -402,6 +461,9 @@ static	void	wipeWithPattern(sAllocUnit *allocUnit, unsigned long pattern, const 
     *pre = prefixPattern;
     *post = postfixPattern;
   }
+#ifdef TEST_MEMORY_MANAGER
+    //log("EXIT wipeWithPattern");
+#endif
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -409,40 +471,9 @@ static	void	wipeWithPattern(sAllocUnit *allocUnit, unsigned long pattern, const 
 static	void	resetGlobals()
 {
   sourceFile = "??";
+  //log("reset sourceFile to %s",sourceFile);
   sourceLine = 0;
   sourceFunc = "??";
-}
-
-// ---------------------------------------------------------------------------------------------------------------------------------
-
-static	void	log(const char *format, ...)
-{
-  // Build the buffer
-
-  static char buffer[2048];
-  va_list	ap;
-  va_start(ap, format);
-  vsprintf(buffer, format, ap);
-  va_end(ap);
-
-  // Cleanup the log?
-
-  if (cleanupLogOnFirstRun) doCleanupLogOnFirstRun();
-
-  // Open the log file
-
-  FILE	*fp = fopen("memory.log", "ab");
-
-  // If you hit this assert, then the memory logger is unable to log information to a file (can't open the file for some
-  // reason.) You can interrogate the variable 'buffer' to see what was supposed to be logged (but won't be.)
-  m_assert(fp);
-
-  if (!fp) return;
-
-  // Spit out the data to the log
-
-  fprintf(fp, "%s\r\n", buffer);
-  fclose(fp);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -459,12 +490,12 @@ static	void	dumpAllocations(FILE *fp)
     sAllocUnit *ptr = hashTable[i];
     while(ptr)
     {
-      fprintf(fp, "%06u 0x%08X 0x%08X 0x%08X 0x%08X 0x%08X %-8s    %c       %c    %s\r\n",
+      fprintf(fp, "%06u 0x%08zx 0x%08zx 0x%08zx 0x%08zx 0x%08x %-8s    %c       %c    %s\r\n",
 	  ptr->allocationNumber,
-	  (size_t) ptr->reportedAddress, 
-	  (size_t) ptr->reportedSize,
-	  (size_t) ptr->actualAddress,
-	  (size_t) ptr->actualSize,
+	  (size_t)ptr->reportedAddress, 
+	  (size_t)ptr->reportedSize,
+	  (size_t)ptr->actualAddress,
+	  (size_t)ptr->actualSize,
 	  m_calcUnused(ptr),
 	  allocationTypes[ptr->allocationType],
 	  ptr->breakOnDealloc ? 'Y':'N',
@@ -637,6 +668,7 @@ void	m_breakOnAllocation(unsigned int count)
 void	m_setOwner(const char *file, const unsigned int line, const char *func)
 {
   sourceFile = file;
+  //log("set sourceFile to %s from file = %s",sourceFile,file);
   sourceLine = line;
   sourceFunc = func;
 }
@@ -932,6 +964,9 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
 
     if (!reservoir)
     {
+#ifdef TEST_MEMORY_MANAGER
+      //log("!reservoir");
+#endif
       // Allocate 256 reservoir elements
 
       reservoir = (sAllocUnit *) malloc(sizeof(sAllocUnit) * 256);
@@ -945,6 +980,9 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
       if (reservoir == NULL) throw "Unable to allocate RAM for internal memory tracking data";
 
       // Build a linked-list of the elements in our reservoir
+#ifdef TEST_MEMORY_MANAGER
+      //log("zero out reservoir");
+#endif
 
       memset(reservoir, 0, sizeof(sAllocUnit) * 256);
       for (unsigned int i = 0; i < 256 - 1; i++)
@@ -954,10 +992,16 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
 
       // Add this address to our reservoirBuffer so we can free it later
 
+#ifdef TEST_MEMORY_MANAGER
+      //log("realloc reservoir to temp");
+#endif
       sAllocUnit	**temp = (sAllocUnit **) realloc(reservoirBuffer, (reservoirBufferSize + 1) * sizeof(sAllocUnit *));
       m_assert(temp);
       if (temp)
       {
+#ifdef TEST_MEMORY_MANAGER
+        //log("set reservoirBuffer to temp");
+#endif
 	reservoirBuffer = temp;
 	reservoirBuffer[reservoirBufferSize++] = reservoir;
       }
@@ -968,11 +1012,20 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
 
     // Grab a new allocaton unit from the front of the reservoir
 
+#ifdef TEST_MEMORY_MANAGER
+    //log("au = reservoir");
+#endif
     sAllocUnit	*au = reservoir;
+#ifdef TEST_MEMORY_MANAGER
+    //log("reservoir = next");
+#endif
     reservoir = au->next;
 
     // Populate it with some real data
 
+#ifdef TEST_MEMORY_MANAGER
+    //log("set au info");
+#endif
     memset(au, 0, sizeof(sAllocUnit));
     au->actualSize        = calculateActualSize(reportedSize);
 #ifdef RANDOM_FAILURE
@@ -984,7 +1037,7 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
     }
     else
     {
-      log("!Random faiure!");
+      //log("!Random faiure!");
       au->actualAddress = NULL;
     }
 #else
@@ -995,6 +1048,9 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
     au->allocationType    = allocationType;
     au->sourceLine        = sourceLine;
     au->allocationNumber  = currentAllocationCount;
+#ifdef TEST_MEMORY_MANAGER
+    //log("set au sourceFile");
+#endif
     if (sourceFile) strncpy(au->sourceFile, sourceFileStripper(sourceFile), sizeof(au->sourceFile) - 1);
     else		strcpy (au->sourceFile, "??");
     if (sourceFunc) strncpy(au->sourceFunc, sourceFunc, sizeof(au->sourceFunc) - 1);
@@ -1019,6 +1075,9 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
 
     // Insert the new allocation into the hash table
 
+#ifdef TEST_MEMORY_MANAGER
+    //log("insert au into hash table");
+#endif
     size_t	hashIndex = ((size_t) au->reportedAddress >> 4) & (hashSize - 1);
     if (hashTable[hashIndex]) hashTable[hashIndex]->prev = au;
     au->next = hashTable[hashIndex];
@@ -1027,6 +1086,9 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
 
     // Account for the new allocatin unit in our stats
 
+#ifdef TEST_MEMORY_MANAGER
+    //log("add info to stats");
+#endif
     stats.totalReportedMemory += au->reportedSize;
     stats.totalActualMemory   += au->actualSize;
     stats.totalAllocUnitCount++;
@@ -1039,6 +1101,9 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
 
     // Prepare the allocation unit for use (wipe it with recognizable garbage)
 
+#ifdef TEST_MEMORY_MANAGER
+    //log("wipe au with unusedPattern");
+#endif
     wipeWithPattern(au, unusedPattern);
 
     // calloc() expects the reported memory address range to be filled with 0's
@@ -1050,15 +1115,24 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
 
     // Validate every single allocated unit in memory
 
+#ifdef TEST_MEMORY_MANAGER
+    //log("validate alloc");
+#endif
     if (alwaysValidateAll) m_validateAllAllocUnits();
 
     // Log the result
 
+#ifdef TEST_MEMORY_MANAGER
+    //log("log ok");
+#endif
     if (alwaysLogAll) log("                                                                 OK: %010p (hash: %d)", au->reportedAddress, hashIndex);
 
     // Resetting the globals insures that if at some later time, somebody calls our memory manager from an unknown
     // source (i.e. they didn't include our H file) then we won't think it was the last allocation.
 
+#ifdef TEST_MEMORY_MANAGER
+    //log("resetGlobals");
+#endif
     resetGlobals();
 
     // Return the (reported) address of the new allocation unit
@@ -1159,7 +1233,7 @@ void	*m_reallocator(const char *sourceFile, const unsigned int sourceLine, const
     }
     else
     {
-      log("!Random faiure!");
+      //log("!Random faiure!");
     }
 #else
     newActualAddress = realloc(au->actualAddress, newActualSize);

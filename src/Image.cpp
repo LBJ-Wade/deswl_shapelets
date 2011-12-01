@@ -3,12 +3,12 @@
 #include <valarray>
 #include <CCfits/CCfits>
 
+#include <fitsio.h>
+
 #include "Image.h"
 #include "Function2D.h"
 #include "ConfigFile.h"
 #include "Name.h"
-
-#include <fitsio.h>
 
 template <typename T>
 Image<T>::~Image()  

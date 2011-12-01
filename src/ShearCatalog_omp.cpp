@@ -1,9 +1,9 @@
 
 #include <iostream>
 
+#include "dbg.h"
 #include "ShearCatalog.h"
 #include "ConfigFile.h"
-#include "dbg.h"
 #include "Params.h"
 #include "Image.h"
 #include "FittedPsf.h"

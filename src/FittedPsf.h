@@ -4,6 +4,7 @@
 #include <vector>
 #include <iostream>
 #include <memory>
+#include "dbg.h"
 #include "BVec.h"
 #include "Bounds.h"
 #include "ConfigFile.h"

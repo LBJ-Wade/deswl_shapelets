@@ -1,7 +1,7 @@
 
+#include "dbg.h"
 #include "Pixel.h"
 #include "Params.h"
-#include "dbg.h"
 
 void getPixList(
     const Image<double>& im, PixelList& pix,
@@ -300,3 +300,4 @@ void getSubPixList(
 
     if (nPix < 10) flag |= LT10PIX;
 }
+

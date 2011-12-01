@@ -4,6 +4,7 @@
 #include <complex>
 #include <vector>
 #include <ostream>
+#include "dbg.h"
 #include "Pixel.h"
 #include "BVec.h"
 #include "MyMatrix.h"
@@ -74,6 +75,7 @@ public :
         int galOrder2, double thresh,
         long& flag, const DMatrix* bCov=0, DSmallMatrix22* cov=0);
 
+#if 0
     // Correct for a bias that comes from the non-linear fitting.
     // Accurate to 2nd order in the variation.
     void correctForBias(
@@ -81,6 +83,7 @@ public :
         const std::vector<BVec>& psf,
         int order, int order2, int maxm,
         double sigma, const Ellipse* ell_meas=0);
+#endif
 
     // Do a really simple and fast measurement to get a good starting point.
     // Only does centroid and size.

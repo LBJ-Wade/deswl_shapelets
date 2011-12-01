@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <stdexcept>
+#include "dbg.h"
 #include "ConfigFile.h"
 #include "Function2D.h"
 #include "PotentialStar.h"

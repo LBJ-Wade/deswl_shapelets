@@ -1,11 +1,11 @@
 #ifndef BVEC_H
 #define BVEC_H
 
-#include "MyMatrix.h"
-#include "Bounds.h"
 #include <complex>
 #include <vector>
 #include "dbg.h"
+#include "MyMatrix.h"
+#include "Bounds.h"
 
 // Just do declarations for Image, Transformation:
 template <typename T>

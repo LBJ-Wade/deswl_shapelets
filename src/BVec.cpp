@@ -1,7 +1,7 @@
 
+#include <cmath>
 #include "BVec.h"
 #include "BinomFact.h"
-#include <cmath>
 #include "Params.h"
 #include "Image.h"
 #include "Transformation.h"
@@ -116,7 +116,7 @@ void BVec::makeImage(
     n=0;
     for(int i=0;i<=im.getMaxI();++i) {
         for(int j=0;j<=im.getMaxJ();++j) {
-            im(i,j) = I(n++);
+            im(i,j) = sky + I(n++);
         }
     }
 }

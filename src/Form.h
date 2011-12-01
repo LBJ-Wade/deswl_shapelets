@@ -8,6 +8,7 @@
 #include <sstream>
 #include <iostream>
 #include <string>
+#include "dbg.h"
 
 template <typename T> class BoundForm;
 

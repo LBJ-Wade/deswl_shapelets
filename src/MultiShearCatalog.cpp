@@ -3,9 +3,9 @@
 #include <CCfits/CCfits>
 #include <sstream>
 
+#include "dbg.h"
 #include "CoaddCatalog.h"
 #include "ConfigFile.h"
-#include "dbg.h"
 #include "Params.h"
 #include "BVec.h"
 #include "Pixel.h"
@@ -28,14 +28,14 @@ MultiShearCatalog::MultiShearCatalog(
     _params(params)
 {
     dbg<<"Start MultiShearCatalog constructor\n";
-    dbg<<"memory_usage = "<<memory_usage()<<std::endl;
+    xdbg<<"memory_usage = "<<memory_usage()<<std::endl;
     resize(coaddCat.size());
-    dbg<<"after resize, memory_usage = "<<memory_usage()<<std::endl;
+    xdbg<<"after resize, memory_usage = "<<memory_usage()<<std::endl;
 
     // Read the names of the component image and catalog files from
     // the srclist file (given as params.coadd_srclist)
     readFileLists();
-    dbg<<"after readfilelists, memory_usage = "<<memory_usage()<<std::endl;
+    xdbg<<"after readfilelists, memory_usage = "<<memory_usage()<<std::endl;
 }
 
 std::vector<Bounds> MultiShearCatalog::splitBounds()

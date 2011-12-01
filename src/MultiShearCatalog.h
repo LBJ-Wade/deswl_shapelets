@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include "dbg.h"
 #include "MyMatrix.h"
 
 #include "CoaddCatalog.h"

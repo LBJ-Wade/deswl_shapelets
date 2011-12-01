@@ -2,6 +2,7 @@
 #define Transformation_H
 
 #include <stdexcept>
+#include "dbg.h"
 #include "Function2D.h"
 #include "Bounds.h"
 #include "MyMatrix.h"

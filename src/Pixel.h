@@ -5,10 +5,6 @@
 
 #include <complex>
 #include <string>
-#include "Image.h"
-#include "Transformation.h"
-#include "ConfigFile.h"
-#include "Bounds.h"
 
 #ifdef __INTEL_COMPILER
 #pragma warning (disable : 1418)
@@ -17,6 +13,12 @@
 #ifdef __INTEL_COMPILER
 #pragma warning (default : 1418)
 #endif
+
+#include "dbg.h"
+#include "Image.h"
+#include "Transformation.h"
+#include "ConfigFile.h"
+#include "Bounds.h"
 
 #ifdef PIXELLIST_USE_POOL
 #define PIXELLIST_BLOCK 1024*1024*100  // 100 MB per block
@@ -68,11 +70,13 @@ public :
 
     PixelList();
     PixelList(const int n);
+
+    // Note: Copy constructor and op= use shared ownership semantics.
+    // This means a vector<PixelList> is efficient when it does
+    // push_back, etc.
     PixelList(const PixelList& rhs);
     PixelList& operator=(const PixelList& rhs);
     ~PixelList();
-
-    void usePool();
 
     // These mimic the same functionality of a std::vector<Pixel>
     size_t size() const;
@@ -84,6 +88,10 @@ public :
     Pixel& operator[](const int i);
     const Pixel& operator[](const int i) const;
     void sort(const Position& cen);
+
+    // Start not using Pool allocator.  Turn it on with this:
+    void usePool();
+    static void dumpPool(std::ostream& os);
 
 private :
 

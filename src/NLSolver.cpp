@@ -5,10 +5,10 @@
 // madsen04.pdf.  Please refer to this paper for more details about
 // how the algorithms work.
 
-#include "NLSolver.h"
 #include <iostream>
 #include <limits>
 #include <algorithm>
+#include "NLSolver.h"
 #define dbg if(_nlOut) (*_nlOut)
 #define xdbg if(_verbose >= 1 && _nlOut) (*_nlOut)
 #define xxdbg if(_verbose >= 2 && _nlOut) (*_nlOut)

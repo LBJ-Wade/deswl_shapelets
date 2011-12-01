@@ -4,9 +4,9 @@
 #include <valarray>
 #include <CCfits/CCfits>
 
+#include "dbg.h"
 #include "ShearCatalog.h"
 #include "ConfigFile.h"
-#include "dbg.h"
 #include "Params.h"
 #include "BVec.h"
 #include "Ellipse.h"

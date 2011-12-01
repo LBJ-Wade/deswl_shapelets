@@ -4,6 +4,8 @@
 
 #include <list>
 #include <set>
+#include <ostream>
+#include "dbg.h"
 
 // Define the block structure that we will use in Pool:
 struct PoolBlock
@@ -49,9 +51,10 @@ public :
     void* allocate(size_t size);
     void deallocate(void *p, size_t = 0);
 
-    void dump();
-    void checkp(char* p, int size);
-    void check();
+    void dump(std::ostream& os);
+    void summary(std::ostream& os);
+    void checkp(char* p, int size, std::ostream& os);
+    void check(std::ostream& os);
 
 private :
 

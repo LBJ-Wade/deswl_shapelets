@@ -1,9 +1,10 @@
 #ifndef ELLIPSESOLVER_H
 #define ELLIPSESOLVER_H
 
+#include <vector>
+#include "dbg.h"
 #include "Pixel.h"
 #include "BVec.h"
-#include <vector>
 #include "NLSolver.h"
 
 class EllipseSolver : public NLSolver
@@ -39,8 +40,8 @@ private :
 
     // private -- shouldn't ever be used.
     // But need them to avoid the above version hiding the virtual fn.
-    void getCovariance(DMatrix& cov) const {}
-    void getInverseCovariance(DMatrix& invcov) const {}
+    void getCovariance(DMatrix& ) const {}
+    void getInverseCovariance(DMatrix& ) const {}
 
 };
 

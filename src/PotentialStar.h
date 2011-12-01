@@ -3,8 +3,9 @@
 #define PotentialStarH
 //---------------------------------------------------------------------------
 
-#include "Bounds.h"
 #include <string>
+#include "dbg.h"
+#include "Bounds.h"
 
 class PotentialStar {
 

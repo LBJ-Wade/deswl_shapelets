@@ -2,6 +2,7 @@
 #define ShearCatalog_H
 
 #include <vector>
+#include "dbg.h"
 #include "BVec.h"
 #include "Bounds.h"
 #include "ConfigFile.h"

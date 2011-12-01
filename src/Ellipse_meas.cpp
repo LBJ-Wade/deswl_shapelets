@@ -1,9 +1,9 @@
 
-#include "Ellipse.h"
-#include "EllipseSolver.h"
+#include <fstream>
 #include <cmath>
 #include "dbg.h"
-#include <fstream>
+#include "Ellipse.h"
+#include "EllipseSolver.h"
 #include "PsiHelper.h"
 #include "Params.h"
 
@@ -382,13 +382,13 @@ bool Ellipse::findRoundFrame(
     return true;
 }
 
+#if 0
 void Ellipse::correctForBias(
     const std::vector<PixelList>& pix,
     const std::vector<BVec>& psf,
     int galOrder, int galOrder2, int maxm,
     double sigma, const Ellipse* ell_meas)
 {
-#if 0
     if (!(ell_meas)) ell_meas = this;
 
     dbg<<"Start correctForBias: galOrder = "<<galOrder<<std::endl;
@@ -648,5 +648,5 @@ void Ellipse::correctForBias(
 
     if (absg < 0.3)
         preShiftBy(-zbias*sigma,gbias,0.);
-#endif
 }
+#endif

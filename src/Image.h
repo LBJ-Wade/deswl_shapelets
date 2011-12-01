@@ -1,10 +1,11 @@
 #ifndef ImageH
 #define ImageH
 
+#include <memory>
+#include "dbg.h"
 #include "MyMatrix.h"
 #include "Bounds.h"
 #include "ConfigFile.h"
-#include <memory>
 
 template <typename T> 
 class Image 

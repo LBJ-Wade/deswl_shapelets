@@ -1,7 +1,7 @@
 
-#include "NLSolver.h"
 #include <cstdlib>
 #include <iostream>
+#include "NLSolver.h"
 
 #define DOLINEAR
 #define DONONLINEAR

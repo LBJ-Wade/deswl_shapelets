@@ -8,14 +8,13 @@
 
 #include <exception>
 #include <algorithm>
-#include <iostream>  //for dump()
-
-#include "dbg.h"
-#include "Pool.h"
 
 #ifdef VG
 #include <valgrind/memcheck.h>
 #endif
+
+#include "dbg.h"
+#include "Pool.h"
 
 template <int blockSize>
 Pool<blockSize>::Pool()
@@ -151,42 +150,69 @@ void Pool<blockSize>::deallocate(void *p, size_t)
 }
 
 template <int blockSize>
-void Pool<blockSize>::dump()
+void Pool<blockSize>::dump(std::ostream& os)
 {
-    std::cerr<<"dump:\n";
-    std::cerr<<"_allBlocks:\n";
+    size_t tot_alloc=_allBlocks.size() * blockSize;
+    size_t tot_used(0), tot_free(0), tot_free2(0);
+    os<<"Pool<"<<blockSize<<"> dump:\n";
+    os<<"_allBlocks:\n";
     for (ListIt block=_allBlocks.begin(); block!=_allBlocks.end(); ++block) {
-        std::cerr<<(void*)*block<<" ... "<<(void*)(*block+blockSize)<<std::endl;
+        os<<(void*)*block<<" ... "<<(void*)(*block+blockSize)<<std::endl;
         for (PoolBlock* b = reinterpret_cast<PoolBlock*>(*block);
              b; b=b->next) {
-            std::cerr<<(b->free ? "  F " : "    ");
-            std::cerr<<(void*)b<<"  Size="<<b->size;
-            std::cerr<<"   prev="<<(void*)b->prev<<", next="<<(void*)b->next;
-            std::cerr<<std::endl;
+            os<<(b->free ? "  F " : "    ");
+            os<<(void*)b<<"  Size="<<b->size;
+            os<<"   prev="<<(void*)b->prev<<", next="<<(void*)b->next;
+            os<<std::endl;
+            if (!b->free) tot_used += b->size;
+            else tot_free += b->size;
         }
     }
-    std::cerr<<"freeBlocks: \n";
+    os<<"freeBlocks: \n";
     for (SetIt block=_freeBlocks.begin(); block!=_freeBlocks.end(); ++block) {
-        std::cerr<<" Size="<<(*block)->size<<"   "<<(void*)(*block)<<std::endl;
+        os<<" Size="<<(*block)->size<<"   "<<(void*)(*block)<<std::endl;
+        tot_free2 += (*block)->size;
     }
-    std::cerr<<"end dump\n";
+    os<<"total memory allocated = "<<tot_alloc/(1024*1024)<<" MB\n";
+    os<<"total memory used = "<<tot_used/(1024*1024)<<" MB\n";
+    os<<"total memory free = "<<tot_free/(1024*1024)<<" MB\n";
+    os<<"(should also be)  = "<<tot_free2/(1024*1024)<<" MB\n";
 }
 
 template <int blockSize>
-void Pool<blockSize>::checkp(char* p, int size)
+void Pool<blockSize>::summary(std::ostream& os)
+{
+    size_t tot_alloc=_allBlocks.size() * blockSize;
+    size_t tot_used(0), tot_free(0);
+    os<<"Pool<"<<blockSize<<"> summary:\n";
+    for (ListIt block=_allBlocks.begin(); block!=_allBlocks.end(); ++block) {
+        os<<(void*)*block<<" ... "<<(void*)(*block+blockSize)<<std::endl;
+        for (PoolBlock* b = reinterpret_cast<PoolBlock*>(*block);
+             b; b=b->next) {
+            if (!b->free) tot_used += b->size;
+            else tot_free += b->size;
+        }
+    }
+    os<<"total memory allocated = "<<tot_alloc/(1024*1024)<<" MB\n";
+    os<<"total memory used = "<<tot_used/(1024*1024)<<" MB\n";
+    os<<"total memory free = "<<tot_free/(1024*1024)<<" MB\n";
+}
+
+template <int blockSize>
+void Pool<blockSize>::checkp(char* p, int size, std::ostream& os)
 {
     for (ListIt block=_allBlocks.begin(); block!=_allBlocks.end(); ++block) {
         if (p >= *block && (p+size) <= (*block + blockSize)) return;
     }
-    std::cerr<<"p is not in _allBlocks\n";
-    std::cerr<<"p = "<<(void*)p<<std::endl;
-    std::cerr<<"p+size = "<<(void*)(p+size)<<std::endl;
-    dump();
+    os<<"p is not in _allBlocks\n";
+    os<<"p = "<<(void*)p<<std::endl;
+    os<<"p+size = "<<(void*)(p+size)<<std::endl;
+    dump(os);
     exit(1);
 }
 
 template <int blockSize>
-void Pool<blockSize>::check()
+void Pool<blockSize>::check(std::ostream& os)
 {
     std::set<PoolBlockPtr> freeBlocks2;
 
@@ -198,51 +224,51 @@ void Pool<blockSize>::check()
 
             // Check that this block fits into full block.
             if ((char*)b < *block) {
-                std::cerr<<"b is off the front of the block\n";
-                std::cerr<<"b = "<<(void*)b<<"  "<<b->size<<std::endl;
-                std::cerr<<"*block = "<<(void*)(*block)<<std::endl;
-                dump();
+                os<<"b is off the front of the block\n";
+                os<<"b = "<<(void*)b<<"  "<<b->size<<std::endl;
+                os<<"*block = "<<(void*)(*block)<<std::endl;
+                dump(os);
                 exit(1);
             }
             if ((char*)b + size2 > *block + blockSize) {
-                std::cerr<<"b extends off the back of the block\n";
-                std::cerr<<"b = "<<(void*)b<<"  "<<b->size<<std::endl;
-                std::cerr<<"b+size2 = "<<(void*)((char*)b+size2)<<std::endl;
-                std::cerr<<"*block = "<<(void*)(*block)<<std::endl;
-                std::cerr<<"*block + blockSize = "<<
+                os<<"b extends off the back of the block\n";
+                os<<"b = "<<(void*)b<<"  "<<b->size<<std::endl;
+                os<<"b+size2 = "<<(void*)((char*)b+size2)<<std::endl;
+                os<<"*block = "<<(void*)(*block)<<std::endl;
+                os<<"*block + blockSize = "<<
                     (void*)(*block+blockSize)<<std::endl;
-                dump();
+                dump(os);
                 exit(1);
             }
 
             // Check that b->next is correct:
             if (b->next) {
                 if ((char*)b+size2 != (char*)b->next) {
-                    std::cerr<<"Bad b size:\n";
-                    std::cerr<<"b = "<<(void*)b<<"  "<<b->size<<std::endl;
-                    std::cerr<<"b+size2 = "<<(void*)((char*)b+size2)<<std::endl;
-                    std::cerr<<"b->next = "<<(void*)(b->next)<<std::endl;
-                    dump();
+                    os<<"Bad b size:\n";
+                    os<<"b = "<<(void*)b<<"  "<<b->size<<std::endl;
+                    os<<"b+size2 = "<<(void*)((char*)b+size2)<<std::endl;
+                    os<<"b->next = "<<(void*)(b->next)<<std::endl;
+                    dump(os);
                     exit(1);
                 }
                 if (b->next->prev != b) {
-                    std::cerr<<"Pointer error:\n";
-                    std::cerr<<"b = "<<(void*)b<<"  "<<b->size<<std::endl;
-                    std::cerr<<"b->next->prev = "<<
+                    os<<"Pointer error:\n";
+                    os<<"b = "<<(void*)b<<"  "<<b->size<<std::endl;
+                    os<<"b->next->prev = "<<
                         (void*)(b->next->prev)<<std::endl;
-                    dump();
+                    dump(os);
                     exit(1);
                 }
             } else {
                 // If no b->next, then make sure block fills the rest of 
                 // pool block:
                 if ((char*)b+size2 != *block+blockSize) {
-                    std::cerr<<"Last b is wrong size:\n";
-                    std::cerr<<"b = "<<(void*)b<<"  "<<b->size<<std::endl;
-                    std::cerr<<"b+size2 = "<<(void*)((char*)b+size2)<<std::endl;
-                    std::cerr<<"*block+blockSize = "<<
+                    os<<"Last b is wrong size:\n";
+                    os<<"b = "<<(void*)b<<"  "<<b->size<<std::endl;
+                    os<<"b+size2 = "<<(void*)((char*)b+size2)<<std::endl;
+                    os<<"*block+blockSize = "<<
                         (void*)(*block+blockSize)<<std::endl;
-                    dump();
+                    dump(os);
                     exit(1);
                 }
             }
@@ -250,16 +276,16 @@ void Pool<blockSize>::check()
     }
 
     if (_freeBlocks != freeBlocks2) {
-        std::cerr<<"freeBlocks doesn't match actual set of free blocks\n";
-        std::cerr<<"Found:\n";
+        os<<"freeBlocks doesn't match actual set of free blocks\n";
+        os<<"Found:\n";
         for(SetIt block=freeBlocks2.begin();block!=freeBlocks2.end();++block) {
-            std::cerr<<"  "<<(*block)->size<<"  "<<(void*)(*block)<<std::endl;
+            os<<"  "<<(*block)->size<<"  "<<(void*)(*block)<<std::endl;
         }
-        std::cerr<<"_freeBlocks structure has:\n";
+        os<<"_freeBlocks structure has:\n";
         for(SetIt block=_freeBlocks.begin();block!=_freeBlocks.end();++block) {
-            std::cerr<<"  "<<(*block)->size<<"  "<<(void*)(*block)<<std::endl;
+            os<<"  "<<(*block)->size<<"  "<<(void*)(*block)<<std::endl;
         }
-        dump();
+        dump(os);
         exit(1);
     }
 }

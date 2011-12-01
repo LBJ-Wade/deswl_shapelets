@@ -3,8 +3,8 @@
 #include <valarray>
 #include <CCfits/CCfits>
 
-#include "PsfCatalog.h"
 #include "dbg.h"
+#include "PsfCatalog.h"
 #include "Params.h"
 #include "Pixel.h"
 #include "Ellipse.h"

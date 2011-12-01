@@ -4,10 +4,14 @@
 #include <iostream>
 #include <cmath>
 
+#ifdef _OPENMP
+#include "omp.h"
+#endif
+
+#include "dbg.h"
 #include "BVec.h"
 #include "Ellipse.h"
 #include "EllipseSolver.h"
-#include "dbg.h"
 #include "TestHelper.h"
 #include "Log.h"
 #include "InputCatalog.h"
@@ -17,10 +21,6 @@
 #include "ShearCatalog.h"
 #include "PsiHelper.h"
 #include "BinomFact.h"
-
-#ifdef _OPENMP
-#include "omp.h"
-#endif
 
 std::ostream* dbgout = 0;
 bool XDEBUG = true;

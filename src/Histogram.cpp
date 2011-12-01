@@ -1,7 +1,7 @@
-#include "Histogram.h"
 #include <algorithm>
-#include "Form.h"
 #include "dbg.h"
+#include "Form.h"
+#include "Histogram.h"
 
 template <typename T>
 Histogram<T>::Histogram(double binSize, double minValue, double maxValue) :

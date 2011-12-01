@@ -1,8 +1,9 @@
 #ifndef LOG_H
 #define LOG_H
 
-#include "Params.h"
 #include <fstream>
+#include "dbg.h"
+#include "Params.h"
 #include "ConfigFile.h"
 
 class Log 
