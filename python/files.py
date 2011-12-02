@@ -564,23 +564,22 @@ def generate_se_filenames(exposurename, ccd, serun=None,
 
     return fdict
 
-def se_coldir_open(serun):
+def coldir_open(serun):
     import columns
-    coldir=se_coldir(serun)
+    coldir=coldir(serun)
 
     cols = columns.Columns(coldir)
     return cols
     
 
-def se_coldir(serun, fits=False):
-    #dir=run_dir('wlbnl',serun)
-    dir = collated_dir(serun)
-    name = serun
+def coldir(run, fits=False):
+    dir = collated_dir(run)
     if fits:
-        dir=os.path.join(dir,name+'-fits')
+        dir=os.path.join(dir,run+'-fits')
     else:
-        dir=os.path.join(dir,name+'.cols')
+        dir=os.path.join(dir,run+'.cols')
     return dir
+
 
 
 def se_test_dir(serun, subdir=None):
@@ -624,8 +623,8 @@ def se_test_path(serun,
 
 
 
-def collated_dir(serun):
-    dir=run_dir('wlbnl',serun)
+def collated_dir(run):
+    dir=run_dir('wlbnl',run)
     dir = path_join(dir, 'collated')
     return dir
 
@@ -634,26 +633,10 @@ def collated_dir(serun):
 def se_collated_path(serun, 
                      objclass, 
                      ftype=None, 
-                     delim=None,
-                     region=None,
-                     dir=None):
-    """
-    Can add more functionality later
-    """
+                     delim=None):
+
     fname=[serun,objclass]
-
-    # add a region identifier
-    if region is not None:
-        if isinstance(region, list):
-            regstr=[str(r) for r in region]
-            regstr = '-'.join(regstr)
-        else:
-            regstr=str(region)
-        addstr='region%s' % regstr
-        fname.append(addstr)
-
     fname='-'.join(fname)
-
 
     # determine the file type
     if ftype is None:
@@ -678,8 +661,7 @@ def se_collated_path(serun,
 
     fname += '.'+fext
 
-    if dir is None:
-        dir = collated_dir(serun)
+    dir = collated_dir(serun)
     outpath = path_join(dir,fname)
 
     return outpath
@@ -687,22 +669,10 @@ def se_collated_path(serun,
 def me_collated_path(merun, 
                      objclass, 
                      ftype=None, 
-                     delim=None,
-                     region=None):
+                     delim=None):
+
     fname=[merun,objclass]
-
-    # add a region identifier
-    if region is not None:
-        if isinstance(region, list):
-            regstr=[str(r) for r in region]
-            regstr = '-'.join(regstr)
-        else:
-            regstr=str(region)
-        addstr='region%s' % regstr
-        fname.append(addstr)
-
     fname='-'.join(fname)
-
 
     # determine the file type
     if ftype is None:
