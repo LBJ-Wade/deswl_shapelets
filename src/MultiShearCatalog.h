@@ -26,8 +26,6 @@ public :
     size_t size() const { return _skyPos.size(); }
     int getNImages() const { return _imageFileList.size(); }
 
-    void resize(int n);
-
     // Read the srclist file
     void readFileLists();
 

@@ -29,7 +29,30 @@ MultiShearCatalog::MultiShearCatalog(
 {
     dbg<<"Start MultiShearCatalog constructor\n";
     xdbg<<"memory_usage = "<<memory_usage()<<std::endl;
-    resize(coaddCat.size());
+
+    std::complex<double> shearDefault(DEFVALPOS,DEFVALPOS);
+    DSmallMatrix22 covDefault;
+    covDefault << DEFVALPOS, 0, 0, DEFVALPOS;
+
+    const int n = coaddCat.size();
+    _pixList.resize(n);
+    _psfList.resize(n);
+    _seShearList.resize(n);
+    _seSizeList.resize(n);
+    _inputFlags.resize(n,0);
+    _nImagesFound.resize(n, 0);
+    _nImagesGotPix.resize(n, 0);
+
+    _measGalOrder.resize(n,DEFVALNEG);
+    _shear.resize(n,shearDefault);
+    _nu.resize(n,DEFVALNEG);
+    _cov.resize(n,covDefault);
+
+    int galOrder = _params.get("shear_gal_order");
+    BVec shapeDefault(galOrder,1.);
+    shapeDefault.vec().TMV_setAllTo(DEFVALNEG);
+    _shape.resize(n,shapeDefault);
+
     xdbg<<"after resize, memory_usage = "<<memory_usage()<<std::endl;
 
     // Read the names of the component image and catalog files from
@@ -228,36 +251,6 @@ void MultiShearCatalog::readFileLists()
     dbg<<"Done reading file lists\n";
     Assert(_shearFileList.size() == _imageFileList.size());
     Assert(_fitPsfFileList.size() == _imageFileList.size());
-}
-
-void MultiShearCatalog::resize(int n)
-{
-    _pixList.clear();
-    _pixList.resize(n);
-
-    _psfList.clear();
-    _psfList.resize(n);
-
-    _seShearList.clear();
-    _seShearList.resize(n);
-
-    _seSizeList.clear();
-    _seSizeList.resize(n);
-
-    _inputFlags.resize(n,0);
-    _nImagesFound.resize(n, 0);
-    _nImagesGotPix.resize(n, 0);
-
-    _measGalOrder.resize(n);
-    _shear.resize(n);
-    _nu.resize(n);
-    _cov.resize(n);
-
-    int galOrder = _params.get("shear_gal_order");
-    BVec shapeDefault(galOrder,1.);
-    shapeDefault.vec().TMV_setAllTo(DEFVALNEG);
-    _shape.resize(n,shapeDefault);
-
 }
 
 void MultiShearCatalog::write() const
