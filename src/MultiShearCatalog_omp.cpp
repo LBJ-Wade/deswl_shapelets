@@ -310,7 +310,7 @@ static void getImagePixList(
 }
 
 // Get pixel lists from the file specified in params
-void MultiShearCatalog::getImagePixelLists(
+bool MultiShearCatalog::getImagePixelLists(
     int seIndex, const Bounds& bounds)
 {
     dbg<<"Start GetImagePixelLists: se_index = "<<seIndex<<std::endl;
@@ -323,7 +323,7 @@ void MultiShearCatalog::getImagePixelLists(
         if (!seSkyBounds.intersects(bounds)) {
             dbg<<"Skipping index "<<seIndex<<
                 " because bounds don't intersect\n";
-            return;
+            return true;
         }
     }
 
@@ -342,7 +342,7 @@ void MultiShearCatalog::getImagePixelLists(
     }
     if (!seSkyBounds.intersects(bounds)) {
         dbg<<"Skipping index "<<seIndex<<" because bounds don't intersect\n";
-        return;
+        return true;
     }
 
     // Read transformation between ra/dec and x/y
@@ -397,7 +397,7 @@ void MultiShearCatalog::getImagePixelLists(
         image.reset(new Image<double>(_params,weightIm));
     } else if (!_skyBounds.intersects(invBounds)) {
         dbg<<"Skipping index "<<seIndex<<" because invBounds doesn't intersect\n";
-        return;
+        return true;
     } else {
         Bounds intersect = invBounds & _skyBounds;
         dbg<<"intersect = invb & skybounds = "<<intersect<<std::endl;
@@ -440,10 +440,8 @@ void MultiShearCatalog::getImagePixelLists(
     const int nGals = size();
     double xOffset = _params.read("cat_x_offset",0.);
     double yOffset = _params.read("cat_y_offset",0.);
+    double maxMem = _params.read("max_vmem",64);
     dbg<<"Before getImagePixList loop: memory_usage = "<<memory_usage()<<std::endl;
-#ifdef _OPENMP
-//#pragma omp for schedule(static)
-#endif
     for (int i=0; i<nGals; ++i) {
         if (_flags[i]) continue;
         if (!bounds.includes(_skyPos[i])) continue;
@@ -455,18 +453,27 @@ void MultiShearCatalog::getImagePixelLists(
             weightIm.get(), noise, gain,
             skyMethod, meanSky, skyMap.get(),
             galAperture, maxAperture, xOffset, yOffset);
-    } 
+        double mem = memory_usage() / (1024*1024); 
+        // memory_usage is in KB
+        // max_vmem is in GB
+        if (mem > maxMem) {
+            dbg<<"VmSize = "<<mem<<" > max_vmem = "<<maxMem<<std::endl;
+            return false;
+        }
+    }
     // Keep track of how much memory we are using.
-    // TODO: introduce a parameter max_memory and check to make sure
-    // we stay within the allowed memory usage.
     dbg<<"Done getImagePixList loop: memory_usage = "<<memory_usage()<<std::endl;
     if (dbgout) PixelList::dumpPool(*dbgout);
     dbg<<"Using image# "<<seIndex;
     dbg<<"... Memory Usage in MultiShearCatalog = ";
     dbg<<calculateMemoryFootprint()<<" MB";
     dbg<<"\n";
+    dbg<<"VMem = "<<memory_usage()<<std::endl;
+    dbg<<"VPeak = "<<peak_memory_usage()<<std::endl;
+    dbg<<"maxMem allowe allowedd = "<<maxMem<<std::endl;
 
     dbg<<"Done extracting pixel lists\n";
+    return true;
 }
 
 template <typename T>
@@ -538,11 +545,8 @@ inline long long getMemoryFootprint(const TMatrix(T)& x)
     return res;
 }
 
-double MultiShearCatalog::calculateMemoryFootprint(bool shouldGetMax) const
+double MultiShearCatalog::calculateMemoryFootprint() const
 {
-
-    static double maxMem=0.;
-
     dbg<<"Memory usage:\n";
     dbg<<"input_flags: "<<
         getMemoryFootprint(_inputFlags)/1024./1024.<<" MB\n";
@@ -606,13 +610,6 @@ double MultiShearCatalog::calculateMemoryFootprint(bool shouldGetMax) const
     totMem /= 1024.*1024.;  // B -> MB
     dbg<<"totmem = "<<totMem<<std::endl;
 
-#ifdef _OPENMP
-#pragma omp critical (totMem)
-#endif
-    {
-        if (totMem > maxMem) maxMem = totMem;
-    }
-
-    return shouldGetMax ? maxMem : totMem;
+    return totMem;
 }
 

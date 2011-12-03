@@ -62,20 +62,39 @@ struct AssertFailureException :
     } while(false)
 #endif
 
-inline std::string memory_usage(std::ostream* os=0) 
+// Some examples of information that can be obtained from /proc/self/status:
+// Pid, VmPeak, VmSize, VmHWM, VmRss, Threads
+// ( See http://www.kernel.org/doc/man-pages/online/pages/man5/proc.5.html
+//   for more information.)
+
+// Get a single item from /proc/self/status.
+// If os is provided, output all the lines.
+inline double get_proc_stat(std::string stat, std::ostream* os=0) 
 {
-    std::ostringstream mem;
     std::ifstream proc("/proc/self/status");
-    if (!proc) return "Could not open /proc/self/status";
-    std::string s;
-    while(getline(proc, s), !proc.fail()) {
-        if (os) *os << "proc line = "<<s<<std::endl;
-        if(s.substr(0, 6) == "VmSize") {
-            mem << s;
-            //return mem.str();
+    if (!proc) {
+        if (os) *os<<"Could not open /proc/self/status";
+        return -1.; // Negative value reports an error.
+    }
+    if (os) *os << "Reading informatino from /proc/self/status:\n";
+    std::string line;
+    double value;
+    while(getline(proc, line), !proc.fail()) {
+        if (os) *os <<line<<std::endl;
+        if(line.substr(0, stat.size()) == stat) {
+            std::istringstream iss(line);
+            std::string name;
+            iss >> name >> value;
+            if (!os) return value;
         }
     }
-    return mem.str();
+    return value;
 }
+
+inline double memory_usage(std::ostream* os=0) 
+{ return get_proc_stat("VmSize",os); }
+
+inline double peak_memory_usage(std::ostream* os=0)
+{ return get_proc_stat("VmPeak",os); }
 
 #endif

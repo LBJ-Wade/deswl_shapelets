@@ -96,6 +96,7 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
     // 4-5 GB, and only add about 5-10% to the running time.
     long nShear = 0;
     std::vector<Bounds> sectionBounds = shearCat.splitBounds();
+    int nresplit = params.read("multishear_max_resplits",1);
     for(size_t i=0;i<sectionBounds.size();++i) {
 #ifdef ENDAT
         if (i == ENDAT) break;
@@ -107,9 +108,40 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
             std::cerr<<(i+1)<<"/"<<sectionBounds.size()<<std::endl;
         }
         // Load the pixel information for each galaxy in the section.
-        int nPix = shearCat.getPixels(sectionBounds[i]);
-        if (shouldOutputInfo)
-            std::cerr<<nPix<<" galaxies in this section.\n";
+        if (!shearCat.getPixels(sectionBounds[i])) {
+            if (shouldOutputInfo) {
+                std::cerr<<"Section exceeded maximum memory usage.\n";
+            }
+            if (nresplit > 0) {
+                --nresplit;
+                std::vector<Bounds> split = sectionBounds[i].quarter();
+                sectionBounds.insert(
+                    sectionBounds.end(),
+                    split.begin(),split.end());
+                if (shouldOutputInfo) {
+                    std::cerr<<"Will try splitting it up and continuing.\n";
+                    std::cerr<<--nresplit<<" more resplits allowed.\n";
+                }
+                continue;
+            } else {
+                if (shouldOutputInfo) {
+                    std::cerr<<"No more allowed resplits.\n";
+                    std::cerr<<"Either reduce multishear_section_size, or\n";
+                    std::cerr<<"increase max_vmem or multishear_max_resplits\n";
+                    std::cerr<<"Current values = "<<
+                        params["multishear_section_size"]<<" , "<<
+                        params["max_vmem"]<<" , "<<
+                        params["multishear_max_resplits"]<<std::endl;
+                    throw ProcessingException(
+                        "Memory exceeded max_vmem, and unable to recover by "
+                        "resplitting bounds");
+                }
+            }
+        }
+        if (shouldOutputInfo) {
+            std::cerr<<shearCat.getNGalsWithPixels()<<
+                " galaxies in this section.\n";
+        }
 
         if (isTiming) {
             gettimeofday(&tp,0);

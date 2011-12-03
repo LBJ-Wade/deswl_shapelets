@@ -61,6 +61,14 @@ MultiShearCatalog::MultiShearCatalog(
     xdbg<<"after readfilelists, memory_usage = "<<memory_usage()<<std::endl;
 }
 
+int MultiShearCatalog::getNGalsWithPixels() const
+{
+    const int nGals = size();
+    int nGalsWithPix=0;
+    for (int i=0;i<nGals;++i) if (_pixList[i].size() > 0) ++nGalsWithPix;
+    return nGalsWithPix;
+}
+
 std::vector<Bounds> MultiShearCatalog::splitBounds()
 {
     const double ARCSEC_PER_RAD = 206264.806247;
@@ -80,7 +88,7 @@ std::vector<Bounds> MultiShearCatalog::splitBounds()
     return _skyBounds.divide(nx,ny);
 }
 
-int MultiShearCatalog::getPixels(const Bounds& bounds)
+bool MultiShearCatalog::getPixels(const Bounds& bounds)
 {
     // The pixlist object takes up a lot of memory, so at the start 
     // of this function, I clear it out, along with psflist, etc.
@@ -141,38 +149,44 @@ int MultiShearCatalog::getPixels(const Bounds& bounds)
 
             // Load the pixels
             dbg<<"Before load pixels: memory_usage = "<<memory_usage()<<std::endl;
-            getImagePixelLists(iFile,bounds);
+            if (!getImagePixelLists(iFile,bounds)) return false;
             dbg<<"After load pixels: memory_usage = "<<memory_usage()<<std::endl;
             dbg<<"\n";
         }
     } catch (std::bad_alloc) {
         dbg<<"Caught bad_alloc\n";
+        double mem = memory_usage(dbgout);
+        double peak_mem = peak_memory_usage();
+        dbg<<"memory usage = "<<mem<<" KB\n";
+        dbg<<"peak memory usage = "<<peak_mem<<" KB\n";
         if (shouldOutputDesQa) std::cerr<<"STATUS5BEG ";
         std::cerr
             << "Memory exhausted in MultShearCatalog.\n"
             << "Memory Usage in MultiShearCatalog = "
             << calculateMemoryFootprint()<<" MB \n"
-            << "Lower the parameter \"multishear_section_size\".  "
-            << "(Current value = "<<_params["multishear_section_size"]<<")";
+            << "Actual Virtual Memory Usage = "
+            << mem/1024<<" MB \n"
+            << "Try reducing multishear_section_size or "
+            << "reducing mam_vmem\n"
+            << "(Current values = "
+            << _params["multishear_section_size"]
+            << " , "<<_params["max_vmem"]<<")";
         if (shouldOutputDesQa) std::cerr<<" STATUS5END";
         std::cerr<<std::endl;
         dbg << "Memory exhausted in MultShearCatalog.\n"
             << "Memory Usage in MultiShearCatalog = "
             << calculateMemoryFootprint()<<" MB \n"
-            << "Lower the parameter \"multishear_section_size\".  "
-            << "(Current value = "<<_params["multishear_section_size"]<<")"
+            << "Actual Virtual Memory Usage = "
+            << mem/1024<<" MB \n"
+            << "Try reducing multishear_section_size or "
+            << "reducing mam_vmem\n"
+            << "(Current values = "
+            << _params["multishear_section_size"]
+            << " , "<<_params["max_vmem"]<<")"
             << std::endl;
-        std::string mem = memory_usage(dbgout);
-        dbg<<"memory_usage = "<<mem<<std::endl;
         exit(1);
     }
-
-    _params["maxmem"] = calculateMemoryFootprint(true);
-
-    const int nGals = size();
-    int nGalsWithPix=0;
-    for (int i=0;i<nGals;++i) if (_pixList[i].size() > 0) ++nGalsWithPix;
-    return nGalsWithPix;
+    return true;
 }
 
 MultiShearCatalog::MultiShearCatalog(const ConfigFile& params) :
@@ -416,7 +430,9 @@ void MultiShearCatalog::writeFits(std::string file) const
     writeParamToTable(_params, table, "shear_min_gal_size", dbl);
     writeParamToTable(_params, table, "shear_f_psf", dbl);
 
-    writeParamToTable(_params, table, "maxmem", dbl);
+    // Get final value of VmPeak at this point in program.
+    _params["peak_mem"] = peak_memory_usage(dbgout);
+    writeParamToTable(_params, table, "peak_mem", dbl);
 
     // if wlmerun= is sent we'll put it in the header.  This allows us to 
     // associate some more, possibly complicated, metadata with this file

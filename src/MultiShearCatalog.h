@@ -25,6 +25,7 @@ public :
 
     size_t size() const { return _skyPos.size(); }
     int getNImages() const { return _imageFileList.size(); }
+    int getNGalsWithPixels() const;
 
     // Read the srclist file
     void readFileLists();
@@ -42,8 +43,8 @@ public :
     std::vector<Bounds> splitBounds();
 
     // Get pixel lists for the component images/catalogs
-    int getPixels(const Bounds& b);
-    void getImagePixelLists(int fnum, const Bounds& b);
+    bool getPixels(const Bounds& b);
+    bool getImagePixelLists(int fnum, const Bounds& b);
 
     // Measure the shears
     int measureMultiShears(const Bounds& b, ShearLog& log);
@@ -60,7 +61,7 @@ public :
 
     // Calculate the current memory footprint of the entire structure in MB.
     // (Optionally output some info to os.)
-    double calculateMemoryFootprint(bool getmax=false) const;
+    double calculateMemoryFootprint() const;
 
     const std::vector<long> getIdList() const { return _id; }
     const std::vector<Position> getSkyPosList() const { return _skyPos; }

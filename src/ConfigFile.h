@@ -321,114 +321,55 @@ class ConvertibleString : public std::string
 {
 
 public:
-    ConvertibleString() : std::string("")
-    {
-        //std::cout<<"Blank constructor : _s = "<<*this<<std::endl;
-    }
-    ConvertibleString(const std::string& s) : std::string(s) 
-    {
-        //std::cout<<"String constructor : _s = "<<*this<<std::endl;
-    }
+    ConvertibleString() : std::string("") {}
+    ConvertibleString(const std::string& s) : std::string(s) {}
 
     template <typename T> 
     explicit ConvertibleString(const T& x)
-    { 
-        //std::cout<<"T constructor : x = "<<x<<std::endl;
-        *this = x; 
-        //std::cout<<"Done T constructor : _s = "<<*this<<std::endl;
-    }
+    { *this = x; }
 
     ~ConvertibleString() {}
 
     ConvertibleString& operator=(const std::string& rhs)
     {
-        //std::cout<<"op= string : rhs = "<<rhs<<std::endl;
         std::string::operator=(rhs);
-        //std::cout<<"Done op= string : _s = "<<*this<<std::endl;
         return *this;
     }
 
     template <typename T> 
     ConvertibleString& operator=(const T& x)
     {
-        //std::cout<<"op= T : x = "<<x<<std::endl;
         std::stringstream oss;
         oss << x;
         *this = oss.str();
-        //std::cout<<"Done op= T : _s = "<<*this<<std::endl;
         return *this;
     }
 
     template <typename T> 
     ConvertibleString& operator=(const std::vector<T>& x)
     {
-        //std::cout<<"op= std::vector<T> : x.size = "<<x.size()<<std::endl;
         std::stringstream oss;
         const int n = x.size();
         if (n > 0) oss << x[0];
         for(int i=1;i<n;++i) oss << ' ' << x[i];
         *this = oss.str();
-        //std::cout<<"Done op= std::vector<T> : _s = "<<*this<<std::endl;
         return *this;
     }
 
     template <typename T> 
     operator T() const 
     {
-        //std::cout<<"op T _s = "<<*this<<std::endl;
         const int algo =
             ConvertibleStringTraits<T>::is_vector ? 2 :
             ConvertibleStringTraits<T>::is_bool ? 3 :
             ConvertibleStringTraits<T>::is_string ? 4 :
             ConvertibleStringTraits<T>::is_cstring ? 5 :
             1;
-        //std::cout<<"algo = "<<algo<<std::endl;
         return ConvertibleStringOpT<algo,T>::call(*this);
     }
-
-#if 0
-    // Now a few things to make it work more like a string
-    friend std::string operator+(
-        const std::string& s1, const ConvertibleString& s2)
-    { return s1 + s2._s; }
-    friend std::string operator+(
-        const ConvertibleString& s1, const std::string& s2)
-    { return s1._s + s2; }
-    friend std::string operator+(
-        const char* s1, const ConvertibleString& s2)
-    { return s1 + s2._s; }
-    friend std::string operator+(
-        const ConvertibleString& s1, const char* s2)
-    { return s1._s + s2; }
-
-    bool operator==(const std::string& s2) const
-    { return _s == s2; }
-    bool operator==(const char* s2) const
-    { return _s == s2; }
-    friend bool operator==(const std::string s1, const ConvertibleString& s2)
-    { return s1 == s2._s; }
-    friend bool operator==(const char* s1, const ConvertibleString& s2)
-    { return s1 == s2._s; }
-
-    void write(std::ostream& os) const
-    { os << _s; }
-    void read(std::istream& is)
-    { is >> _s; }
-
-private :
-    std::string _s;
-#endif
 };
 #ifdef __INTEL_COMPILER
 #pragma warning (default : 444)
-#endif
-
-#if 0
-
-std::ostream& operator<<(std::ostream& os, const ConvertibleString& s)
-{ s.write(os); return os; }
-std::istream& operator>>(std::istream& is, ConvertibleString& s)
-{ s.read(is); return is; }
 #endif
 
 class ConfigFile 
@@ -483,6 +424,10 @@ public:
         T& var, const std::string& key ) const;
     template <typename T> inline bool readInto( 
         T& var, const std::string& key, const T& value ) const;
+
+    // If the ConfigFile is not const, store the provided default.
+    template <typename T> inline T read(
+        const std::string& key, const T& value );
 
     // special string getter.  This is really for the python
     // bindings for just viewing quickly the contents.  Hence
@@ -603,6 +548,36 @@ T ConfigFile::read( const std::string& key, const T& value ) const
     }
 }
 
+template <typename T>
+T ConfigFile::read( const std::string& key, const T& value )
+{
+    // Return the value corresponding to key or given default value
+    // if key is not found
+    std::string key2 = key;
+    trim(key2);
+    MapCIt p = _contents.find(key2);
+    if(p == _contents.end()) {
+        _contents[key] = value;
+        return value;
+    } else {
+        T ret;
+#ifndef NOTHROW
+        try {
+#endif
+            ret = p->second;
+#ifndef NOTHROW
+        } catch (ParameterException& e) {
+            xdbg<<"Caught ParameterException: \n"<<e.what()<<std::endl;
+            throw ParameterException(
+                "ConfigFile error: Could not convert entry for key " +
+                key2 +
+                " to given type.\nCaught error from ConvertibleString: \n" +
+                e.what());
+        }
+#endif
+        return ret;
+    }
+}
 
 template <typename T>
 bool ConfigFile::readInto( T& var, const std::string& key ) const
