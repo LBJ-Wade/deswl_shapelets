@@ -91,10 +91,11 @@ inline double get_proc_stat(std::string stat, std::ostream* os=0)
     return value;
 }
 
+// Return the memory being used in MBytes.
 inline double memory_usage(std::ostream* os=0) 
-{ return get_proc_stat("VmSize",os); }
+{ return get_proc_stat("VmSize",os) / 1024.; }
 
 inline double peak_memory_usage(std::ostream* os=0)
-{ return get_proc_stat("VmPeak",os); }
+{ return get_proc_stat("VmPeak",os) / 1024.; }
 
 #endif

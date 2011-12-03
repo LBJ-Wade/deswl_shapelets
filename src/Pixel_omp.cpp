@@ -64,6 +64,13 @@ void PixelList::dumpPool(std::ostream& os)
 #endif
 }
 
+void PixelList::reclaimMemory()
+{
+#ifdef PIXELLIST_USE_POOL
+    PoolAllocPixel::reclaimMemory();
+#endif
+}
+
 size_t PixelList::size() const
 {
     if (_shouldUsePool) return _v2->size();

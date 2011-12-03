@@ -99,6 +99,7 @@ public:
 
     static void dump(std::ostream& os) { mem.dump(os); };
     static void summary(std::ostream& os) { mem.summary(os); };
+    static void reclaimMemory() { mem.reclaim(); };
 
     static size_t totalMemoryUsed() { return mem.totalMemoryUsed(); }
 

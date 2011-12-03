@@ -1,6 +1,58 @@
 
 -------------------------------------------------------------------------
 
+v0.64
+
+1) Fixed a serious bug in multishear that caused all galaxies to fail.
+
+2) Fixed a bug in the multishear bounds checking where an assert could 
+   fail because two different bounds, which are conceptually basically
+   the same thing, could be numerically different, since they are 
+   defined by different routines that do slightly different things.
+
+3) Fixed a bug in PixelList where it was leaking memory out of the 
+   Pool allocation into the general memory allocation.  This isn't 
+   a memory leak per se, but it allows the memory to get fragmented
+   when the PixelLists are deleted at the end of working on that section.
+   In fact, this was exactly the problem that the Pool allocator was
+   written to solve.  Now the PixelLists use shared memory semantics on
+   copy which means they are both more efficient when used in a 
+   std::vector<> and also keep all the allocation in the Pool where
+   fragmentation isn't a problem.
+
+4) Added a feature to multishear where it checks how much memory is 
+   being used periodically throughout the program.  If a particular
+   section exceeds this amount (parameter max_vmem) then it now
+   splits that section into 4 quadrants and tries again.  It will do
+   this at most multishear_max_resplits times.
+
+5) Split the functionality of output_dots into output_dots and output_info.
+   output_dots now really is just about dots.  And output_info says 
+   whether to output all the other information that you might want.
+
+6) Used non-physical values like -999 for the shear, cov, and nu values
+   calculated by multishear.  It was an oversight that we hadn't 
+   done this before, since the regular measureshear program does this.
+
+7) Implemented the new bnl queue system in the python scripts.
+
+8) A bunch of work on the new way of interfacing with the database.
+   Especially as pertains to the multishear files.
+
+9) Added wl_desdm.config to the install list.  The idea here is that
+   wl.config will always keep up to date on any algorithmic parameters.
+   Anything that desdm might want to change for a particular run
+   will also be copied to wl_desdm.config.  They will maintain that 
+   file with the defaults they need for running on their system.
+   So they would typically run programs with: (e.g.)
+   measureshear $etc/wl.config +$etc/wl_desdm.config image_file=....
+
+10) Changed units of psf_aperture to be in arcsec rather than the 
+    psf radius.  This way the aperture doesn't shrink for good seeing
+    data to where we don't have enough pixels for a good measurement.
+
+-------------------------------------------------------------------------
+
 v0.63
 
 1) Some more work on the low S/N galaxy measurements:

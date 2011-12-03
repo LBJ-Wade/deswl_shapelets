@@ -92,6 +92,7 @@ public :
     // Start not using Pool allocator.  Turn it on with this:
     void usePool();
     static void dumpPool(std::ostream& os);
+    static void reclaimMemory();
 
 private :
 

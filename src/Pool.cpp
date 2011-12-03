@@ -306,6 +306,54 @@ PoolBlock* Pool<blockSize>::growPool()
     return newBlock;
 }
 
+template <int blockSize>
+void Pool<blockSize>::reclaim()
+{
+    // Note: I don't do any kind of defragmentation before reclaiming 
+    // free blocks.  Mostly because currently, I'm calling this when 
+    // all the blocks are free.  The code should work if only a few are
+    // free, but that's probably not sufficient if the data are 
+    // distributed spottily throughout the blocks.  So someday maybe I'll 
+    // want to write a defragmentation function which would be called at 
+    // the start of this function.
+    dbg<<"Start Pool reclaim\n";
+    if (dbgout) {
+        dump(*dbgout);
+        check(*dbgout);
+    }
+    dbg<<"allBlock.size = "<<_allBlocks.size()<<std::endl;
+    for (ListIt block=_allBlocks.begin(); block!=_allBlocks.end(); ) {
+        dbg<<"block = "<<(void*)*block<<std::endl;
+        PoolBlock* b = reinterpret_cast<PoolBlock*>(*block);
+        dbg<<"b = "<<b<<"  b->next = "<<b->next<<"  b->free = "<<b->free<<std::endl;
+        if (!b->next && b->free) {
+            dbg<<"Can delete this one\n";
+            char* temp = *block;
+            dbg<<"temp = "<<(void*)temp<<std::endl;
+            block = _allBlocks.erase(block);
+            dbg<<"block -> "<<(void*)*block<<std::endl;
+            dbg<<"_freeBlocks.size() == "<<_freeBlocks.size()<<std::endl;
+            int nerased = _freeBlocks.erase(PoolBlockPtr(b));
+            dbg<<"nerased = "<<nerased<<std::endl;
+            dbg<<"_freeBlocks.size() => "<<_freeBlocks.size()<<std::endl;
+            Assert(nerased == 1);
+            dbg<<"Before Kill temp\n";
+            dump(*dbgout);
+            kill(temp);
+            dbg<<"After Kill temp\n";
+            dump(*dbgout);
+            check(*dbgout);
+        } else {
+          ++block;
+        }
+    }
+    dbg<<"Done Pool reclaim\n";
+    if (dbgout) {
+       dump(*dbgout);
+       check(*dbgout);
+    }
+}
+
 template class Pool<PIXELLIST_BLOCK>;
 
 #ifdef _WIN32

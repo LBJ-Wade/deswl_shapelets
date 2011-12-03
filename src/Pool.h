@@ -56,6 +56,8 @@ public :
     void checkp(char* p, int size, std::ostream& os);
     void check(std::ostream& os);
 
+    void reclaim();
+
 private :
 
     // Private data:

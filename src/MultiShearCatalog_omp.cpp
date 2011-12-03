@@ -144,6 +144,11 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
     dbg<<nSuccess<<" successful shear measurements in this pass.\n";
     dbg<<log._nsGamma<<" successful shear measurements so far.\n";
 
+    // Get value of VmPeak at this point in program.
+    double peak_mem = peak_memory_usage(dbgout);
+    dbg<<"Peak memory usage so far = "<<peak_mem<<std::endl;
+    _params["peak_mem"] = peak_mem; // We'll write it to output file.
+
     xdbg<<log<<std::endl;
 
     return nSuccess;
@@ -440,7 +445,7 @@ bool MultiShearCatalog::getImagePixelLists(
     const int nGals = size();
     double xOffset = _params.read("cat_x_offset",0.);
     double yOffset = _params.read("cat_y_offset",0.);
-    double maxMem = _params.read("max_vmem",64);
+    double maxMem = _params.read("max_vmem",64)*1024.;
     dbg<<"Before getImagePixList loop: memory_usage = "<<memory_usage()<<std::endl;
     for (int i=0; i<nGals; ++i) {
         if (_flags[i]) continue;
@@ -453,7 +458,7 @@ bool MultiShearCatalog::getImagePixelLists(
             weightIm.get(), noise, gain,
             skyMethod, meanSky, skyMap.get(),
             galAperture, maxAperture, xOffset, yOffset);
-        double mem = memory_usage() / (1024*1024); 
+        double mem = memory_usage();
         // memory_usage is in KB
         // max_vmem is in GB
         if (mem > maxMem) {
@@ -469,8 +474,10 @@ bool MultiShearCatalog::getImagePixelLists(
     dbg<<calculateMemoryFootprint()<<" MB";
     dbg<<"\n";
     dbg<<"VMem = "<<memory_usage()<<std::endl;
-    dbg<<"VPeak = "<<peak_memory_usage()<<std::endl;
-    dbg<<"maxMem allowe allowedd = "<<maxMem<<std::endl;
+    double peak_mem = peak_memory_usage();
+    dbg<<"VPeak = "<<peak_mem<<std::endl;
+    dbg<<"maxMem allowed = "<<maxMem<<std::endl;
+    _params["peak_mem"] = peak_mem;  // Keep track
 
     dbg<<"Done extracting pixel lists\n";
     return true;

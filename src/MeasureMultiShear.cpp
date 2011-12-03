@@ -36,6 +36,7 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
     }
 
     bool shouldOutputInfo = params.read("output_info",true);
+    bool shouldOutputDesQa = params.read("des_qa",true);
 
     // Read the coadd catalog.
     CoaddCatalog coaddCat(params);
@@ -92,8 +93,6 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
     // a lot of memory.  So this bit keeps the memory requirement for each
     // section manageable.  So long as each section does a significant amount
     // of work, the extra I/O time won't be much of an issue. 
-    // 20'-30' armin seems to be a good size to keep the memory under around
-    // 4-5 GB, and only add about 5-10% to the running time.
     long nShear = 0;
     std::vector<Bounds> sectionBounds = shearCat.splitBounds();
     int nresplit = params.read("multishear_max_resplits",1);
@@ -109,21 +108,36 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
         }
         // Load the pixel information for each galaxy in the section.
         if (!shearCat.getPixels(sectionBounds[i])) {
+            dbg<<"Section exceeded maximum memory usage.\n";
             if (shouldOutputInfo) {
                 std::cerr<<"Section exceeded maximum memory usage.\n";
             }
             if (nresplit > 0) {
                 --nresplit;
                 std::vector<Bounds> split = sectionBounds[i].quarter();
+                dbg<<"Split bounds into four new bounds:\n";
+                dbg<<"b1 = "<<split[0];
+                dbg<<"b2 = "<<split[1];
+                dbg<<"b3 = "<<split[2];
+                dbg<<"b4 = "<<split[3];
+                dbg<<nresplit<<" more resplits allowed.\n";
                 sectionBounds.insert(
                     sectionBounds.end(),
                     split.begin(),split.end());
                 if (shouldOutputInfo) {
                     std::cerr<<"Will try splitting it up and continuing.\n";
-                    std::cerr<<--nresplit<<" more resplits allowed.\n";
+                    std::cerr<<nresplit<<" more resplits allowed.\n";
+                }
+                if (shouldOutputDesQa) {
+                    std::cout
+                        << "STATUS3BEG Warning: "
+                        << "Memory usage exceeded maximum allowed.  "
+                        << "Trying to recover by resplitting bounds "
+                        << "for section "<<i<<".  STATUS3END"<<std::endl;
                 }
                 continue;
             } else {
+                dbg<<"No more allowed resplits.\nAborting.\n";
                 if (shouldOutputInfo) {
                     std::cerr<<"No more allowed resplits.\n";
                     std::cerr<<"Either reduce multishear_section_size, or\n";
@@ -133,8 +147,8 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
                         params["max_vmem"]<<" , "<<
                         params["multishear_max_resplits"]<<std::endl;
                     throw ProcessingException(
-                        "Memory exceeded max_vmem, and unable to recover by "
-                        "resplitting bounds");
+                        "Memory exceeded maximum allowed, and unable to "
+                        "recover by resplitting bounds");
                 }
             }
         }
