@@ -113,7 +113,7 @@ int main(int argc, char **argv) try
 
         // Measure shears and shapelet vectors
         int nShear = shearCat.measureShears(im,weightIm.get(),*log);
-	dbg<<"nShear = "<<nShear<<std::endl;
+        dbg<<"nShear = "<<nShear<<std::endl;
 
         int nGal = shearCat.size();
         double maxg = 0.;

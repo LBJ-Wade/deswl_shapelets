@@ -157,8 +157,8 @@ bool MultiShearCatalog::getPixels(const Bounds& bounds)
                     _seShearList[i].clear();
                     _seSizeList[i].clear();
                 }
-		PixelList::reclaimMemory();
-		return false;
+                PixelList::reclaimMemory();
+                return false;
             }
             dbg<<"After load pixels for file "<<iFile<<
                 ": memory_usage = "<<memory_usage()<<std::endl;
@@ -495,15 +495,12 @@ void MultiShearCatalog::writeFits(std::string file) const
 
     for (int i=0; i<nGals; ++i) {
         int row = i+1;
-        // MJ: measGalOrder keeps track of the order of the shapelet that
+        // Note: measGalOrder keeps track of the order of the shapelet that
         // was actually measured.  It is <= the full order of the shapelet
         // vector, but the higher order terms are set to zero.
         // Since we can't have different numbers of columns for each row, 
         // we have to write out the full shapelet order for all rows
         // including the zeros.
-        //
-        //long bOrder = _shape[i].getOrder();
-        //table->column(colNames[orderColNum]).write(&bOrder,1,row);
 
         double bSigma = _shape[i].getSigma();
         table->column(colNames[sigmaColNum]).write(&bSigma,1,row);
@@ -561,7 +558,6 @@ void MultiShearCatalog::writeAscii(std::string file, std::string delim) const
             << _nImagesFound[i] << delim
             << _nImagesGotPix[i] << delim
             << _inputFlags[i] << delim
-            //<< _shape[i].getOrder() << delim
             << _measGalOrder[i] << delim
             << fix6(_shape[i].getSigma()) << delim;
         const int nCoeffs = _shape[i].size();
