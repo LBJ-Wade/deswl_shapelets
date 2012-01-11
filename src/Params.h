@@ -47,8 +47,9 @@ static const long SHAPE_BAD_FLUX          = 0x4000000;
 static const long CENTROID_FAILED         = 0x8000000;
 static const long SHAPELET_NOT_DECONV     = 0x10000000;
 static const long SHEAR_DIDNT_CONVERGE    = 0x20000000;
+static const long CENTROID_SHIFT          = 0x40000000;
 
-static const long NFLAGS = 30;
+static const long NFLAGS = 31;
 
 static const char*const flagName[NFLAGS] = {
     "INPUT_FLAG",
@@ -80,7 +81,8 @@ static const char*const flagName[NFLAGS] = {
     "SHAPE_BAD_FLUX",
     "CENTROID_FAILED",
     "SHAPELET_NOT_DECONV",
-    "SHEAR_DIDNT_CONVERGE"
+    "SHEAR_DIDNT_CONVERGE",
+    "CENTROID_SHIFT"
 };
 
 std::string FlagText(long flag);

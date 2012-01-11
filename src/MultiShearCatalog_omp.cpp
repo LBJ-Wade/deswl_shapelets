@@ -72,6 +72,9 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                     }
                 }
                 dbg<<"galaxy "<<i<<":\n";
+                dbg<<"id = "<<_id[i]<<std::endl;
+                dbg<<"chipPos = "<<_chipPos[i]<<std::endl;
+                dbg<<"skypos = "<<_skyPos[i]<<std::endl;
 
                 if (_pixList[i].size() == 0) {
                     dbg<<"no valid single epoch images.\n";
@@ -81,6 +84,14 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                 }
 
                 dbg<<"Using "<<_pixList[i].size()<<" epochs\n";
+                Assert(_pixList[i].size() == _seNum[i].size());
+                Assert(_pixList[i].size() == _sePos[i].size());
+                dbg<<"seImageNum   seImageName   sePos\n";
+                for (size_t k=0;k<_pixList[i].size();++k) {
+                    dbg<<_seNum[i][k]<<"  "<<
+                        _imageFileList[_seNum[i][k]]<<"  "<<
+                        _sePos[i][k]<<std::endl;
+                }
 
                 _measGalOrder[i] = galOrder;
 #if 1
@@ -157,8 +168,7 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
 static void getImagePixList(
     std::vector<PixelList>& pixList,
     std::vector<BVec>& psfList,
-    std::vector<std::complex<double> >& seShearList,
-    std::vector<double>& seSizeList,
+    std::vector<int>& seNum, std::vector<Position>& sePos, int seIndex,
     long& inputFlags, int& nImagesFound, int& nImagesGotPix,
     const Position& skyPos,
     const Image<double>& im,
@@ -175,8 +185,8 @@ static void getImagePixList(
     bool require_match)
 {
     Assert(psfList.size() == pixList.size());
-    Assert(seShearList.size() == pixList.size());
-    Assert(seSizeList.size() == pixList.size());
+    Assert(seNum.size() == pixList.size());
+    Assert(sePos.size() == pixList.size());
 
     // Convert ra/dec to x,y in this image
 
@@ -229,16 +239,14 @@ static void getImagePixList(
     // Find the nearest object in the shear catalog:
     int nearest = shearCatTree.findNearestTo(pos);
 
-    Assert(psfList.size() == pixList.size());
-    Assert(seShearList.size() == pixList.size());
-    Assert(seSizeList.size() == pixList.size());
-
-    std::complex<double> seShear = 0.;
-    double seSize = 0.;
     double galAp = maxAperture;
     if (std::abs(shearCat.getPos(nearest) - pos) < 1.) { 
-        seShear = shearCat.getShear(nearest);
-        seSize = shearCat.getShape(nearest).getSigma();
+        double seSize = shearCat.getShape(nearest).getSigma();
+        dbg<<"Single epoch id, pos, shear, size = "<<
+            shearCat.getId(nearest)<<"  "<<
+            shearCat.getPos(nearest)<<"  "<<
+            shearCat.getShear(nearest)<<"  "<<
+            seSize<<std::endl;
         // If we have a good measurement from the single_epoch image, use
         // that sigma for the size.
         // But expand it by 30% in case we need it.
@@ -297,20 +305,8 @@ static void getImagePixList(
         psfList.push_back(psf);
         xdbg<<"psflist.size => "<<psfList.size()<<std::endl;
         xdbg<<"After psfList.push_back(psf): mem = "<<memory_usage()<<std::endl;
-
-        // If object in the ShearCatalog is within 1 arcsec of the position
-        // then assume it is the correct object.
-        // Otherwise put in 0's to indicate we don't have an initial
-        // guess for this object (on this image).
-        xdbg<<"Before seShearList, seSizeList mem = "<<memory_usage()<<std::endl;
-        if (std::abs(shearCat.getPos(nearest) - pos) < 1.) { 
-            seShearList.push_back(shearCat.getShear(nearest));
-            seSizeList.push_back(shearCat.getShape(nearest).getSigma());
-        } else {
-            seShearList.push_back(0.);
-            seSizeList.push_back(0.);
-        }
-        xdbg<<"After seShearList, seSizeList mem = "<<memory_usage()<<std::endl;
+        seNum.push_back(seIndex);
+        sePos.push_back(pos);
         ++nImagesGotPix;
     } else {
         inputFlags |= flag;
@@ -444,8 +440,6 @@ bool MultiShearCatalog::getImagePixelLists(
     Assert(_skyPos.size() == size());
     Assert(_pixList.size() == size());
     Assert(_psfList.size() == size());
-    Assert(_seShearList.size() == size());
-    Assert(_seSizeList.size() == size());
     Assert(_flags.size() == size());
     Assert(_inputFlags.size() == size());
     Assert(_nImagesFound.size() == size());
@@ -461,8 +455,10 @@ bool MultiShearCatalog::getImagePixelLists(
         if (_flags[i]) continue;
         if (!bounds.includes(_skyPos[i])) continue;
         if (!invBounds.includes(_skyPos[i])) continue;
+        dbg<<"getImagePixList for galaxy "<<i<<", id = "<<_id[i]<<std::endl;
         getImagePixList(
-            _pixList[i], _psfList[i], _seShearList[i], _seSizeList[i],
+            _pixList[i], _psfList[i],
+            _seNum[i], _sePos[i], seIndex,
             _inputFlags[i], _nImagesFound[i], _nImagesGotPix[i], _skyPos[i], 
             *image, trans, invTrans, psf, fitPsf, shearCat, shearCatTree,
             weightIm.get(), noise, gain,
@@ -589,10 +585,6 @@ double MultiShearCatalog::calculateMemoryFootprint() const
         getMemoryFootprint(_shape)/1024./1024.<<" MB\n";
     dbg<<"psflist: "<<
         getMemoryFootprint(_psfList)/1024./1024.<<" MB\n";
-    dbg<<"se_shearlist: "<<
-        getMemoryFootprint(_seShearList)/1024./1024.<<" MB\n";
-    dbg<<"se_sizelist: "<<
-        getMemoryFootprint(_seSizeList)/1024./1024.<<" MB\n";
     dbg<<"image_file_list: "<<
         getMemoryFootprint(_imageFileList)/1024./1024.<<" MB\n";
     dbg<<"shear_file_list: "<<
@@ -617,8 +609,6 @@ double MultiShearCatalog::calculateMemoryFootprint() const
         getMemoryFootprint(_cov) +
         getMemoryFootprint(_shape) +
         getMemoryFootprint(_psfList) +
-        getMemoryFootprint(_seShearList) +
-        getMemoryFootprint(_seSizeList) +
         getMemoryFootprint(_imageFileList) +
         getMemoryFootprint(_shearFileList) +
         getMemoryFootprint(_fitPsfFileList) +

@@ -356,6 +356,10 @@ void DoMeasureShear(
             }
             gamma = ell_round.getGamma();
             dbg<<"New center = "<<cen_offset<<std::endl;
+            if (std::abs(cen_offset) > 1.) {
+                dbg<<"FLAG CENTROID_SHIFT\n";
+                flag |= CENTROID_SHIFT;
+            }
             dbg<<"New sigmaObs = "<<sigmaObs<<std::endl;
             dbg<<"New gamma = "<<gamma<<std::endl;
             std::complex<double> deltaGamma = gamma - gamma_prev;

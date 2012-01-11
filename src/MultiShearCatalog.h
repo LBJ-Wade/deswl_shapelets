@@ -98,6 +98,7 @@ private :
 
     // These have an element for each coadd object.
     std::vector<long> _id;
+    std::vector<Position> _chipPos;
     std::vector<Position> _skyPos;
     std::vector<long> _flags;
     std::vector<std::complex<double> > _shear;
@@ -121,10 +122,10 @@ private :
     std::vector<std::vector<PixelList> > _pixList;
     // The PSF for each single-epoch object.
     std::vector<std::vector<BVec> > _psfList;
-    // The single-epoch shear if known.
-    std::vector<std::vector<std::complex<double> > > _seShearList;
-    // The single-epoch size if known.
-    std::vector<std::vector<double> > _seSizeList;
+    // The index number of each single-epoch image
+    std::vector<std::vector<int> > _seNum;
+    // The position in each single-epoch image
+    std::vector<std::vector<Position> > _sePos;
 
     // These each have an element for each single-epoch image
     std::vector<std::string> _imageFileList;

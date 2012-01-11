@@ -23,7 +23,8 @@
 
 MultiShearCatalog::MultiShearCatalog(
     const CoaddCatalog& coaddCat, const ConfigFile& params) :
-    _id(coaddCat.getIdList()), _skyPos(coaddCat.getSkyPosList()),
+    _id(coaddCat.getIdList()), _chipPos(coaddCat.getPosList()),
+    _skyPos(coaddCat.getSkyPosList()),
     _flags(coaddCat.getFlagsList()), _skyBounds(coaddCat.getSkyBounds()),
     _params(params)
 {
@@ -37,8 +38,8 @@ MultiShearCatalog::MultiShearCatalog(
     const int n = coaddCat.size();
     _pixList.resize(n);
     _psfList.resize(n);
-    _seShearList.resize(n);
-    _seSizeList.resize(n);
+    _seNum.resize(n);
+    _sePos.resize(n);
     _inputFlags.resize(n,0);
     _nImagesFound.resize(n, 0);
     _nImagesGotPix.resize(n, 0);
@@ -102,8 +103,6 @@ bool MultiShearCatalog::getPixels(const Bounds& bounds)
     for (int i=0;i<nPix;++i) {
         _pixList[i].clear();
         _psfList[i].clear();
-        _seShearList[i].clear();
-        _seSizeList[i].clear();
     }
     dbg<<"After clear: memory_usage = "<<memory_usage()<<std::endl;
 
@@ -154,8 +153,6 @@ bool MultiShearCatalog::getPixels(const Bounds& bounds)
                 for (int i=0;i<nPix;++i) {
                     _pixList[i].clear();
                     _psfList[i].clear();
-                    _seShearList[i].clear();
-                    _seSizeList[i].clear();
                 }
                 PixelList::reclaimMemory();
                 return false;
