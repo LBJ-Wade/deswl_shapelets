@@ -171,7 +171,8 @@ static void getImagePixList(
     const double noise, const double gain,
     const std::string& skyMethod, const double meanSky, 
     const Image<double>*const skyMap,
-    double galAperture, double maxAperture, double xOffset, double yOffset)
+    double galAperture, double maxAperture, double xOffset, double yOffset,
+    bool require_match)
 {
     Assert(psfList.size() == pixList.size());
     Assert(seShearList.size() == pixList.size());
@@ -243,6 +244,14 @@ static void getImagePixList(
         // But expand it by 30% in case we need it.
         galAp = galAperture * seSize * 1.3;
         if (galAp > maxAperture) galAp = maxAperture;
+    } else if (require_match) {
+        xdbg<<"No match found in single epoch catalog\n";
+        // This isn't really the same meaning of this flag in the
+        // normal flags value, but it doesn't seem worth making a 
+        // new name.  Here it means that an image was rejected because
+        // there was no valid measurement in the single-epoch run.
+        inputFlags |= NO_SINGLE_EPOCH_IMAGES;
+        return;
     }
 
     // Calculate the local sky value.
@@ -446,6 +455,7 @@ bool MultiShearCatalog::getImagePixelLists(
     double xOffset = _params.read("cat_x_offset",0.);
     double yOffset = _params.read("cat_y_offset",0.);
     double maxMem = _params.read("max_vmem",64)*1024.;
+    bool require_match = _params.read("multishear_require_match",false);
     dbg<<"Before getImagePixList loop: memory_usage = "<<memory_usage()<<std::endl;
     for (int i=0; i<nGals; ++i) {
         if (_flags[i]) continue;
@@ -457,7 +467,7 @@ bool MultiShearCatalog::getImagePixelLists(
             *image, trans, invTrans, psf, fitPsf, shearCat, shearCatTree,
             weightIm.get(), noise, gain,
             skyMethod, meanSky, skyMap.get(),
-            galAperture, maxAperture, xOffset, yOffset);
+            galAperture, maxAperture, xOffset, yOffset, require_match);
         double mem = memory_usage();
         // memory_usage is in KB
         // max_vmem is in GB
