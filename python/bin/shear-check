@@ -1,0 +1,90 @@
+#!/usr/bin/env python
+"""
+    %prog serun
+
+Check the outputs for the input run
+"""
+
+import sys, os
+import copy
+import deswl
+from deswl.files import MultishearFiles
+import esutil as eu
+from esutil import json_util
+
+from optparse import OptionParser
+parser = OptionParser(__doc__)
+
+def main():
+    options, args = parser.parse_args(sys.argv[1:])
+    if len(args) < 1:
+        parser.print_help()
+        sys.exit(45)
+
+    serun=args[0]
+
+    sej = deswl.files.ShearFiles(serun)
+    expnames=sej.get_expnames()
+    flist = sej.get_flist()
+
+    n=len(flist)
+    goodlist=[]
+    badlist=[]
+    for i,fdict in enumerate(flist):
+        print '%05d/%05d: %s-%02d' % (i+1,n,fdict['expname'],fdict['ccd'])
+
+        info = copy.deepcopy(fdict)
+        problem_found=False
+
+        stars_file  = fdict['stars'],
+        fitpsf_file = fdict['fitpsf']
+        psf_file    = fdict['psf']
+        shear_file  = fdict['shear']
+
+        status_read = False
+        if not os.path.exists(fdict['stat']):
+            print 'Stat file missing:',fdict['stat']
+            info['error'] = 9999
+            info['error_string'] = 'stat file missing'
+            info['failtype'] = 'stat file missing'
+            badlist.append(info)
+        else:
+            try:
+                stat=json_util.read(fdict['stat'])
+                status_read = True
+            except ValueError as e:
+                print "Error reading file:",fdict['stat']
+                info['error'] = 9998
+                info['error_string'] = 'Error reading stat file'
+                info['failtype'] = 'Error reading stat file'
+                badlist.append(info)
+
+        if status_read:
+            error_code = int( stat['error'] )
+            estring = stat['error_string']
+            info['error'] = error_code
+            info['error_string'] = estring
+
+            if error_code != 0:
+                print "'%s': error: %s: '%s'" % (fdict['stat'],error_code,estring)
+                info['failtype'] = 'Processing error'
+                problem_found=True
+                badlist.append(info)
+
+        if not problem_found:
+            goodlist.append(info)
+
+    print 'Found %s/%s problems' % (len(badlist),n)
+
+    goodfile=deswl.files.se_collated_path(serun, 'goodlist')
+    badfile=deswl.files.se_collated_path(serun, 'badlist')
+
+    eu.ostools.makedirs_fromfile(goodfile)
+
+    print "Writing goodlist: %s",goodfile
+    json_util.write(goodlist, goodfile)
+    print "Writing badlist: %s",badfile
+    json_util.write(badlist, badfile)
+ 
+
+main()

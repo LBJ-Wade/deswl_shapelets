@@ -347,16 +347,16 @@ def filetype_dir(fileclass, run, filetype, rootdir=None):
     rundir=run_dir(fileclass, run, rootdir=rootdir)
     return os.path.join(rundir, filetype)
 
-def exposure_dir(fileclass, run, filetype, exposurename, rootdir=None):
+def exposure_dir(fileclass, run, filetype, expname, rootdir=None):
     ftdir=filetype_dir(fileclass, run, filetype, rootdir=rootdir)
-    return os.path.join(ftdir, exposurename)
+    return os.path.join(ftdir, expname)
 
-def red_image_path(run, exposurename, ccd, fz=True, rootdir=None, check=False):
+def red_image_path(run, expname, ccd, fz=True, rootdir=None, check=False):
     fileclass='red'
     filetype='red'
-    expdir = exposure_dir(fileclass, run, filetype, exposurename, 
+    expdir = exposure_dir(fileclass, run, filetype, expname, 
                           rootdir=rootdir)
-    imagename = '%s_%02i.fits' % (exposurename, int(ccd))
+    imagename = '%s_%02i.fits' % (expname, int(ccd))
     basic_path = os.path.join(expdir, imagename)
 
     if check:
@@ -372,12 +372,12 @@ def red_image_path(run, exposurename, ccd, fz=True, rootdir=None, check=False):
         
     return path
 
-def red_cat_path(run, exposurename, ccd, rootdir=None, check=False):
+def red_cat_path(run, expname, ccd, rootdir=None, check=False):
     fileclass='red'
     filetype='red'
-    expdir = exposure_dir(fileclass, run, filetype, exposurename, 
+    expdir = exposure_dir(fileclass, run, filetype, expname, 
                           rootdir=rootdir)
-    imagename = '%s_%02i_cat.fits' % (exposurename, int(ccd))
+    imagename = '%s_%02i_cat.fits' % (expname, int(ccd))
     path = os.path.join(expdir, imagename)
 
     if check:
@@ -393,7 +393,7 @@ def extract_image_exposure_names(flist):
     allinfo={}
     for imfile in flist:
         info=get_info_from_path(imfile, 'red')
-        allinfo[info['exposurename']] = info['exposurename']
+        allinfo[info['expname']] = info['expname']
 
     # list() of for py3k
     return list( allinfo.keys() )
@@ -467,15 +467,15 @@ def mohrify_name(name):
 # se means single epoch
 # me means multi-epoch
 
-def se_dir(run, exposurename, rootdir=None):
+def se_dir(run, expname, rootdir=None):
     rc=Runconfig()
 
     fileclass=rc.run_types['se']['fileclass']
     rundir=run_dir(fileclass, run, rootdir=rootdir)
-    dir=path_join(rundir, exposurename)
+    dir=path_join(rundir, expname)
     return dir
 
-def se_basename(exposurename, ccd, ftype,
+def se_basename(expname, ccd, ftype,
                   serun=None,
                   mohrify=False, fext=None):
 
@@ -486,7 +486,7 @@ def se_basename(exposurename, ccd, ftype,
         else:
             fext='.fits'
 
-    el=[exposurename, '%02i' % int(ccd), ftype]
+    el=[expname, '%02i' % int(ccd), ftype]
 
     if serun is not None:
         el=[serun]+el
@@ -496,14 +496,14 @@ def se_basename(exposurename, ccd, ftype,
 
 
 
-def se_path(exposurename, ccd, ftype, 
+def se_path(expname, ccd, ftype, 
               serun=None,
               mohrify=False, 
               dir=None, 
               rootdir=None, 
               fext=None):
     """
-    name=se_path(exposurename, ccd, ftype, serun=None,
+    name=se_path(expname, ccd, ftype, serun=None,
                    mohrify=False, rootdir=None, fext=None)
     Return the SE output file name for the given inputs
     """
@@ -514,18 +514,18 @@ def se_path(exposurename, ccd, ftype,
 
     if dir is None:
         if serun is not None:
-            dir = se_dir(serun, exposurename, rootdir=rootdir)
+            dir = se_dir(serun, expname, rootdir=rootdir)
         else:
             dir=os.path.abspath('.')
 
-    name = se_basename(exposurename, ccd, ftype_use, 
+    name = se_basename(expname, ccd, ftype_use, 
                          serun=serun,
                          mohrify=mohrify, fext=fext)
     path=path_join(dir,name)
     return path
 
 
-def se_read(exposurename, ccd, ftype, 
+def se_read(expname, ccd, ftype, 
               serun=None,
               mohrify=False, 
               dir=None, 
@@ -535,7 +535,7 @@ def se_read(exposurename, ccd, ftype,
               #ext=0, 
               #verbose=False):
 
-    fpath=se_path(exposurename, ccd, ftype, 
+    fpath=se_path(expname, ccd, ftype, 
                     serun=serun,
                     mohrify=mohrify, 
                     dir=dir, 
@@ -544,7 +544,7 @@ def se_read(exposurename, ccd, ftype,
 
     return eu.io.read(fpath, **keys)
 
-def generate_se_filenames(exposurename, ccd, serun=None,
+def generate_se_filenames(expname, ccd, serun=None,
                           rootdir=None, dir=None):
     fdict={}
 
@@ -553,12 +553,12 @@ def generate_se_filenames(exposurename, ccd, serun=None,
     # output file names
     for ftype in rc.se_filetypes:
 
-        name= se_path(exposurename, 
-                        ccd, 
-                        ftype,
-                        serun=serun,
-                        dir=dir,
-                        rootdir=rootdir)
+        name= se_path(expname, 
+                      ccd, 
+                      ftype,
+                      serun=serun,
+                      dir=dir,
+                      rootdir=rootdir)
         fdict[ftype] = name
 
 
@@ -590,10 +590,7 @@ def se_test_dir(serun, subdir=None):
 
     return dir
 
-def se_test_path(serun, 
-                   subdir=None, 
-                   extra=None,
-                   ext='fits'):
+def se_test_path(serun, subdir=None, extra=None, ext='fits'):
     """
     e.g. se_test_path('se011it', subdir=['checksg', 'decam--22--44-i-11'],
                         extra='%02d' % ccd, ext='eps')
@@ -627,6 +624,7 @@ def collated_dir(run):
     dir=run_dir('wlbnl',run)
     dir = path_join(dir, 'collated')
     return dir
+
 
 
 
@@ -709,15 +707,13 @@ def se_collated_read(serun,
                        objclass, 
                        ftype=None, 
                        delim=None,
-                       region=None,
                        dir=None,
                        ext=0,
                        header=False,
                        rows=None,columns=None,fields=None,
                        norecfile=False, verbose=False):
 
-    fpath=se_collated_path(serun, objclass, ftype=ftype, delim=delim, 
-                             region=region, dir=dir)
+    fpath=se_collated_path(serun, objclass, ftype=ftype, delim=delim)
 
     return eu.io.read(fpath, header=header, 
                           rows=rows, columns=columns, fields=fields,
@@ -804,7 +800,7 @@ def collated_redfiles_write_web(dataset, band):
         catdir=os.path.dirname(catfile)
 
         imid = '{redrun}/red/{expname}'.format(redrun=f['redrun'],
-                                               expname=f['exposurename'])
+                                               expname=f['expname'])
         if imid not in phist:
             phist[imid] = 1
             pdata['flist'].append( {'imdir':imdir,'catdir':catdir} )
@@ -1193,7 +1189,7 @@ class MultishearSEInputs:
         print 'writing me inputs:',url
         with open(url,'w') as fobj:
             for s in c.srclist:
-                names=generate_se_filenames(s['exposurename'],
+                names=generate_se_filenames(s['expname'],
                                             s['ccd'],
                                             serun=self.rc['serun'])
 
@@ -1554,27 +1550,21 @@ job_name: {job_name}\n""".format(wl_load=wl_load,
 
         return text
 
-
-class SEWQJobs(dict):
-    def __init__(self, serun, type='fullpipe'):
-        """
-        implement byccd and other types
-        """
+class ShearFiles(dict):
+    def __init__(self, serun, conn=None):
         import desdb
         self['run'] = serun
-        self['type'] = type
 
         self.rc = Runconfig(self['run'])
         self['dataset'] = self.rc['dataset']
 
-        self.conn=desdb.Connection()
+        self.conn=conn
+        if self.conn is None:
+            self.conn=desdb.Connection()
 
+        self.expnames = None
 
-    def write(self, dryrun=False):
-        import desdb
-
-        make_wq_dir(self['run'])
-        
+    def get_expname_query(self):
         query = """
         select 
             distinct(file_exposure_name) 
@@ -1582,16 +1572,71 @@ class SEWQJobs(dict):
             %(release)s_files
         where 
             filetype = 'red'
-            and band = '%(band)s'\n""" % {'release':self.rc['dataset'],
-                                          'band':self.rc['band']}
+            and band = '%(band)s'
+        order by
+            file_exposure_name\n""" % {'release':self.rc['dataset'],
+                                       'band':self.rc['band']}
+        return query
 
-        print query
-        curs = self.conn.cursor()
-        curs.execute(query)
+    def get_expnames(self):
+        if self.expnames is None:
+            query = self.get_expname_query()
+            print query
+            curs = self.conn.cursor()
+            curs.execute(query)
+
+            self.expnames = [r[0] for r in curs]
+
+            curs.close()
+
+        return self.expnames
+
+    def get_flist(self):
+        """
+        Get the red info from the database and add in
+        the file info for the wl outputs
+        """
+
+        import desdb
+        infolist=desdb.files.get_red_info(self.rc['dataset'],self.rc['band'])
+        for info in infolist:
+            fdict=deswl.files.generate_se_filenames(info['expname'],
+                                                    info['ccd'],
+                                                    serun=self['run'])
+            for k,v in fdict.iteritems():
+                info[k] = v
+        return infolist
+
+    def get_flist_old(self):
+        expnames=self.get_expnames()
+        flist = []
+        for expname in expnames:
+            for ccd in xrange(1,62+1):
+                fdict=deswl.files.generate_se_filenames(expname,ccd,serun=self['run'])
+                fdict['expname'] = expname
+                fdict['ccd'] = ccd
+                flist.append(fdict)
+        return flist
+
+class SEWQJobs(dict):
+    def __init__(self, serun, type='fullpipe'):
+        """
+        implement byccd and other types
+        """
+        self['run'] = serun
+        self['type'] = type
+
+
+    def write(self, dryrun=False):
+        import desdb
+
+        make_wq_dir(self['run'])
+        
+        sf = ShearFiles(self['run'])
+        expnames = sf.get_expnames()
 
         n=0
-        for r in curs:
-            expname = r[0]
+        for expname in expnames:
             print expname
 
             jobfile=os.path.basename(se_wq_path(self['run'],expname))
@@ -1603,9 +1648,85 @@ class SEWQJobs(dict):
 
             n += 1
 
-            print 'total:',n
- 
+        print 'total:',n
+
 class SEWQJob(dict):
+    def __init__(self, serun, files=None):
+        """
+        For now just take files list for a given ccd.
+
+        Files should be an element from ShearFiles get_flist(), which returns a
+        list of dicts
+        """
+        if files is None:
+            raise ValueError("Send files=")
+        self['run'] = serun
+        self['config'] = files
+
+    def write_jobfile(self, verbose=False, dryrun=False):
+        make_wq_dir(self['run'])
+
+        f=se_wq_path(self['run'], 
+                     self['expname'], 
+                     type=self['type'], 
+                     ccd=self['ccd'])
+
+        print "writing to wq job file:",f 
+        text = self.job_file_text()
+        if verbose or dryrun:
+            print text 
+        if not dryrun:
+            with open(f,'w') as fobj:
+                fobj.write(text)
+        else:
+            print "this is just a dry run" 
+
+
+    def job_file_text(self):
+
+        groups = '[gen3,gen4,gen5]'
+
+        ccd=self['ccd']
+        tname = se_wq_path(self['run'], self['expname'],ccd=ccd,type=self['type'])
+        tname = os.path.basename(tname)
+        log_name = tname.replace('.yaml','.out')
+
+        rc=Runconfig(self['run'])
+        wl_load = _make_load_command('wl',rc['wlvers'])
+        tmv_load = _make_load_command('tmv',rc['tmvvers'])
+        esutil_load = _make_load_command('esutil', rc['esutilvers'])
+     
+        if ccd == None:
+            ccd=''
+
+        text = """
+command: |
+    hostname
+    source ~astrodat/setup/setup.sh
+    source ~/.dotfiles/bash/astro.bnl.gov/modules.sh
+    %(esutil_load)s
+    %(tmv_load)s
+    %(wl_load)s
+
+    export OMP_NUM_THREADS=1
+    shear-run -c %(config_file)s &> %(log_file)s
+
+group: %(groups)s
+priority: low
+job_name: %(job_name)s\n""" % {'esutil_load':esutil_load,
+                               'tmv_load':tmv_load,
+                               'wl_load':wl_load,
+                               'config_file':self['config_file'],
+                               'log_file':self['log_file'],
+                               'groups':groups,
+                               'job_name':self['expname']+'-'+self['ccd']}
+
+
+        return text
+
+
+
+class SEWQJobOld(dict):
     def __init__(self, serun, expname, ccd=None, type='fullpipe'):
         self['run'] = serun
         self['expname'] = expname
@@ -1720,8 +1841,8 @@ def me_pbs_path(merun, tilename, band):
     return pbsfile
 
 
-def se_pbs_name(exposurename, typ='fullpipe', ccd=None):
-    pbsfile=[exposurename]
+def se_pbs_name(expname, typ='fullpipe', ccd=None):
+    pbsfile=[expname]
 
     if typ != 'fullpipe':
         pbsfile.append(typ)
@@ -1731,14 +1852,14 @@ def se_pbs_name(exposurename, typ='fullpipe', ccd=None):
     pbsfile='-'.join(pbsfile)+'.pbs'
     return pbsfile
     
-def se_pbs_path(serun, exposurename, typ='fullpipe', ccd=None):
+def se_pbs_path(serun, expname, typ='fullpipe', ccd=None):
     if ccd is not None:
         subdir='byccd'
     else:
         subdir=None
 
     pbsdir=pbs_dir(serun, subdir=subdir)
-    pbsfile=se_pbs_name(exposurename, typ=typ, ccd=ccd)
+    pbsfile=se_pbs_name(expname, typ=typ, ccd=ccd)
     pbsfile=path_join(pbsdir, pbsfile)
     return pbsfile
 
@@ -1768,8 +1889,8 @@ def make_wq_dir(run, subdir=None):
 
 
 
-def se_wq_path(run, exposurename, type='fullpipe', ccd=None):
-    wqfile=[exposurename]
+def se_wq_path(run, expname, type='fullpipe', ccd=None):
+    wqfile=[expname]
 
     if type != 'fullpipe':
         wqfile.append(type)
@@ -1838,8 +1959,8 @@ def me_condor_path(merun, tilename, band):
     return condorfile
 
 
-def se_condor_name(exposurename, typ='fullpipe', ccd=None):
-    condorfile=[exposurename]
+def se_condor_name(expname, typ='fullpipe', ccd=None):
+    condorfile=[expname]
 
     if typ != 'fullpipe':
         condorfile.append(typ)
@@ -1849,14 +1970,14 @@ def se_condor_name(exposurename, typ='fullpipe', ccd=None):
     condorfile='-'.join(condorfile)+'.condor'
     return condorfile
     
-def se_condor_path(serun, exposurename, typ='fullpipe', ccd=None):
+def se_condor_path(serun, expname, typ='fullpipe', ccd=None):
     if ccd is not None:
         subdir='byccd'
     else:
         subdir=None
 
     condordir=condor_dir(serun, subdir=subdir)
-    condorfile=se_condor_name(exposurename, typ=typ, ccd=ccd)
+    condorfile=se_condor_name(expname, typ=typ, ccd=ccd)
     condorfile=path_join(condordir, condorfile)
     return condorfile
 
@@ -1881,8 +2002,8 @@ def me_script_path(merun, tilename, band):
 
 
 
-def se_script_base(exposurename, typ='fullpipe', ccd=None):
-    script_parts=[exposurename]
+def se_script_base(expname, typ='fullpipe', ccd=None):
+    script_parts=[expname]
 
     if typ != 'fullpipe':
         script_parts.append(typ)
@@ -1892,19 +2013,19 @@ def se_script_base(exposurename, typ='fullpipe', ccd=None):
     script_base='-'.join(script_parts)
     return script_base
 
-def se_script_name(exposurename, typ='fullpipe', ccd=None):
-    script_base = se_script_base(exposurename, typ=typ, ccd=ccd)
+def se_script_name(expname, typ='fullpipe', ccd=None):
+    script_base = se_script_base(expname, typ=typ, ccd=ccd)
     script_name = script_base+'.sh'
     return script_name
     
-def se_script_path(serun, exposurename, typ='fullpipe', ccd=None):
+def se_script_path(serun, expname, typ='fullpipe', ccd=None):
     if ccd is not None:
         subdir='byccd'
     else:
         subdir=None
 
     scriptdir=condor_dir(serun, subdir=subdir)
-    scriptfile=se_script_name(exposurename, typ=typ, ccd=ccd)
+    scriptfile=se_script_name(expname, typ=typ, ccd=ccd)
     scriptfile=path_join(scriptdir, scriptfile)
     return scriptfile
 
@@ -1962,7 +2083,7 @@ def get_info_from_path(filepath, fileclass):
             raise ValueError(mess)
 
         odict['redrun'] = fsplit[2]
-        odict['exposurename'] = fsplit[4]
+        odict['expname'] = fsplit[4]
         odict['basename'] = fsplit[5]
 
         base=os.path.basename(odict['root'])

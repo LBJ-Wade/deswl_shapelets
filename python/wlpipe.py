@@ -68,37 +68,6 @@
                 To generate the list with associated input source images
                     ~/python/desdb/bin/get-coadd-srclist.py
 
-
-
-        Running the code is easiest from the stand-alone wrapper
-        multishear-run. If you use eups to manager your code, all you should
-        need to run the code is to type the following command, or put it into
-        your startup file:
-
-            setup wl
-
-        This sets up wl/desfiles/tmv/ccfits/cfitsio as well.  Then from the
-        command line:
-
-            multishear-run -c configfile
-
-        Where configfile has all the data you need to process the tile.
-
-    Using your own local install of wl:
-        Say you have an svn checkout in ~/svn/wl and you want the local
-        install to be in ~/exports/wl-work.  Then the following are required
-        to run the code:
-
-        Put this into your startup file (e.g. bashrc):
-            setup wl -r ~/svn/wl-work
-
-        Each time you re-compile of the C++ code or change the python code,
-        also do an install to your local install directory.
-
-            scons install PREFIX=~/svn/wl-work
-            multishear-run tilename band
-
-
 """
 
 import sys
@@ -255,14 +224,14 @@ def execute_command(command, timeout=None,
     return exit_status, stdout_ret, stderr_ret
 
 
-def generate_se_checkpsf_pbsfile(serun, exposurename, outfile,
+def generate_se_checkpsf_pbsfile(serun, expname, outfile,
                                  nodes=1, ppn=1, walltime='24:00:00'):
 
     """
     """
 
     # the job name
-    jobname=exposurename
+    jobname=expname
 
     # The useful log file we redirect from the actual script call
     logf=outfile+'.log'
@@ -345,9 +314,9 @@ SCRATCH=/scratch/esheldon/DES
 config=${WL_DIR}/etc/wl.config
 
 serun=%s
-exposurename=%s
-input_dir=${DESDATA}/wlbnl/${serun}/${exposurename}
-outdir=${SCRATCH}/wlbnl/${serun}/${exposurename}
+expname=%s
+input_dir=${DESDATA}/wlbnl/${serun}/${expname}
+outdir=${SCRATCH}/wlbnl/${serun}/${expname}
 
 if [ ! -e $outdir ]; then
     mkdir -p $outdir
@@ -357,7 +326,7 @@ ccds=$(seq -w 1 62)
 
 for ccd in $ccds; do
 
-    froot=${serun}_${exposurename}_${ccd}
+    froot=${serun}_${expname}_${ccd}
 
     psf_file=${input_dir}/${froot}_psf.fits
     fitpsf_file=${input_dir}/${froot}_fitpsf.fits
@@ -366,7 +335,7 @@ for ccd in $ccds; do
     test-psfrec $config $psf_file $fitpsf_file > $out_file
     echo "output file: $out_file"
 done
-    """ % (serun, exposurename)
+    """ % (serun, expname)
 
     fobj.write(script)
 
@@ -397,10 +366,10 @@ class SECondorJobs(dict):
         # get unique exposure names
         edict={}
         for fi in self.fileinfo:
-            edict[fi['exposurename']] = fi
+            edict[fi['expname']] = fi
         
-        for exposurename in edict:
-            sejob = SECondorJob(self['run'], exposurename, 
+        for expname in edict:
+            sejob = SECondorJob(self['run'], expname, 
                                 type=self['type'],
                                 nodes=self['nodes'], 
                                 ppn=self['ppn'], 
@@ -410,10 +379,10 @@ class SECondorJobs(dict):
 
     def write_byccd(self, dryrun=False):
         for fi in self.fileinfo:
-            exposurename=fi['exposurename']
+            expname=fi['expname']
             ccd=fi['ccd']
 
-            sejob = SECondorJob(self['run'], exposurename, ccd=ccd,
+            sejob = SECondorJob(self['run'], expname, ccd=ccd,
                                 type=self['type'],
                                 nodes=self['nodes'], 
                                 ppn=self['ppn'], 
@@ -425,14 +394,14 @@ class SECondorJobs(dict):
 
  
 class SECondorJob(dict):
-    def __init__(self, serun, exposurename, 
+    def __init__(self, serun, expname, 
                  ccd=None, type='fullpipe',
                  nodes=1, ppn=1, nthread=1):
         """
         Need to implement nodes, ppn
         """
         self['run'] = serun
-        self['exposurename'] = exposurename
+        self['expname'] = expname
         self['ccd'] = ccd
         self['type'] = type
         self['nodes'] = nodes
@@ -442,7 +411,7 @@ class SECondorJob(dict):
     def write_submit(self, verbose=False, dryrun=False):
         self.make_condor_dir()
         f=deswl.files.wlse_condor_path(self['run'], 
-                                       self['exposurename'], 
+                                       self['expname'], 
                                        typ=self['type'], 
                                        ccd=self['ccd'])
 
@@ -459,7 +428,7 @@ class SECondorJob(dict):
     def write_script(self, verbose=False, dryrun=False):
         self.make_condor_dir()
         f=deswl.files.wlse_script_path(self['run'], 
-                                       self['exposurename'], 
+                                       self['expname'], 
                                        typ=self['type'], 
                                        ccd=self['ccd'])
 
@@ -479,7 +448,7 @@ class SECondorJob(dict):
 
     def submit_text(self):
         condor_dir = self.condor_dir()
-        script_base = deswl.files.wlse_script_base(self['exposurename'],
+        script_base = deswl.files.wlse_script_base(self['expname'],
                                                    ccd=self['ccd'],
                                                    typ=self['type'])
         submit_text="""
@@ -529,7 +498,7 @@ shear-run                     \\
            esutil_load=esutil_load,
            nthread=self['nthread'],
            serun=self['run'],
-           expname=self['exposurename'],
+           expname=self['expname'],
            ccd=ccd)
 
         return script_text
@@ -704,12 +673,12 @@ def process_se_image_old(fdict, writelog=False, debug=0, timeout=5*60):
     return exit_status
 
 
-def getband_from_exposurename(exposurename):
+def getband_from_expname(expname):
     for band in ['g','r','i','z','Y']:
         pattern='-%s-' % band
-        if exposurename.find(pattern) != -1:
+        if expname.find(pattern) != -1:
             return band
-    raise ValueError("No band found in exposurename: %s\n" % exposurename)
+    raise ValueError("No band found in expname: %s\n" % expname)
 
 def process_se_image(config, image, cat, **args):
     ip = ImageProcessor(config, image, cat, **args)
@@ -837,7 +806,7 @@ class ImageProcessor(deswl.WL):
 
 
 class ExposureProcessor:
-    def __init__(self, exposurename, **keys):
+    def __init__(self, expname, **keys):
         """
         Send serun= or dataset= to disambiguate
 
@@ -851,7 +820,7 @@ class ExposureProcessor:
         # file
         self.stat = {}
         
-        self.stat['exposurename']   = exposurename
+        self.stat['expname']   = expname
         self.stat['serun']          = keys.get('serun',None)
         self.stat['dataset']        = keys.get('dataset',None)
         self.stat['config']         = keys.get('config',None)
@@ -943,7 +912,7 @@ class ExposureProcessor:
 
     def set_output_filenames(self, ccd, clear=False):
 
-        fdict=deswl.files.generate_se_filenames(self.stat['exposurename'],
+        fdict=deswl.files.generate_se_filenames(self.stat['expname'],
                                                 ccd,
                                                 serun=self.stat['serun'], 
                                                 dir=self.stat['outdir'], 
@@ -994,20 +963,20 @@ class ExposureProcessor:
         self.logger.debug("Entering get_image_cat")
 
         image=None
-        expname=self.stat['exposurename']
+        expname=self.stat['expname']
         for ti in self.infolist:
-            if ti['exposurename'] == expname and ti['ccd'] == ccd:
+            if ti['expname'] == expname and ti['ccd'] == ccd:
                 image=ti['image_url']
                 cat=ti['cat_url']
                 break
 
         if image is None:
-            bname = '%s-%s' % (ti['exposurename'],ti['ccd'])
+            bname = '%s-%s' % (expname,ccd)
             self.logger.debug("caught error loading image/cat")
             self.stat['error'] = ERROR_SE_MISC
             self.stat['error_string'] = \
                 "Exposure ccd '%s' not found in '%s'" % \
-                             (bname, self.info_file)
+                             (bname, self.stat['info_url'])
             raise ValueError(self.stat['error_string'])
         image = os.path.expandvars(image)
         cat = os.path.expandvars(cat)
@@ -1139,7 +1108,7 @@ class ExposureProcessor:
             if self.stat['serun'] is not None:
                 self.stat['outdir'] = \
                         deswl.files.wlse_dir(self.stat['serun'], 
-                                             self.stat['exposurename'], 
+                                             self.stat['expname'], 
                                              rootdir=self.stat['rootdir'])
             else:
                 self.stat['outdir']='.'
@@ -1198,10 +1167,10 @@ class ExposureProcessor:
             self.stat['info_url'] = ifile
 
     def get_band(self):
-        stdout.write("    Getting band for '%s'..." % self.stat['exposurename'])
+        stdout.write("    Getting band for '%s'..." % self.stat['expname'])
         stdout.flush()
         self.stat['band']=\
-            getband_from_exposurename(self.stat['exposurename'])
+            getband_from_expname(self.stat['expname'])
         stdout.write(" '%s'\n" % self.stat['band'])
 
 
@@ -1345,7 +1314,7 @@ class ExposureProcessor:
         """
         # this assumes the default root, to which we will copy
         fdict_def=\
-            deswl.files.generate_se_filenames(self.stat['exposurename'], 
+            deswl.files.generate_se_filenames(self.stat['expname'], 
                                               self.stat['ccd'], 
                                               serun=self.stat['serun'])
 
@@ -1382,7 +1351,7 @@ class ExposureProcessor:
             os.makedirs(outdir)
 
 
-def run_shear(exposurename, 
+def run_shear(expname, 
               ccd=None,
               types=None,
               config_file=None,
@@ -1397,7 +1366,7 @@ def run_shear(exposurename,
               debug=0):
     """
 
-    deswl.wlpipe.run_shear(exposurename, 
+    deswl.wlpipe.run_shear(expname, 
                            ccd=None,
                            types=None,
                            config_file=None,
@@ -1413,7 +1382,7 @@ def run_shear(exposurename,
 
 
     Wrapper function requiring minimial info to process an exposure or ccd,
-    namely the exposurename and possile ccd.  The output file is placed in '.'
+    namely the expname and possile ccd.  The output file is placed in '.'
     unless specified via the optional outdir/rootdir parameters or the serun is
     sent.
 
@@ -1422,7 +1391,7 @@ def run_shear(exposurename,
     automaticaly sets up DESFILES.  
 
     Parameters
-        exposurename: e.g. decam--25--20-i-12 
+        expname: e.g. decam--25--20-i-12 
 
     Optional parameters:
         ccd: The ccd number from 1-62.
@@ -1455,7 +1424,7 @@ def run_shear(exposurename,
     if ccd is None:
         tmall0=time.time()
         for ccd in range(1,62+1):
-            run_shear(exposurename, ccd,
+            run_shear(expname, ccd,
                       types=types,
                       config_file=config_file,
                       outdir=outdir, 
@@ -1477,7 +1446,7 @@ def run_shear(exposurename,
     if types is None:
         types=['stars','psf','shear','split']
 
-    band=getband_from_exposurename(exposurename)
+    band=getband_from_expname(expname)
 
     if serun is not None:
         runconfig=deswl.files.Runconfig(serun)
@@ -1487,7 +1456,7 @@ def run_shear(exposurename,
         stdout.write('OK\n')
         stdout.flush()
         if outdir is None:
-            outdir=deswl.files.wlse_dir(serun, exposurename, rootdir=rootdir)
+            outdir=deswl.files.wlse_dir(serun, expname, rootdir=rootdir)
 
         dataset=runconfig['dataset']
     else:
@@ -1535,7 +1504,7 @@ def run_shear(exposurename,
     # version for each
     image=None
     for ti in infolist:
-        if exposurename == ti['exposurename'] and ti['ccd'] == ccd:
+        if expname == ti['expname'] and ti['ccd'] == ccd:
             image=ti['image_url']
             cat=ti['cat_url']
             break
@@ -1545,7 +1514,7 @@ def run_shear(exposurename,
         raise ValueError("Exposure ccd '%s' not found in '%s'" % \
                          (bname, info_file))
 
-    fdict=deswl.files.generate_se_filenames(exposurename,ccd,
+    fdict=deswl.files.generate_se_filenames(expname,ccd,
                                             serun=serun, 
                                             dir=outdir, 
                                             rootdir=rootdir)
@@ -1576,7 +1545,7 @@ def run_shear(exposurename,
     stat['WL_DIR'] = wl_dir
     stat['DESFILES_DIR'] = desfiles_dir
     stat['info_url'] = info_file
-    stat['exposurename'] = exposurename
+    stat['expname'] = expname
     stat['ccd'] = ccd
     stat['outdir'] = outdir
     stat['types'] = types
@@ -1611,7 +1580,7 @@ def run_shear(exposurename,
     stdout.write('    WL_DIR: %s\n' % wl_dir)
     stdout.write('    DESFILES_DIR: %s\n' % desfiles_dir)
     stdout.write('    info_file: %s\n' % info_file)
-    stdout.write('    exposurename: %s\n' % exposurename)
+    stdout.write('    expname: %s\n' % expname)
     stdout.write('    ccd: %s\n' % ccd)
     stdout.write('    outdir: %s\n' % outdir)
     stdout.write('    rootdir: %s\n' % rootdir)
@@ -1645,7 +1614,7 @@ def run_shear(exposurename,
 
     if copyroot:
         fdict_def=\
-            deswl.files.generate_se_filenames(exposurename, ccd, serun=serun)
+            deswl.files.generate_se_filenames(expname, ccd, serun=serun)
         # see if they point to the same thing.
         if fdict['stat'] != fdict_def['stat']:
             dirname=os.path.dirname(fdict_def['stat'])
@@ -1691,10 +1660,10 @@ def check_shear(serun, band, rootdir=None, outdir=None):
 
         problem_found=False
 
-        exposurename=info['exposurename']
+        expname=info['expname']
         ccd=info['ccd']
 
-        fdict=deswl.files.generate_se_filenames(exposurename,ccd,
+        fdict=deswl.files.generate_se_filenames(expname,ccd,
                                                 serun=serun, 
                                                 dir=outdir, 
                                                 rootdir=rootdir)
@@ -1788,7 +1757,7 @@ def check_shear_input_images(badlist, ext=1):
 
 
 def _find_wl_output(wlserun, src, typename, mohrify=False):
-    fname=deswl.files.wlse_path(src['exposurename'],
+    fname=deswl.files.wlse_path(src['expname'],
                                 int(src['ccd']),
                                 typename,
                                 serun=wlserun,
@@ -2247,73 +2216,4 @@ def run_multishear(tilename, band,
 
     tm2=time.time()
     ptime(tm2-tm1, format='multishear execution time: %s\n')
-
-
-def check_multishear(merun, 
-                     rootdir=None, 
-                     tilelist=None,
-                     badlist_file=None):
-    """
-    Currently only works by merun identifier
-    """
-
-    rc=deswl.files.Runconfig(merun)
-    dataset=rc['dataset']
-    serun=rc['serun']
-
-    if tilelist is None:
-        infodict=deswl.files.collated_coaddfiles_read(dataset, band, 
-                                                      serun=serun)
-        tileinfo=infodict['info']
-    else:
-        # fake up a tileinfo structure
-        tileinfo=[]
-        for tile in tilelist:
-            ti={'tilename': tile, 'band': band}
-            tileinfo.append(ti)
-
-    badlist=[]
-    for ti in tileinfo:
-        tilename=ti['tilename']
-        fdict=deswl.files.generate_me_output_urls(tilename, band, 
-                                                merun=merun, rootdir=rootdir)
-
-        
-        statfile=fdict['stat']
-        qafile=fdict['qa']
-        msfile=fdict['multishear']
-
-        error_found=False
-        missing=[]
-        if not os.path.exists(statfile):
-            missing.append('statfile')
-            error_found=True
-        if not os.path.exists(qafile):
-            missing.append('qa')
-            error_found=True
-        if not os.path.exists(msfile):
-            missing.append('multishear')
-            error_found=True
-
-        if len(missing) > 0:
-            missmess=','.join(missing)
-            stdout.write('%s-%s: %s missing\n' % (tilename,band,missmess))
-            stdout.write('    %s\n' % fdict['stat'])
-
-        if 'statfile' not in missing:
-            stat=json_util.read(statfile)
-            # left over from old xml format
-            exit_status=int( stat['exit_status'] )
-            if exit_status != 0:
-                stdout.write("%s-%s: Found non-zero exit "
-                             "status %s in stat file %s\n" % \
-                                (tilename,band,exit_status,statfile))
-                error_found=True
-            
-        if error_found:
-            badlist.append(ti)
-
-    if badlist_file is not None:
-        json_util.write(badlist, badlist_file)
-    return badlist
-        
+       

@@ -14,6 +14,7 @@ ReadFileList=env['__readfunc']
 me_run_file=env.File('bin/multishear-run')
 me_check_file=env.File('bin/multishear-check')
 se_run_file=env.File('bin/shear-run')
+se_check_file=env.File('bin/shear-check')
 me_seinputs_file=env.File('bin/generate-me-seinputs')
 
 se_wq_file=env.File('bin/generate-se-wq')
@@ -23,6 +24,7 @@ bin_install_subdir = 'bin'
 bin_targets = [me_run_file, 
                me_check_file,
                se_run_file,
+               se_check_file,
                se_wq_file,
                me_wq_file,
                me_seinputs_file]
