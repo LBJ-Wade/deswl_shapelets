@@ -7,11 +7,12 @@ Generate all the wq job files for the given serun.
 
 import sys
 import deswl
-from deswl.files import MultishearFiles,MultishearCondorJob
+from deswl.files import ShearFiles,SEWQJob
 import desdb
 
 from optparse import OptionParser
 parser = OptionParser(__doc__)
+parser.add_option("-g","--groups",default=None, help="groups for queue")
 
 def main():
 
@@ -24,9 +25,21 @@ def main():
 
     rc=deswl.files.Runconfig(serun)
     rc.verify()
+    sfobj=ShearFiles(serun)
+    all_files=sfobj.get_flist()
+    nf=len(all_files)
 
-    s = deswl.files.SEWQJobs(serun)
-    s.write()
+    for i,fdict in enumerate(all_files):
+        if ((i+1) % 1000) == 0:
+            verbose=True
+            print '%d/%d' % (i+1,nf)
+        else:
+            verbose=False
+        fdict['output_dots'] = False
+        sj=SEWQJob(serun,files=fdict,groups=options.groups,verbose=verbose)
+        sj.write_config()
+        sj.write_job_file()
+
 
 main()
 

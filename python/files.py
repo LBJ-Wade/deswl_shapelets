@@ -1042,7 +1042,7 @@ class MultishearFiles:
             self.conn=conn
 
 
-    def get_all_files(self):
+    def get_flist(self):
         query="""
         select
             id,tilename,band
@@ -1098,8 +1098,8 @@ class MultishearFiles:
         files={}
         files['wl_config'] = os.path.expandvars(self.rc['wl_config'])
         files['image'] = c['image_url']
-        files['cat'] = c['cat_url']
-        files['id'] = c['image_id']
+        files['cat'] = os.path.expandvars(c['cat_url'])
+        files['id'] = os.path.expandvars(c['image_id'])
         files['tilename'] = c['tilename']
 
         srclist = me_seinputs_url(self.merun, c['tilename'], self.rc['band'])
@@ -1603,8 +1603,17 @@ class ShearFiles(dict):
             fdict=deswl.files.generate_se_filenames(info['expname'],
                                                     info['ccd'],
                                                     serun=self['run'])
+            info['wl_config'] = self.rc['wl_config']
             for k,v in fdict.iteritems():
                 info[k] = v
+
+            # we often leave $DESDATA etc. in names
+            for k,v in info.iteritems():
+                if isinstance(v,basestring):
+                    info[k] = os.path.expandvars(v)
+
+            info['serun'] = self['run']
+
         return infolist
 
     def get_flist_old(self):
@@ -1618,40 +1627,15 @@ class ShearFiles(dict):
                 flist.append(fdict)
         return flist
 
-class SEWQJobs(dict):
-    def __init__(self, serun, type='fullpipe'):
-        """
-        implement byccd and other types
-        """
-        self['run'] = serun
-        self['type'] = type
-
-
-    def write(self, dryrun=False):
-        import desdb
-
-        make_wq_dir(self['run'])
-        
-        sf = ShearFiles(self['run'])
-        expnames = sf.get_expnames()
-
-        n=0
-        for expname in expnames:
-            print expname
-
-            jobfile=os.path.basename(se_wq_path(self['run'],expname))
-            logfile=jobfile.replace('.yaml','.wqlog')
-
-            sejob = SEWQJob(self['run'], expname, type=self['type'])
-            # this is the wq job file: wq sub jobfile
-            sejob.write_jobfile(dryrun=dryrun)
-
-            n += 1
-
-        print 'total:',n
 
 class SEWQJob(dict):
-    def __init__(self, serun, files=None):
+    def __init__(self, 
+                 serun, 
+                 files=None, 
+                 groups=None, 
+                 verbose=False,
+                 debug_level=-1,
+                 type='fullpipe'):
         """
         For now just take files list for a given ccd.
 
@@ -1660,45 +1644,74 @@ class SEWQJob(dict):
         """
         if files is None:
             raise ValueError("Send files=")
-        self['run'] = serun
+
         self['config'] = files
+        self['config']['serun'] = serun
+        self['config']['type'] = type
+        self['config']['debug_level'] = debug_level
+        self['verbose']=verbose
 
-    def write_jobfile(self, verbose=False, dryrun=False):
-        make_wq_dir(self['run'])
+        self['job_file']=se_wq_path(self['config']['serun'],
+                                    self['config']['expname'],
+                                    type=self['config']['type'],
+                                    ccd=self['config']['ccd'])
+        self['log_file']=os.path.basename(self['job_file']).replace('yaml','out')
+        self['config_file']=se_config_path(self['config']['serun'],
+                                           self['config']['expname'],
+                                           type=self['config']['type'],
+                                           ccd=self['config']['ccd'])
 
-        f=se_wq_path(self['run'], 
-                     self['expname'], 
-                     type=self['type'], 
-                     ccd=self['ccd'])
 
-        print "writing to wq job file:",f 
-        text = self.job_file_text()
-        if verbose or dryrun:
-            print text 
-        if not dryrun:
-            with open(f,'w') as fobj:
-                fobj.write(text)
+        if groups is None:
+            groups = '[gen3,gen4,gen5]'
         else:
-            print "this is just a dry run" 
+            groups = '['+groups+']'
+        self['groups'] = groups
+
+
+    def write_all(self):
+        self.write_config()
+        self.write_job_file()
+
+ 
+    def write_job_file(self):
+        make_wq_dir(self['config']['serun'])
+
+        f=se_wq_path(self['config']['serun'], 
+                     self['config']['expname'], 
+                     type=self['config']['type'], 
+                     ccd=self['config']['ccd'])
+
+        text = self.job_file_text()
+        if self['verbose']:
+            print "writing to wq job file:",f 
+
+        with open(f,'w') as fobj:
+            fobj.write(text)
 
 
     def job_file_text(self):
 
-        groups = '[gen3,gen4,gen5]'
+        groups = self['groups']
 
-        ccd=self['ccd']
-        tname = se_wq_path(self['run'], self['expname'],ccd=ccd,type=self['type'])
+        ccd=self['config']['ccd']
+        expname=self['config']['expname']
+
+        tname = se_wq_path(self['config']['serun'], expname,ccd=ccd,
+                           type=self['config']['type'])
         tname = os.path.basename(tname)
         log_name = tname.replace('.yaml','.out')
 
-        rc=Runconfig(self['run'])
+        rc=Runconfig(self['config']['serun'])
         wl_load = _make_load_command('wl',rc['wlvers'])
         tmv_load = _make_load_command('tmv',rc['tmvvers'])
         esutil_load = _make_load_command('esutil', rc['esutilvers'])
      
         if ccd == None:
             ccd=''
+        job_name='%s-%02i' % (expname,ccd)
 
+        config_file=os.path.basename(self['config_file'])
         text = """
 command: |
     hostname
@@ -1709,20 +1722,45 @@ command: |
     %(wl_load)s
 
     export OMP_NUM_THREADS=1
-    shear-run -c %(config_file)s &> %(log_file)s
+    shear-run %(config_file)s &> %(log_file)s
 
 group: %(groups)s
 priority: low
 job_name: %(job_name)s\n""" % {'esutil_load':esutil_load,
                                'tmv_load':tmv_load,
                                'wl_load':wl_load,
-                               'config_file':self['config_file'],
+                               'config_file':config_file,
                                'log_file':self['log_file'],
                                'groups':groups,
-                               'job_name':self['expname']+'-'+self['ccd']}
+                               'job_name':job_name}
 
 
         return text
+
+    def write_config(self):
+        """
+        This is the config meaning the list of files and parameters
+        for input to multishear, not the wl config
+        """
+        import yaml
+        make_wq_dir(self['config']['serun'], subdir='byccd')
+
+        if self['verbose']:
+            print "writing to config file:",self['config_file']
+
+        with open(self['config_file'],'w') as fobj:
+            for k in self['config']:
+                # I want it a bit prettier so writing my own, but will have
+                # to be careful
+                kk = k+': '
+                val = self['config'][k]
+                if isinstance(val,bool):
+                    if val:
+                        val='true'
+                    else:
+                        val='false'
+                fobj.write('%-15s %s\n' % (kk,val))
+            #yaml.dump(self['config'], fobj)
 
 
 
@@ -1881,7 +1919,7 @@ def wq_dir(run, subdir=None):
 
 def make_wq_dir(run, subdir=None):
 
-    d = wq_dir(run, subdir=None)
+    d = wq_dir(run, subdir=subdir)
 
     if not os.path.exists(d):
         print 'making output dir',d
@@ -1909,6 +1947,17 @@ def se_wq_path(run, expname, type='fullpipe', ccd=None):
 
     wqpath=path_join(d, wqfile)
     return wqpath
+
+def se_config_path(run, expname, type='fullpipe', ccd=None):
+    """
+    This is the file with all the paths and parameters,
+    not a wl_config
+    """
+    
+    f=se_wq_path(run,expname,type=type,ccd=ccd)
+    f=f[0:f.rfind('.')]+'-config.yaml'
+    return f
+
 
 
 def me_wq_path(run, tilename):

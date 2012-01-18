@@ -13,6 +13,8 @@
 static void doFullPipeline(
     ConfigFile& params, std::string logFile, std::auto_ptr<Log>& log)
 {
+    bool shouldOutputInfo = params.read("output_info",true);
+
     // Load image:
     std::auto_ptr<Image<double> > weightIm;
     Image<double> im(params,weightIm);
@@ -28,6 +30,9 @@ static void doFullPipeline(
     log.reset(
         new FindStarsLog(params,logFile,makeName(params,"stars",false,false)));
     std::auto_ptr<StarCatalog> starCat;
+    if (shouldOutputInfo) {
+        std::cerr<<"Finding Stars"<<std::endl;
+    }
     doFindStars(
         params, static_cast<FindStarsLog&>(*log), im, weightIm.get(), trans,
         inCat, starCat);
@@ -37,6 +42,9 @@ static void doFullPipeline(
     std::auto_ptr<PsfCatalog> psfCat;
     std::auto_ptr<FittedPsf> fitPsf;
     double sigmaP = 0.;
+    if (shouldOutputInfo) {
+        std::cerr<<"Measuring PSF"<<std::endl;
+    }
     doMeasurePsf(
         params, static_cast<PsfLog&>(*log), im, weightIm.get(), trans,
         *starCat, psfCat, fitPsf, sigmaP);
@@ -48,6 +56,9 @@ static void doFullPipeline(
     // Do MeasusreShear script
     log.reset(new ShearLog(params,logFile,makeName(params,"shear",false,false)));
     std::auto_ptr<ShearCatalog> shearCat;
+    if (shouldOutputInfo) {
+        std::cerr<<"Measuring Shear"<<std::endl;
+    }
     doMeasureShear(
         params, static_cast<ShearLog&>(*log), im, weightIm.get(), trans,
         inCat, *fitPsf, shearCat);

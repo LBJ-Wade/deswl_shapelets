@@ -685,7 +685,74 @@ def process_se_image(config, image, cat, **args):
     types = args.get('types','all')
     ip.process(types)
 
-class ImageProcessor(deswl.WL):
+class ImageProcessor(dict):
+    def __init__(self, fdict):
+        """
+        fdict should include input and *all* output files, even
+        those you won't use for this executable type.
+
+        Should include 'type', e.g. 'fullpipe', 'findstars','measurepsf','measureshear' 
+        """
+        for k,v in fdict.iteritems():
+            self[k]=v
+        self['executable']= self['type']
+        self['timeout'] = 2*60*60 # two hours
+
+    def run(self):
+        eu.ostools.makedirs_fromfile(self['qa'])
+        command=self.get_command()
+        # stdout will go to the qafile.
+        # stderr is not directed
+
+        stderr.write("opening qa file for output (stdout): %s\n" % self['qa'])
+        qafile=open(self['qa'],'w')
+        stderr.write("running command: \n%s\n" % '  \\\n\t'.join(command))
+        exit_status, oret, eret = eu.ostools.exec_process(command,
+                                                          timeout=self['timeout'],
+                                                          stdout_file=qafile,
+                                                          stderr_file=None)
+
+        self['exit_status'] = exit_status
+        print 'exit_status:',exit_status
+
+        self.write_status()
+
+    def get_command(self):
+        command=[self['executable'],
+                 self['wl_config'],
+                 'image_file='+self['image_url'],
+                 'cat_file='+self['cat_url'],
+                 'stars_file='+self['stars'],
+                 'fitpsf_file='+self['fitpsf'],
+                 'psf_file='+self['psf'],
+                 'shear_file='+self['shear'] ]
+
+        if 'output_dots' in self:
+            if not self['output_dots']:
+                command.append('output_dots=false')
+        if 'output_info' in self:
+            if not self['output_info']:
+                command.append('output_info=false')
+
+        if 'serun' in self:
+            command.append('wlserun=%s' % self['serun'])
+
+        if 'debug_level' in self:
+            if self['debug_level'] >= 0:
+                command.append('debug_file=%s' % self['debug'])
+                command.append('verbose=%s' % self['debug_level'])
+
+        return command
+
+    def write_status(self):
+        """
+        Add a bunch of new things to self and write self out as the stat file
+        """
+        print 'writing status file:',self['stat']
+        json_util.write(self, self['stat'])
+
+
+class ImageProcessorOld(deswl.WL):
     """
     Much simpler than ExposureProcessor for processing a single image/catalog pair.
     Good for interactive use.
@@ -1803,7 +1870,7 @@ class CoaddTileProcessor(dict):
         self['timeout'] = 2*60*60 # two hours
 
     def run(self):
-        self.make_outdir()
+        eu.ostools.makedirs_fromfile(self['qa'])
         command=self.get_command()
         # stdout will go to the qafile.
         # stderr is not directed
@@ -1852,17 +1919,8 @@ class CoaddTileProcessor(dict):
         """
         Add a bunch of new things to self and write self out as the stat file
         """
+        print 'writing status file:',self['stat']
         json_util.write(self, self['stat'])
-
-
-    def make_outdir(self):
-        d=os.path.dirname(self['qa'])
-        if not os.path.exists(d):
-            print 'making output dir:',d
-            os.makedirs(d)
-
-
-
 
 
 
