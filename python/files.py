@@ -545,14 +545,17 @@ def se_read(expname, ccd, ftype,
     return eu.io.read(fpath, **keys)
 
 def generate_se_filenames(expname, ccd, serun=None,
-                          rootdir=None, dir=None):
+                          rootdir=None, dir=None,
+                          split=False):
     fdict={}
 
     rc=deswl.files.Runconfig()
 
     # output file names
     for ftype in rc.se_filetypes:
-
+        if not split:
+            if ftype[-1] == '1' or ftype[-1] == '2':
+                continue
         name= se_path(expname, 
                       ccd, 
                       ftype,
@@ -1551,9 +1554,14 @@ job_name: {job_name}\n""".format(wl_load=wl_load,
         return text
 
 class ShearFiles(dict):
-    def __init__(self, serun, conn=None):
+    """
+    Currently, hdfs is only used for reading images and catalogs
+    Writing is still done to nfs, which should be fine
+    """
+    def __init__(self, serun, conn=None, fs='nfs'):
         import desdb
         self['run'] = serun
+        self['fs'] = fs
 
         self.rc = Runconfig(self['run'])
         self['dataset'] = self.rc['dataset']
@@ -1612,9 +1620,25 @@ class ShearFiles(dict):
                 if isinstance(v,basestring):
                     info[k] = os.path.expandvars(v)
 
+
             info['serun'] = self['run']
 
+        if self['fs'] == 'hdfs':
+            self.convert_to_hdfs(infolist)
         return infolist
+
+    def convert_to_hdfs(self, infolist):
+        """
+        Modifies in place
+        """
+        nfs_root=des_rootdir()
+        hdfs_root=hdfs_rootdir()
+        for info in infolist:
+            for k,v in info.iteritems():
+                if isinstance(v,basestring):
+                    info[k] = v.replace(nfs_root,hdfs_root)
+            #for k in ['image_url','cat_url','stars','fitpsf','psf','shear','qa','stat','debug']:
+            #    info[k] = info[k].replace(nfs_root,hdfs_root)
 
     def get_flist_old(self):
         expnames=self.get_expnames()
@@ -1663,7 +1687,7 @@ class SEWQJob(dict):
 
 
         if groups is None:
-            groups = '[gen3,gen4,gen5]'
+            groups = '[new,new2]'
         else:
             groups = '['+groups+']'
         self['groups'] = groups
@@ -1715,6 +1739,7 @@ class SEWQJob(dict):
         text = """
 command: |
     hostname
+    source /opt/astro/SL53/bin/setup.hadoop.sh
     source ~astrodat/setup/setup.sh
     source ~/.dotfiles/bash/astro.bnl.gov/modules.sh
     %(esutil_load)s
@@ -1723,6 +1748,7 @@ command: |
 
     export OMP_NUM_THREADS=1
     shear-run %(config_file)s &> %(log_file)s
+    echo Done
 
 group: %(groups)s
 priority: low

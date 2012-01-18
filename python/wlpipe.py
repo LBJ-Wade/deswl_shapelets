@@ -698,14 +698,23 @@ class ImageProcessor(dict):
         self['executable']= self['type']
         self['timeout'] = 2*60*60 # two hours
 
+        self.use_hdfs=False
+        if self['image_url'][0:4] == 'hdfs':
+            self.use_hdfs=True
+
+        self.setup_files()
+
     def run(self):
+        if self.use_hdfs:
+            self.hdfs_stage()
+
         eu.ostools.makedirs_fromfile(self['qa'])
         command=self.get_command()
         # stdout will go to the qafile.
         # stderr is not directed
 
-        stderr.write("opening qa file for output (stdout): %s\n" % self['qa'])
-        qafile=open(self['qa'],'w')
+        stderr.write("opening qa file for output (stdout): %s\n" % self.outf['qa'])
+        qafile=open(self.outf['qa'],'w')
         stderr.write("running command: \n%s\n" % '  \\\n\t'.join(command))
         exit_status, oret, eret = eu.ostools.exec_process(command,
                                                           timeout=self['timeout'],
@@ -713,19 +722,25 @@ class ImageProcessor(dict):
                                                           stderr_file=None)
 
         self['exit_status'] = exit_status
-        print 'exit_status:',exit_status
+        print >>stderr,'exit_status:',exit_status
 
         self.write_status()
+
+        if self.use_hdfs:
+            self.hdfs_put()
+            self.hdfs_cleanup()
+
+
 
     def get_command(self):
         command=[self['executable'],
                  self['wl_config'],
-                 'image_file='+self['image_url'],
-                 'cat_file='+self['cat_url'],
-                 'stars_file='+self['stars'],
-                 'fitpsf_file='+self['fitpsf'],
-                 'psf_file='+self['psf'],
-                 'shear_file='+self['shear'] ]
+                 'image_file='+self.inf['image_url'],
+                 'cat_file='+self.inf['cat_url'],
+                 'stars_file='+self.outf['stars'],
+                 'fitpsf_file='+self.outf['fitpsf'],
+                 'psf_file='+self.outf['psf'],
+                 'shear_file='+self.outf['shear'] ]
 
         if 'output_dots' in self:
             if not self['output_dots']:
@@ -739,7 +754,7 @@ class ImageProcessor(dict):
 
         if 'debug_level' in self:
             if self['debug_level'] >= 0:
-                command.append('debug_file=%s' % self['debug'])
+                command.append('debug_file=%s' % self.outf['debug_file'])
                 command.append('verbose=%s' % self['debug_level'])
 
         return command
@@ -748,9 +763,51 @@ class ImageProcessor(dict):
         """
         Add a bunch of new things to self and write self out as the stat file
         """
-        print 'writing status file:',self['stat']
-        json_util.write(self, self['stat'])
+        print >>stderr,'writing status file:',self.outf['stat']
+        json_util.write(self, self.outf['stat'])
 
+    def hdfs_stage(self):
+        self.hdfs_inf['image_url'].stage()
+        self.hdfs_inf['cat_url'].stage()
+
+    def hdfs_cleanup(self):
+        for k,v in self.hdfs_inf.iteritems():
+            v.cleanup()
+
+    def hdfs_put(self):
+        for k,v in self.hdfs_outf.iteritems():
+            if os.path.exists(v.localfile):
+                # clobber existing files
+                v.put(force=True)
+
+    def setup_files(self):
+        inf={}
+        outf={}
+        if self.use_hdfs:
+            hdfs_inf={}
+            hdfs_outf={}
+
+            for k in ['image_url','cat_url']:
+                hdfs_inf[k] = eu.hdfs.HDFSFile(self[k],verbose=True)
+                inf[k] = hdfs_inf[k].localfile
+            out_types = ['qa','stat','stars','fitpsf','psf','shear']
+            if 'debug_level' in self:
+                if self['debug_level'] >= 0:
+                    out_types.append('debug')
+            for k in out_types:
+                hdfs_outf[k] = eu.hdfs.HDFSFile(self[k],verbose=True)
+                outf[k] = hdfs_outf[k].localfile
+
+            self.hdfs_inf  = hdfs_inf
+            self.hdfs_outf = hdfs_outf
+        else:
+            for k in ['image_url','cat_url']:
+                inf[k] = self[k]
+            for k in ['qa','stat','stars','fitpsf','psf','shear','debug']:
+                outf[k] = self[k]
+
+        self.inf  = inf
+        self.outf = outf
 
 class ImageProcessorOld(deswl.WL):
     """

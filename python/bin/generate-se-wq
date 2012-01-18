@@ -13,6 +13,7 @@ import desdb
 from optparse import OptionParser
 parser = OptionParser(__doc__)
 parser.add_option("-g","--groups",default=None, help="groups for queue")
+parser.add_option("--fs",default='nfs', help="file system, nfs or hdfs")
 
 def main():
 
@@ -25,7 +26,7 @@ def main():
 
     rc=deswl.files.Runconfig(serun)
     rc.verify()
-    sfobj=ShearFiles(serun)
+    sfobj=ShearFiles(serun, fs=options.fs)
     all_files=sfobj.get_flist()
     nf=len(all_files)
 
