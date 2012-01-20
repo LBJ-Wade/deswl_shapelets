@@ -1,0 +1,71 @@
+#!/usr/bin/env python
+"""
+    %prog stat_file
+
+Some log messages go to stderr.  The actual data in dict form go to stdout
+"""
+
+import sys, os
+from sys import stderr, stdout
+import copy
+import esutil as eu
+from esutil.io import fexists
+
+from optparse import OptionParser
+parser = OptionParser(__doc__)
+
+def main():
+    options, args = parser.parse_args(sys.argv[1:])
+    if len(args) < 1:
+        parser.print_help()
+        sys.exit(45)
+
+    fname=args[0]
+
+    print >>stderr,'reading:',fname
+    info={'stat':fname,'error_string':''}
+
+    if not fexists(fname):
+        problem_found=False
+        info['error_string'] = 'stat file missing'
+    else:
+        status_read = False
+        try:
+            stat=eu.io.read(fname)
+            status_read = True
+            for k,v in stat.iteritems():
+                info[k] = v
+
+        except ValueError as e:
+            problem_found=True
+            print >>stderr,"Error reading file:",fname
+            info['error_string'] = 'Error reading stat file'
+
+        if status_read:
+            exit_status= stat['exit_status']
+            if exit_status != 0:
+                problem_found=True
+                print >>stderr,"Found non-zero exit status %s in stat file" \
+                        % exit_status
+                info['error_string'] = 'Processing error'
+            else:
+
+                missing=[]
+                for f in ['stars','fitpsf','psf','shear','qa']:
+                    print >>stderr,'    checking:',f
+                    if not fexists(stat[f]):
+                        # only print first missing one
+                        if len(missing) == 0:
+                            print >>stderr,'file missing:',stat[f]
+                        missing.append(f)
+
+                if len(missing) > 0:
+                    problem_found=True
+                    fmiss=' '.join(missing)
+                    info['error_string'] = 'files missing: %s' % fmiss
+
+    
+    eu.io.write(stdout, info, type='json')
+ 
+
+main()

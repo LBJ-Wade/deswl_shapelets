@@ -28,7 +28,6 @@ def main():
 
     for i,fdict in enumerate(all_files):
         print '%d/%d' % (i+1,ntile)
-        fdict['nodots'] = True
         mc=MultishearWQJob(merun,files=fdict,groups=options.groups)
         mc.write_all()
 

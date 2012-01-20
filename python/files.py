@@ -12,6 +12,14 @@ import deswl
 # for separating file elements
 file_el_sep = '-'
 
+def des_rootdir():
+    return getenv_check('DESDATA')
+
+def hdfs_rootdir():
+    return 'hdfs:///user/esheldon/DES'
+
+
+
 def get_proc_environ():
     e={}
     e['TMV_DIR']=getenv_check('TMV_DIR')
@@ -307,28 +315,6 @@ def ftype2fext(ftype_input):
 
 
 
-def convert_to_degrees(data):
-    try:
-        if 'ra' in data.dtype.names:
-            data['ra'] /= 3600
-
-        if 'dec' in data.dtype.names:
-            data['dec'] /= 3600
-    except:
-        # probably names is None
-        pass
-
-
-
-
-
-def des_rootdir():
-    return getenv_check('DESDATA')
-
-def hdfs_rootdir():
-    return 'hdfs:///user/esheldon/DES'
-
-
 
 def fileclass_dir(fileclass, rootdir=None):
     if rootdir is None:
@@ -575,12 +561,12 @@ def coldir_open(serun):
     return cols
     
 
-def coldir(run, fits=False):
+def coldir(run, fits=False, suffix=''):
     dir = collated_dir(run)
     if fits:
-        dir=os.path.join(dir,run+'-fits')
+        dir=os.path.join(dir,run+suffix+'-fits')
     else:
-        dir=os.path.join(dir,run+'.cols')
+        dir=os.path.join(dir,run+suffix+'.cols')
     return dir
 
 
@@ -725,6 +711,10 @@ def se_collated_read(serun,
 
 
 
+#
+# deprecated
+# we don't ues collated redfiles any more, we use the database
+#
 
 def collated_redfiles_dir(dataset, html=False):
     desfiles_dir=getenv_check('DESFILES_DIR')
@@ -1300,11 +1290,6 @@ class MultishearCondorJob(dict):
         self['script_file']=me_script_path(self['run'],self['tilename'],self['band'])
         self['condor_file']=me_condor_path(self['run'],self['tilename'],self['band'])
 
-    def write_all(self):
-        self.write_config()
-        self.write_script()
-        self.write_condor()
-
     def write_condor(self):
         self.make_condor_dir()
 
@@ -1475,7 +1460,7 @@ class MultishearWQJob(dict):
         self.write_job_file()
 
     def write_job_file(self):
-        make_wq_dir(self['run'])
+        eu.ostools.makedirs_fromfile(self['job_file'])
 
         print "writing to wq job file:",self['job_file']
         text = self.job_file_text()
@@ -1493,7 +1478,7 @@ class MultishearWQJob(dict):
         for input to multishear, not the wl config
         """
         import yaml
-        make_wq_dir(self['run'])
+        eu.ostools.makedirs_fromfile(self['config_file'])
 
         print "writing to config file:",self['config_file']
         if self['verbose'] or self['dryrun']:
@@ -1530,14 +1515,13 @@ class MultishearWQJob(dict):
 
         text="""
 command: |
-    hostname
     source ~astrodat/setup/setup.sh
     source ~/.dotfiles/bash/astro.bnl.gov/modules.sh
     {esutil_load}
     {tmv_load}
     {wl_load}
     {thread_text}
-    multishear-run -c {config_file} &> {log_file}
+    multishear-run {config_file} &> {log_file}
 
 group: {groups}
 mode: bynode
@@ -1599,15 +1583,25 @@ class ShearFiles(dict):
 
         return self.expnames
 
-    def get_flist(self):
+    def get_flist(self, by_expname=False):
         """
-        Get the red info from the database and add in
-        the file info for the wl outputs
+
+        Get the red info from the database and add in the file info for the wl
+        outputs
+
+        If by_expname=True, return a dict keyed by exposure name
+
         """
 
         import desdb
         infolist=desdb.files.get_red_info(self.rc['dataset'],self.rc['band'])
         for info in infolist:
+            # rename to be consistent
+            image=info.pop('image_url')
+            cat=info.pop('cat_url')
+            info['image'] = image
+            info['cat'] = cat
+
             fdict=deswl.files.generate_se_filenames(info['expname'],
                                                     info['ccd'],
                                                     serun=self['run'])
@@ -1625,7 +1619,24 @@ class ShearFiles(dict):
 
         if self['fs'] == 'hdfs':
             self.convert_to_hdfs(infolist)
-        return infolist
+
+        if by_expname:
+            d={}
+            for info in infolist:
+                expname=info['expname']
+                el=d.get(expname,None)
+                if el is None:
+                    d[expname] = [info]
+                else:
+                    # should modify in place
+                    el.append(info)
+                    if len(el) > 62:
+                        pprint.pprint(el)
+                        raise ValueError("%s grown beyond 62, why?" % expname)
+
+            return d
+        else:
+            return infolist
 
     def convert_to_hdfs(self, infolist):
         """
@@ -1637,8 +1648,6 @@ class ShearFiles(dict):
             for k,v in info.iteritems():
                 if isinstance(v,basestring):
                     info[k] = v.replace(nfs_root,hdfs_root)
-            #for k in ['image_url','cat_url','stars','fitpsf','psf','shear','qa','stat','debug']:
-            #    info[k] = info[k].replace(nfs_root,hdfs_root)
 
     def get_flist_old(self):
         expnames=self.get_expnames()
@@ -1652,93 +1661,121 @@ class ShearFiles(dict):
         return flist
 
 
+
+
 class SEWQJob(dict):
-    def __init__(self, 
-                 serun, 
-                 files=None, 
-                 groups=None, 
-                 verbose=False,
-                 debug_level=-1,
-                 type='fullpipe'):
+    def __init__(self, serun, files, **keys):
         """
-        For now just take files list for a given ccd.
+        For now just take files for a given ccd or list of 62 ccds
 
         Files should be an element from ShearFiles get_flist(), which returns a
         list of dicts
         """
-        if files is None:
-            raise ValueError("Send files=")
 
-        self['config'] = files
-        self['config']['serun'] = serun
-        self['config']['type'] = type
-        self['config']['debug_level'] = debug_level
-        self['verbose']=verbose
+        if not isinstance(files,list):
+            files=[files]
+        nf=len(files)
+        if nf != 1 and nf != 62:
+            print >>stderr,'files[0]:',files[0]
+            raise ValueError("Expect either 1 or 62 inputs, got %s" % nf)
 
-        self['job_file']=se_wq_path(self['config']['serun'],
-                                    self['config']['expname'],
-                                    type=self['config']['type'],
-                                    ccd=self['config']['ccd'])
-        self['log_file']=os.path.basename(self['job_file']).replace('yaml','out')
-        self['config_file']=se_config_path(self['config']['serun'],
-                                           self['config']['expname'],
-                                           type=self['config']['type'],
-                                           ccd=self['config']['ccd'])
+        self['serun'] = serun
+        self['keys'] = keys
+        self['type'] = keys.get('type','fullpipe')
+        self['verbose'] = keys.get('verbose',False)
+        self['debug_level'] = keys.get('debug_level',-1)
+        self['groups'] = keys.get('groups',None)
 
+        for c in files:
+            c['serun'] = self['serun']
+            c['type'] = self['type']
+            c['debug_level'] = self['debug_level']
 
-        if groups is None:
-            groups = '[new,new2]'
-        else:
-            groups = '['+groups+']'
-        self['groups'] = groups
+        self['flist'] = files
 
+    def write(self):
+        """
+        Always call this when doing multiple ccds
+        """
+        import copy
+        # config files get written individually
+        keys=copy.deepcopy(self['keys'])
+        nf=len(self['flist'])
+        if nf > 1:
+            keys['verbose'] = False
+        for fdict in self['flist']:
+            sj=SEWQJob(self['serun'],fdict, **keys)
+            sj._write_config()
 
-    def write_all(self):
-        self.write_config()
-        self.write_job_file()
+        self._write_job_file()
+        self._write_check_job_file()
 
- 
-    def write_job_file(self):
-        make_wq_dir(self['config']['serun'])
+    def _write_job_file(self):
+        job_file=self._get_job_filename()
+        eu.ostools.makedirs_fromfile(job_file)
 
-        f=se_wq_path(self['config']['serun'], 
-                     self['config']['expname'], 
-                     type=self['config']['type'], 
-                     ccd=self['config']['ccd'])
-
-        text = self.job_file_text()
+        text = self._job_file_text()
         if self['verbose']:
-            print "writing to wq job file:",f 
+            print "writing to wq job file:",job_file
 
-        with open(f,'w') as fobj:
+        with open(job_file,'w') as fobj:
+            fobj.write(text)
+
+    def _write_check_job_file(self):
+        job_file=self._get_job_filename(check=True)
+        eu.ostools.makedirs_fromfile(job_file)
+
+        text = self._check_job_file_text()
+        if self['verbose']:
+            print "writing to wq job check file:",job_file
+
+        with open(job_file,'w') as fobj:
             fobj.write(text)
 
 
-    def job_file_text(self):
+
+    def _job_file_text(self):
 
         groups = self['groups']
+        expname=self['flist'][0]['expname']
 
-        ccd=self['config']['ccd']
-        expname=self['config']['expname']
-
-        tname = se_wq_path(self['config']['serun'], expname,ccd=ccd,
-                           type=self['config']['type'])
-        tname = os.path.basename(tname)
-        log_name = tname.replace('.yaml','.out')
-
-        rc=Runconfig(self['config']['serun'])
+        rc=Runconfig(self['serun'])
         wl_load = _make_load_command('wl',rc['wlvers'])
         tmv_load = _make_load_command('tmv',rc['tmvvers'])
         esutil_load = _make_load_command('esutil', rc['esutilvers'])
      
-        if ccd == None:
-            ccd=''
-        job_name='%s-%02i' % (expname,ccd)
+        if len(self['flist']) == 62:
+            job_name=expname
+        else:
+            job_name='%s-%02i' % (expname,self['flist'][0]['ccd'])
 
-        config_file=os.path.basename(self['config_file'])
+        cmd=[]
+        for fd in self['flist']:
+            config_file=se_config_path(self['serun'],
+                                       fd['expname'],
+                                       type=self['type'],
+                                       ccd=fd['ccd'])
+            config_file=os.path.basename(config_file)
+
+            # When doing a full exposure, our job file will be lower in the
+            # tree from both config and the log file
+            if len(self['flist']) == 62:
+                config_file='byccd/'+config_file
+
+            log_file=config_file.replace('-config.yaml','.out')
+
+            c="shear-run %s &> %s" % (config_file,log_file)
+            cmd.append(c)
+
+        cmd='\n    '.join(cmd) 
+
+        if groups is None:
+            groups=''
+        else:
+            groups='group: [' + groups +']'
+
         text = """
 command: |
-    hostname
     source /opt/astro/SL53/bin/setup.hadoop.sh
     source ~astrodat/setup/setup.sh
     source ~/.dotfiles/bash/astro.bnl.gov/modules.sh
@@ -1747,122 +1784,134 @@ command: |
     %(wl_load)s
 
     export OMP_NUM_THREADS=1
-    shear-run %(config_file)s &> %(log_file)s
-    echo Done
+    %(cmd)s
 
-group: %(groups)s
+%(groups)s
 priority: low
 job_name: %(job_name)s\n""" % {'esutil_load':esutil_load,
                                'tmv_load':tmv_load,
                                'wl_load':wl_load,
-                               'config_file':config_file,
-                               'log_file':self['log_file'],
+                               'cmd':cmd,
                                'groups':groups,
                                'job_name':job_name}
 
 
         return text
 
-    def write_config(self):
-        """
-        This is the config meaning the list of files and parameters
-        for input to multishear, not the wl config
-        """
-        import yaml
-        make_wq_dir(self['config']['serun'], subdir='byccd')
+    def _check_job_file_text(self):
 
-        if self['verbose']:
-            print "writing to config file:",self['config_file']
+        expname=self['flist'][0]['expname']
 
-        with open(self['config_file'],'w') as fobj:
-            for k in self['config']:
-                # I want it a bit prettier so writing my own, but will have
-                # to be careful
-                kk = k+': '
-                val = self['config'][k]
-                if isinstance(val,bool):
-                    if val:
-                        val='true'
-                    else:
-                        val='false'
-                fobj.write('%-15s %s\n' % (kk,val))
-            #yaml.dump(self['config'], fobj)
-
-
-
-class SEWQJobOld(dict):
-    def __init__(self, serun, expname, ccd=None, type='fullpipe'):
-        self['run'] = serun
-        self['expname'] = expname
-        self['ccd'] = ccd
-        self['type'] = type
-
-    def write_jobfile(self, verbose=False, dryrun=False):
-        make_wq_dir(self['run'])
-
-        f=se_wq_path(self['run'], 
-                     self['expname'], 
-                     type=self['type'], 
-                     ccd=self['ccd'])
-
-        print "writing to wq job file:",f 
-        text = self.job_file_text()
-        if verbose or dryrun:
-            print text 
-        if not dryrun:
-            with open(f,'w') as fobj:
-                fobj.write(text)
-        else:
-            print "this is just a dry run" 
-
-
-    def job_file_text(self):
-
-        groups = '[gen3,gen4,gen5]'
-
-        ccd=self['ccd']
-        tname = se_wq_path(self['run'], self['expname'],ccd=ccd,type=self['type'])
-        tname = os.path.basename(tname)
-        log_name = tname.replace('.yaml','.out')
-
-        rc=Runconfig(self['run'])
+        rc=Runconfig(self['serun'])
+        esutil_load = _make_load_command('esutil', rc['esutilvers'])
         wl_load = _make_load_command('wl',rc['wlvers'])
         tmv_load = _make_load_command('tmv',rc['tmvvers'])
-        esutil_load = _make_load_command('esutil', rc['esutilvers'])
-     
-        if ccd == None:
-            ccd=''
+
+        if len(self['flist']) == 62:
+            job_name='chk-%s' % expname
+        else:
+            job_name='chk-%s-%02i' % (expname,self['flist'][0]['ccd'])
+
+        if len(self['flist']) == 1:
+            fd=self['flist'][0]
+            stat=fd['stat']
+            ccd=fd['ccd']
+            chk="byccd/%(expname)s-%(ccd)02i-check.json" % (expname,ccd)
+            err="byccd/%(expname)s-%(ccd)02i-check.err" % (expname,ccd)
+            cmd="shear-check-one %s 1> %s 2> %s" % (stat,chk,err)
+        else:
+
+            fd=self['flist'][0]
+            stat0=fd['stat']
+            rep='%02i-stat.json' % fd['ccd']
+            stat=stat0.replace(rep,'$i-stat.json')
+            #print 'expname:',expname,'rep:',rep
+            #print stat0,'\n',stat
+
+            cmd="""
+    for i in `seq -w 1 62`; do
+        stat=%(stat)s
+        chk=byccd/%(expname)s-$i-check.json
+        err=byccd/%(expname)s-$i-check.err
+        echo $chk
+        shear-check-one $stat 1> $chk 2> $err
+    done""" % {'stat':stat,'expname':expname}
+
+            cmd=cmd.strip()
+
 
         text = """
 command: |
-    hostname
+    source /opt/astro/SL53/bin/setup.hadoop.sh
     source ~astrodat/setup/setup.sh
     source ~/.dotfiles/bash/astro.bnl.gov/modules.sh
     %(esutil_load)s
     %(tmv_load)s
     %(wl_load)s
 
-    export OMP_NUM_THREADS=1
-    shear-run --serun=%(serun)s --nodots %(expname)s %(ccd)s &> %(log)s
+    %(cmd)s
 
-group: %(groups)s
 priority: low
 job_name: %(job_name)s\n""" % {'esutil_load':esutil_load,
                                'tmv_load':tmv_load,
                                'wl_load':wl_load,
-                               'serun':self['run'],
-                               'expname':self['expname'],
-                               'ccd':ccd,
-                               'log':log_name,
-                               'groups':groups,
-                               'job_name':self['expname']}
+                               'cmd':cmd,
+                               'job_name':job_name}
 
 
         return text
 
 
+    def _write_config(self):
+        """
+        This is the config meaning the list of files and parameters
+        for input to multishear, not the wl config
+        """
+        import yaml
+
+        if len(self['flist']) > 1:
+            raise ValueError("Only call write_config when working on single ccd")
+
+        fd=self['flist'][0]
+        config_file=se_config_path(self['serun'],
+                                   fd['expname'],
+                                   type=self['type'],
+                                   ccd=fd['ccd'])
+
+        eu.ostools.makedirs_fromfile(config_file)
+
+        if self['verbose']:
+            print "writing to config file:",config_file
+
+        with open(config_file,'w') as fobj:
+            for k in fd:
+                # I want it a bit prettier so writing my own, but will have to
+                # be careful
+                kk = k+': '
+                val = fd[k]
+                if isinstance(val,bool):
+                    if val:
+                        val='true'
+                    else:
+                        val='false'
+                fobj.write('%-15s %s\n' % (kk,val))
 
 
+    def _get_job_filename(self, check=False):
+        if len(self['flist']) == 1:
+            files=self['flist'][0]
+            job_file= se_wq_path(self['serun'],
+                                 files['expname'],
+                                 type=self['type'],
+                                 ccd=files['ccd'])
+        else:
+            files=self['flist'][0]
+            job_file= se_wq_path(self['serun'],
+                                 files['expname'],
+                                 type=self['type'])
+        if check:
+            job_file=job_file.replace('.yaml','-check.yaml')
+        return job_file
 
 def _make_load_command(modname, vers):
     """
@@ -1942,15 +1991,6 @@ def wq_dir(run, subdir=None):
         outdir=path_join(outdir, subdir)
     outdir=os.path.expanduser(outdir)
     return outdir
-
-def make_wq_dir(run, subdir=None):
-
-    d = wq_dir(run, subdir=subdir)
-
-    if not os.path.exists(d):
-        print 'making output dir',d
-        os.makedirs(d)
-
 
 
 def se_wq_path(run, expname, type='fullpipe', ccd=None):

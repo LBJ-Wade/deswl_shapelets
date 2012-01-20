@@ -6,14 +6,16 @@ Check the outputs for the input run
 """
 
 import sys, os
+from sys import stderr
 import copy
 import deswl
-from deswl.files import MultishearFiles
 import esutil as eu
 from esutil import json_util
+from esutil.io import fexists
 
 from optparse import OptionParser
 parser = OptionParser(__doc__)
+parser.add_option("--fs",default='nfs', help="file system, nfs or hdfs")
 
 def main():
     options, args = parser.parse_args(sys.argv[1:])
@@ -23,67 +25,68 @@ def main():
 
     serun=args[0]
 
-    sej = deswl.files.ShearFiles(serun)
-    expnames=sej.get_expnames()
+    sej = deswl.files.ShearFiles(serun, fs=options.fs)
     flist = sej.get_flist()
 
     n=len(flist)
     goodlist=[]
     badlist=[]
+    print >>stderr,'checking',n
     for i,fdict in enumerate(flist):
-        print '%05d/%05d: %s-%02d' % (i+1,n,fdict['expname'],fdict['ccd'])
+        if ((i+1) % 100) == 0:
+            print >>stderr,'%05d/%05d: %s-%02d' % (i+1,n,fdict['expname'],fdict['ccd'])
 
         info = copy.deepcopy(fdict)
         problem_found=False
 
-        stars_file  = fdict['stars'],
-        fitpsf_file = fdict['fitpsf']
-        psf_file    = fdict['psf']
-        shear_file  = fdict['shear']
+        missing=[]
+        #for f in ['stat','stars','fitpsf','psf','shear','qa']:
+        for f in ['stat']:
+            if not fexists(fdict[f]):
+                # only print first missing one
+                if len(missing) == 0:
+                    print >>stderr,'file missing:',fdict[f]
+                missing.append(f)
 
-        status_read = False
-        if not os.path.exists(fdict['stat']):
-            print 'Stat file missing:',fdict['stat']
-            info['error'] = 9999
-            info['error_string'] = 'stat file missing'
-            info['failtype'] = 'stat file missing'
+        if len(missing) > 0:
+            problem_found=True
+            fmiss='\n'.join(missing)
+            info['failtype'] = 'files missing:\n%s' % fmiss
             badlist.append(info)
         else:
+            status_read = False
             try:
-                stat=json_util.read(fdict['stat'])
+                # this will deal properly with hdfs
+                stat=eu.io.read(fdict['stat'])
                 status_read = True
             except ValueError as e:
-                print "Error reading file:",fdict['stat']
-                info['error'] = 9998
-                info['error_string'] = 'Error reading stat file'
+                problem_found=True
+                print >>stderr,"Error reading file:",fdict['stat']
                 info['failtype'] = 'Error reading stat file'
                 badlist.append(info)
 
-        if status_read:
-            error_code = int( stat['error'] )
-            estring = stat['error_string']
-            info['error'] = error_code
-            info['error_string'] = estring
-
-            if error_code != 0:
-                print "'%s': error: %s: '%s'" % (fdict['stat'],error_code,estring)
-                info['failtype'] = 'Processing error'
-                problem_found=True
-                badlist.append(info)
+            if status_read:
+                exit_status= stat['exit_status']
+                if exit_status != 0:
+                    problem_found=True
+                    print >>stderr,"Found non-zero exit status %s in stat file %s" % \
+                            (exit_status,fdict['stat'])
+                    info['failtype'] = 'Processing error'
+                    badlist.append(info)
 
         if not problem_found:
             goodlist.append(info)
 
-    print 'Found %s/%s problems' % (len(badlist),n)
+    print >>stderr,'Found %s/%s problems' % (len(badlist),n)
 
     goodfile=deswl.files.se_collated_path(serun, 'goodlist')
     badfile=deswl.files.se_collated_path(serun, 'badlist')
 
     eu.ostools.makedirs_fromfile(goodfile)
 
-    print "Writing goodlist: %s",goodfile
+    print >>stderr,"Writing goodlist: %s",goodfile
     json_util.write(goodlist, goodfile)
-    print "Writing badlist: %s",badfile
+    print >>stderr,"Writing badlist: %s",badfile
     json_util.write(badlist, badfile)
  
 

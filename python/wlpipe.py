@@ -699,12 +699,13 @@ class ImageProcessor(dict):
         self['timeout'] = 2*60*60 # two hours
 
         self.use_hdfs=False
-        if self['image_url'][0:4] == 'hdfs':
+        if self['image'][0:4] == 'hdfs':
             self.use_hdfs=True
 
         self.setup_files()
 
     def run(self):
+        print >>stderr,os.uname()[1]
         if self.use_hdfs:
             self.hdfs_stage()
 
@@ -730,13 +731,14 @@ class ImageProcessor(dict):
             self.hdfs_put()
             self.hdfs_cleanup()
 
+        print >>stderr,'Done'
 
 
     def get_command(self):
         command=[self['executable'],
                  self['wl_config'],
-                 'image_file='+self.inf['image_url'],
-                 'cat_file='+self.inf['cat_url'],
+                 'image_file='+self.inf['image'],
+                 'cat_file='+self.inf['cat'],
                  'stars_file='+self.outf['stars'],
                  'fitpsf_file='+self.outf['fitpsf'],
                  'psf_file='+self.outf['psf'],
@@ -767,8 +769,8 @@ class ImageProcessor(dict):
         json_util.write(self, self.outf['stat'])
 
     def hdfs_stage(self):
-        self.hdfs_inf['image_url'].stage()
-        self.hdfs_inf['cat_url'].stage()
+        self.hdfs_inf['image'].stage()
+        self.hdfs_inf['cat'].stage()
 
     def hdfs_cleanup(self):
         for k,v in self.hdfs_inf.iteritems():
@@ -787,7 +789,7 @@ class ImageProcessor(dict):
             hdfs_inf={}
             hdfs_outf={}
 
-            for k in ['image_url','cat_url']:
+            for k in ['image','cat']:
                 hdfs_inf[k] = eu.hdfs.HDFSFile(self[k],verbose=True)
                 inf[k] = hdfs_inf[k].localfile
             out_types = ['qa','stat','stars','fitpsf','psf','shear']
@@ -801,7 +803,7 @@ class ImageProcessor(dict):
             self.hdfs_inf  = hdfs_inf
             self.hdfs_outf = hdfs_outf
         else:
-            for k in ['image_url','cat_url']:
+            for k in ['image','cat']:
                 inf[k] = self[k]
             for k in ['qa','stat','stars','fitpsf','psf','shear','debug']:
                 outf[k] = self[k]
@@ -1927,6 +1929,7 @@ class CoaddTileProcessor(dict):
         self['timeout'] = 2*60*60 # two hours
 
     def run(self):
+        print >>stderr,os.uname()[1]
         eu.ostools.makedirs_fromfile(self['qa'])
         command=self.get_command()
         # stdout will go to the qafile.
@@ -1944,6 +1947,8 @@ class CoaddTileProcessor(dict):
         print 'exit_status:',exit_status
 
         self.write_status()
+
+        print >>stderr,'Done'
 
     def get_command(self):
 

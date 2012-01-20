@@ -1,115 +1,46 @@
 #!/usr/bin/env python
 """
-    %prog [options]
+    %prog [options] config_file
 
-You can send have all the info in a configuration file containing a dictionary.
+Description:
+    config_file should have these file names, even if not used
+        wl_config 
+        image 
+        cat 
+        srclist 
+        shear 
+        qa 
+        stat 
+        debug
+    and optionally these
+        merun
+        debug_level
+        output_dots
+        output_info
 
-    multishear-run -c configfile
-
-It should have these file  names
-        wl_config image cat srclist shear qa stat
-and optionally these
-        nodots merun debug debug_file
-
-Using one of the following the file names will be determined via
-the database
-
-    multishear-run -r merun -i coadd_id
-    multishear-run -r merun -t tilename
-
-tilename is sufficient because merun implies a dataset and band.  There are
-also long versions of each switch.
-
-sending tilename instead of coadd_id will be slower since the data are
-keyed by id.
+    Note output_dots is turned off by default, unlike in the C++ code
 """
 
 import sys
-from sys import stdout,stderr
 import deswl
 
 from optparse import OptionParser
 parser = OptionParser(__doc__)
 
-parser.add_option("-c","--config",default="", 
-        help="Name of config file with all file names and variables. Other options "
-             "are ignored in this case")
+options, args = parser.parse_args(sys.argv[1:])
+if len(args) < 1:
+    parser.print_help()
+    sys.exit(1)
 
-parser.add_option("-r","--merun",default="", help="multi-epoch run")
-parser.add_option("-i","--id",default=None, help="coadd file id")
-parser.add_option("-t","--tile",default="", help="tile name")
+config_file=args[0]
 
-parser.add_option("-o","--outdir",default=None, 
-    help="output dir. Defaults to '.' when running by dataset or the "
-         "'usual' place when merun is sent")
+with open(options.config) as fobj:
+    import yaml
+    conf=yaml.load(fobj)
 
-parser.add_option("--nodots", action='store_true', default=False,
-    help="Don't print progress dots.")
-parser.add_option("--debug", default=0,
-    help="Debug verbosity level. 0:none 1:dbg 2:xdbg. Default %default")
+if 'output_dots' not in conf:
+    conf['output_dots'] = False
 
-def procopts_merun(options):
-    conf={}
+ctp = deswl.wlpipe.CoaddTileProcessor(conf)
+ctp.run()
 
-    rc=deswl.files.Runconfig(options.merun)
-    rc.verify()
-
-    # we need either id or tile sent
-    if options.id:
-        ci=deswl.files.coadd_info_select(rc['dataset'],rc['band'],
-                                         ids=options.id)
-    elif options.tile:
-        ci=deswl.files.coadd_info_select(rc['dataset'],rc['band'],
-                                         tiles=options.tile)
-    else:
-        parser.print_help()
-        sys.exit(45)
-
-    conf['dataset'] = rc['dataset']
-    conf['wl_config'] = rc['wl_config']
-    conf['merun'] = options.merun
-
-    return conf, ci
-
-def procopts(options):
-    conf, ci = procopts_merun(options)
-
-    conf['tilename']  = ci['tilename']
-    conf['band']      = ci['band']
-    conf['image_id']  = ci['image_id']
-    conf['cat_id']    = ci['cat_id']
-    conf['coadd_run'] = ci['run']
-    conf['image_url'] = ci['image_url']
-    conf['cat_url']   = ci['cat_url']
-
-    return conf
-
-def add_environ(conf):
-    e=deswl.files.get_proc_environ()
-    for k in e:
-        conf[k] = e[k]
-
-def add_outputs(conf, outdir=None):
-    merun=conf.get('merun',None)
-    fdict=deswl.files.generate_me_output_urls(conf['tilename'], conf['band'],
-                                              merun=merun, dir=outdir)
-
-def main():
-    import pprint
-    options, args = parser.parse_args(sys.argv[1:])
-
-    if options.config is not None:
-        with open(options.config) as fobj:
-            import yaml
-            conf=yaml.load(fobj)
-    else:
-        conf=procopts(options)
-        add_environ(conf)
-        add_outputs(conf, outdir=options.outdir)
-
-    ctp = deswl.wlpipe.CoaddTileProcessor(conf)
-    #pprint.pprint(ctp)
-    #pprint.pprint(ctp.get_command())
-    ctp.run()
-
-main()
