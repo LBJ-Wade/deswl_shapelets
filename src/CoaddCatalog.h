@@ -16,7 +16,7 @@ public :
     CoaddCatalog(const ConfigFile& _params);
     ~CoaddCatalog();
 
-    size_t size() const { return _id.size(); }
+    int size() const { return _id.size(); }
 
     void read();
     void readFits(const std::string& file);

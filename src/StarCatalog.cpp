@@ -115,15 +115,15 @@ StarCatalog::StarCatalog(const StarCatalog& inStarCat) :
     _isAStar(inStarCat.getIsAStarList()),
     _params(inStarCat.getParams())
 {
-    Assert(_id.size() == size());
-    Assert(_pos.size() == size());
-    Assert(_sky.size() == size());
-    Assert(_noise.size() == size());
-    Assert(_flags.size() == size());
-    Assert(_mag.size() == size());
-    Assert(_sg.size() == size());
-    Assert(_objSize.size() == size());
-    Assert(_isAStar.size() == size());
+    Assert(int(_id.size()) == size());
+    Assert(int(_pos.size()) == size());
+    Assert(int(_sky.size()) == size());
+    Assert(int(_noise.size()) == size());
+    Assert(int(_flags.size()) == size());
+    Assert(int(_mag.size()) == size());
+    Assert(int(_sg.size()) == size());
+    Assert(int(_objSize.size()) == size());
+    Assert(int(_isAStar.size()) == size());
 
 
 }
@@ -133,7 +133,7 @@ StarCatalog::StarCatalog(
     const StarCatalog& inStarCat, const std::vector<long> indices) :
     _params(inStarCat.getParams())
 {
-    size_t nind = indices.size();
+    int nind = indices.size();
     _id.resize(nind);
     _pos.resize(nind);
     _sky.resize(nind);
@@ -145,7 +145,7 @@ StarCatalog::StarCatalog(
     _objSize.resize(nind);
     _isAStar.resize(nind);
 
-    for (size_t i=0; i<nind; i++) {
+    for (int i=0; i<nind; i++) {
         long ind = indices[i];
         _id[i]      = inStarCat.getId(ind);
         _pos[i]     = inStarCat.getPos(ind);
@@ -170,35 +170,35 @@ StarCatalog::StarCatalog(
     _sg(inCat.getSgList()), _objSize(inCat.getObjSizeList()),
     _isAStar(_id.size(),0), _params(params), _prefix(fsPrefix)
 {
-    Assert(_id.size() == size());
-    Assert(_pos.size() == size());
-    Assert(_sky.size() == size());
-    Assert(_noise.size() == size());
-    Assert(_flags.size() == size());
+    Assert(int(_id.size()) == size());
+    Assert(int(_pos.size()) == size());
+    Assert(int(_sky.size()) == size());
+    Assert(int(_noise.size()) == size());
+    Assert(int(_flags.size()) == size());
     if (_sg.size() == 0) _sg.resize(size(),DEFVALNEG);
-    Assert(_sg.size() == size());
+    Assert(int(_sg.size()) == size());
     if (_objSize.size() == 0) _objSize.resize(size(),DEFVALNEG);
-    Assert(_objSize.size() == size());
-    Assert(_isAStar.size() == size());
+    Assert(int(_objSize.size()) == size());
+    Assert(int(_isAStar.size()) == size());
     if (params.read("cat_all_stars",false)) {
-        for(size_t i=0;i<_isAStar.size();++i) _isAStar[i] = 1;
+        for(int i=0;i<size();++i) _isAStar[i] = 1;
     } else {
-        Assert(_mag.size() == size());
+        Assert(int(_mag.size()) == size());
     }
 }
 
 StarCatalog::StarCatalog(const ConfigFile& params, std::string fsPrefix) :
     _params(params), _prefix(fsPrefix)
 { 
-    Assert(_id.size() == size());
-    Assert(_pos.size() == size());
-    Assert(_sky.size() == size());
-    Assert(_noise.size() == size());
-    Assert(_flags.size() == size());
-    Assert(_objSize.size() == size());
-    Assert(_mag.size() == size());
-    Assert(_sg.size() == size());
-    Assert(_isAStar.size() == size());
+    Assert(int(_id.size()) == size());
+    Assert(int(_pos.size()) == size());
+    Assert(int(_sky.size()) == size());
+    Assert(int(_noise.size()) == size());
+    Assert(int(_flags.size()) == size());
+    Assert(int(_objSize.size()) == size());
+    Assert(int(_mag.size()) == size());
+    Assert(int(_sg.size()) == size());
+    Assert(int(_isAStar.size()) == size());
 }
 
 
@@ -208,19 +208,19 @@ void StarCatalog::splitInTwo(
 
     // use a deterministic seed: number of objects in catalog plus number
     // that are stars
-    unsigned int nstar=0;
-    for (unsigned int i=0;i<this->size();i++) {
+    int nstar=0;
+    for (int i=0;i<this->size();i++) {
         if (this->isAStar(i)) {
             nstar++;
         }
     }
-    unsigned int seed = this->size() + nstar*100000;
+    int seed = this->size() + nstar*100000;
     this->splitInTwo(f1,f2,seed);
 }
 
 void StarCatalog::splitInTwo(
     const std::string f1, const std::string f2,
-    const unsigned int seed) const
+    const int seed) const
 {
     srand(seed);
 
@@ -230,7 +230,7 @@ void StarCatalog::splitInTwo(
     double split_point = 0.5;
 
 
-    for (size_t i=0; i<this->size(); i++) {
+    for (int i=0; i<this->size(); i++) {
 
         // number between [0,1)
         double r = ( (double)rand() / ((double)(RAND_MAX)+(double)(1)) );
@@ -337,15 +337,15 @@ int StarCatalog::findStars(FindStarsLog& log)
 
 void StarCatalog::writeFits(std::string file) const 
 {
-    Assert(_id.size() == size());
-    Assert(_pos.size() == size());
-    Assert(_sky.size() == size());
-    Assert(_noise.size() == size());
-    Assert(_flags.size() == size());
-    Assert(_mag.size() == size());
-    Assert(_sg.size() == size());
-    Assert(_objSize.size() == size());
-    Assert(_isAStar.size() == size());
+    Assert(int(_id.size()) == size());
+    Assert(int(_pos.size()) == size());
+    Assert(int(_sky.size()) == size());
+    Assert(int(_noise.size()) == size());
+    Assert(int(_flags.size()) == size());
+    Assert(int(_mag.size()) == size());
+    Assert(int(_sg.size()) == size());
+    Assert(int(_objSize.size()) == size());
+    Assert(int(_isAStar.size()) == size());
 
     const int nTot = size();
 
@@ -487,15 +487,15 @@ void StarCatalog::writeFits(std::string file) const
 
 void StarCatalog::writeAscii(std::string file, std::string delim) const 
 {
-    Assert(_id.size() == size());
-    Assert(_pos.size() == size());
-    Assert(_sky.size() == size());
-    Assert(_noise.size() == size());
-    Assert(_flags.size() == size());
-    Assert(_mag.size() == size());
-    Assert(_sg.size() == size());
-    Assert(_objSize.size() == size());
-    Assert(_isAStar.size() == size());
+    Assert(int(_id.size()) == size());
+    Assert(int(_pos.size()) == size());
+    Assert(int(_sky.size()) == size());
+    Assert(int(_noise.size()) == size());
+    Assert(int(_flags.size()) == size());
+    Assert(int(_mag.size()) == size());
+    Assert(int(_sg.size()) == size());
+    Assert(int(_objSize.size()) == size());
+    Assert(int(_isAStar.size()) == size());
 
     std::ofstream fout(file.c_str());
     if (!fout) {

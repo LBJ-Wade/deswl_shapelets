@@ -35,7 +35,8 @@ void NLSolver::calculateJ(
     tmv::Vector<double> x2 = x;
     tmv::Vector<double> f2(f.size());
     tmv::Vector<double> f1(f.size());
-    for(size_t j=0;j<x.size();++j) {
+    int n = x.size();
+    for(int j=0;j<n;++j) {
         const double dx = sqrtEps * (x.norm() + 1.);
         x2(j) += dx;
         this->calculateF(x2,f2);
@@ -75,8 +76,10 @@ bool NLSolver::testJ(
             *os << "J-J_num = "<<diff;
             double maxel = diff.maxAbsElement();
             *os << "Max element = "<<maxel<<std::endl;
-            for(size_t i=0;i<diff.colsize();++i) {
-                for(size_t j=0;j<diff.rowsize();++j) {
+            const int m = diff.colsize();
+            const int n = diff.rowsize();
+            for(int i=0;i<m;++i) {
+                for(int j=0;j<n;++j) {
                     if (std::abs(diff(i,j)) > 0.9*maxel) {
                         *os<<"J("<<i<<','<<j<<") = "<<J(i,j)<<"  ";
                         *os<<"J_num("<<i<<','<<j<<") = "<<Jn(i,j)<<"  ";
@@ -126,7 +129,8 @@ void NLSolver::calculateNumericH(
 
     tmv::Vector<double> x2 = x;
     tmv::Vector<double> f2(f.size());
-    for(size_t i=0;i<x.size();++i) {
+    const int n = x.size();
+    for(int i=0;i<n;++i) {
         x2(i) = x(i) + dx;
         this->calculateF(x2,f2);
         double q2a = 0.5*f2.normSq();
@@ -137,7 +141,7 @@ void NLSolver::calculateNumericH(
         h(i,i) = (q2a + q2b - 2.*q0) / (dx*dx);
         x2(i) = x(i);
 
-        for(size_t j=i+1;j<x.size();++j) {
+        for(int j=i+1;j<n;++j) {
             x2(i) = x(i) + dx;
             x2(j) = x(j) + dx;
             this->calculateF(x2,f2);
@@ -276,7 +280,11 @@ bool NLSolver::solveNewton(
                 dbg<<"along the gradient direction:\n";
                 if (_shouldUseSvd) {
                     dbg<<"J Singular values = \n"<<J.svd().getS().diag()<<std::endl;
+#if TMV_MINOR_VERSION >= 70
+                    dbg<<"V = \n"<<J.svd().getVt()<<std::endl;
+#else
                     dbg<<"V = \n"<<J.svd().getV()<<std::endl;
+#endif
                 }
                 SHOWFAILFG; 
                 return false;

@@ -76,18 +76,19 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                 dbg<<"chipPos = "<<_chipPos[i]<<std::endl;
                 dbg<<"skypos = "<<_skyPos[i]<<std::endl;
 
-                if (_pixList[i].size() == 0) {
+                int nEpoch = _pixList[i].size();
+                if (nEpoch == 0) {
                     dbg<<"no valid single epoch images.\n";
                     dbg<<"FLAG NO_SINGLE_EPOCH_IMAGES\n";
                     _flags[i] = NO_SINGLE_EPOCH_IMAGES;
                     continue;
                 }
 
-                dbg<<"Using "<<_pixList[i].size()<<" epochs\n";
-                Assert(_pixList[i].size() == _seNum[i].size());
-                Assert(_pixList[i].size() == _sePos[i].size());
+                dbg<<"Using "<<nEpoch<<" epochs\n";
+                Assert(nEpoch == int(_seNum[i].size()));
+                Assert(nEpoch == int(_sePos[i].size()));
                 dbg<<"seImageNum   seImageName   sePos\n";
-                for (size_t k=0;k<_pixList[i].size();++k) {
+                for (int k=0;k<nEpoch;++k) {
                     dbg<<_seNum[i][k]<<"  "<<
                         _imageFileList[_seNum[i][k]]<<"  "<<
                         _sePos[i][k]<<std::endl;
@@ -437,13 +438,13 @@ bool MultiShearCatalog::getImagePixelLists(
     dbg<<"Extracting pixel lists\n";
     // loop over the the objects, if the object falls on the image get
     // the pixel list
-    Assert(_skyPos.size() == size());
-    Assert(_pixList.size() == size());
-    Assert(_psfList.size() == size());
-    Assert(_flags.size() == size());
-    Assert(_inputFlags.size() == size());
-    Assert(_nImagesFound.size() == size());
-    Assert(_nImagesGotPix.size() == size());
+    Assert(int(_skyPos.size()) == size());
+    Assert(int(_pixList.size()) == size());
+    Assert(int(_psfList.size()) == size());
+    Assert(int(_flags.size()) == size());
+    Assert(int(_inputFlags.size()) == size());
+    Assert(int(_nImagesFound.size()) == size());
+    Assert(int(_nImagesGotPix.size()) == size());
 
     const int nGals = size();
     double xOffset = _params.read("cat_x_offset",0.);

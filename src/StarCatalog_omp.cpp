@@ -8,15 +8,23 @@
 #include "Params.h"
 #include "Log.h"
 
+//#define SINGLEGAL 111
+//#define STARTAT 8000
+//#define ENDAT 14
+
+#ifdef SINGLEGAL
+#undef _OPENMP
+#endif
+
 void StarCatalog::calculateSizes(
     const Image<double>& im, 
     const Image<double>*const weightIm, const Transformation& trans)
 {
-    Assert(_pos.size() == size());
-    Assert(_sky.size() == size());
-    Assert(_noise.size() == size());
-    Assert(_objSize.size() == size());
-    Assert(_flags.size() == size());
+    Assert(int(_pos.size()) == size());
+    Assert(int(_sky.size()) == size());
+    Assert(int(_noise.size()) == size());
+    Assert(int(_objSize.size()) == size());
+    Assert(int(_flags.size()) == size());
 
     const int n = _pos.size();
     dbg<<"n = "<<n<<std::endl;
@@ -33,6 +41,13 @@ void StarCatalog::calculateSizes(
 #pragma omp parallel for schedule(guided)
 #endif
     for (int i=0; i<n; ++i) if (!_flags[i]) {
+#ifdef STARTAT
+        if (i < STARTAT) continue;
+#endif
+#ifdef SINGLEGAL
+        if (i < SINGLEGAL) continue;
+        if (i > SINGLEGAL) break;
+#endif
         if (shouldOutputDots) {
 #ifdef _OPENMP
 #pragma omp critical (output)

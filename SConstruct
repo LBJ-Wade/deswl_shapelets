@@ -76,7 +76,7 @@ opts.Add(BoolVariable('WITH_TMV','Use TMV for Matrix/Vector (rather than Eigen)'
 opts.Add(BoolVariable('STATIC','Use static linkage', False))
 opts.Add(BoolVariable('MEM_TEST','Test for memory leaks',False))
 opts.Add(BoolVariable('WARN','Add warning compiler flags, like -Wall', False))
-opts.Add(BoolVariable('TMV_DEBUG','Turn on debugging statements within TMV library',False))
+opts.Add(BoolVariable('TMV_DEBUG','Turn on extra debugging statements within TMV library',False))
 
 opts.Add(BoolVariable('WITH_LIB',
             'Install the static library and headers.',False))
@@ -201,9 +201,12 @@ def AddOpenMPFlag(env):
         #xlib = ['gomp','gfortran','pthread']
         ldflag = ['-fopenmp']
         # Note: gcc_eh is required on MacOs, but not linux
-        # However, it seems to be safe for both (???), so I always include it.
-        # If it turns out to break something, I'll have to revisit this.
-        xlib = ['pthread','gcc_eh']
+        # Update: Starting with g++4.6, gcc_eh seems to break exception
+        # throwing, and so I'm only going to use that for version <= 4.5.
+        # Also, I learned how to check if the platform is darwin (aka MacOs)
+        xlib = ['pthread']
+        if (version <= 4.5) and (sys.platform.find('darwin') != -1):
+            xlib += ['gcc_eh']
         # Also add a #define to let program know that linking will use openmp
         # even for object files that don't.
         env.Append(CPPDEFINES=['OPENMP_LINK'])
@@ -693,13 +696,19 @@ def DoConfig(env):
     if not env['DEBUG']:
         print 'Debugging turned off'
         env.Append(CPPDEFINES=['NDEBUG'])
-    elif not env['TMV_DEBUG']:
-        if env['WITH_TMV']:
-            print 'Only TMV Debugging turned off'
-            env.Append(CPPDEFINES=['TMVNDEBUG'])
+    else:
+        if env['TMV_DEBUG']:
+            if env['WITH_TMV']:
+                print 'TMV Extra Debugging turned on'
+                env.Append(CPPDEFINES=['TMV_EXTRA_DEBUG'])
         else:
-            print 'Only Eigen Debugging turned off'
-            env.Append(CPPDEFINES=['EIGEN_NO_DEBUG'])
+            if env['WITH_TMV']:
+                # Once tmv v0.70 is standard, this can be removed.
+                print 'TMV Debugging turned off'
+                env.Append(CPPDEFINES=['TMVNDEBUG'])
+            else:
+                print 'Eigen Debugging turned off'
+                env.Append(CPPDEFINES=['EIGEN_NO_DEBUG'])
     if env['STATIC'] :
         if env['CXXTYPE'] == 'pgCC':
             env.Append(LINKFLAGS=['-Bstatic'])

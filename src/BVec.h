@@ -37,11 +37,15 @@ public :
     BVec(int order, double sigma, double* bvec) :
         _order(order), _sigma(sigma),
 #ifdef USE_TMV
-        _b((_order+1)*(_order+2)/2,bvec) 
+        _b( (_order+1)*(_order+2)/2 )
 #else
-            _b(DVector::Map(bvec,(_order+1)*(_order+2)/2))
+        _b(DVector::Map(bvec,(_order+1)*(_order+2)/2))
 #endif
-    {} 
+    {
+#ifdef USE_TMV
+        std::copy(bvec,bvec+_b.size(),_b.begin());
+#endif
+    }
 
     BVec(int order, double sigma, const DVector& bvec) :
         _order(order), _sigma(sigma), _b(bvec) 
@@ -71,7 +75,7 @@ public :
     int getOrder() const { return _order; }
     double getSigma() const { return _sigma; }
     const DVector& getValues() const { return _b; }
-    size_t size() const { return _b.size(); }
+    int size() const { return _b.size(); }
 
     void setSigma(double sigma) { _sigma = sigma; }
 

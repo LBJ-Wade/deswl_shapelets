@@ -60,7 +60,7 @@ public :
         Assert(_avePsf.get());
         //Assert(_mV.get());
         Assert(b.getOrder() == _psfOrder);
-        Assert(b.size() == _avePsf->size());
+        Assert(b.size() == int(_avePsf->size()));
         b.setSigma(_sigma);
         interpolateVector(pos,TMV_vview(b.vec()));
     }
@@ -107,7 +107,7 @@ public :
         _psf(psf), _pos(pos) 
     {}
 
-    size_t size() const { return _psf._avePsf->size(); }
+    int size() const { return _psf._avePsf->size(); }
     int getOrder() const { return _psf.getPsfOrder(); }
     double getSigma() const { return _psf.getSigma(); }
 

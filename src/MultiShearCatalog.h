@@ -23,7 +23,7 @@ public :
     MultiShearCatalog(const ConfigFile& params);
     ~MultiShearCatalog();
 
-    size_t size() const { return _skyPos.size(); }
+    int size() const { return _skyPos.size(); }
     int getNImages() const { return _imageFileList.size(); }
     int getNGalsWithPixels() const;
 

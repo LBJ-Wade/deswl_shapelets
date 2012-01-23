@@ -79,9 +79,9 @@ public :
     ~PixelList();
 
     // These mimic the same functionality of a std::vector<Pixel>
-    size_t size() const;
+    int size() const;
     void reserve(const int n);
-    size_t capacity() const;
+    int capacity() const;
     void resize(const int n);
     void clear();
     void push_back(const Pixel& p);

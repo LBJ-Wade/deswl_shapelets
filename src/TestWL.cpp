@@ -2032,12 +2032,12 @@ int main(int argc, char **argv) try
     StarCatalog starCat2(params,"");
     starCat2.read();
     std::vector<std::string> all_ext = params["stars_ext"];
-    for(size_t k=0;k<all_ext.size();++k) {
+    for(int k=0;k<int(all_ext.size());++k) {
         dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
         params["stars_ext"] = all_ext[k];
         if (k > 0) starCat2.read();
         test(starCat.size() == starCat2.size(),"starcat size I/O");
-        for(size_t i=0;i<starCat.size();++i) {
+        for(int i=0;i<starCat.size();++i) {
             test(starCat.getId(i) == starCat2.getId(i), "starcat id I/O");
             test(std::abs(starCat.getPos(i) - starCat2.getPos(i)) <= 0.01,
                  "starcat pos I/O");
@@ -2062,10 +2062,10 @@ int main(int argc, char **argv) try
     params["stars_ext"] = all_ext;
 
     // Measure PSF
-    PsfCatalog psfcat(starCat,params);
-    double sigmaP = psfcat.estimateSigma(im,weight_im.get(),trans);
+    PsfCatalog psfCat(starCat,params);
+    double sigmaP = psfCat.estimateSigma(im,weight_im.get(),trans);
     PsfLog psflog(params,"testpsf.log");
-    int npsf = psfcat.measurePsf(im,weight_im.get(),trans,sigmaP,psflog);
+    int npsf = psfCat.measurePsf(im,weight_im.get(),trans,sigmaP,psflog);
     dbg<<psflog<<std::endl;
     // There are 244 stars in the file, but depending on the exact parameters,
     // one or two cross the edge, which gives an error flag.
@@ -2073,45 +2073,45 @@ int main(int argc, char **argv) try
     test(npsf >= 240,"Measure PSF");
 
     // Test I/O
-    psfcat.write();
-    PsfCatalog psfcat2(params);
-    psfcat2.read();
+    psfCat.write();
+    PsfCatalog psfCat2(params);
+    psfCat2.read();
     all_ext = params["psf_ext"];
-    for(size_t k=0;k<all_ext.size();++k) {
+    for(int k=0;k<int(all_ext.size());++k) {
         dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
         params["psf_ext"] = all_ext[k];
-        if (k > 0) psfcat2.read();
-        test(psfcat.size() == psfcat2.size(),"psfcat size I/O");
-        for(size_t i=0;i<psfcat.size();++i) {
-            test(psfcat.getId(i) == psfcat2.getId(i),"psfcat id I/O");
-            test(std::abs(psfcat.getPos(i) - psfcat2.getPos(i)) <= 0.01,
-                 "psfcat pos I/O");
-            test(std::abs(psfcat.getSky(i) - psfcat2.getSky(i)) <= 0.01,
-                 "psfcat sky I/O");
-            test(std::abs(psfcat.getNoise(i) - psfcat2.getNoise(i)) <= 0.01,
-                 "psfcat noise I/O");
-            test(psfcat.getFlags(i) == psfcat2.getFlags(i),"psfcat flags I/O");
-            test(std::abs(psfcat.getNu(i) - psfcat2.getNu(i)) <= 0.01,
-                 "psfcat nu I/O");
-            test(psfcat.getPsf(i).size() == psfcat2.getPsf(i).size(),
-                 "psfcat psf.size I/O");
-            test(std::abs(psfcat.getPsf(i).getSigma() -
-                          psfcat2.getPsf(i).getSigma()) 
-                 <= 0.01, "psfcat psf.getSigma I/O");
-            test((psfcat.getPsf(i).vec() - psfcat2.getPsf(i).vec()).TMV_normInf() <= 
-                 1.e-4*psfcat.getPsf(i).vec().norm(), "psfcat psf vector I/O");
+        if (k > 0) psfCat2.read();
+        test(psfCat.size() == psfCat2.size(),"psfCat size I/O");
+        for(int i=0;i<psfCat.size();++i) {
+            test(psfCat.getId(i) == psfCat2.getId(i),"psfCat id I/O");
+            test(std::abs(psfCat.getPos(i) - psfCat2.getPos(i)) <= 0.01,
+                 "psfCat pos I/O");
+            test(std::abs(psfCat.getSky(i) - psfCat2.getSky(i)) <= 0.01,
+                 "psfCat sky I/O");
+            test(std::abs(psfCat.getNoise(i) - psfCat2.getNoise(i)) <= 0.01,
+                 "psfCat noise I/O");
+            test(psfCat.getFlags(i) == psfCat2.getFlags(i),"psfCat flags I/O");
+            test(std::abs(psfCat.getNu(i) - psfCat2.getNu(i)) <= 0.01,
+                 "psfCat nu I/O");
+            test(psfCat.getPsf(i).size() == psfCat2.getPsf(i).size(),
+                 "psfCat psf.size I/O");
+            test(std::abs(psfCat.getPsf(i).getSigma() -
+                          psfCat2.getPsf(i).getSigma()) 
+                 <= 0.01, "psfCat psf.getSigma I/O");
+            test((psfCat.getPsf(i).vec() - psfCat2.getPsf(i).vec()).TMV_normInf() <= 
+                 1.e-4*psfCat.getPsf(i).vec().norm(), "psfCat psf vector I/O");
         }
     }
     params["psf_ext"] = all_ext;
 
     // Fit PSF
-    FittedPsf fitpsf(psfcat,params,psflog);
+    FittedPsf fitpsf(psfCat,params,psflog);
     double rms = 0.; 
     int count = 0;
-    for(int i=0;i<nstars;++i) if (!psfcat.getFlags(i)) {
+    for(int i=0;i<nstars;++i) if (!psfCat.getFlags(i)) {
         BVec checkpsf(fitpsf.getPsfOrder(),fitpsf.getSigma());
         checkpsf = fitpsf(starCat.getPos(i));
-        double normsqdiff = (psfcat.getPsf(i).vec()-checkpsf.vec()).TMV_normSq();
+        double normsqdiff = (psfCat.getPsf(i).vec()-checkpsf.vec()).TMV_normSq();
         rms += normsqdiff;
         ++count;
     }
@@ -2126,7 +2126,7 @@ int main(int argc, char **argv) try
     FittedPsf fitpsf2(params);
     fitpsf2.read();
     all_ext = params["fitpsf_ext"];
-    for(size_t k=0;k<all_ext.size();++k) {
+    for(int k=0;k<int(all_ext.size());++k) {
         dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
         params["fitpsf_ext"] = all_ext[k];
         if (k > 0) fitpsf2.read();
@@ -2136,7 +2136,7 @@ int main(int argc, char **argv) try
              "FittedPSF I/O: order");
         test(std::abs(fitpsf2.getSigma() - fitpsf.getSigma()) < 0.01, 
              "FittedPSF I/O: sigma");
-        for(int i=0;i<nstars;++i) if (!psfcat.getFlags(i)) {
+        for(int i=0;i<nstars;++i) if (!psfCat.getFlags(i)) {
             BVec checkpsf(fitpsf.getPsfOrder(),fitpsf.getSigma());
             checkpsf = fitpsf(starCat.getPos(i));
             BVec checkpsf2(fitpsf2.getPsfOrder(),fitpsf2.getSigma());
@@ -2153,9 +2153,9 @@ int main(int argc, char **argv) try
     params["fitpsf_ext"] = all_ext;
 
     // Measure shears
-    ShearCatalog shearcat(incat,trans,fitpsf,params);
+    ShearCatalog shearCat(incat,trans,fitpsf,params);
     ShearLog shearlog(params,"testshear.log");
-    int nshear = shearcat.measureShears(im,weight_im.get(),shearlog);
+    int nshear = shearCat.measureShears(im,weight_im.get(),shearlog);
     dbg<<shearlog<<std::endl;
     // There are 4557 galaxies in the file without error codes.
     // The code currently converges on more than 2800 of them,
@@ -2163,50 +2163,50 @@ int main(int argc, char **argv) try
     test(nshear >= 2800,"Measure Shear");
 
     // Test I/O
-    shearcat.write();
-    ShearCatalog shearcat2(params);
-    shearcat2.read();
+    shearCat.write();
+    ShearCatalog shearCat2(params);
+    shearCat2.read();
     all_ext = params["shear_ext"];
-    for(size_t k=0;k<all_ext.size();++k) {
+    for(int k=0;k<int(all_ext.size());++k) {
         dbg<<"Test I/O with extension "<<all_ext[k]<<std::endl;
         params["shear_ext"] = all_ext[k];
-        if (k > 0) shearcat2.read();
-        test(shearcat.size() == shearcat2.size(),"shearcat size I/O");
-        for(size_t i=0;i<shearcat.size();++i) {
-            test(shearcat.getId(i) == shearcat2.getId(i),"shearcat id I/O");
-            test(std::abs(shearcat.getPos(i) - shearcat2.getPos(i)) <= 0.01,
-                 "shearcat pos I/O");
-            test(std::abs(shearcat.getSky(i) - shearcat2.getSky(i)) <= 0.01,
-                 "shearcat sky I/O");
-            test(std::abs(shearcat.getNoise(i) - shearcat2.getNoise(i)) <= 0.01,
-                 "shearcat noise I/O");
-            test(shearcat.getFlags(i) == shearcat2.getFlags(i),
-                 "shearcat flags I/O");
-            dbg<<"skypos = "<<shearcat.getSkyPos(i)<<"  "<<shearcat2.getSkyPos(i)<<std::endl;
-            test(std::abs(shearcat.getSkyPos(i) - shearcat2.getSkyPos(i)) 
+        if (k > 0) shearCat2.read();
+        test(shearCat.size() == shearCat2.size(),"shearCat size I/O");
+        for(int i=0;i<shearCat.size();++i) {
+            test(shearCat.getId(i) == shearCat2.getId(i),"shearCat id I/O");
+            test(std::abs(shearCat.getPos(i) - shearCat2.getPos(i)) <= 0.01,
+                 "shearCat pos I/O");
+            test(std::abs(shearCat.getSky(i) - shearCat2.getSky(i)) <= 0.01,
+                 "shearCat sky I/O");
+            test(std::abs(shearCat.getNoise(i) - shearCat2.getNoise(i)) <= 0.01,
+                 "shearCat noise I/O");
+            test(shearCat.getFlags(i) == shearCat2.getFlags(i),
+                 "shearCat flags I/O");
+            dbg<<"skypos = "<<shearCat.getSkyPos(i)<<"  "<<shearCat2.getSkyPos(i)<<std::endl;
+            test(std::abs(shearCat.getSkyPos(i) - shearCat2.getSkyPos(i)) 
                  <= 0.01,
-                 "shearcat skypos I/O");
-            test(std::abs(shearcat.getShear(i) - shearcat2.getShear(i)) <= 0.01,
-                 "shearcat shear I/O");
-            test(std::abs(shearcat.getNu(i) - shearcat2.getNu(i)) <= 0.01,
-                 "shearcat nu I/O");
+                 "shearCat skypos I/O");
+            test(std::abs(shearCat.getShear(i) - shearCat2.getShear(i)) <= 0.01,
+                 "shearCat shear I/O");
+            test(std::abs(shearCat.getNu(i) - shearCat2.getNu(i)) <= 0.01,
+                 "shearCat nu I/O");
 #ifdef USE_TMV
-            test((DMatrix((shearcat.getCov(i) - shearcat2.getCov(i)))).norm()
-                 <= 1.e-4*shearcat.getCov(i).norm(),
-                 "shearcat cov I/O");
+            test((DMatrix((shearCat.getCov(i) - shearCat2.getCov(i)))).norm()
+                 <= 1.e-4*shearCat.getCov(i).norm(),
+                 "shearCat cov I/O");
 #else
-            test((shearcat.getCov(i) - shearcat2.getCov(i)).TMV_normInf()
-                 <= 1.e-4*shearcat.getCov(i).norm(),
-                 "shearcat cov I/O");
+            test((shearCat.getCov(i) - shearCat2.getCov(i)).TMV_normInf()
+                 <= 1.e-4*shearCat.getCov(i).norm(),
+                 "shearCat cov I/O");
 #endif
-            test(shearcat.getShape(i).size() == shearcat2.getShape(i).size(),
-                 "shearcat shape.size I/O");
-            test(std::abs(shearcat.getShape(i).getSigma() -
-                          shearcat2.getShape(i).getSigma()) <= 0.01,
-                 "shearcat shape.getSigma I/O");
-            test((shearcat.getShape(i).vec() - shearcat2.getShape(i).vec()).TMV_normInf() 
-                 <= 1.e-4*shearcat.getShape(i).vec().norm(),
-                 "shearcat shape vector I/O");
+            test(shearCat.getShape(i).size() == shearCat2.getShape(i).size(),
+                 "shearCat shape.size I/O");
+            test(std::abs(shearCat.getShape(i).getSigma() -
+                          shearCat2.getShape(i).getSigma()) <= 0.01,
+                 "shearCat shape.getSigma I/O");
+            test((shearCat.getShape(i).vec() - shearCat2.getShape(i).vec()).TMV_normInf() 
+                 <= 1.e-4*shearCat.getShape(i).vec().norm(),
+                 "shearCat shape vector I/O");
         }
     }
     params["shear_ext"] = all_ext;

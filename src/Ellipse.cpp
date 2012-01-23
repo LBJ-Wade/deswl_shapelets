@@ -379,8 +379,8 @@ bool Ellipse::doMeasureShapelet(
 #else
         // Fixed a bug in the isSingular function in v0.65.
         // Until that is the standard TMV version for DES, use this instead:
-        (Am.qrpd().getR().minAbs2Element() < 
-         1.e-16 * Am.qrpd().getR().maxAbs2Element()) ||
+        (Am.qrpd().getR().diag().minAbs2Element() < 
+         1.e-16 * Am.qrpd().getR().diag().maxAbs2Element()) ||
 #endif
         DiagMatrixViewOf(Am.qrpd().getR().diag()).condition() > 
         MAX_CONDITION) {

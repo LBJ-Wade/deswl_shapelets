@@ -84,7 +84,7 @@ int ShearCatalog::measureShears(
             // initialize random seed:
             // NB: This will only stay deterministic if not using openmp.
             unsigned int seed=0;
-            for (size_t i=0;i<this->size(); i++) {
+            for (int i=0;i<this->size(); i++) {
                 seed += i*_flags[i];
             }
             dbg<<"using seed: "<<seed<<"\n";

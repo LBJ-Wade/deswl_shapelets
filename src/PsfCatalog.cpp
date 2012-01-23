@@ -179,33 +179,33 @@ PsfCatalog::PsfCatalog(
     _nu.resize(_id.size(),nuDefault);
     _psf.resize(_id.size(),psfDefault);
 
-    Assert(_id.size() == size());
-    Assert(_pos.size() == size());
-    Assert(_sky.size() == size());
-    Assert(_noise.size() == size());
-    Assert(_flags.size() == size());
-    Assert(_nu.size() == size());
-    Assert(_psf.size() == size());
+    Assert(int(_id.size()) == size());
+    Assert(int(_pos.size()) == size());
+    Assert(int(_sky.size()) == size());
+    Assert(int(_noise.size()) == size());
+    Assert(int(_flags.size()) == size());
+    Assert(int(_nu.size()) == size());
+    Assert(int(_psf.size()) == size());
 }
 
 PsfCatalog::PsfCatalog(const ConfigFile& params) : _params(params)
 {
-    Assert(_id.size() == size());
-    Assert(_pos.size() == size());
-    Assert(_sky.size() == size());
-    Assert(_noise.size() == size());
-    Assert(_flags.size() == size());
-    Assert(_nu.size() == size());
-    Assert(_psf.size() == size());
+    Assert(int(_id.size()) == size());
+    Assert(int(_pos.size()) == size());
+    Assert(int(_sky.size()) == size());
+    Assert(int(_noise.size()) == size());
+    Assert(int(_flags.size()) == size());
+    Assert(int(_nu.size()) == size());
+    Assert(int(_psf.size()) == size());
 }
 
 void PsfCatalog::writeFits(std::string file) const
 {
-    Assert(_id.size() == size());
-    Assert(_pos.size() == size());
-    Assert(_nu.size() == size());
-    Assert(_flags.size() == size());
-    Assert(_psf.size() == size());
+    Assert(int(_id.size()) == size());
+    Assert(int(_pos.size()) == size());
+    Assert(int(_nu.size()) == size());
+    Assert(int(_flags.size()) == size());
+    Assert(int(_psf.size()) == size());
     const int nPsf = size();
 
     // ! means overwrite existing file
@@ -330,13 +330,13 @@ void PsfCatalog::writeFits(std::string file) const
 
 void PsfCatalog::writeAscii(std::string file, std::string delim) const
 {
-    Assert(_id.size() == size());
-    Assert(_pos.size() == size());
-    Assert(_sky.size() == size());
-    Assert(_noise.size() == size());
-    Assert(_flags.size() == size());
-    Assert(_nu.size() == size());
-    Assert(_psf.size() == size());
+    Assert(int(_id.size()) == size());
+    Assert(int(_pos.size()) == size());
+    Assert(int(_sky.size()) == size());
+    Assert(int(_noise.size()) == size());
+    Assert(int(_flags.size()) == size());
+    Assert(int(_nu.size()) == size());
+    Assert(int(_psf.size()) == size());
     const int nPsf = size();
 
     std::ofstream fout(file.c_str());

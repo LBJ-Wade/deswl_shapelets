@@ -278,6 +278,7 @@ void Ellipse::crudeMeasure(const PixelList& pix, double sigma)
     s.noUseCholesky();
 #endif
     if (XDEBUG) s.setOutput(*dbgout);
+    //if (XDEBUG) s.useVerboseOutput();
     xdbg<<"Before CrudeSolver: x = "<<EIGEN_Transpose(x)<<std::endl;
     s.solve(x,f);
     xdbg<<"After CrudeSolver: x = "<<EIGEN_Transpose(x)<<std::endl;
@@ -317,7 +318,7 @@ void Ellipse::crudeMeasure(
     for(int i=0;i<nPixList;++i) nPix += pix[i].size();
     PixelList allPix(nPix);
     for(int i=0,k=0;i<nPixList;++i)
-        for(size_t j=0;j<pix[i].size();++j,++k)
+        for(int j=0;j<pix[i].size();++j,++k)
             allPix[k] = pix[i][j];
     crudeMeasure(allPix,sigma);
 }

@@ -22,15 +22,16 @@ bool Ellipse::doMeasure(
     dbg<<"fix = "<<_isFixedCen<<"  "<<_isFixedGamma<<"  "<<_isFixedMu<<std::endl;
     dbg<<"Thresh = "<<thresh<<std::endl;
     dbg<<"ell_meas = "<<*ell_meas<<std::endl;
-    int npix = 0;
-    for(size_t i=0;i<pix.size();++i) {
-        xdbg<<"npix["<<i<<"] = "<<pix[i].size()<<std::endl;
-        npix += pix[i].size();
+    int nPixList = pix.size();
+    int nPix = 0;
+    for(int i=0;i<nPixList;++i) {
+        xdbg<<"nPix["<<i<<"] = "<<pix[i].size()<<std::endl;
+        nPix += pix[i].size();
     }
 
     int galSize = (galOrder+1)*(galOrder+2)/2;
-    if (npix <= galSize) {
-        dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
+    if (nPix <= galSize) {
+        dbg<<"Too few pixels ("<<nPix<<") for given gal_order. \n";
         return false;
     }
 
@@ -63,10 +64,10 @@ static double calculateLikelihood(
     static std::auto_ptr<DMatrix> Gg2;
     static std::auto_ptr<DMatrix> Gth;
 
-    if (!Gg1.get() || Gg1->TMV_colsize() < b.size()) {
-        Gg1.reset(new DMatrix(int(b.size()),int(b.size())));
-        Gg2.reset(new DMatrix(int(b.size()),int(b.size())));
-        Gth.reset(new DMatrix(int(b.size()),int(b.size())));
+    if (!Gg1.get() || int(Gg1->TMV_colsize()) < b.size()) {
+        Gg1.reset(new DMatrix(b.size(),b.size()));
+        Gg2.reset(new DMatrix(b.size(),b.size()));
+        Gth.reset(new DMatrix(b.size(),b.size()));
         setupGg1(*Gg1,b.getOrder(),b.getOrder());
         setupGg2(*Gg2,b.getOrder(),b.getOrder());
         setupGth(*Gth,b.getOrder(),b.getOrder());

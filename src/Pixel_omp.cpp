@@ -71,7 +71,7 @@ void PixelList::reclaimMemory()
 #endif
 }
 
-size_t PixelList::size() const
+int PixelList::size() const
 {
     if (_shouldUsePool) return _v2->size();
     else return _v1->size();
@@ -91,7 +91,7 @@ void PixelList::reserve(const int n)
     }
 }
 
-size_t PixelList::capacity() const
+int PixelList::capacity() const
 { return _shouldUsePool ? _v2->capacity() : _v1->capacity(); }
 
 void PixelList::resize(const int n)

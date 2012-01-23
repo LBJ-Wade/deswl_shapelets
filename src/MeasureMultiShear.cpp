@@ -72,8 +72,8 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
     //log._nGoodIn = std::count(
         //shearCat.getFlagsList().begin(),shearCat.getFlagsList().end(),0);
     int nGood = 0;
-    for(size_t i=0;i<shearCat.getFlagsList().size();++i)
-        if (shearCat.getFlagsList()[i] == 0) ++nGood;
+    int nFlags = shearCat.getFlagsList().size();
+    for(int i=0;i<nFlags;++i) if (shearCat.getFlagsList()[i] == 0) ++nGood;
     log._nGoodIn = nGood;
     xdbg<<"nGood = "<<log._nGoodIn<<std::endl;
     dbg<<log._nGoodIn<<"/"<<log._nGals<<" galaxies with no input flags\n";
@@ -95,16 +95,17 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
     // of work, the extra I/O time won't be much of an issue. 
     long nShear = 0;
     std::vector<Bounds> sectionBounds = shearCat.splitBounds();
+    int nSection = sectionBounds.size();
     int nresplit = params.read("multishear_max_resplits",1);
-    for(size_t i=0;i<sectionBounds.size();++i) {
+    for(int i=0;i<nSection;++i) {
 #ifdef ENDAT
         if (i == ENDAT) break;
 #endif
-        dbg<<"Starting section "<<(i+1)<<"/"<<sectionBounds.size()<<std::endl;
+        dbg<<"Starting section "<<(i+1)<<"/"<<nSection<<std::endl;
         dbg<<sectionBounds[i]<<std::endl;
         if (shouldOutputInfo) {
             std::cerr<<"Starting section ";
-            std::cerr<<(i+1)<<"/"<<sectionBounds.size()<<std::endl;
+            std::cerr<<(i+1)<<"/"<<nSection<<std::endl;
         }
         // Load the pixel information for each galaxy in the section.
         if (!shearCat.getPixels(sectionBounds[i])) {
@@ -201,8 +202,8 @@ static void doMeasureMultiShear(ConfigFile& params, ShearLog& log)
     //log._nGood = std::count(
         //shearCat.getFlagsList().begin(),shearCat.getFlagsList().end(),0);
     nGood = 0;
-    for(size_t i=0;i<shearCat.getFlagsList().size();++i)
-        if (shearCat.getFlagsList()[i] == 0) ++nGood;
+    nFlags = shearCat.getFlagsList().size();
+    for(int i=0;i<nFlags;++i) if (shearCat.getFlagsList()[i] == 0) ++nGood;
     log._nGood = nGood;
     dbg<<log._nGood<<" successful measurements with no measurement flags.\n";
     dbg<<"Breakdown of flags:\n";

@@ -461,7 +461,7 @@ public:
     std::string setSentry( const std::string& s )
     { std::string old = _sentry;  _sentry = s;  return old; }  
 
-    size_t size() { return _contents.size(); }
+    int size() { return _contents.size(); }
 
 protected:
 

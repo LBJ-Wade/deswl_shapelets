@@ -109,46 +109,46 @@ ShearCatalog::ShearCatalog(
     _measGalOrder.resize(nGals,galOrder);
     _shape.resize(nGals,shapeDefault);
 
-    Assert(_id.size() == size());
-    Assert(_pos.size() == size());
-    Assert(_sky.size() == size());
-    Assert(_noise.size() == size());
-    Assert(_flags.size() == size());
-    Assert(_skyPos.size() == size());
-    Assert(_shear.size() == size());
-    Assert(_nu.size() == size());
-    Assert(_cov.size() == size());
-    Assert(_measGalOrder.size() == size());
-    Assert(_shape.size() == size());
+    Assert(int(_id.size()) == size());
+    Assert(int(_pos.size()) == size());
+    Assert(int(_sky.size()) == size());
+    Assert(int(_noise.size()) == size());
+    Assert(int(_flags.size()) == size());
+    Assert(int(_skyPos.size()) == size());
+    Assert(int(_shear.size()) == size());
+    Assert(int(_nu.size()) == size());
+    Assert(int(_cov.size()) == size());
+    Assert(int(_measGalOrder.size()) == size());
+    Assert(int(_shape.size()) == size());
 }
 
 ShearCatalog::ShearCatalog(const ConfigFile& params) : _params(params)
 {
-    Assert(_id.size() == size());
-    Assert(_pos.size() == size());
-    Assert(_sky.size() == size());
-    Assert(_noise.size() == size());
-    Assert(_flags.size() == size());
-    Assert(_skyPos.size() == size());
-    Assert(_shear.size() == size());
-    Assert(_nu.size() == size());
-    Assert(_cov.size() == size());
-    Assert(_measGalOrder.size() == size());
-    Assert(_shape.size() == size());
+    Assert(int(_id.size()) == size());
+    Assert(int(_pos.size()) == size());
+    Assert(int(_sky.size()) == size());
+    Assert(int(_noise.size()) == size());
+    Assert(int(_flags.size()) == size());
+    Assert(int(_skyPos.size()) == size());
+    Assert(int(_shear.size()) == size());
+    Assert(int(_nu.size()) == size());
+    Assert(int(_cov.size()) == size());
+    Assert(int(_measGalOrder.size()) == size());
+    Assert(int(_shape.size()) == size());
 }
 
 void ShearCatalog::writeFits(std::string file) const
 {
-    Assert(_id.size() == size());
-    Assert(_pos.size() == size());
-    Assert(_sky.size() == size());
-    Assert(_noise.size() == size());
-    Assert(_flags.size() == size());
-    Assert(_shear.size() == size());
-    Assert(_nu.size() == size());
-    Assert(_cov.size() == size());
-    Assert(_measGalOrder.size() == size());
-    Assert(_shape.size() == size());
+    Assert(int(_id.size()) == size());
+    Assert(int(_pos.size()) == size());
+    Assert(int(_sky.size()) == size());
+    Assert(int(_noise.size()) == size());
+    Assert(int(_flags.size()) == size());
+    Assert(int(_shear.size()) == size());
+    Assert(int(_nu.size()) == size());
+    Assert(int(_cov.size()) == size());
+    Assert(int(_measGalOrder.size()) == size());
+    Assert(int(_shape.size()) == size());
     const int nGals = size();
 
     bool shouldOutputPsf = _params.read("shear_output_psf",false);
@@ -366,17 +366,17 @@ void ShearCatalog::writeFits(std::string file) const
 
 void ShearCatalog::writeAscii(std::string file, std::string delim) const
 {
-    Assert(_id.size() == size());
-    Assert(_pos.size() == size());
-    Assert(_sky.size() == size());
-    Assert(_noise.size() == size());
-    Assert(_flags.size() == size());
-    Assert(_skyPos.size() == size());
-    Assert(_shear.size() == size());
-    Assert(_nu.size() == size());
-    Assert(_cov.size() == size());
-    Assert(_measGalOrder.size() == size());
-    Assert(_shape.size() == size());
+    Assert(int(_id.size()) == size());
+    Assert(int(_pos.size()) == size());
+    Assert(int(_sky.size()) == size());
+    Assert(int(_noise.size()) == size());
+    Assert(int(_flags.size()) == size());
+    Assert(int(_skyPos.size()) == size());
+    Assert(int(_shear.size()) == size());
+    Assert(int(_nu.size()) == size());
+    Assert(int(_cov.size()) == size());
+    Assert(int(_measGalOrder.size()) == size());
+    Assert(int(_shape.size()) == size());
 
     std::ofstream fout(file.c_str());
     if (!fout) {
@@ -725,8 +725,8 @@ void ShearCatalog::read()
 
     // Update the bounds:
     const int nGals = size();
-    Assert(_pos.size() == size());
-    Assert(_skyPos.size() == size());
+    Assert(int(_pos.size()) == size());
+    Assert(int(_skyPos.size()) == size());
     for(int i=0;i<nGals;++i) _bounds += _pos[i];
 
     // Calculate the skyBounds using only the good objects:

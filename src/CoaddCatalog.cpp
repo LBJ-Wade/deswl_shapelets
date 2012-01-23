@@ -101,7 +101,7 @@ void CoaddCatalog::read()
             dbg<<"No ok_flags or ignore_flags parameter: use ignore_flags = "<<
                 ignoreFlags<<std::endl;
         }
-        Assert(_flags.size() == size());
+        Assert(int(_flags.size()) == size());
         for(int i=0;i<nObj;++i) {
             _flags[i] = (_flags[i] & ignoreFlags) ? INPUT_FLAG : 0;
         }

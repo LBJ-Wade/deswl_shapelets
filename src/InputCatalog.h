@@ -44,7 +44,7 @@ public :
 
     void flagStars(const StarCatalog& starCat);
 
-    size_t size() const { return _pos.size(); }
+    int size() const { return _pos.size(); }
 
     void read();
     void readFits(std::string file);

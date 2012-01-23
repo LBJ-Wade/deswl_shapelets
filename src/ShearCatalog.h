@@ -29,7 +29,7 @@ public :
     void setTrans(const Transformation& trans) { _trans = &trans; }
     void setFittedPsf(const FittedPsf& fitPsf) { _fitPsf = &fitPsf; }
 
-    size_t size() const { return _id.size(); }
+    int size() const { return _id.size(); }
 
     void write() const;
     void writeFits(std::string file) const;

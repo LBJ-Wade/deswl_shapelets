@@ -22,7 +22,7 @@ public :
     // Just load the parameters.  Normally followed by read() or similar.
     PsfCatalog(const ConfigFile& params);
 
-    size_t size() const { return _id.size(); }
+    int size() const { return _id.size(); }
 
     void read();
     void read(std::string file);

@@ -517,17 +517,17 @@ void MultiShearCatalog::writeFits(std::string file) const
 
 void MultiShearCatalog::writeAscii(std::string file, std::string delim) const
 {
-    Assert(_id.size() == size());
-    Assert(_skyPos.size() == size());
-    Assert(_flags.size() == size());
-    Assert(_shear.size() == size());
-    Assert(_nu.size() == size());
-    Assert(_cov.size() == size());
-    Assert(_measGalOrder.size() == size());
-    Assert(_shape.size() == size());
-    Assert(_nImagesFound.size() == size());
-    Assert(_nImagesGotPix.size() == size());
-    Assert(_inputFlags.size() == size());
+    Assert(int(_id.size()) == size());
+    Assert(int(_skyPos.size()) == size());
+    Assert(int(_flags.size()) == size());
+    Assert(int(_shear.size()) == size());
+    Assert(int(_nu.size()) == size());
+    Assert(int(_cov.size()) == size());
+    Assert(int(_measGalOrder.size()) == size());
+    Assert(int(_shape.size()) == size());
+    Assert(int(_nImagesFound.size()) == size());
+    Assert(int(_nImagesGotPix.size()) == size());
+    Assert(int(_inputFlags.size()) == size());
 
     std::ofstream fout(file.c_str());
     if (!fout) {

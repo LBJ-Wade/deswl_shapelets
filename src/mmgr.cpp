@@ -51,12 +51,6 @@
 //
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-#ifdef MEM_TEST
-#ifdef NDEBUG
-#undef NDEBUG
-#endif
-#endif
-
 //#include "stdafx.h"
 #include <iostream>
 #include <stdio.h>
@@ -69,10 +63,13 @@
 
 #ifndef	WIN32
 #include <unistd.h>
+#define LINE_END "\n"
+#else
+#define LINE_END "\r\n"
 #endif
 
-#include "mmgr.h"
-#include "extra_mmgr.h"
+#include "util/mmgr.h"
+#include "util/extra_mmgr.h"
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // -DOC- If you're like me, it's hard to gain trust in foreign code. This memory manager will try to INDUCE your code to crash (for
@@ -118,7 +115,7 @@
 // -DOC- Enable this sucker if you really want to stress-test your app's memory usage, or to help find hard-to-find bugs
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-//#define	STRESS_TEST
+#define	STRESS_TEST
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // -DOC- Enable this sucker if you want to stress-test your app's error-handling. Set RANDOM_FAIL to the percentage of failures you
@@ -180,24 +177,24 @@ static	const	size_t	paddingSize            = 4;
 // Defaults for the constants & statics in the MemoryManager class
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-const		unsigned int	m_alloc_unknown        = 0;
-const		unsigned int	m_alloc_new            = 1;
-const		unsigned int	m_alloc_new_array      = 2;
-const		unsigned int	m_alloc_malloc         = 3;
-const		unsigned int	m_alloc_calloc         = 4;
-const		unsigned int	m_alloc_realloc        = 5;
-const		unsigned int	m_alloc_delete         = 6;
-const		unsigned int	m_alloc_delete_array   = 7;
-const		unsigned int	m_alloc_free           = 8;
+const		size_t	m_alloc_unknown        = 0;
+const		size_t	m_alloc_new            = 1;
+const		size_t	m_alloc_new_array      = 2;
+const		size_t	m_alloc_malloc         = 3;
+const		size_t	m_alloc_calloc         = 4;
+const		size_t	m_alloc_realloc        = 5;
+const		size_t	m_alloc_delete         = 6;
+const		size_t	m_alloc_delete_array   = 7;
+const		size_t	m_alloc_free           = 8;
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // -DOC- Get to know these values. They represent the values that will be used to fill unused and deallocated RAM.
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-static		unsigned int	prefixPattern          = 0xbaadf00d; // Fill pattern for bytes preceeding allocated blocks
-static		unsigned int	postfixPattern         = 0xdeadc0de; // Fill pattern for bytes following allocated blocks
-static		unsigned int	unusedPattern          = 0xfeedface; // Fill pattern for freshly allocated blocks
-static		unsigned int	releasedPattern        = 0xdeadbeef; // Fill pattern for deallocated blocks
+static		size_t	prefixPattern          = 0xbaadf00d; // Fill pattern for bytes preceeding allocated blocks
+static		size_t	postfixPattern         = 0xdeadc0de; // Fill pattern for bytes following allocated blocks
+static		size_t	unusedPattern          = 0xfeedface; // Fill pattern for freshly allocated blocks
+static		size_t	releasedPattern        = 0xdeadbeef; // Fill pattern for deallocated blocks
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Other locals
@@ -210,14 +207,14 @@ static	const	char		*allocationTypes[]     = {"Unknown",
 static		sAllocUnit	*hashTable[hashSize];
 static		sAllocUnit	*reservoir;
 static		size_t	currentAllocationCount = 0;
-static		unsigned int	breakOnAllocationCount = 0;
+static		size_t	breakOnAllocationCount = 0;
 static		sMStats		stats;
 static	const	char		*sourceFile            = "??";
 static	const	char		*sourceFunc            = "??";
-static		unsigned int	sourceLine             = 0;
+static		size_t	sourceLine             = 0;
 static		bool		staticDeinitTime       = false;
 static		sAllocUnit	**reservoirBuffer      = NULL;
-static		unsigned int	reservoirBufferSize    = 0;
+static		size_t	reservoirBufferSize    = 0;
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 // Local functions only
@@ -260,7 +257,7 @@ static	void	log(const char *format, ...)
 
   // Spit out the data to the log
 
-  fprintf(fp, "%s\r\n", buffer);
+  fprintf(fp, "%s" LINE_END, buffer);
   fclose(fp);
 }
 
@@ -277,22 +274,22 @@ static	const char	*sourceFileStripper(const char *sourceFile)
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-static	const char	*ownerString(const char *sourceFile, const unsigned int sourceLine, const char *sourceFunc)
+static	const char	*ownerString(const char *sourceFile, const size_t sourceLine, const char *sourceFunc)
 {
   static	char	str[90];
   memset(str, 0, sizeof(str));
-  sprintf(str, "%s(%05u)::%s", sourceFileStripper(sourceFile), sourceLine, sourceFunc);
+  sprintf(str, "%s(%05zu)::%s", sourceFileStripper(sourceFile), sourceLine, sourceFunc);
   return str;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-static	const char	*insertCommas(unsigned int value)
+static	const char	*insertCommas(size_t value)
 {
   static	char	str[30];
   memset(str, 0, sizeof(str));
 
-  sprintf(str, "%u", value);
+  sprintf(str, "%zu", value);
   if (strlen(str) > 3)
   {
     memmove(&str[strlen(str)-3], &str[strlen(str)-4], 4);
@@ -314,7 +311,7 @@ static	const char	*insertCommas(unsigned int value)
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-static	const char	*memorySizeString(unsigned long size)
+static	const char	*memorySizeString(size_t size)
 {
   static	char	str[90];
   if (size > (1024*1024))	sprintf(str, "%10s (%7.2fM)", insertCommas(size), (float) size / (1024.0f * 1024.0f));
@@ -382,26 +379,17 @@ static	void	*calculateReportedAddress(const void *actualAddress)
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-static	void	wipeWithPattern(sAllocUnit *allocUnit, unsigned long pattern, const unsigned int originalReportedSize = 0)
+static	void	wipeWithPattern(sAllocUnit *allocUnit, size_t pattern, const size_t originalReportedSize = 0)
 {
-#ifdef TEST_MEMORY_MANAGER
-  //log("ENTER wipeWithPattern");
-#endif
   // For a serious test run, we use wipes of random a random value. However, if this causes a crash, we don't want it to
   // crash in a differnt place each time, so we specifically DO NOT call srand. If, by chance your program calls srand(),
   // you may wish to disable that when running with a random wipe test. This will make any crashes more consistent so they
   // can be tracked down easier.
 
-#ifdef TEST_MEMORY_MANAGER
-  //log("initial pattern = %u",pattern);
-#endif
   if (randomWipe)
   {
     pattern = ((rand() & 0xff) << 24) | ((rand() & 0xff) << 16) | ((rand() & 0xff) << 8) | (rand() & 0xff);
   }
-#ifdef TEST_MEMORY_MANAGER
-  //log("actual pattern = %u",pattern);
-#endif
 
   // -DOC- We should wipe with 0's if we're not in debug mode, so we can help hide bugs if possible when we release the
   // product. So uncomment the following line for releases.
@@ -419,51 +407,31 @@ static	void	wipeWithPattern(sAllocUnit *allocUnit, unsigned long pattern, const 
     long	*lptr = (long *) ((char *)allocUnit->reportedAddress + originalReportedSize);
     int	length = allocUnit->reportedSize - originalReportedSize;
     int nlongs = length / sizeof(long);
-#ifdef TEST_MEMORY_MANAGER
-    //log("lptr = 0x%X, lenth = %d",lptr,length);
-    //log("sizeof(long) = %d",sizeof(long));
-    //log("nlongs = %d",nlongs);
-#endif
     int	i;
     for (i = 0; i < nlongs; i++, lptr++)
     {
-#ifdef TEST_MEMORY_MANAGER
-      //log("i = %d, lptr = 0x%X",i,lptr);
-#endif
       *lptr = pattern;
     }
-#ifdef TEST_MEMORY_MANAGER
-    //log("after fill reported size");
-#endif
 
     // Fill the remainder
 
-    unsigned int	shiftCount = 0;
+    size_t	shiftCount = 0;
     char		*cptr = (char *) lptr;
     for (i = 0; i < (length & 0x3); i++, cptr++, shiftCount += 8)
     {
       *cptr = (pattern & (0xff << shiftCount)) >> shiftCount;
     }
-#ifdef TEST_MEMORY_MANAGER
-    //log("after fill remainder");
-#endif
   }
 
   // Write in the prefix/postfix bytes
 
-#ifdef TEST_MEMORY_MANAGER
-    //log("write prefix/postfix bytes");
-#endif
   long		*pre = (long *) allocUnit->actualAddress;
   long		*post = (long *) ((char *)allocUnit->actualAddress + allocUnit->actualSize - paddingSize * sizeof(long));
-  for (unsigned int i = 0; i < paddingSize; i++, pre++, post++)
+  for (size_t i = 0; i < paddingSize; i++, pre++, post++)
   {
     *pre = prefixPattern;
     *post = postfixPattern;
   }
-#ifdef TEST_MEMORY_MANAGER
-    //log("EXIT wipeWithPattern");
-#endif
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
@@ -471,7 +439,6 @@ static	void	wipeWithPattern(sAllocUnit *allocUnit, unsigned long pattern, const 
 static	void	resetGlobals()
 {
   sourceFile = "??";
-  //log("reset sourceFile to %s",sourceFile);
   sourceLine = 0;
   sourceFunc = "??";
 }
@@ -480,9 +447,9 @@ static	void	resetGlobals()
 
 static	void	dumpAllocations(FILE *fp)
 {
-  fprintf(fp, "Alloc.   Addr       Size       Addr       Size                        BreakOn BreakOn              \r\n");
-  fprintf(fp, "Number Reported   Reported    Actual     Actual     Unused    Method  Dealloc Realloc Allocated by \r\n");
-  fprintf(fp, "------ ---------- ---------- ---------- ---------- ---------- -------- ------- ------- --------------------------------------------------- \r\n");
+  fprintf(fp, "Alloc.   Addr       Size       Addr       Size                        BreakOn BreakOn              " LINE_END);
+  fprintf(fp, "Number Reported   Reported    Actual     Actual     Unused    Method  Dealloc Realloc Allocated by " LINE_END);
+  fprintf(fp, "------ ---------- ---------- ---------- ---------- ---------- -------- ------- ------- --------------------------------------------------- " LINE_END);
 
 
   for (size_t i = 0; i < hashSize; i++)
@@ -490,12 +457,12 @@ static	void	dumpAllocations(FILE *fp)
     sAllocUnit *ptr = hashTable[i];
     while(ptr)
     {
-      fprintf(fp, "%06u 0x%08zx 0x%08zx 0x%08zx 0x%08zx 0x%08x %-8s    %c       %c    %s\r\n",
+      fprintf(fp, "%06zu 0x%08zX 0x%08zX 0x%08zX 0x%08zX 0x%08zX %-8s    %c       %c    %s" LINE_END,
 	  ptr->allocationNumber,
-	  (size_t)ptr->reportedAddress, 
-	  (size_t)ptr->reportedSize,
-	  (size_t)ptr->actualAddress,
-	  (size_t)ptr->actualSize,
+	  (size_t) ptr->reportedAddress, 
+	  (size_t) ptr->reportedSize,
+	  (size_t) ptr->actualAddress,
+	  (size_t) ptr->actualSize,
 	  m_calcUnused(ptr),
 	  allocationTypes[ptr->allocationType],
 	  ptr->breakOnDealloc ? 'Y':'N',
@@ -527,24 +494,24 @@ static	void	dumpLeakReport()
   memset(timeString, 0, sizeof(timeString));
   time_t  t = time(NULL);
   struct  tm *tme = localtime(&t);
-  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- \r\n");
-  fprintf(fp, "|                                          Memory leak report for:  %02d/%02d/%04d %02d:%02d:%02d                                            |\r\n", tme->tm_mon + 1, tme->tm_mday, tme->tm_year + 1900, tme->tm_hour, tme->tm_min, tme->tm_sec);
-  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- \r\n");
-  fprintf(fp, "\r\n");
-  fprintf(fp, "\r\n");
+  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- " LINE_END);
+  fprintf(fp, "|                                          Memory leak report for:  %02d/%02d/%04d %02d:%02d:%02d                                            |" LINE_END, tme->tm_mon + 1, tme->tm_mday, tme->tm_year + 1900, tme->tm_hour, tme->tm_min, tme->tm_sec);
+  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- " LINE_END);
+  fprintf(fp, LINE_END);
+  fprintf(fp, LINE_END);
   if (stats.totalAllocUnitCount)
   {
-    fprintf(fp, "%u memory leak%s found:\r\n", stats.totalAllocUnitCount, stats.totalAllocUnitCount == 1 ? "":"s");
+    fprintf(fp, "%zu memory leak%s found:" LINE_END, stats.totalAllocUnitCount, stats.totalAllocUnitCount == 1 ? "":"s");
   }
   else
   {
-    fprintf(fp, "Congratulations! No memory leaks found!\r\n");
+    fprintf(fp, "Congratulations! No memory leaks found!" LINE_END);
 
     // We can finally free up our own memory allocations
 
     if (reservoirBuffer)
     {
-      for (unsigned int i = 0; i < reservoirBufferSize; i++)
+      for (size_t i = 0; i < reservoirBufferSize; i++)
       {
 	free(reservoirBuffer[i]);
       }
@@ -554,7 +521,7 @@ static	void	dumpLeakReport()
       reservoir = NULL;
     }
   }
-  fprintf(fp, "\r\n");
+  fprintf(fp, LINE_END);
 
   if (stats.totalAllocUnitCount)
   {
@@ -656,7 +623,7 @@ bool	&m_breakOnDealloc(void *reportedAddress)
 // -DOC- When tracking down a difficult bug, use this routine to force a breakpoint on a specific allocation count
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-void	m_breakOnAllocation(unsigned int count)
+void	m_breakOnAllocation(size_t count)
 {
   breakOnAllocationCount = count;
 }
@@ -665,10 +632,9 @@ void	m_breakOnAllocation(unsigned int count)
 // Used by the macros
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-void	m_setOwner(const char *file, const unsigned int line, const char *func)
+void	m_setOwner(const char *file, const size_t line, const char *func)
 {
   sourceFile = file;
-  //log("set sourceFile to %s from file = %s",sourceFile,file);
   sourceLine = line;
   sourceFunc = func;
 }
@@ -683,7 +649,7 @@ void	m_setOwner(const char *file, const unsigned int line, const char *func)
 void	*operator new(size_t reportedSize) throw(std::bad_alloc)
 {
 #ifdef TEST_MEMORY_MANAGER
-  log("ENTER: new with size = %u",(unsigned long) reportedSize);
+  log("ENTER: new with size = %u",(size_t) reportedSize);
 #endif
 
   // ANSI says: allocation requests of 0 bytes will still return a valid value
@@ -735,7 +701,7 @@ void	*operator new(size_t reportedSize) throw(std::bad_alloc)
 void	*operator new[](size_t reportedSize) throw(std::bad_alloc)
 {
 #ifdef TEST_MEMORY_MANAGER
-  log("ENTER: new[] with size = %u",(unsigned long) reportedSize);
+  log("ENTER: new[] with size = %u",(size_t) reportedSize);
 #endif
 
   // The ANSI standard says that allocation requests of 0 bytes will still return a valid value
@@ -794,7 +760,7 @@ void	*operator new(size_t reportedSize, const char *sourceFile, int sourceLine) 
 {
 #ifdef TEST_MEMORY_MANAGER
   log("ENTER: new with size = %u, file,line = %s, %d",
-      (unsigned long) reportedSize, sourceFile, sourceLine);
+      (size_t) reportedSize, sourceFile, sourceLine);
 #endif
 
   // The ANSI standard says that allocation requests of 0 bytes will still return a valid value
@@ -847,7 +813,7 @@ void	*operator new[](size_t reportedSize, const char *sourceFile, int sourceLine
 {
 #ifdef TEST_MEMORY_MANAGER
   log("ENTER: new[] with size = %u, file,line = %s, %d",
-      (unsigned long) reportedSize, sourceFile, sourceLine);
+      (size_t) reportedSize, sourceFile, sourceLine);
 #endif
 
   // The ANSI standard says that allocation requests of 0 bytes will still return a valid value
@@ -941,7 +907,7 @@ void	operator delete[](void *reportedAddress) throw()
 // Allocate memory and track it
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const char *sourceFunc, const unsigned int allocationType, const size_t reportedSize)
+void	*m_allocator(const char *sourceFile, const size_t sourceLine, const char *sourceFunc, const size_t allocationType, const size_t reportedSize)
 {
   try
   {
@@ -964,9 +930,6 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
 
     if (!reservoir)
     {
-#ifdef TEST_MEMORY_MANAGER
-      //log("!reservoir");
-#endif
       // Allocate 256 reservoir elements
 
       reservoir = (sAllocUnit *) malloc(sizeof(sAllocUnit) * 256);
@@ -980,28 +943,19 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
       if (reservoir == NULL) throw "Unable to allocate RAM for internal memory tracking data";
 
       // Build a linked-list of the elements in our reservoir
-#ifdef TEST_MEMORY_MANAGER
-      //log("zero out reservoir");
-#endif
 
       memset(reservoir, 0, sizeof(sAllocUnit) * 256);
-      for (unsigned int i = 0; i < 256 - 1; i++)
+      for (size_t i = 0; i < 256 - 1; i++)
       {
 	reservoir[i].next = &reservoir[i+1];
       }
 
       // Add this address to our reservoirBuffer so we can free it later
 
-#ifdef TEST_MEMORY_MANAGER
-      //log("realloc reservoir to temp");
-#endif
       sAllocUnit	**temp = (sAllocUnit **) realloc(reservoirBuffer, (reservoirBufferSize + 1) * sizeof(sAllocUnit *));
       m_assert(temp);
       if (temp)
       {
-#ifdef TEST_MEMORY_MANAGER
-        //log("set reservoirBuffer to temp");
-#endif
 	reservoirBuffer = temp;
 	reservoirBuffer[reservoirBufferSize++] = reservoir;
       }
@@ -1012,20 +966,11 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
 
     // Grab a new allocaton unit from the front of the reservoir
 
-#ifdef TEST_MEMORY_MANAGER
-    //log("au = reservoir");
-#endif
     sAllocUnit	*au = reservoir;
-#ifdef TEST_MEMORY_MANAGER
-    //log("reservoir = next");
-#endif
     reservoir = au->next;
 
     // Populate it with some real data
 
-#ifdef TEST_MEMORY_MANAGER
-    //log("set au info");
-#endif
     memset(au, 0, sizeof(sAllocUnit));
     au->actualSize        = calculateActualSize(reportedSize);
 #ifdef RANDOM_FAILURE
@@ -1037,7 +982,7 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
     }
     else
     {
-      //log("!Random faiure!");
+      log("!Random faiure!");
       au->actualAddress = NULL;
     }
 #else
@@ -1048,9 +993,6 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
     au->allocationType    = allocationType;
     au->sourceLine        = sourceLine;
     au->allocationNumber  = currentAllocationCount;
-#ifdef TEST_MEMORY_MANAGER
-    //log("set au sourceFile");
-#endif
     if (sourceFile) strncpy(au->sourceFile, sourceFileStripper(sourceFile), sizeof(au->sourceFile) - 1);
     else		strcpy (au->sourceFile, "??");
     if (sourceFunc) strncpy(au->sourceFunc, sourceFunc, sizeof(au->sourceFunc) - 1);
@@ -1075,9 +1017,6 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
 
     // Insert the new allocation into the hash table
 
-#ifdef TEST_MEMORY_MANAGER
-    //log("insert au into hash table");
-#endif
     size_t	hashIndex = ((size_t) au->reportedAddress >> 4) & (hashSize - 1);
     if (hashTable[hashIndex]) hashTable[hashIndex]->prev = au;
     au->next = hashTable[hashIndex];
@@ -1086,9 +1025,6 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
 
     // Account for the new allocatin unit in our stats
 
-#ifdef TEST_MEMORY_MANAGER
-    //log("add info to stats");
-#endif
     stats.totalReportedMemory += au->reportedSize;
     stats.totalActualMemory   += au->actualSize;
     stats.totalAllocUnitCount++;
@@ -1101,9 +1037,6 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
 
     // Prepare the allocation unit for use (wipe it with recognizable garbage)
 
-#ifdef TEST_MEMORY_MANAGER
-    //log("wipe au with unusedPattern");
-#endif
     wipeWithPattern(au, unusedPattern);
 
     // calloc() expects the reported memory address range to be filled with 0's
@@ -1115,24 +1048,15 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
 
     // Validate every single allocated unit in memory
 
-#ifdef TEST_MEMORY_MANAGER
-    //log("validate alloc");
-#endif
     if (alwaysValidateAll) m_validateAllAllocUnits();
 
     // Log the result
 
-#ifdef TEST_MEMORY_MANAGER
-    //log("log ok");
-#endif
     if (alwaysLogAll) log("                                                                 OK: %010p (hash: %d)", au->reportedAddress, hashIndex);
 
     // Resetting the globals insures that if at some later time, somebody calls our memory manager from an unknown
     // source (i.e. they didn't include our H file) then we won't think it was the last allocation.
 
-#ifdef TEST_MEMORY_MANAGER
-    //log("resetGlobals");
-#endif
     resetGlobals();
 
     // Return the (reported) address of the new allocation unit
@@ -1162,7 +1086,7 @@ void	*m_allocator(const char *sourceFile, const unsigned int sourceLine, const c
 // Reallocate memory and track it
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-void	*m_reallocator(const char *sourceFile, const unsigned int sourceLine, const char *sourceFunc, const unsigned int reallocationType, const size_t reportedSize, void *reportedAddress)
+void	*m_reallocator(const char *sourceFile, const size_t sourceLine, const char *sourceFunc, const size_t reallocationType, const size_t reportedSize, void *reportedAddress)
 {
   try
   {
@@ -1217,7 +1141,7 @@ void	*m_reallocator(const char *sourceFile, const unsigned int sourceLine, const
 
     // Keep track of the original size
 
-    unsigned int	originalReportedSize = au->reportedSize;
+    size_t	originalReportedSize = au->reportedSize;
 
     // Do the reallocation
 
@@ -1233,7 +1157,7 @@ void	*m_reallocator(const char *sourceFile, const unsigned int sourceLine, const
     }
     else
     {
-      //log("!Random faiure!");
+      log("!Random faiure!");
     }
 #else
     newActualAddress = realloc(au->actualAddress, newActualSize);
@@ -1359,7 +1283,7 @@ void	*m_reallocator(const char *sourceFile, const unsigned int sourceLine, const
 // Deallocate memory and track it
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-void	m_deallocator(const char *sourceFile, const unsigned int sourceLine, const char *sourceFunc, const unsigned int deallocationType, const void *reportedAddress)
+void	m_deallocator(const char *sourceFile, const size_t sourceLine, const char *sourceFunc, const size_t deallocationType, const void *reportedAddress)
 {
   try
   {
@@ -1488,13 +1412,85 @@ bool	m_validateAllocUnit(const sAllocUnit *allocUnit)
   long	*pre = (long *) allocUnit->actualAddress;
   long	*post = (long *) ((char *)allocUnit->actualAddress + allocUnit->actualSize - paddingSize * sizeof(long));
   bool	errorFlag = false;
-  for (unsigned int i = 0; i < paddingSize; i++, pre++, post++)
+  for (size_t i = 0; i < paddingSize; i++, pre++, post++)
   {
     if (*pre != (long) prefixPattern)
     {
       log("A memory allocation unit was corrupt because of an underrun:");
       m_dumpAllocUnit(allocUnit, "  ");
       errorFlag = true;
+      log("prefix is:");
+      long	*pre2 = (long *) allocUnit->actualAddress;
+      for (size_t i2=0; i2<paddingSize; i2++, pre2++) log("%X",*pre2);
+      log("postfix is:");
+      long	*post2 = (long *) ((char *)allocUnit->actualAddress + allocUnit->actualSize - paddingSize * sizeof(long));
+      for (size_t i2=0; i2<paddingSize; i2++, post2++) log("%X",*post2);
+      log("prefix %X cast as char is: %c %c %c %c %c %c %c %c %c",
+          *pre,
+          *( (char*) ( (char*) pre + 0) ),
+          *( (char*) ( (char*) pre + 1) ),
+          *( (char*) ( (char*) pre + 2) ),
+          *( (char*) ( (char*) pre + 3) ),
+          *( (char*) ( (char*) pre + 4) ),
+          *( (char*) ( (char*) pre + 5) ),
+          *( (char*) ( (char*) pre + 6) ),
+          *( (char*) ( (char*) pre + 7) ),
+          *( (char*) ( (char*) pre + 8) ));
+      log("prefix %X cast as char then int is: %d %d %d %d %d %d %d %d %d",
+          *pre,
+          *( (char*) ( (char*) pre + 0) ),
+          *( (char*) ( (char*) pre + 1) ),
+          *( (char*) ( (char*) pre + 2) ),
+          *( (char*) ( (char*) pre + 3) ),
+          *( (char*) ( (char*) pre + 4) ),
+          *( (char*) ( (char*) pre + 5) ),
+          *( (char*) ( (char*) pre + 6) ),
+          *( (char*) ( (char*) pre + 7) ),
+          *( (char*) ( (char*) pre + 8) ));
+      log("prefix %X cast as int is: %d %d %d %d %d %d %d %d %d",
+          *pre,
+          *( (int*) ( (char*) pre + 0) ),
+          *( (int*) ( (char*) pre + 1) ),
+          *( (int*) ( (char*) pre + 2) ),
+          *( (int*) ( (char*) pre + 3) ),
+          *( (int*) ( (char*) pre + 4) ),
+          *( (int*) ( (char*) pre + 5) ),
+          *( (int*) ( (char*) pre + 6) ),
+          *( (int*) ( (char*) pre + 7) ),
+          *( (int*) ( (char*) pre + 8) ));
+      log("prefix %X cast as long is: %ld %ld %ld %ld %ld %ld %ld %ld %ld",
+          *pre,
+          *( (long*) ( (char*) pre + 0) ),
+          *( (long*) ( (char*) pre + 1) ),
+          *( (long*) ( (char*) pre + 2) ),
+          *( (long*) ( (char*) pre + 3) ),
+          *( (long*) ( (char*) pre + 4) ),
+          *( (long*) ( (char*) pre + 5) ),
+          *( (long*) ( (char*) pre + 6) ),
+          *( (long*) ( (char*) pre + 7) ),
+          *( (long*) ( (char*) pre + 8) ));
+      log("prefix %X cast as double is: %le %le %le %le %le %le %le %le %le",
+          *pre,
+          *( (double*) ( (char*) pre + 0) ),
+          *( (double*) ( (char*) pre + 1) ),
+          *( (double*) ( (char*) pre + 2) ),
+          *( (double*) ( (char*) pre + 3) ),
+          *( (double*) ( (char*) pre + 4) ),
+          *( (double*) ( (char*) pre + 5) ),
+          *( (double*) ( (char*) pre + 6) ),
+          *( (double*) ( (char*) pre + 7) ),
+          *( (double*) ( (char*) pre + 8) ));
+      log("prefix %X cast as float is: %e %e %e %e %e %e %e %e %e",
+          *pre,
+          *( (float*) ( (char*) pre + 0) ),
+          *( (float*) ( (char*) pre + 1) ),
+          *( (float*) ( (char*) pre + 2) ),
+          *( (float*) ( (char*) pre + 3) ),
+          *( (float*) ( (char*) pre + 4) ),
+          *( (float*) ( (char*) pre + 5) ),
+          *( (float*) ( (char*) pre + 6) ),
+          *( (float*) ( (char*) pre + 7) ),
+          *( (float*) ( (char*) pre + 8) ));
     }
 
     // If you hit this assert, then you should know that this allocation unit has been damaged. Something (possibly the
@@ -1526,8 +1522,8 @@ bool	m_validateAllAllocUnits()
 {
   // Just go through each allocation unit in the hash table and count the ones that have errors
 
-  unsigned int	errors = 0;
-  unsigned int	allocCount = 0;
+  size_t	errors = 0;
+  size_t	allocCount = 0;
   for (size_t i = 0; i < hashSize; i++)
   {
     sAllocUnit	*ptr = hashTable[i];
@@ -1571,12 +1567,12 @@ bool	m_validateAllAllocUnits()
 // -DOC- Unused RAM calculation routines. Use these to determine how much of your RAM is unused (in bytes)
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-unsigned int	m_calcUnused(const sAllocUnit *allocUnit)
+size_t	m_calcUnused(const sAllocUnit *allocUnit)
 {
-  const unsigned long	*ptr = (const unsigned long *) allocUnit->reportedAddress;
-  unsigned int		count = 0;
+  const size_t	*ptr = (const size_t *) allocUnit->reportedAddress;
+  size_t		count = 0;
 
-  for (unsigned int i = 0; i < allocUnit->reportedSize; i += sizeof(long), ptr++)
+  for (size_t i = 0; i < allocUnit->reportedSize; i += sizeof(long), ptr++)
   {
     if (*ptr == unusedPattern) count += sizeof(long);
   }
@@ -1586,11 +1582,11 @@ unsigned int	m_calcUnused(const sAllocUnit *allocUnit)
 
 // ---------------------------------------------------------------------------------------------------------------------------------
 
-unsigned int	m_calcAllUnused()
+size_t	m_calcAllUnused()
 {
   // Just go through each allocation unit in the hash table and count the unused RAM
 
-  unsigned int	total = 0;
+  size_t	total = 0;
   for (size_t i = 0; i < hashSize; i++)
   {
     sAllocUnit	*ptr = hashTable[i];
@@ -1607,6 +1603,11 @@ unsigned int	m_calcAllUnused()
 // ---------------------------------------------------------------------------------------------------------------------------------
 // -DOC- The following functions are for logging and statistics reporting.
 // ---------------------------------------------------------------------------------------------------------------------------------
+
+void	m_extra_log(const char *text)
+{
+    log("%s\n",text);
+}
 
 void	m_dumpAllocUnit(const sAllocUnit *allocUnit, const char *prefix)
 {
@@ -1641,45 +1642,45 @@ void	m_dumpMemoryReport(const char *filename, const bool overwrite)
   memset(timeString, 0, sizeof(timeString));
   time_t  t = time(NULL);
   struct  tm *tme = localtime(&t);
-  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- \r\n");
-  fprintf(fp, "|                                             Memory report for: %02d/%02d/%04d %02d:%02d:%02d                                               |\r\n", tme->tm_mon + 1, tme->tm_mday, tme->tm_year + 1900, tme->tm_hour, tme->tm_min, tme->tm_sec);
-  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- \r\n");
-  fprintf(fp, "\r\n");
-  fprintf(fp, "\r\n");
+  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- " LINE_END);
+  fprintf(fp, "|                                             Memory report for: %02d/%02d/%04d %02d:%02d:%02d                                               |" LINE_END, tme->tm_mon + 1, tme->tm_mday, tme->tm_year + 1900, tme->tm_hour, tme->tm_min, tme->tm_sec);
+  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- " LINE_END);
+  fprintf(fp, LINE_END);
+  fprintf(fp, LINE_END);
 
   // Report summary
 
-  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- \r\n");
-  fprintf(fp, "|                                                           T O T A L S                                                            |\r\n");
-  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- \r\n");
-  fprintf(fp, "              Allocation unit count: %10s\r\n", insertCommas(stats.totalAllocUnitCount));
-  fprintf(fp, "            Reported to application: %s\r\n", memorySizeString(stats.totalReportedMemory));
-  fprintf(fp, "         Actual total memory in use: %s\r\n", memorySizeString(stats.totalActualMemory));
-  fprintf(fp, "           Memory tracking overhead: %s\r\n", memorySizeString(stats.totalActualMemory - stats.totalReportedMemory));
-  fprintf(fp, "\r\n");
+  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- " LINE_END);
+  fprintf(fp, "|                                                           T O T A L S                                                            |" LINE_END);
+  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- " LINE_END);
+  fprintf(fp, "              Allocation unit count: %10s" LINE_END, insertCommas(stats.totalAllocUnitCount));
+  fprintf(fp, "            Reported to application: %s" LINE_END, memorySizeString(stats.totalReportedMemory));
+  fprintf(fp, "         Actual total memory in use: %s" LINE_END, memorySizeString(stats.totalActualMemory));
+  fprintf(fp, "           Memory tracking overhead: %s" LINE_END, memorySizeString(stats.totalActualMemory - stats.totalReportedMemory));
+  fprintf(fp, LINE_END);
 
-  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- \r\n");
-  fprintf(fp, "|                                                            P E A K S                                                             |\r\n");
-  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- \r\n");
-  fprintf(fp, "              Allocation unit count: %10s\r\n", insertCommas(stats.peakAllocUnitCount));
-  fprintf(fp, "            Reported to application: %s\r\n", memorySizeString(stats.peakReportedMemory));
-  fprintf(fp, "                             Actual: %s\r\n", memorySizeString(stats.peakActualMemory));
-  fprintf(fp, "           Memory tracking overhead: %s\r\n", memorySizeString(stats.peakActualMemory - stats.peakReportedMemory));
-  fprintf(fp, "\r\n");
+  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- " LINE_END);
+  fprintf(fp, "|                                                            P E A K S                                                             |" LINE_END);
+  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- " LINE_END);
+  fprintf(fp, "              Allocation unit count: %10s" LINE_END, insertCommas(stats.peakAllocUnitCount));
+  fprintf(fp, "            Reported to application: %s" LINE_END, memorySizeString(stats.peakReportedMemory));
+  fprintf(fp, "                             Actual: %s" LINE_END, memorySizeString(stats.peakActualMemory));
+  fprintf(fp, "           Memory tracking overhead: %s" LINE_END, memorySizeString(stats.peakActualMemory - stats.peakReportedMemory));
+  fprintf(fp, LINE_END);
 
-  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- \r\n");
-  fprintf(fp, "|                                                      A C C U M U L A T E D                                                       |\r\n");
-  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- \r\n");
-  fprintf(fp, "              Allocation unit count: %s\r\n", memorySizeString(stats.accumulatedAllocUnitCount));
-  fprintf(fp, "            Reported to application: %s\r\n", memorySizeString(stats.accumulatedReportedMemory));
-  fprintf(fp, "                             Actual: %s\r\n", memorySizeString(stats.accumulatedActualMemory));
-  fprintf(fp, "\r\n");
+  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- " LINE_END);
+  fprintf(fp, "|                                                      A C C U M U L A T E D                                                       |" LINE_END);
+  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- " LINE_END);
+  fprintf(fp, "              Allocation unit count: %s" LINE_END, memorySizeString(stats.accumulatedAllocUnitCount));
+  fprintf(fp, "            Reported to application: %s" LINE_END, memorySizeString(stats.accumulatedReportedMemory));
+  fprintf(fp, "                             Actual: %s" LINE_END, memorySizeString(stats.accumulatedActualMemory));
+  fprintf(fp, LINE_END);
 
-  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- \r\n");
-  fprintf(fp, "|                                                           U N U S E D                                                            |\r\n");
-  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- \r\n");
-  fprintf(fp, "    Memory allocated but not in use: %s\r\n", memorySizeString(m_calcAllUnused()));
-  fprintf(fp, "\r\n");
+  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- " LINE_END);
+  fprintf(fp, "|                                                           U N U S E D                                                            |" LINE_END);
+  fprintf(fp, " ---------------------------------------------------------------------------------------------------------------------------------- " LINE_END);
+  fprintf(fp, "    Memory allocated but not in use: %s" LINE_END, memorySizeString(m_calcAllUnused()));
+  fprintf(fp, LINE_END);
 
   dumpAllocations(fp);
 

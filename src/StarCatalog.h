@@ -45,9 +45,9 @@ public:
     // seed explicitly sent
     void splitInTwo(
         const std::string f1, const std::string f2,
-        const unsigned int seed) const;
+        const int seed) const;
 
-    size_t size() const { return _id.size(); }
+    int size() const { return _id.size(); }
     void read();
     void write() const;
 
