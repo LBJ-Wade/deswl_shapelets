@@ -2,7 +2,13 @@
 """
     %prog [options] serun
 
-Generate all the wq job files for the given serun.
+Generate all the wq job files for the given serun. By default it works
+by exposure name, generating a wq script for each exposure.  It also
+generates a wq script for checking the result of each exposure.
+
+Finally, generate a script to reduce the results of the parallelized check
+scripts
+
 """
 
 import os,sys
@@ -14,8 +20,8 @@ import desdb
 from optparse import OptionParser
 parser = OptionParser(__doc__)
 parser.add_option("-g","--groups",default='new,new2', help="groups for queue")
-parser.add_option("--fs",default='nfs', help="file system, nfs or hdfs")
-parser.add_option('--byccd',action='store_true', help="file system, nfs or hdfs")
+parser.add_option("--fs",default='hdfs', help="file system, nfs or hdfs")
+parser.add_option('--byccd',action='store_true', help="file system, nfs or hdfs, default %default")
 
 
 def write_reducer(serun):
@@ -38,8 +44,8 @@ for i,f in enumerate(files,1):
     else:
         print >>stderr,d['stat'],'\\n',d['error_string']
         badlist.append(d)
-goodfile=deswl.files.se_collated_path('%(serun)s', 'goodlist')
-badfile=deswl.files.se_collated_path('%(serun)s', 'badlist')
+goodfile=deswl.files.collated_path('%(serun)s', 'goodlist')
+badfile=deswl.files.collated_path('%(serun)s', 'badlist')
 eu.ostools.makedirs_fromfile(goodfile)
 
 print >>stderr,"Found %%s/%%s problems" % (len(badlist),nf)

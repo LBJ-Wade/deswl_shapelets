@@ -2,6 +2,8 @@
 """
     %prog stat_file
 
+Can check either SE or ME.
+
 Some log messages go to stderr.  The actual data in dict form go to stdout
 """
 
@@ -50,8 +52,13 @@ def main():
                 info['error_string'] = 'Processing error'
             else:
 
+                if 'merun' in stat:
+                    type_list=['multishear','qa']
+                else:
+                    type_list=['stars','fitpsf','psf','shear','qa']
+
                 missing=[]
-                for f in ['stars','fitpsf','psf','shear','qa']:
+                for f in type_list:
                     print >>stderr,'    checking:',f
                     if not fexists(stat[f]):
                         # only print first missing one

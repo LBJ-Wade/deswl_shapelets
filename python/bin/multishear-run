@@ -34,7 +34,7 @@ if len(args) < 1:
 
 config_file=args[0]
 
-with open(options.config) as fobj:
+with open(config_file) as fobj:
     import yaml
     conf=yaml.load(fobj)
 

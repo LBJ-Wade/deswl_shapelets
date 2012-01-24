@@ -2,7 +2,8 @@
 """
     %prog serun
 
-Check the outputs for the input run
+Check the outputs for the input run.  You really want to use parallel 
+instead if hdfs is used.
 """
 
 import sys, os
@@ -79,8 +80,8 @@ def main():
 
     print >>stderr,'Found %s/%s problems' % (len(badlist),n)
 
-    goodfile=deswl.files.se_collated_path(serun, 'goodlist')
-    badfile=deswl.files.se_collated_path(serun, 'badlist')
+    goodfile=deswl.files.collated_path(serun, 'goodlist')
+    badfile=deswl.files.collated_path(serun, 'badlist')
 
     eu.ostools.makedirs_fromfile(goodfile)
 

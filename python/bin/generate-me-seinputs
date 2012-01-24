@@ -11,6 +11,8 @@ import sys
 import deswl
 from optparse import OptionParser
 parser = OptionParser(__doc__)
+parser.add_option("--fs",default='hdfs', help="file system, nfs or hdfs, default %default")
+
 options, args = parser.parse_args(sys.argv[1:])
 
 if len(args) < 1:
@@ -19,5 +21,5 @@ if len(args) < 1:
 
 merun=args[0]
 
-mi=deswl.files.MultishearSEInputs(merun)
+mi=deswl.files.MultishearSEInputs(merun, fs=options.fs)
 mi.generate_all_inputs()

@@ -78,8 +78,8 @@ def main():
 
     print >>stderr,'Found %s/%s problems\n' % (len(badlist),len(all_files))
 
-    goodfile=deswl.files.me_collated_path(merun, 'goodlist')
-    badfile=deswl.files.me_collated_path(merun, 'badlist')
+    goodfile=deswl.files.collated_path(merun, 'goodlist')
+    badfile=deswl.files.collated_path(merun, 'badlist')
 
     eu.ostools.makedirs_fromfile(goodfile)
 

@@ -11,12 +11,29 @@ import deswl
 
 # for separating file elements
 file_el_sep = '-'
+_wlpipe_tmpdir='/data/wlpipe'
 
-def des_rootdir():
-    return getenv_check('DESDATA')
+_default_fs='nfs'
+def des_rootdir(**keys):
+    fs=keys.get('fs',_default_fs)
+    if fs is None:
+        fs='nfs'
+    if fs == 'nfs':
+        return getenv_check('DESDATA')
+    elif fs == 'hdfs':
+        return hdfs_rootdir()
+    elif fs == 'net':
+        return net_rootdir()
+    else:
+        raise ValueError("fs should be 'nfs' or 'hdfs'")
 
 def hdfs_rootdir():
     return 'hdfs:///user/esheldon/DES'
+
+def net_rootdir():
+    if 'DESREMOTE' not in os.environ:
+        raise ValueError("The DESREMOTE environment variable is not set")
+    return os.environ['DESREMOTE']
 
 
 
@@ -82,10 +99,11 @@ class Runconfig(dict):
         self.me_collated_filetypes = {'badlist':'json', 'goodlist':'json'}
 
 
-        self.me_filetypes = ['multishear','qa','stat']
+        self.me_filetypes = ['multishear','qa','stat','debug']
         self.me_fext       = {'multishear':'.fits',
                               'qa':'.dat',
-                              'stat':'.json'}
+                              'stat':'.json',
+                              'debug':'.dat'}
 
 
         self.me_executables = ['multishear']
@@ -314,34 +332,27 @@ def ftype2fext(ftype_input):
         raise ValueError("Don't know about '%s' files" % ftype)
 
 
-
-
-def fileclass_dir(fileclass, rootdir=None):
-    if rootdir is None:
-        rootdir=des_rootdir()
-    return os.path.join(rootdir, fileclass)
-
-
-def run_dir(fileclass, run, rootdir=None):
-    if rootdir is None:
-        rootdir=des_rootdir()
+def run_dir(fileclass, run, **keys):
+    rootdir=des_rootdir(**keys)
     dir=path_join(rootdir, fileclass, run)
     return dir
  
 
-def filetype_dir(fileclass, run, filetype, rootdir=None):
-    rundir=run_dir(fileclass, run, rootdir=rootdir)
+def filetype_dir(fileclass, run, filetype, **keys):
+    rundir=run_dir(fileclass, run, **keys)
     return os.path.join(rundir, filetype)
 
-def exposure_dir(fileclass, run, filetype, expname, rootdir=None):
-    ftdir=filetype_dir(fileclass, run, filetype, rootdir=rootdir)
+def exposure_dir(fileclass, run, filetype, expname, **keys):
+    ftdir=filetype_dir(fileclass, run, filetype, **keys)
     return os.path.join(ftdir, expname)
 
-def red_image_path(run, expname, ccd, fz=True, rootdir=None, check=False):
+def red_image_path(run, expname, ccd, **keys):
+    fz=keys.get('fz',True)
+    check=keys.get('check',False)
+
     fileclass='red'
     filetype='red'
-    expdir = exposure_dir(fileclass, run, filetype, expname, 
-                          rootdir=rootdir)
+    expdir = exposure_dir(fileclass, run, filetype, expname, **keys)
     imagename = '%s_%02i.fits' % (expname, int(ccd))
     basic_path = os.path.join(expdir, imagename)
 
@@ -358,11 +369,12 @@ def red_image_path(run, expname, ccd, fz=True, rootdir=None, check=False):
         
     return path
 
-def red_cat_path(run, expname, ccd, rootdir=None, check=False):
+def red_cat_path(run, expname, ccd, **keys):
+    check=keys.get('check',False)
+
     fileclass='red'
     filetype='red'
-    expdir = exposure_dir(fileclass, run, filetype, expname, 
-                          rootdir=rootdir)
+    expdir = exposure_dir(fileclass, run, filetype, expname, **keys)
     imagename = '%s_%02i_cat.fits' % (expname, int(ccd))
     path = os.path.join(expdir, imagename)
 
@@ -385,17 +397,17 @@ def extract_image_exposure_names(flist):
     return list( allinfo.keys() )
 
 
-def tile_dir(coaddrun, rootdir=None):
+def tile_dir(coaddrun, **keys):
     """
     Coadds are different than other output files:  The fileclass dir is 
     where the files are!
     """
     fileclass='coadd'
     filetype='coadd'
-    tiledir=filetype_dir(fileclass, coaddrun, filetype, rootdir=rootdir)
+    tiledir=filetype_dir(fileclass, coaddrun, filetype, **keys)
     return tiledir
 
-def coadd_image_path(coaddrun, tilename, band, fz=True, rootdir=None, check=False):
+def coadd_image_path(coaddrun, tilename, band, **keys):
     """
     More frustration:  the path element for "coaddrun"
     contains the tilename but in principle it can be arbitrary, so 
@@ -403,7 +415,10 @@ def coadd_image_path(coaddrun, tilename, band, fz=True, rootdir=None, check=Fals
 
     If check=True, fz will be also be tried if not already set to True
     """
-    tiledir=tile_dir(coaddrun, rootdir=rootdir)
+    fz=keys.get('fz',True)
+    check=keys.get('check',False)
+
+    tiledir=tile_dir(coaddrun, **keys)
     fname=tilename+'_'+band+'.fits'
     basic_path=path_join(tiledir, fname)
     if check:
@@ -419,7 +434,7 @@ def coadd_image_path(coaddrun, tilename, band, fz=True, rootdir=None, check=Fals
             path=basic_path + '.fz'
     return path
 
-def coadd_cat_path(catalogrun, tilename, band, rootdir=None, check=False):
+def coadd_cat_path(catalogrun, tilename, band, **keys):
     """
     More frustration:  the path element for "catalogrun"
     contains the tilename but in principle it can be arbitrary, so 
@@ -427,7 +442,9 @@ def coadd_cat_path(catalogrun, tilename, band, rootdir=None, check=False):
 
     Note often catalogrun is the same as the coaddrun
     """
-    tiledir=tile_dir(catalogrun, rootdir=rootdir)
+    check=keys.get('check',False)
+
+    tiledir=tile_dir(catalogrun, **keys)
     fname=tilename+'_'+band+'_cat.fits'
     path=path_join(tiledir, fname)
     if check:
@@ -453,17 +470,18 @@ def mohrify_name(name):
 # se means single epoch
 # me means multi-epoch
 
-def se_dir(run, expname, rootdir=None):
+def se_dir(run, expname, **keys):
     rc=Runconfig()
 
     fileclass=rc.run_types['se']['fileclass']
-    rundir=run_dir(fileclass, run, rootdir=rootdir)
+    rundir=run_dir(fileclass, run, **keys)
     dir=path_join(rundir, expname)
     return dir
 
-def se_basename(expname, ccd, ftype,
-                  serun=None,
-                  mohrify=False, fext=None):
+def se_basename(expname, ccd, ftype, **keys):
+
+    serun=keys.get('serun',None)
+    fext=keys.get('fext',None)
 
     if fext is None:
         rc=Runconfig()
@@ -482,82 +500,46 @@ def se_basename(expname, ccd, ftype,
 
 
 
-def se_path(expname, ccd, ftype, 
-              serun=None,
-              mohrify=False, 
-              dir=None, 
-              rootdir=None, 
-              fext=None):
+def se_url(serun, expname, ccd, ftype, **keys):
     """
-    name=se_path(expname, ccd, ftype, serun=None,
-                   mohrify=False, rootdir=None, fext=None)
+    name=se_url(expname, ccd, ftype, serun=None, fext=None, fs=_default_fs', dir=None)
     Return the SE output file name for the given inputs
     """
-    if mohrify:
-        ftype_use=mohrify_name(ftype)
-    else:
-        ftype_use=ftype
 
-    if dir is None:
-        if serun is not None:
-            dir = se_dir(serun, expname, rootdir=rootdir)
-        else:
-            dir=os.path.abspath('.')
-
-    name = se_basename(expname, ccd, ftype_use, 
-                         serun=serun,
-                         mohrify=mohrify, fext=fext)
+    dir = se_dir(serun, expname, **keys)
+    name = se_basename(expname, ccd, ftype, **keys)
     path=path_join(dir,name)
     return path
 
 
-def se_read(expname, ccd, ftype, 
-              serun=None,
-              mohrify=False, 
-              dir=None, 
-              rootdir=None, 
-              fext=None,
-              **keys):
-              #ext=0, 
-              #verbose=False):
+def se_read(serun, expname, ccd, ftype, **keys):
 
-    fpath=se_path(expname, ccd, ftype, 
-                    serun=serun,
-                    mohrify=mohrify, 
-                    dir=dir, 
-                    rootdir=rootdir, 
-                    fext=fext)
+    fpath=se_url(serun, expname, ccd, ftype, **keys)
 
     return eu.io.read(fpath, **keys)
 
-def generate_se_filenames(expname, ccd, serun=None,
-                          rootdir=None, dir=None,
-                          split=False):
+def generate_se_filenames(serun, expname, ccd, **keys):
     fdict={}
 
     rc=deswl.files.Runconfig()
+
+    split=keys.get('split',False)
 
     # output file names
     for ftype in rc.se_filetypes:
         if not split:
             if ftype[-1] == '1' or ftype[-1] == '2':
                 continue
-        name= se_path(expname, 
-                      ccd, 
-                      ftype,
-                      serun=serun,
-                      dir=dir,
-                      rootdir=rootdir)
+        name= se_url(serun, expname, ccd, ftype, **keys)
         fdict[ftype] = name
-
 
     return fdict
 
 def coldir_open(serun):
     import columns
-    coldir=coldir(serun)
+    cdir=coldir(serun)
 
-    cols = columns.Columns(coldir)
+    cols = columns.Columns(cdir)
     return cols
     
 
@@ -579,10 +561,10 @@ def se_test_dir(serun, subdir=None):
 
     return dir
 
-def se_test_path(serun, subdir=None, extra=None, ext='fits'):
+def se_test_path(serun, subdir=None, extra=None, fext='fits'):
     """
     e.g. se_test_path('se011it', subdir=['checksg', 'decam--22--44-i-11'],
-                        extra='%02d' % ccd, ext='eps')
+                        extra='%02d' % ccd, fext='eps')
     """
 
     fname = [serun]
@@ -600,7 +582,7 @@ def se_test_path(serun, subdir=None, extra=None, ext='fits'):
             fname += [str(extra)]
 
     fname='-'.join(fname)
-    fname += '.'+ext
+    fname += '.'+fext
 
     dir = se_test_dir(serun, subdir=subdir)
     outpath = path_join(dir,fname)
@@ -615,23 +597,27 @@ def collated_dir(run):
     return dir
 
 
+def collated_path(run, 
+                  objclass, 
+                  ftype=None, 
+                  delim=None):
 
-
-def se_collated_path(serun, 
-                     objclass, 
-                     ftype=None, 
-                     delim=None):
-
-    fname=[serun,objclass]
+    fname=[run,objclass]
     fname='-'.join(fname)
 
     # determine the file type
     if ftype is None:
         rc=Runconfig()
-        if objclass in rc.se_collated_filetypes:
-            ftype=rc.se_collated_filetypes[objclass]
+
+
+        if run[0:2] == 'se':
+            ctypes = rc.se_collated_filetypes:
+        elif run[0:2] == 'me':
+            ctypes = rc.me_collated_filetypes:
         else:
-            ftype='fits'
+            raise ValueError("Expected runs to start with me or se")
+
+        ftype = ctypes.get(objclass,'fits')
         
     # determine the extension
     fext = eu.io.ftype2fext(ftype)
@@ -648,160 +634,27 @@ def se_collated_path(serun,
 
     fname += '.'+fext
 
-    dir = collated_dir(serun)
+    dir = collated_dir(run)
     outpath = path_join(dir,fname)
 
     return outpath
 
-def me_collated_path(merun, 
-                     objclass, 
-                     ftype=None, 
-                     delim=None):
+def collated_read(serun, 
+                  objclass, 
+                  ftype=None, 
+                  delim=None,
+                  dir=None,
+                  ext=0,
+                  header=False,
+                  rows=None,columns=None,fields=None,
+                  norecfile=False, verbose=False):
 
-    fname=[merun,objclass]
-    fname='-'.join(fname)
-
-    # determine the file type
-    if ftype is None:
-        rc=Runconfig()
-        if objclass in rc.me_collated_filetypes:
-            ftype=rc.me_collated_filetypes[objclass]
-        else:
-            ftype='fits'
-        
-    # determine the extension
-    fext = eu.io.ftype2fext(ftype)
-
-
-    # add delimiter info to the file name
-    if fext == 'rec' and delim is not None:
-        if delim == '\t':
-            fname += '-tab'
-        elif delim == ',':
-            fname += '-csv'
-        else:
-            raise ValueError,'delim should be , or tab'
-
-    fname += '.'+fext
-
-    dir = collated_dir(merun)
-    outpath = path_join(dir,fname)
-
-    return outpath
-
-
-
-
-def se_collated_read(serun, 
-                       objclass, 
-                       ftype=None, 
-                       delim=None,
-                       dir=None,
-                       ext=0,
-                       header=False,
-                       rows=None,columns=None,fields=None,
-                       norecfile=False, verbose=False):
-
-    fpath=se_collated_path(serun, objclass, ftype=ftype, delim=delim)
+    fpath=collated_path(serun, objclass, ftype=ftype, delim=delim)
 
     return eu.io.read(fpath, header=header, 
                           rows=rows, columns=columns, fields=fields,
                           norecfile=norecfile, verbose=verbose, 
                           ext=ext) 
-
-
-
-#
-# deprecated
-# we don't ues collated redfiles any more, we use the database
-#
-
-def collated_redfiles_dir(dataset, html=False):
-    desfiles_dir=getenv_check('DESFILES_DIR')
-    if html:
-        desfiles_dir=path_join(desfiles_dir,'html')
-    desfiles_dir = path_join(desfiles_dir,dataset)
-    return desfiles_dir
-
-def collated_redfiles_name(dataset, band):
-    #name=[dataset,'images','catalogs']
-    #name.append(band)
-    name=[dataset,'red',band,'info']
-    name = '-'.join(name)
-    name += '.json'
-    return name
-
-def collated_redfiles_path(dataset, band, html=False):
-    tdir=collated_redfiles_dir(dataset, html=html)
-    name = collated_redfiles_name(dataset, band)
-    return path_join(tdir, name)
-
-_redfiles_cache={'dataset':None,'band':None,'data':None,'url':None}
-def collated_redfiles_read(dataset, band, getpath=False):
-    if (_redfiles_cache['dataset'] == dataset 
-            and _redfiles_cache['band'] == band):
-        stdout.write('Re-using redfiles cache\n')
-        f=_redfiles_cache['url']
-        tileinfo=_redfiles_cache['data']
-    else:
-        f=collated_redfiles_path(dataset, band)
-        stdout.write('Reading red info file: %s\n' % f)
-        tileinfo=json_util.read(f)
-
-        _redfiles_cache['url'] = f
-        _redfiles_cache['data'] = tileinfo
-        _redfiles_cache['dataset'] = dataset
-        _redfiles_cache['band'] = band
-
-    if getpath:
-        return tileinfo, f
-    else:
-        return tileinfo
-
-def collated_redfiles_write_web(dataset, band):
-    json_file=collated_redfiles_path(dataset, band)
-    dat_file=collated_redfiles_path(dataset, band, html=True)
-    dat_file = dat_file.replace('.json','-pointings.json')
-
-    html_dir = collated_redfiles_dir(dataset, html=True)
-
-    stdout.write("Writing to: %s\n" % dat_file)
-    if not os.path.exists(html_dir):
-        os.makedirs(html_dir)
-
-    data = eu.io.read(json_file)
-    flist = data['flist']
-
-    #DESDATA=data['rootdir']
-
-
-    # just for getting unique ones
-    phist = {}
-    # for json output
-    pdata = {}
-    pdata['band'] = band
-    pdata['dataset'] = dataset
-    #pdata['DESDATA'] = DESDATA
-    pdata['hostname'] = data['hostname']
-    pdata['flist'] = []
-    for f in flist:
-
-        imfile=f['image_path']#.replace(DESDATA,'$DESDATA')
-        catfile=f['cat_path']#.replace(DESDATA,'$DESDATA')
-
-        imdir=os.path.dirname(imfile)
-        catdir=os.path.dirname(catfile)
-
-        imid = '{redrun}/red/{expname}'.format(redrun=f['redrun'],
-                                               expname=f['expname'])
-        if imid not in phist:
-            phist[imid] = 1
-            pdata['flist'].append( {'imdir':imdir,'catdir':catdir} )
-
-
-    eu.io.write(dat_file,pdata,verbose=True)
-                                    
-
 
 
 
@@ -935,26 +788,29 @@ def _extract_coadd_info_tile_band(cinfo, tile, bands):
 # multishear output files
 #
 
-def me_dir(merun, tilename, rootdir=None):
+def me_dir(merun, tilename, **keys):
     rc=Runconfig()
 
     fileclass=rc.run_types['me']['fileclass']
-    rundir=run_dir(fileclass, merun, rootdir=rootdir)
+    rundir=run_dir(fileclass, merun, **keys)
     wldir=os.path.join(rundir, tilename)
     return wldir
 
-def me_basename(tilename, band, ftype, merun=None, extra=None, ext=None):
+def me_basename(tilename, band, ftype, **keys):
     """
     basename for multi-epoch weak lensing output files
     """
 
+    merun=keys.get('merun',None)
+    extra=keys.get('extra',None)
+    fext=keys.get('fext',None)
 
-    if ext is None:
+    if fext is None:
         rc=Runconfig()
         if ftype in rc.me_fext:
-            ext=rc.me_fext[ftype]
+            fext=rc.me_fext[ftype]
         else:
-            ext='.fits'
+            fext='.fits'
 
     name=[tilename,band,ftype]
     
@@ -964,32 +820,21 @@ def me_basename(tilename, band, ftype, merun=None, extra=None, ext=None):
     if extra is not None:
         name.append(extra)
 
-    name=file_el_sep.join(name)+ext
+    name=file_el_sep.join(name)+fext
     return name
 
-def me_url(tilename, band, ftype, merun=None, 
-           extra=None, 
-           dir=None, rootdir=None, ext=None):
+def me_url(merun, tilename, band, ftype, **keys):
     """
     Return a multi-epoch shear output file name
-
-    currently just for multishear and logs, etc 
     """
 
+    dir = me_dir(merun, tilename, **keys)
 
-    if dir is None:
-        if merun is not None:
-            dir = me_dir(merun, tilename, rootdir=rootdir)
-        else:
-            dir='.'
-
-    name = me_basename(tilename, band, ftype, 
-                         merun=merun, extra=extra, ext=ext)
+    name = me_basename(tilename, band, ftype, **keys)
     name = path_join(dir, name)
     return name
 
-def generate_me_output_urls(tilename, band, 
-                            merun=None, dir=None, rootdir=None):
+def generate_me_output_urls(merun, tilename, band, **keys):
     """
     This is the files output by multishear
     """
@@ -1000,12 +845,7 @@ def generate_me_output_urls(tilename, band,
 
     # output file names
     for ftype in rc.me_filetypes:
-        name= me_url(tilename,
-                     band,
-                     ftype,
-                     merun=merun,
-                     dir=dir,
-                     rootdir=rootdir)
+        name= me_url(merun, tilename, band, ftype, **keys)
         fdict[ftype] = name
 
 
@@ -1024,10 +864,10 @@ class MultishearFiles:
     """
     Generate the input file names, output file names, and condor file names
     """
-    def __init__(self, merun, conn=None):
+    def __init__(self, merun, fs=_default_fs, conn=None):
         self.merun=merun
         self.rc=Runconfig(self.merun)
-
+        self.fs=fs
         if conn is None:
             import desdb
             self.conn=desdb.Connection()
@@ -1062,15 +902,12 @@ class MultishearFiles:
 
     def get_files(self, 
                   id=None, 
-                  tilename=None,
-                  dir=None):
+                  tilename=None):
         """
         Call with
             f=get_files(id=)
         or
             f=get_files(tilename=)
-
-        Send dir= to pick a different output directory
         """
         import desdb
 
@@ -1079,20 +916,21 @@ class MultishearFiles:
                             band=self.rc['band'], 
                             dataset=self.rc['dataset'], 
                             tilename=tilename, 
+                            fs=self.fs,
                             conn=self.conn)
         c.load()
 
         # now get the output files
-        outfiles=generate_me_output_urls(c['tilename'], 
+        outfiles=generate_me_output_urls(self.merun,
+                                         c['tilename'], 
                                          self.rc['band'], 
-                                         merun=self.merun, 
-                                         dir=dir)
+                                         fs=self.fs)
 
         files={}
         files['wl_config'] = os.path.expandvars(self.rc['wl_config'])
         files['image'] = c['image_url']
         files['cat'] = os.path.expandvars(c['cat_url'])
-        files['id'] = os.path.expandvars(c['image_id'])
+        files['id'] = int(c['image_id'])
         files['tilename'] = c['tilename']
 
         srclist = me_seinputs_url(self.merun, c['tilename'], self.rc['band'])
@@ -1128,9 +966,10 @@ class MultishearSEInputs:
     This is the single epoch inputs, use MultishearInputs to just generate
     the input file names for multishear.
     """
-    def __init__(self, merun, conn=None):
+    def __init__(self, merun, conn=None, fs=_default_fs):
         self.merun=merun
         self.rc=Runconfig(self.merun)
+        self.fs=fs
 
         if conn is None:
             import desdb
@@ -1170,7 +1009,7 @@ class MultishearSEInputs:
         elif tilename is None:
             tilename=self.get_tilename(id)
 
-        c=desdb.files.Coadd(id=id, conn=self.conn)
+        c=desdb.files.Coadd(id=id, conn=self.conn, fs=self.fs)
         c.load(srclist=True)
 
         url=self.get_url(tilename=tilename)
@@ -1182,20 +1021,18 @@ class MultishearSEInputs:
         print 'writing me inputs:',url
         with open(url,'w') as fobj:
             for s in c.srclist:
-                names=generate_se_filenames(s['expname'],
+                names=generate_se_filenames(self.rc['serun'],
+                                            s['expname'],
                                             s['ccd'],
-                                            serun=self.rc['serun'])
+                                            fs=self.fs)
 
                 line = '%s %s %s\n' % (s['url'],names['shear'],names['fitpsf'])
                 fobj.write(line)
 
     def get_url(self, id=None, tilename=None):
         """
-        Get the location of the single-epoch input list
-        for the input id or tilename.
-
-        If the url does not exist, and generate=True, the
-        data are generated and written.
+        Get the location of the single-epoch input list for the input id or
+        tilename.
         """
         
         if tilename is None and id is None:
@@ -1238,6 +1075,69 @@ class MultishearSEInputs:
                              "%s, found %s" % (tile,len(res)))
         return res[0]['id']
 
+class HDFSSrclist:
+    def __init__(self, orig_url):
+        import tempfile
+        self.orig_url=orig_url
+        
+        self.hdfs_files=[]
+
+        bname=os.path.basename(self.orig_url)
+        self.name = tempfile.mktemp(prefix='hdfs-', suffix='-'+bname, dir=_wlpipe_tmpdir)
+
+    def stage(self):
+        """
+        Stage the files to local disk and write a new file with these filenames
+        """
+
+        if not os.path.exists(_wlpipe_tmpdir):
+            os.makedirs(_wlpipe_tmpdir)
+
+        self.hdfs_files=[]
+        print >>stderr,'working through original:',self.orig_url
+        with open(self.orig_url) as orig, open(self.name,'w') as new:
+            lines=orig.readlines()
+            nl=len(lines)
+            for i,line in enumerate(lines,1):
+                image,shear,fitpsf = line.split()
+
+                t={}
+                t['image'] = eu.hdfs.HDFSFile(image,verbose=True,tmpdir=_wlpipe_tmpdir)
+                t['shear'] = eu.hdfs.HDFSFile(shear,verbose=True,tmpdir=_wlpipe_tmpdir)
+                t['fitpsf'] = eu.hdfs.HDFSFile(fitpsf,verbose=True,tmpdir=_wlpipe_tmpdir)
+
+                self.hdfs_files.append(t)
+
+                new.write('%s %s %s\n' % (t['image'].localfile,
+                                          t['shear'].localfile,
+                                          t['fitpsf'].localfile))
+
+                print >>stderr,'%s/%s' % (i,nl)
+                for k in t:
+                    stderr.write('    ')
+                    t[k].stage()
+
+    def cleanup(self):
+        """
+        run cleanup on all staged files and cleanup temporary srclist file
+        """
+
+        if os.path.exists(self.name):
+            print >>stderr,"Cleaning up temp srclist file:",self.name
+            os.remove(self.name)
+
+        for fd in self.hdfs_files:
+            for k in ['image','shear','fitpsf']:
+                fd[k].cleanup()
+
+    def __enter__(self):
+        return self
+    def __exit__(self, exception_type, exception_value, traceback):
+        self.cleanup()
+    def __del__(self):
+        self.cleanup()
+
+
 
 class MultishearCondorJob(dict):
     """
@@ -1272,7 +1172,6 @@ class MultishearCondorJob(dict):
         self['nthread'] = nthread
         self['verbose']=verbose
         self['dryrun']=dryrun
-
 
         if files is not None:
             self['config'] = files
@@ -1407,11 +1306,10 @@ class MultishearWQJob(dict):
                  id=None, 
                  tilename=None, 
                  nthread=None, 
-                 dir=None,
+                 fs=_default_fs,
                  conn=None,
                  groups=None,
-                 verbose=False,
-                 dryrun=False):
+                 verbose=False):
         """
         Note merun implies a dataset which, combined with tilename,
         implies the band.
@@ -1429,14 +1327,14 @@ class MultishearWQJob(dict):
         self['run'] = merun
         self['nthread'] = nthread
         self['verbose']=verbose
-        self['dryrun']=dryrun
 
+        self['fs'] = fs
 
         if files is not None:
             self['config'] = files
         else:
-            mfobj=MultishearFiles(merun, conn=conn)
-            self['config'] = mfobj.get_files(id=id, tilename=tilename,dir=dir)
+            mfobj=MultishearFiles(merun, conn=conn, fs=self['fs'])
+            self['config'] = mfobj.get_files(id=id, tilename=tilename)
 
         self['id'] = self['config']['id']
         self['tilename'] = self['config']['tilename']
@@ -1445,32 +1343,36 @@ class MultishearWQJob(dict):
         self['config']['merun']=merun
 
         self['job_file']=me_wq_path(self['run'],self['tilename'])
+        self['check_job_file']=self['job_file'].replace('.yaml','-check.yaml')
         self['config_file']=me_config_path(self['run'],self['tilename'])
         self['log_file']=os.path.basename(self['job_file']).replace('yaml','out')
 
 
         if groups is None:
-            groups = '[gen3,gen4,gen5]'
+            groups = '[new,new2]'
         else:
             groups = '['+groups+']'
         self['groups'] = groups
 
-    def write_all(self):
+    def write(self):
         self.write_config()
         self.write_job_file()
+        self.write_job_file(check=True)
 
-    def write_job_file(self):
-        eu.ostools.makedirs_fromfile(self['job_file'])
-
-        print "writing to wq job file:",self['job_file']
-        text = self.job_file_text()
-        if self['verbose'] or self['dryrun']:
-            print text 
-        if not self['dryrun']:
-            with open(self['job_file'],'w') as fobj:
-                fobj.write(text)
+    def write_job_file(self, check=False):
+        if check:
+            job_file=self['check_job_file']
+            text = self.check_job_file_text()
         else:
-            print "this is just a dry run" 
+            job_file=self['job_file']
+            text = self.job_file_text()
+        eu.ostools.makedirs_fromfile(job_file)
+
+        if self['verbose']:
+            print >>stderr,"writing to wq job file:",job_file
+        with open(job_file,'w') as fobj:
+            fobj.write(text)
+
 
     def write_config(self):
         """
@@ -1481,23 +1383,22 @@ class MultishearWQJob(dict):
         eu.ostools.makedirs_fromfile(self['config_file'])
 
         print "writing to config file:",self['config_file']
-        if self['verbose'] or self['dryrun']:
+        if self['verbose']:
             print yaml.dump(self.mf)
 
-        if not self['dryrun']:
-            with open(self['config_file'],'w') as fobj:
-                for k in self['config']:
-                    # I want it a bit prettier so writing my own, but will have
-                    # to be careful
-                    kk = k+': '
-                    val = self['config'][k]
-                    if isinstance(val,bool):
-                        if val:
-                            val='true'
-                        else:
-                            val='false'
-                    fobj.write('%-15s %s\n' % (kk,val))
-                #yaml.dump(self['config'], fobj)
+        with open(self['config_file'],'w') as fobj:
+            for k in self['config']:
+                # I want it a bit prettier so writing my own, but will have
+                # to be careful
+                kk = k+': '
+                val = self['config'][k]
+                if isinstance(val,bool):
+                    if val:
+                        val='true'
+                    else:
+                        val='false'
+                fobj.write('%-15s %s\n' % (kk,val))
+            #yaml.dump(self['config'], fobj)
 
 
     def job_file_text(self):
@@ -1515,6 +1416,7 @@ class MultishearWQJob(dict):
 
         text="""
 command: |
+    source /opt/astro/SL53/bin/setup.hadoop.sh
     source ~astrodat/setup/setup.sh
     source ~/.dotfiles/bash/astro.bnl.gov/modules.sh
     {esutil_load}
@@ -1537,12 +1439,58 @@ job_name: {job_name}\n""".format(wl_load=wl_load,
 
         return text
 
+
+
+    def check_job_file_text(self):
+
+        job_name=self['tilename'] + '-'+self['band']
+        rc=self.rc
+
+        esutil_load = _make_load_command('esutil', rc['esutilvers'])
+        wl_load = _make_load_command('wl',rc['wlvers'])
+        tmv_load = _make_load_command('tmv',rc['tmvvers'])
+
+        stat=self['config']['stat']
+        cmd="""
+
+stat={stat}
+chk={job_name}-check.json
+err={job_name}-check.err
+shear-check-one $stat 1> $chk 2> $err
+
+        """.format(stat=stat,job_name=job_name).strip()
+
+        text = """
+command: |
+    source /opt/astro/SL53/bin/setup.hadoop.sh
+    source ~astrodat/setup/setup.sh
+    source ~/.dotfiles/bash/astro.bnl.gov/modules.sh
+    %(esutil_load)s
+    %(tmv_load)s
+    %(wl_load)s
+
+    %(cmd)s
+
+priority: low
+job_name: %(job_name)s\n""" % {'esutil_load':esutil_load,
+                               'tmv_load':tmv_load,
+                               'wl_load':wl_load,
+                               'cmd':cmd,
+                               'job_name':job_name}
+
+
+        return text
+
+
+
+
+
 class ShearFiles(dict):
     """
     Currently, hdfs is only used for reading images and catalogs
     Writing is still done to nfs, which should be fine
     """
-    def __init__(self, serun, conn=None, fs='nfs'):
+    def __init__(self, serun, conn=None, fs=_default_fs):
         import desdb
         self['run'] = serun
         self['fs'] = fs
@@ -1556,31 +1504,12 @@ class ShearFiles(dict):
 
         self.expnames = None
 
-    def get_expname_query(self):
-        query = """
-        select 
-            distinct(file_exposure_name) 
-        from 
-            %(release)s_files
-        where 
-            filetype = 'red'
-            and band = '%(band)s'
-        order by
-            file_exposure_name\n""" % {'release':self.rc['dataset'],
-                                       'band':self.rc['band']}
-        return query
 
     def get_expnames(self):
         if self.expnames is None:
-            query = self.get_expname_query()
-            print query
-            curs = self.conn.cursor()
-            curs.execute(query)
-
-            self.expnames = [r[0] for r in curs]
-
-            curs.close()
-
+            import desdb
+            self.expnames = desdb.files.get_expnames(self.rc['dataset'],
+                                                     self.rc['band'])
         return self.expnames
 
     def get_flist(self, by_expname=False):
@@ -1602,9 +1531,9 @@ class ShearFiles(dict):
             info['image'] = image
             info['cat'] = cat
 
-            fdict=deswl.files.generate_se_filenames(info['expname'],
-                                                    info['ccd'],
-                                                    serun=self['run'])
+            fdict=deswl.files.generate_se_filenames(self['run'],
+                                                    info['expname'],
+                                                    info['ccd'])
             info['wl_config'] = self.rc['wl_config']
             for k,v in fdict.iteritems():
                 info[k] = v
@@ -1654,7 +1583,7 @@ class ShearFiles(dict):
         flist = []
         for expname in expnames:
             for ccd in xrange(1,62+1):
-                fdict=deswl.files.generate_se_filenames(expname,ccd,serun=self['run'])
+                fdict=deswl.files.generate_se_filenames(self['run'],expname,ccd)
                 fdict['expname'] = expname
                 fdict['ccd'] = ccd
                 flist.append(fdict)
@@ -1708,30 +1637,23 @@ class SEWQJob(dict):
             sj._write_config()
 
         self._write_job_file()
-        self._write_check_job_file()
+        self._write_job_file(check=True)
 
-    def _write_job_file(self):
-        job_file=self._get_job_filename()
+    def _write_job_file(self, check=False):
+        if check:
+            job_file=self._get_job_filename(check=True)
+            text = self._check_job_file_text()
+        else:
+            job_file=self._get_job_filename()
+            text = self._job_file_text()
+
         eu.ostools.makedirs_fromfile(job_file)
 
-        text = self._job_file_text()
         if self['verbose']:
             print "writing to wq job file:",job_file
 
         with open(job_file,'w') as fobj:
             fobj.write(text)
-
-    def _write_check_job_file(self):
-        job_file=self._get_job_filename(check=True)
-        eu.ostools.makedirs_fromfile(job_file)
-
-        text = self._check_job_file_text()
-        if self['verbose']:
-            print "writing to wq job check file:",job_file
-
-        with open(job_file,'w') as fobj:
-            fobj.write(text)
-
 
 
     def _job_file_text(self):

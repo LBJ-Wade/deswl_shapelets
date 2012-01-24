@@ -12,6 +12,48 @@ from deswl.files import MultishearFiles,MultishearWQJob
 from optparse import OptionParser
 parser = OptionParser(__doc__)
 parser.add_option("-g","--groups",default=None, help="groups for queue")
+parser.add_option("--fs",default='hdfs', help="file system, nfs or hdfs, default %default")
+
+
+def write_reducer(run):
+    text="""
+from sys import stderr
+import glob
+import deswl
+import esutil as eu
+
+files=glob.glob('*-check.json')
+goodlist=[]
+badlist=[]
+nf=len(files)
+for i,f in enumerate(files,1):
+    if (i %% 100) == 0 or (i == 1):
+        print >>stderr,f,"%%s/%%s" %% (i,nf)
+    d=eu.io.read(f)
+    if d['error_string'] == '':
+        goodlist.append(d)
+    else:
+        print >>stderr,d['stat'],'\\n',d['error_string']
+        badlist.append(d)
+goodfile=deswl.files.collated_path('%(run)s', 'goodlist')
+badfile=deswl.files.collated_path('%(run)s', 'badlist')
+eu.ostools.makedirs_fromfile(goodfile)
+
+print >>stderr,"Found %%s/%%s problems" % (len(badlist),nf)
+
+print >>stderr,"Writing goodlist:",goodfile
+eu.io.write(goodfile,goodlist)
+print >>stderr,"Writing badlist:",badfile
+eu.io.write(badfile,badlist)
+""" % {'run':run}
+
+    d=deswl.files.wq_dir(run)
+    f=os.path.join(d,'check-reduce.py')
+    print >>stderr,"writing check reduce script:",f
+    with open(f,'w') as fobj:
+        fobj.write(text)
+
+
 
 def main():
 
@@ -22,14 +64,16 @@ def main():
 
     merun=args[0]
 
-    mfobj=MultishearFiles(merun)
+    write_reducer(merun)
+
+    mfobj=MultishearFiles(merun, fs=options.fs)
     all_files=mfobj.get_flist()
     ntile=len(all_files)
 
     for i,fdict in enumerate(all_files):
         print '%d/%d' % (i+1,ntile)
-        mc=MultishearWQJob(merun,files=fdict,groups=options.groups)
-        mc.write_all()
+        mc=MultishearWQJob(merun,files=fdict,groups=options.groups, fs=options.fs)
+        mc.write()
 
 
 main()
