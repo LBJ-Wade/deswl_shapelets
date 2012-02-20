@@ -58,8 +58,11 @@ opts.Add(PathVariable('EXTRA_INCLUDE_PATH',
 opts.Add(BoolVariable('IMPORT_PATHS',
             'Import PATH, C_INCLUDE_PATH and LIBRARY_PATH/LD_LIBRARY_PATH environment variables',
             False))
-opts.Add(BoolVariable('IMPORT_ENV','Import full environment from calling shell', False))
-opts.Add(BoolVariable('INCLUDE_PREFIX_PATHS','Add PREFIX/bin, PREFIX/include and PREFIX/lib to corresponding path lists', True))
+opts.Add(BoolVariable('IMPORT_ENV',
+            'Import full environment from calling shell',True))
+opts.Add(BoolVariable('INCLUDE_PREFIX_PATHS',
+            'Add PREFIX/bin, PREFIX/include and PREFIX/lib to corresponding path lists',
+            True))
 
 opts.Add('TMV_DIR','Explicitly give the tmv prefix','')
 opts.Add('CFITSIO_DIR','Explicitly give the cfitsio prefix','')
@@ -67,24 +70,27 @@ opts.Add('CCFITS_DIR','Explicitly give the ccfits prefix','')
 
 opts.Add('TMV_LINK','File that contains the linking instructions for TMV','')
 opts.Add('LIBS','Libraries to send to the linker','')
-opts.Add(BoolVariable('CACHE_LIB','Cache the results of the library checks',True))
-
+opts.Add(BoolVariable('CACHE_LIB',
+            'Cache the results of the library checks',True))
 
 opts.Add(BoolVariable('WITH_PYTHON','Build Python bindings.', False))
 opts.Add(BoolVariable('WITH_OPENMP','Look for openmp and use if found.', True))
-opts.Add(BoolVariable('WITH_TMV','Use TMV for Matrix/Vector (rather than Eigen)', True))
+opts.Add(BoolVariable('WITH_TMV',
+            'Use TMV for Matrix/Vector (rather than Eigen)', True))
 opts.Add(BoolVariable('STATIC','Use static linkage', False))
 opts.Add(BoolVariable('MEM_TEST','Test for memory leaks',False))
 opts.Add(BoolVariable('WARN','Add warning compiler flags, like -Wall', False))
-opts.Add(BoolVariable('TMV_DEBUG','Turn on extra debugging statements within TMV library',False))
+opts.Add(BoolVariable('TMV_DEBUG',
+            'Turn on extra debugging statements within TMV library',False))
 
 opts.Add(BoolVariable('WITH_LIB',
             'Install the static library and headers.',False))
 opts.Add(BoolVariable('WITH_UPS',
-            'Create ups/wl.table.  Install the ups directory under PREFIX/ups',False))
+            'Create ups/wl.table.  Install the ups directory under PREFIX/ups',
+            False))
 opts.Add(BoolVariable('WITH_PROF',
-            'Use the compiler flag -pg to include profiling info for gprof',False))
-
+            'Use the compiler flag -pg to include profiling info for gprof',
+            False))
 
 opts.Update(initial_env)
 opts.Save(config_file,initial_env)
