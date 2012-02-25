@@ -89,7 +89,9 @@ class Runconfig(dict):
                               'qa':     '.dat',
                               'debug':'.dat',
                               'stat':   '.json',
-                              'checkpsf':'.rec'}
+                              'checkpsf':'.rec',
+                              # imcat stuff
+                              'imcshear':'.dat'}
         self.se_collated_filetypes = {'badlist':'json',
                                       'goodlist':'json',
                                       'gal':'fits'}
@@ -197,7 +199,7 @@ class Runconfig(dict):
             environment vars like $DESFILES_DIR will be expanded as needed.
 
         run_name: string, optional
-            e.g. se003i or me007zt.  If not sent, will be generated.
+            If not sent, will be generated.
         test: bool, optional
             If true, this is a test run. Generated names will be like
             se008t
