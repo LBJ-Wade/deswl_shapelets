@@ -486,10 +486,7 @@ def se_basename(serun, expname, ccd, ftype, **keys):
 
     if fext is None:
         rc=Runconfig()
-        if ftype in rc.se_fext:
-            fext=rc.se_fext[ftype]
-        else:
-            fext='.fits'
+        fext = rc.se_fext.get(ftype,'.fits')
 
     el=[expname, '%02i' % int(ccd), ftype]
 
