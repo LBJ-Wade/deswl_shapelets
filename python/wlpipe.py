@@ -30,15 +30,27 @@
         # create the wq job files and submit script
         generate-se-wq se014it
 
-        # after running you can check the results.  This will write
-        # out lists of successful and unsuccessful jobs
+        # after running you can check the results by submitting
+        # the -check*yaml wq parallel check scripts, followed
+        # by the check-reduce.py 
 
-        check_shear(serun, band)
-
-        # the files written are these.  Need to make it bandpass 
-        # dependent
+        # the reduced files written are these.
         deswl.files.collated_path(serun, 'goodlist')
         deswl.files.collated_path(serun, 'badlist')
+
+        # collation also happens in parallel.
+        # use this to generate the wq scripts which
+        # go under ~/des-wq/run/collate
+        ~/python/des/bin/make-collate-wq.py
+
+        # it will also write a script for combining these
+        # called {run}-combine.py  Don't forget to clean up
+        # the sub-collated versions
+
+        # then make the fits versions, and html using
+        ~/python/des/bin/collate2cols.py --fits run
+        ~/python/des/bin/collate2cols.py --html run
+
 
     For coadds, using multishear:
         First generate a run with a dataset/band/serun.  This will
@@ -52,22 +64,12 @@
 
             generate-me-seinputs merun
 
+        
         This will generate the wq job files
 
             generate-me-wq merun
 
-        Notes
-            - use deswl.files.me_seinputs_url(merun,tile,band) to get urls
-            - this requires desdb and cx_Oracle to work
-            - this does not get installed in the install /bin directory.
-
-            - For other users, you can generate flat files with the coadd info.
-
-                To generate the coadd list in $DESFILES_DIR/{dataset}
-                    ~/python/desdb/bin/get-coadd-info.py
-                To generate the list with associated input source images
-                    ~/python/desdb/bin/get-coadd-srclist.py
-
+        # the rest is the same as for SE
 """
 
 import sys

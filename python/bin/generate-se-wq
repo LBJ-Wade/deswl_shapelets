@@ -36,25 +36,25 @@ goodlist=[]
 badlist=[]
 nf=len(files)
 for i,f in enumerate(files,1):
-    if (i %% 100) == 0 or (i == 1):
-        print >>stderr,f,"%%s/%%s" %% (i,nf)
+    if (i % 100) == 0 or (i == 1):
+        print >>stderr,f,"%s/%s" % (i,nf)
     d=eu.io.read(f)
     if d['error_string'] == '':
         goodlist.append(d)
     else:
         print >>stderr,d['stat'],'\\n',d['error_string']
         badlist.append(d)
-goodfile=deswl.files.collated_path('%(serun)s', 'goodlist')
-badfile=deswl.files.collated_path('%(serun)s', 'badlist')
+goodfile=deswl.files.collated_path('{serun}', 'goodlist')
+badfile=deswl.files.collated_path('{serun}', 'badlist')
 eu.ostools.makedirs_fromfile(goodfile)
 
-print >>stderr,"Found %%s/%%s problems" % (len(badlist),nf)
+print >>stderr,"Found %s/%s problems" % (len(badlist),nf)
 
 print >>stderr,"Writing goodlist:",goodfile
 eu.io.write(goodfile,goodlist)
 print >>stderr,"Writing badlist:",badfile
 eu.io.write(badfile,badlist)
-""" % {'serun':serun}
+    """.format(serun=serun)
 
     d=deswl.files.wq_dir(serun)
     f=os.path.join(d,'check-reduce.py')

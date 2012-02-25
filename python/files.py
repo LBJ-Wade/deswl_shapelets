@@ -53,21 +53,18 @@ class Runconfig(dict):
     def __init__(self, run=None):
         
         self.run=run
-        self.fileclass='wlbnl'
 
         self.run_types={}
         self.run_types['se'] = {'name':'se',
-                                'fileclass': self.fileclass, 
-                                'filetype':'se_shapelet',
-                                'runvarname':'serun'}
+                                'fileclass': 'wlbnl', 
+                                'filetype':'se_shapelet'}
         self.run_types['me'] = {'name':'me',
-                                'fileclass': self.fileclass, 
-                                'filetype':'me_shapelet',
-                                'runvarname': 'merun'}
+                                'fileclass': 'wlbnl', 
+                                'filetype':'me_shapelet'}
 
-
-        self.fileclasses = {}
-        self.fileclasses['se'] = self.fileclass
+        self.run_types['imc'] = {'name':'imc',
+                                 'fileclass': 'impyp',
+                                 'filetype':'me_shapelet'}
 
 
         self.se_executables = ['findstars','measurepsf','measureshear']
@@ -138,13 +135,17 @@ class Runconfig(dict):
             raise ValueError(mess)
 
         if run_type == 'me':
-            i=3
+            starti=3
+        elif run_type == 'se':
+            starti=13
         else:
-            i=13
+            starti=1
 
-        run_name=self._run_name_from_type_number(run_type, band, i, test=test)
+        run_name=self._run_name_from_type_number(run_type, band, starti, test=test)
 
         fullpath=self.getpath(run_name)
+
+        i=starti
         while os.path.exists(fullpath):
             i+=1
             run_name=self._run_name_from_type_number(run_type, band, i, test=test)
@@ -168,7 +169,7 @@ class Runconfig(dict):
                                run_type, 
                                dataset, 
                                band,
-                               wl_config,
+                               wl_config=None,
                                run_name=None,
                                test=False, 
                                dryrun=False, 
@@ -180,49 +181,44 @@ class Runconfig(dict):
                                old=False,
                                **extra):
         """
-        Class:
-            Runconfig
-        Name:
-            generate_new_runconfig
-        Purpose:
-            Generate a new run configuration and write into the usual
-            place.
-        Calling Sequence:
-            rc=deswl.files.Runconfig()
-            rc.generate_new_runconfig(run_type, dataset, wl_config, keywords)
-        Inputs:
-            run_type: 
-                'se' or 'me'
-            dataset: 
-                e.g. 'dc5b' or 'dr012'
-            band:
-                'g','r','i','z','Y'
-            wl_config: 
-                Location of the weak lensing config you want to use for this
-                run. E.g. '$DESFILES_DIR/wl.config/wl05.config' Such
-                environment vars like $DESFILES_DIR will be expanded as needed.
+        generate a new runconfig file
 
-        Keywords:
-            run_name: 
-                e.g. se003i or me007zt.  If not sent, will be generated.
-            test: 
-                If true, this is a test run. Generated names will be like
-                se008t
-            dryrun: 
-                If true, just show what would have been written to the file.
+        parameters
+        ----------
+        run_type: string
+            'se' or 'me' or 'imc'
+        dataset: string
+            e.g. 'dr012'
+        band: string
+            'g','r','i','z','Y'
+        wl_config: string path, optional
+            Location of the config. For wlbnl this is a requirement.
+            run. E.g. '$DESFILES_DIR/wl.config/wl05.config' Such
+            environment vars like $DESFILES_DIR will be expanded as needed.
 
-            pyvers, esutilvers, wlvers, tmvvers: 
-                The versions to use.  Default is the current version.
+        run_name: string, optional
+            e.g. se003i or me007zt.  If not sent, will be generated.
+        test: bool, optional
+            If true, this is a test run. Generated names will be like
+            se008t
+        dryrun: bool, optional
+            If true, just show what would have been written to the file.
+        pyvers, esutilvers, wlvers, tmvvers: string, optional
+            The versions to use.  Default is the current version.
 
-            comment: Add an additional comment.
+        comment: string, optional
+            Add an additional comment.
 
         """
 
         # me runs depend on se runs
-        if run_type == 'me':
+        if run_type in ['me','imc']:
             if 'serun' not in extra:
-                raise RuntimeError("You must send serun=something for me")
+                raise RuntimeError("You must send serun=something for run "
+                                   "type '%s'"  % run_type)
 
+        if run_type in ['me','se'] and wl_config is None:
+            raise ValueError("Send wl_config for run type '%s'" % run_type)
 
         if run_name is None:
             run_name=self.generate_new_runconfig_name(run_type, band, test=test,old=old)
@@ -235,10 +231,6 @@ class Runconfig(dict):
             pyvers=deswl.get_python_version()
         if esutilvers is None:
             esutilvers=eu.version()
-        if wlvers is None:
-            wlvers=deswl.version()
-        if tmvvers is None:
-            tmvvers=deswl.get_tmv_version()
 
         runconfig={'run':run_name, 
                    'run_type':run_type,
@@ -246,10 +238,19 @@ class Runconfig(dict):
                    'fileclass': fileclass,
                    'pyvers':pyvers, 
                    'esutilvers': esutilvers,
-                   'wlvers':wlvers,
-                   'tmvvers':tmvvers,
-                   'dataset':dataset,
-                   'wl_config':wl_config}
+                   'dataset':dataset}
+
+        if run_type in ['me','se']:
+            if wlvers is None:
+                wlvers=deswl.version()
+            if tmvvers is None:
+                tmvvers=deswl.get_tmv_version()
+            runconfig['wlvers'] = wlvers
+            runconfig['tmvvers'] = tmvvers
+            runconfig['wl_config'] = wl_config
+
+        if run_type == 'imc':
+            runconfig['impypvers'] = extra.get('impypvers','trunk')
 
         if comment is not None:
             runconfig['comment'] = comment
@@ -262,7 +263,6 @@ class Runconfig(dict):
         stdout.write('Writing to file: %s\n' % fullpath)
         if not dryrun:
             json_util.write(runconfig, fullpath)
-            stdout.write("\n * Don't forget to check it into SVN!!!\n\n")
         else:
             stdout.write(" .... dry run, skipping file write\n")
 
@@ -478,9 +478,8 @@ def se_dir(run, expname, **keys):
     dir=path_join(rundir, expname)
     return dir
 
-def se_basename(expname, ccd, ftype, **keys):
+def se_basename(serun, expname, ccd, ftype, **keys):
 
-    serun=keys.get('serun',None)
     fext=keys.get('fext',None)
 
     if fext is None:
@@ -492,8 +491,7 @@ def se_basename(expname, ccd, ftype, **keys):
 
     el=[expname, '%02i' % int(ccd), ftype]
 
-    if serun is not None:
-        el=[serun]+el
+    el=[serun]+el
 
     basename=file_el_sep.join(el) + fext
     return basename
@@ -507,7 +505,7 @@ def se_url(serun, expname, ccd, ftype, **keys):
     """
 
     dir = se_dir(serun, expname, **keys)
-    name = se_basename(expname, ccd, ftype, **keys)
+    name = se_basename(serun, expname, ccd, ftype, **keys)
     path=path_join(dir,name)
     return path
 
@@ -611,9 +609,9 @@ def collated_path(run,
 
 
         if run[0:2] == 'se':
-            ctypes = rc.se_collated_filetypes:
+            ctypes = rc.se_collated_filetypes
         elif run[0:2] == 'me':
-            ctypes = rc.me_collated_filetypes:
+            ctypes = rc.me_collated_filetypes
         else:
             raise ValueError("Expected runs to start with me or se")
 
@@ -1226,9 +1224,8 @@ class MultishearCondorJob(dict):
         """
         self.make_condor_dir()
 
-        print "writing to config file:",self['config_file']
         if self['verbose'] or self['dryrun']:
-            pprint.pprint(self.mf)
+            print "writing to config file:",self['config_file']
 
         if not self['dryrun']:
             with open(self['config_file'],'w') as fobj:
@@ -1382,9 +1379,8 @@ class MultishearWQJob(dict):
         import yaml
         eu.ostools.makedirs_fromfile(self['config_file'])
 
-        print "writing to config file:",self['config_file']
         if self['verbose']:
-            print yaml.dump(self.mf)
+            print "writing to config file:",self['config_file']
 
         with open(self['config_file'],'w') as fobj:
             for k in self['config']:
@@ -1453,10 +1449,6 @@ job_name: {job_name}\n""".format(wl_load=wl_load,
         stat=self['config']['stat']
         cmd="""
 
-stat={stat}
-chk={job_name}-check.json
-err={job_name}-check.err
-shear-check-one $stat 1> $chk 2> $err
 
         """.format(stat=stat,job_name=job_name).strip()
 
@@ -1465,18 +1457,21 @@ command: |
     source /opt/astro/SL53/bin/setup.hadoop.sh
     source ~astrodat/setup/setup.sh
     source ~/.dotfiles/bash/astro.bnl.gov/modules.sh
-    %(esutil_load)s
-    %(tmv_load)s
-    %(wl_load)s
+    {esutil_load}
+    {tmv_load}
+    {wl_load}
 
-    %(cmd)s
+    stat={stat}
+    chk={job_name}-check.json
+    err={job_name}-check.err
+    shear-check-one $stat 1> $chk 2> $err
 
 priority: low
-job_name: %(job_name)s\n""" % {'esutil_load':esutil_load,
-                               'tmv_load':tmv_load,
-                               'wl_load':wl_load,
-                               'cmd':cmd,
-                               'job_name':job_name}
+job_name: {job_name}\n""".format(esutil_load=esutil_load,
+                                   tmv_load=tmv_load,
+                                   wl_load=wl_load,
+                                   stat=stat,
+                                   job_name=job_name)
 
 
         return text
