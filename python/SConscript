@@ -18,6 +18,8 @@ se_check_file=env.File('bin/shear-check')
 se_check_one_file=env.File('bin/shear-check-one')
 me_seinputs_file=env.File('bin/generate-me-seinputs')
 
+run_generic_file=env.File('bin/wl-run-generic')
+
 se_wq_file=env.File('bin/generate-se-wq')
 me_wq_file=env.File('bin/generate-me-wq')
 
@@ -25,6 +27,7 @@ bin_install_subdir = 'bin'
 bin_targets = [me_run_file, 
                me_check_file,
                se_run_file,
+               run_generic_file,
                se_check_file,
                se_check_one_file,
                se_wq_file,
