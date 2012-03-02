@@ -103,7 +103,7 @@ else:
 
 from deswl.files import _wlpipe_tmpdir
 
-class GenericImageProcessor(dict):
+class GenericProcessor(dict):
     def __init__(self, config):
         """
         required keys in config
