@@ -62,7 +62,7 @@ class Runconfig(dict):
                                 'fileclass': 'wlbnl', 
                                 'filetype':'me_shapelet'}
 
-        self.run_types['imc'] = {'name':'imc',
+        self.run_types['imp'] = {'name':'imp',
                                  'fileclass': 'impyp',
                                  'filetype':'me_shapelet'}
 
@@ -89,9 +89,7 @@ class Runconfig(dict):
                               'qa':     '.dat',
                               'debug':'.dat',
                               'stat':   '.json',
-                              'checkpsf':'.rec',
-                              # imcat stuff
-                              'imcshear':'.dat'}
+                              'checkpsf':'.rec'}
         self.se_collated_filetypes = {'badlist':'json',
                                       'goodlist':'json',
                                       'gal':'fits'}
@@ -188,7 +186,7 @@ class Runconfig(dict):
         parameters
         ----------
         run_type: string
-            'se' or 'me' or 'imc'
+            e.g. 'se' or 'me' 'imp'
         dataset: string
             e.g. 'dr012'
         band: string
@@ -214,7 +212,7 @@ class Runconfig(dict):
         """
 
         # me runs depend on se runs
-        if run_type in ['me','imc']:
+        if run_type in ['me','imp']:
             if 'serun' not in extra:
                 raise RuntimeError("You must send serun=something for run "
                                    "type '%s'"  % run_type)
@@ -251,7 +249,7 @@ class Runconfig(dict):
             runconfig['tmvvers'] = tmvvers
             runconfig['wl_config'] = wl_config
 
-        if run_type == 'imc':
+        if run_type == 'imp':
             runconfig['impypvers'] = extra.get('impypvers','trunk')
 
         if comment is not None:
