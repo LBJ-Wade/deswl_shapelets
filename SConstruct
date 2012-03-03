@@ -595,21 +595,26 @@ def FindTmvLinkFile(config):
         if os.path.exists(tmv_link):
             return tmv_link
         else:
-            raise ValueError("Specified TMV_LINK does not "
-                             "exist: %s" % tmv_link)
+            raise ValueError("Specified TMV_LINK does not exist: %s" % tmv_link)
 
     tmv_dir = FindPathInEnv(config.env, 'TMV_DIR')
 
     if tmv_dir is not None:
-        tmv_share_dir = os.path.join(tmv_dir,'share')
-        tmv_link = os.path.join(tmv_share_dir, 'tmv-link')
+        tmv_link = os.path.join(tmv_dir, 'share', 'tmv', 'tmv-link')
+        if os.path.exists(tmv_link):
+            return tmv_link
+        # Older TMV was installed in prefix/share/ rather than prefix/share/tmv/
+        # so check that too.
+        tmv_link = os.path.join(tmv_dir, 'share', 'tmv-link')
         if os.path.exists(tmv_link):
             return tmv_link
 
     # Finally try the install prefix/share
     prefix=config.env['INSTALL_PREFIX']
-    tmv_share_dir =  os.path.join(prefix,'share')
-    tmv_link = os.path.join(tmv_share_dir, 'tmv-link')
+    tmv_link = os.path.join(prefix, 'share', 'tmv', 'tmv-link')
+    if os.path.exists(tmv_link):
+        return tmv_link
+    tmv_link = os.path.join(prefix, 'share', 'tmv-link')
     if os.path.exists(tmv_link):
         return tmv_link
 
