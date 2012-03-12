@@ -13,11 +13,9 @@ import deswl
 file_el_sep = '-'
 _wlpipe_tmpdir='/data/wlpipe'
 
-_default_fs='nfs'
+_default_fs='hdfs'
 def des_rootdir(**keys):
     fs=keys.get('fs',_default_fs)
-    if fs is None:
-        fs='nfs'
     if fs == 'nfs':
         return getenv_check('DESDATA')
     elif fs == 'hdfs':
@@ -26,6 +24,16 @@ def des_rootdir(**keys):
         return net_rootdir()
     else:
         raise ValueError("fs should be 'nfs' or 'hdfs'")
+
+def expand_desdata(val, fs=_default_fs):
+    """
+    Expand $DESDATA based on the input file system
+    """
+    if not isinstance(val, basestring):
+        return val
+    else:
+        d=des_rootdir(fs=fs)
+        return val.replace('$DESDATA',d)
 
 def hdfs_rootdir():
     return 'hdfs:///user/esheldon/DES'
@@ -56,15 +64,15 @@ class Runconfig(dict):
 
         self.run_types={}
         self.run_types['se'] = {'name':'se',
-                                'fileclass': 'wlbnl', 
-                                'filetype':'se_shapelet'}
+                                'fileclass': 'wlbnl'}
         self.run_types['me'] = {'name':'me',
-                                'fileclass': 'wlbnl', 
-                                'filetype':'me_shapelet'}
+                                'fileclass': 'wlbnl'}
 
-        self.run_types['imp'] = {'name':'imp',
-                                 'fileclass': 'impyp',
-                                 'filetype':'me_shapelet'}
+        # these are "external" codes.  The only places we explicitly work with
+        # them is in this class, otherwise operations specific to these are are
+        # in {type}.py or something similar
+        self.run_types['impyp'] = {'name':'impyp',
+                                   'fileclass': 'impyp'}
 
 
         self.se_executables = ['findstars','measurepsf','measureshear']
@@ -186,7 +194,7 @@ class Runconfig(dict):
         parameters
         ----------
         run_type: string
-            e.g. 'se' or 'me' 'imp'
+            e.g. 'se' or 'me' 'impyp'
         dataset: string
             e.g. 'dr012'
         band: string
@@ -212,7 +220,7 @@ class Runconfig(dict):
         """
 
         # me runs depend on se runs
-        if run_type in ['me','imp']:
+        if run_type in ['me','impyp']:
             if 'serun' not in extra:
                 raise RuntimeError("You must send serun=something for run "
                                    "type '%s'"  % run_type)
@@ -224,7 +232,6 @@ class Runconfig(dict):
             run_name=self.generate_new_runconfig_name(run_type, band, test=test,old=old)
 
         fileclass = self.run_types[run_type]['fileclass']
-        filetype = self.run_types[run_type]['filetype']
 
         # software versions.  Default to whatever is in our environment
         if pyvers is None:
@@ -249,7 +256,7 @@ class Runconfig(dict):
             runconfig['tmvvers'] = tmvvers
             runconfig['wl_config'] = wl_config
 
-        if run_type == 'imp':
+        if run_type == 'impyp':
             runconfig['impypvers'] = extra.get('impypvers','trunk')
 
         if comment is not None:
@@ -497,7 +504,7 @@ def se_basename(serun, expname, ccd, ftype, **keys):
 
 def se_url(serun, expname, ccd, ftype, **keys):
     """
-    name=se_url(expname, ccd, ftype, serun=None, fext=None, fs=_default_fs', dir=None)
+    name=se_url(expname,ccd,ftype,serun=None,fext=None,fs=_default_fs,dir=None)
     Return the SE output file name for the given inputs
     """
 
@@ -1478,10 +1485,6 @@ job_name: {job_name}\n""".format(esutil_load=esutil_load,
 
 
 class ShearFiles(dict):
-    """
-    Currently, hdfs is only used for reading images and catalogs
-    Writing is still done to nfs, which should be fine
-    """
     def __init__(self, serun, conn=None, fs=_default_fs):
         import desdb
         self['run'] = serun
@@ -1525,21 +1528,22 @@ class ShearFiles(dict):
 
             fdict=deswl.files.generate_se_filenames(self['run'],
                                                     info['expname'],
-                                                    info['ccd'])
+                                                    info['ccd'],
+                                                    fs=self['fs'])
             info['wl_config'] = self.rc['wl_config']
             for k,v in fdict.iteritems():
                 info[k] = v
 
-            # we often leave $DESDATA etc. in names
+            for k,v in info.iteritems():
+                if isinstance(v,basestring):
+                    info[k] = expand_desdata(v, fs=self['fs'])
+            # expand environment variables
             for k,v in info.iteritems():
                 if isinstance(v,basestring):
                     info[k] = os.path.expandvars(v)
 
 
             info['serun'] = self['run']
-
-        if self['fs'] == 'hdfs':
-            self.convert_to_hdfs(infolist)
 
         if by_expname:
             d={}

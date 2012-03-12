@@ -114,13 +114,14 @@ class GenericProcessor(dict):
 
             - 'output_files', a dictionary.  HDFS files will be first written
             locally and then pushed in.
-                - This dict must contain an entry called 'stat' which will
+                - This dict must contain an entry called 'stat' which 
                 should be a .yaml file or .json file. It will contain the
                 exit_status for the process and other metadata
 
-            - 'command'.  This can refer to objects in the config file, including
-            sub-objects of input_files and output_files.  Reference should be
-            made using formats like %(name)s %(name)0.2f etc.
+            - 'command'.  This can refer to objects in the config file,
+            including sub-objects of input_files and output_files, which will
+            be pulled into the main name space.  Reference should be made using
+            formats like %(name)s %(name)0.2f etc.
 
         Some optional fields
 
