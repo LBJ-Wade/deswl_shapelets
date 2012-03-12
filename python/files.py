@@ -247,9 +247,9 @@ class Runconfig(dict):
                    'esutilvers': esutilvers,
                    'dataset':dataset}
 
+        if wlvers is None:
+            wlvers=deswl.version()
         if run_type in ['me','se']:
-            if wlvers is None:
-                wlvers=deswl.version()
             if tmvvers is None:
                 tmvvers=deswl.get_tmv_version()
             runconfig['wlvers'] = wlvers
@@ -258,6 +258,7 @@ class Runconfig(dict):
 
         if run_type == 'impyp':
             runconfig['impypvers'] = extra.get('impypvers','trunk')
+            runconfig['wlvers'] = wlvers
 
         if comment is not None:
             runconfig['comment'] = comment

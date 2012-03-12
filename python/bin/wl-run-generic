@@ -48,5 +48,5 @@ with open(config_file) as fobj:
     import yaml
     conf=yaml.load(fobj)
 
-gip=deswl.wlpipe.GenericProcessor(conf)
+gip=deswl.generic.GenericProcessor(conf)
 gip.run()
