@@ -198,44 +198,34 @@ class GenericSEWQJob(dict):
         if check:
             groups=None # can run anywhere for sure
             job_file=self['job_file'].replace('.yaml','-check.yaml')
-            script='wl-check-generic'
             job_name=expname+'-chk'
         else:
-            script='wl-run-generic'
             job_file=self['job_file']
             job_name=expname
 
         if groups is None:
             groups=''
         else:
-            groups='group: [' + groups +']'
+            groups='group: ['+groups+']'
 
         rc=deswl.files.Runconfig(self['run'])
         wl_load = deswl.files._make_load_command('wl',rc['wlvers'])
         esutil_load = deswl.files._make_load_command('esutil', rc['esutilvers'])
 
-        command_list = []
-        for ccd in xrange(1,62+1):
-            # get relative config url, just so easier to read
-            config_file=deswl.files.se_config_path(self['run'], 
-                                                   self['expname'], 
-                                                   ccd=ccd)
-            config_file=os.path.basename(config_file)
-            config_file='byccd/'+config_file
+        config_file1=deswl.files.se_config_path(self['run'], 
+                                                self['expname'], 
+                                                ccd=1)
+        config_file1=os.path.join('byccd',os.path.basename(config_file1))
+        conf=config_file1.replace('01-config.yaml','$i-config.json')
+        if check:
+            chk=config_file1.replace('01-config.yaml','$i-check.json')
+            err=config_file1.replace('01-config.yaml','$i-check.err')
 
-            if check:
-                chk=config_file.replace('-config.yaml','-check.json')
-                err=config_file.replace('-config.yaml','-check.err')
-
-                c="wl-check-generic {conf} 1> {chk} 2> {err}"
-                c=c.format(conf=config_file, chk=chk, err=err)
-            else:
-                log_file=config_file.replace('-config.yaml','-check.out')
-                c="wl-run-generic {conf} &> {log}".format(conf=config_file,
-                                                          log=log_file)
-            command_list.append(c)
-
-        cmd='\n    '.join(command_list) 
+            cmd="wl-check-generic {conf} 1> {chk} 2> {err}"
+            cmd=cmd.format(conf=conf, chk=chk, err=err)
+        else:
+            log=config_file1.replace('01-config.yaml','$i.out')
+            cmd="wl-run-generic {conf} &> {log}".format(conf=conf, log=log)
 
         text = """
 command: |
@@ -245,7 +235,10 @@ command: |
     %(esutil_load)s
     %(wl_load)s
 
-    %(cmd)s
+    for i in `seq -w 1 62`; do
+        echo "ccd: $i"
+        %(cmd)s
+    done
 
 %(groups)s
 priority: %(priority)s

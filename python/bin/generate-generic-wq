@@ -18,9 +18,12 @@ import desdb
 
 from optparse import OptionParser
 parser = OptionParser(__doc__)
-parser.add_option("-g","--groups",default=None, help="groups for queue, default %default")
-parser.add_option("-p","--priority",default='low', help="priority queue, default %default")
-parser.add_option("-t","--types",default='config,wq,reduce', help="types to write, default %default")
+parser.add_option("-g","--groups",default=None, 
+                  help="groups for queue, default %default")
+parser.add_option("-p","--priority",default='low', 
+                  help="priority queue, default %default")
+parser.add_option("-t","--types",default='config,wq,reduce', 
+                  help="types to write, default %default")
 
 
 # script to check the outputs
@@ -104,7 +107,7 @@ def main():
             if ((i+1) % modnum) == 0:
                 print >>stderr,'%d/%d %s' % (i+1,nexp,job['job_file'])
 
-            #job.write()
+            job.write()
             job.write(check=True)
 
     if 'reduce' in types:
