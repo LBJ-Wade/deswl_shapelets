@@ -20,6 +20,7 @@ me_seinputs_file=env.File('bin/generate-me-seinputs')
 
 gen_generic_file=env.File('bin/generate-generic-wq')
 run_generic_file=env.File('bin/wl-run-generic')
+check_generic_file=env.File('bin/wl-check-generic')
 
 se_wq_file=env.File('bin/generate-se-wq')
 me_wq_file=env.File('bin/generate-me-wq')
@@ -30,6 +31,7 @@ bin_targets = [me_run_file,
                se_run_file,
                gen_generic_file,
                run_generic_file,
+               check_generic_file,
                se_check_file,
                se_check_one_file,
                se_wq_file,

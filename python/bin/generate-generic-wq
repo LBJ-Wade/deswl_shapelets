@@ -18,7 +18,9 @@ import desdb
 
 from optparse import OptionParser
 parser = OptionParser(__doc__)
-parser.add_option("-g","--groups",default='new,new2', help="groups for queue")
+parser.add_option("-g","--groups",default=None, help="groups for queue, default %default")
+parser.add_option("-p","--priority",default='low', help="priority queue, default %default")
+parser.add_option("-t","--types",default='config,wq', help="types to write, default %default")
 
 
 # script to check the outputs
@@ -71,7 +73,7 @@ def main():
         sys.exit(45)
 
     run=args[0]
-
+    types = options.types.split(',')
     #write_reducer(run)
     modnum=20
 
@@ -82,23 +84,27 @@ def main():
     else:
         raise ValueError("unsupported run type: '%s'" % rc['run_type'])
 
-    # write all the config files by ccd
-    print >>stderr,"writing all config files"
-    cfobj.write()
+    if 'config' in types:
+        # write all the config files by ccd
+        print >>stderr,"writing all config files"
+        cfobj.write()
 
-    expnames = list(cfobj.get_config_data().keys())
-    expnames.sort()
+    if 'wq' in types:
+        expnames = list(cfobj.get_config_data().keys())
+        expnames.sort()
 
-    # number of exposures
-    nexp=len(expnames)
+        # number of exposures
+        nexp=len(expnames)
 
-    print >>stderr,'writing wq scripts for',nexp,'exposures'
-    for i,expname in enumerate(expnames):
-        job=deswl.generic.GenericSEWQJob(run,expname)
-        if ((i+1) % modnum) == 0:
-            print >>stderr,'%d/%d %s' % (i+1,nexp,job['job_file'])
+        print >>stderr,'writing wq scripts for',nexp,'exposures'
+        for i,expname in enumerate(expnames):
+            job=deswl.generic.GenericSEWQJob(run,expname,
+                                             groups=options.groups,priority=options.priority)
+            if ((i+1) % modnum) == 0:
+                print >>stderr,'%d/%d %s' % (i+1,nexp,job['job_file'])
 
-        job.write()
+            #job.write()
+            job.write(check=True)
 
 main()
 

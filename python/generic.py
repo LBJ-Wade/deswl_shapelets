@@ -180,18 +180,30 @@ class GenericSEWQJob(dict):
     You should also create the config files for each exposure/ccd using. config
     files go to deswl.files.se_config_path(run,expname,ccd=ccd)
 
+    Send check=True to generate the check file instead of the processing file
     """
     def __init__(self, run, expname, **keys):
         self['run'] = run
         self['expname'] = expname
         self['groups'] = keys.get('groups',None)
+        self['priority'] = keys.get('priority','low')
 
         self['job_file']= deswl.files.se_wq_path(self['run'], self['expname'])
 
-    def write(self):
+    def write(self, check=False):
 
-        groups = self['groups']
         expname=self['expname']
+        groups = self['groups']
+
+        if check:
+            groups=None # can run anywhere for sure
+            job_file=self['job_file'].replace('.yaml','-check.yaml')
+            script='wl-check-generic'
+            job_name=expname+'-chk'
+        else:
+            script='wl-run-generic'
+            job_file=self['job_file']
+            job_name=expname
 
         if groups is None:
             groups=''
@@ -201,7 +213,6 @@ class GenericSEWQJob(dict):
         rc=deswl.files.Runconfig(self['run'])
         wl_load = deswl.files._make_load_command('wl',rc['wlvers'])
         esutil_load = deswl.files._make_load_command('esutil', rc['esutilvers'])
- 
 
         command_list = []
         for ccd in xrange(1,62+1):
@@ -212,9 +223,16 @@ class GenericSEWQJob(dict):
             config_file=os.path.basename(config_file)
             config_file='byccd/'+config_file
 
-            log_file=config_file.replace('-config.yaml','.out')
+            if check:
+                chk=config_file.replace('-config.yaml','-check.json')
+                err=config_file.replace('-config.yaml','-check.err')
 
-            c="wl-run-generic %s &> %s" % (config_file,log_file)
+                c="wl-check-generic {conf} 1> {chk} 2> {err}"
+                c=c.format(conf=config_file, chk=chk, err=err)
+            else:
+                log_file=config_file.replace('-config.yaml','-check.out')
+                c="wl-run-generic {conf} &> {log}".format(conf=config_file,
+                                                          log=log_file)
             command_list.append(c)
 
         cmd='\n    '.join(command_list) 
@@ -230,13 +248,16 @@ command: |
     %(cmd)s
 
 %(groups)s
-priority: low
+priority: %(priority)s
 job_name: %(job_name)s\n""" % {'esutil_load':esutil_load,
                                'wl_load':wl_load,
                                'cmd':cmd,
                                'groups':groups,
-                               'job_name':self['expname']}
+                               'priority':self['priority'],
+                               'job_name':job_name}
 
 
-        with open(self['job_file'],'w') as fobj:
+        with open(job_file,'w') as fobj:
             fobj.write(text)
+
+
