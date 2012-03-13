@@ -20,11 +20,11 @@ from optparse import OptionParser
 parser = OptionParser(__doc__)
 parser.add_option("-g","--groups",default=None, help="groups for queue, default %default")
 parser.add_option("-p","--priority",default='low', help="priority queue, default %default")
-parser.add_option("-t","--types",default='config,wq', help="types to write, default %default")
+parser.add_option("-t","--types",default='config,wq,reduce', help="types to write, default %default")
 
 
 # script to check the outputs
-def write_reducer(run):
+def write_reducer(run,expected_num):
     text="""
 from sys import stderr
 import glob
@@ -32,6 +32,8 @@ import deswl
 import esutil as eu
 
 files=glob.glob('byccd/*-check.json')
+if len(files) != {expected_num}:
+    raise ValueError("expected {expected_num} files, found %s" % len(files))
 goodlist=[]
 badlist=[]
 nf=len(files)
@@ -53,8 +55,8 @@ print >>stderr,"Found %s/%s problems" % (len(badlist),nf)
 print >>stderr,"Writing goodlist:",goodfile
 eu.io.write(goodfile,goodlist)
 print >>stderr,"Writing badlist:",badfile
-eu.io.write(badfile,badlist)
-    """.format(run=run)
+eu.io.write(badfile,badlist)\n""".format(run=run,
+                                         expected_num=expected_num)
 
     d=deswl.files.wq_dir(run)
     f=os.path.join(d,'check-reduce.py')
@@ -74,7 +76,6 @@ def main():
 
     run=args[0]
     types = options.types.split(',')
-    #write_reducer(run)
     modnum=20
 
     rc=deswl.files.Runconfig(run)
@@ -106,5 +107,12 @@ def main():
             #job.write()
             job.write(check=True)
 
+    if 'reduce' in types:
+        print >>stderr,"writing reducer"
+        expected_num = 0
+        cdata=cfobj.get_config_data()
+        for expname in cdata:
+            expected_num += len(cdata[expname])
+        write_reducer(run,expected_num)
 main()
 
