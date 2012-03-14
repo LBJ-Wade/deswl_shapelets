@@ -41,13 +41,17 @@ goodlist=[]
 badlist=[]
 nf=len(files)
 for i,f in enumerate(files,1):
-    if (i % 100) == 0 or (i == 1):
+    if (i % 1000) == 0 or (i == 1):
         print >>stderr,f,"%s/%s" % (i,nf)
     d=eu.io.read(f)
     if d['error_string'] == '':
         goodlist.append(d)
     else:
-        print >>stderr,d['stat'],'\\n',d['error_string']
+        if 'output_files' not in d:
+            pv=d
+        else:
+            pv=d['output_files']['stat']
+        print >>stderr,pv,'\\n',d['error_string']
         badlist.append(d)
 goodfile=deswl.files.collated_path('{run}', 'goodlist')
 badfile=deswl.files.collated_path('{run}', 'badlist')

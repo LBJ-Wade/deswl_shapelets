@@ -613,7 +613,7 @@ def collated_path(run,
         rc=Runconfig()
 
 
-        if run[0:2] == 'se':
+        if run[0:2] == 'se' or run[0:5] == 'impyp':
             ctypes = rc.se_collated_filetypes
         elif run[0:2] == 'me':
             ctypes = rc.me_collated_filetypes

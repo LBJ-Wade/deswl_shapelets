@@ -102,7 +102,7 @@ class ImpypConfig(dict):
                 
                 
                 fdict['command'] = self.get_command(fdict)
-                fdict['timeout'] = 15*60 # ten minute timeout
+                fdict['timeout'] = 15*60 # fifteen minute timeout
                 odict[expname].append(fdict)
 
         self.config_data = odict 

@@ -43,15 +43,32 @@ class GenericProcessor(dict):
         if 'stat' not in config['output_files']:
             raise ValueError("required field missing from output_files: 'stat'")
 
+        # add a log file
+        stat=config['output_files']['stat']
+        config['output_files']['_log_file'] = self._make_log_name(stat)
+        # the only thing that goes to stderr or stdout
+        print >>stderr,"log file:",config['output_files']['_log_file']
+
         for k,v in config.iteritems():
             self[k]=v
 
         if 'timeout' not in self:
             self['timeout'] = 2*60*60 # two hours
         else:
-            self['timeout'] = int(timeout)
+            self['timeout'] = int(self['timeout'])
 
         self.setup_files()
+
+        log_name = self.outf['_log_file']['local_url']
+        self._log = open(log_name,'w')
+
+    def __enter__(self):
+        return self
+    def __exit__(self, exception_type, exception_value, traceback):
+        # this shouldn't be necessary
+        if hasattr(self,'_log'):
+            if isinstance(self._log,file):
+                self._log.close()
 
     def run(self):
 
@@ -59,27 +76,30 @@ class GenericProcessor(dict):
         #self._dorun()
         try:
             self._dorun()
+            print >>self._log,'Done'
         finally:
             self.write_status()
             self.cleanup()
-        print >>stderr,'Done'
 
     def _dorun(self):
-        print >>stderr,os.uname()[1]
+        from subprocess import STDOUT
+        print >>self._log,os.uname()[1]
         
         self.make_output_dirs()
         self.stage()
 
         command=self.get_command()
 
-        print >>stderr,"running command: \n\t",command
-        exit_status, oret, eret = eu.ostools.exec_process(command,
-                                                          timeout=self['timeout'],
-                                                          stdout_file=None,
-                                                          stderr_file=None)
+        print >>self._log,"running command: \n\t",command
+        self._log.flush()
+        exit_status, oret, eret = \
+            eu.ostools.exec_process(command,
+                                    timeout=self['timeout'],
+                                    stdout_file=self._log,
+                                    stderr_file=STDOUT)
 
         self['exit_status'] = exit_status
-        print >>stderr,'exit_status:',exit_status
+        print >>self._log,'exit_status:',exit_status
         #test=raw_input('testing, hit enter ')
 
 
@@ -103,6 +123,8 @@ class GenericProcessor(dict):
         """
         for k,v in self.inf.iteritems():
             if v['in_hdfs']:
+                print >>self._log,'staging:',\
+                        v['hdfs_file'].hdfs_url,'->',v['hdfs_file'].localfile
                 v['hdfs_file'].stage()
     def cleanup(self):
         """
@@ -112,16 +134,33 @@ class GenericProcessor(dict):
         # clean up staged input files
         for k,v in self.inf.iteritems():
             if v['in_hdfs']:
+                print >>self._log,'removing:',v['hdfs_file'].localfile
                 v['hdfs_file'].cleanup()
 
         # push local versions of outputs into hdfs, then clean up
+        do_log_hdfs=False
         for k,v in self.outf.iteritems():
             if v['in_hdfs']:
+                if k == '_log_file':
+                    # save till later so we see the log messages
+                    do_log_hdfs=True
+                    continue
                 if os.path.exists(v['local_url']):
+                    print >>self._log,'putting:',\
+                        v['hdfs_file'].localfile,'->',v['hdfs_file'].hdfs_url
                     v['hdfs_file'].put(clobber=True)
                 else:
-                    print >>stderr,'local file not found:',v['local_url']
+                    print >>self._log,'local file not found:',v['local_url']
                 v['hdfs_file'].cleanup()
+        if do_log_hdfs:
+            hf=self.outf['_log_file']
+            print >>self._log,'putting:',\
+                hf['hdfs_file'].localfile,'->',hf['hdfs_file'].hdfs_url
+
+            self._log.flush()
+            hf['hdfs_file'].put(clobber=True)
+            self._log.close()
+            hf['hdfs_file'].cleanup()
 
     def setup_files(self):
         """
@@ -146,6 +185,14 @@ class GenericProcessor(dict):
         for k,v in self.outf.iteritems():
             self.allkeys[k] = v['local_url']
 
+    def _make_log_name(self, example):
+        idot=example.rfind('.')
+        if idot == -1:
+            log_name = example+'.log'
+        else:
+            log_name = example[0:idot]+'.log'
+        return log_name
+
     def _setup_files(self, fdict_in):
         """
         Get info about the files.
@@ -156,8 +203,7 @@ class GenericProcessor(dict):
             if v[0:4] == 'hdfs':
                 fdict[f]['in_hdfs'] = True
                 fdict[f]['hdfs_file'] = \
-                    eu.hdfs.HDFSFile(v,verbose=True, 
-                                     tmpdir=deswl.wlpipe._wlpipe_tmpdir)
+                    eu.hdfs.HDFSFile(v, tmpdir=deswl.wlpipe._wlpipe_tmpdir)
                 fdict[f]['local_url'] = fdict[f]['hdfs_file'].localfile
         return fdict
 
@@ -165,7 +211,7 @@ class GenericProcessor(dict):
         """
         Add a bunch of new things to self and write self out as the stat file
         """
-        print >>stderr,'writing status file:',self.outf['stat']['local_url']
+        print >>self._log,'writing status file:',self.outf['stat']['local_url']
         outd={}
         for k,v in self.iteritems():
             outd[k] = v
@@ -216,7 +262,7 @@ class GenericSEWQJob(dict):
                                                 self['expname'], 
                                                 ccd=1)
         config_file1=os.path.join('byccd',os.path.basename(config_file1))
-        conf=config_file1.replace('01-config.yaml','$i-config.json')
+        conf=config_file1.replace('01-config.yaml','$i-config.yaml')
         if check:
             chk=config_file1.replace('01-config.yaml','$i-check.json')
             err=config_file1.replace('01-config.yaml','$i-check.err')
@@ -224,8 +270,9 @@ class GenericSEWQJob(dict):
             cmd="wl-check-generic {conf} 1> {chk} 2> {err}"
             cmd=cmd.format(conf=conf, chk=chk, err=err)
         else:
-            log=config_file1.replace('01-config.yaml','$i.out')
-            cmd="wl-run-generic {conf} &> {log}".format(conf=conf, log=log)
+            # log is now automatically created by GenericProcessor
+            # and written into hdfs
+            cmd="wl-run-generic {conf}".format(conf=conf)
 
         text = """
 command: |
