@@ -271,7 +271,8 @@ class GenericSEWQJob(dict):
             chk=config_file1.replace('01-config.yaml','$i-check.json')
             err=config_file1.replace('01-config.yaml','$i-check.err')
 
-            cmd="wl-check-generic {conf} 1> {chk} 2> {err}"
+            #cmd="wl-check-generic {conf} 1> {chk} 2> {err}"
+            cmd="wl-check-generic {conf} 1> {chk}"
             cmd=cmd.format(conf=conf, chk=chk, err=err)
         else:
             # log is now automatically created by GenericProcessor

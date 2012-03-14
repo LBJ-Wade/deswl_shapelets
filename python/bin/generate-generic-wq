@@ -22,13 +22,29 @@ parser.add_option("-g","--groups",default=None,
                   help="groups for queue, default %default")
 parser.add_option("-p","--priority",default='low', 
                   help="priority queue, default %default")
-parser.add_option("-t","--types",default='config,wq,reduce', 
+parser.add_option("-t","--types",default='config,wq,getstat,reduce', 
                   help="types to write, default %default")
 
+# this might be useful for those who aren't savvy enought to deal with hdfs
+# can dump the stat files for them to peruse
+def write_getstat(run):
+    text="""#!/bin/bash
+# you don't have run this, but it is here if you need it
+mkdir {run}-stat-files
+cd {run}-stat-files
+hdfs -get /user/esheldon/DES/impyp/{run}/*/{run}-*-stat.yaml .
+    """.format(run=run)
+    d=deswl.files.wq_dir(run)
+    f=os.path.join(d,'get-stat-files.sh')
+    print >>stderr,"writing get stat files script:",f
+    with open(f,'w') as fobj:
+        fobj.write(text)
 
-# script to check the outputs
+
 def write_reducer(run,expected_num):
-    text="""
+    text="""# run through the ./byccd/*-check.json files to find problems
+# write out the "goodlist" and "badlist" in the collated dir for this run
+# $DESDATA/fileclass/run/collated/
 from sys import stderr
 import glob
 import deswl
@@ -113,6 +129,9 @@ def main():
 
             job.write()
             job.write(check=True)
+
+    if 'getstat' in types:
+        write_getstat(run)
 
     if 'reduce' in types:
         print >>stderr,"writing reducer"
