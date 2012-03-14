@@ -20,6 +20,9 @@ class GenericProcessor(dict):
                 file is written by THIS PROGRAM and should not be written
                 by the called external program.
 
+                It must also contain an entry called 'log' where all
+                stdout and stderr will be written.
+
             - 'command'.  This can refer to objects in the config file,
             including sub-objects of input_files and output_files, which will
             be pulled into the main name space.  Reference should be made using
@@ -42,12 +45,13 @@ class GenericProcessor(dict):
                 raise ValueError("required field missing: '%s'" % k)
         if 'stat' not in config['output_files']:
             raise ValueError("required field missing from output_files: 'stat'")
+        if 'log' not in config['output_files']:
+            raise ValueError("required field missing from output_files: 'log'")
 
         # add a log file
         stat=config['output_files']['stat']
-        config['output_files']['_log_file'] = self._make_log_name(stat)
-        # the only thing that goes to stderr or stdout
-        print >>stderr,"log file:",config['output_files']['_log_file']
+        # this and exit status the only thing that goes to stderr or stdout
+        print >>stderr,"log file:",config['output_files']['log']
 
         for k,v in config.iteritems():
             self[k]=v
@@ -59,7 +63,7 @@ class GenericProcessor(dict):
 
         self.setup_files()
 
-        log_name = self.outf['_log_file']['local_url']
+        log_name = self.outf['log']['local_url']
         self._log = open(log_name,'w')
 
     def __enter__(self):
@@ -100,7 +104,7 @@ class GenericProcessor(dict):
 
         self['exit_status'] = exit_status
         print >>self._log,'exit_status:',exit_status
-        #test=raw_input('testing, hit enter ')
+        print >>stderr,'exit_status:',exit_status
 
 
     def get_command(self):
@@ -141,7 +145,7 @@ class GenericProcessor(dict):
         do_log_hdfs=False
         for k,v in self.outf.iteritems():
             if v['in_hdfs']:
-                if k == '_log_file':
+                if k == 'log':
                     # save till later so we see the log messages
                     do_log_hdfs=True
                     continue
@@ -153,7 +157,7 @@ class GenericProcessor(dict):
                     print >>self._log,'local file not found:',v['local_url']
                 v['hdfs_file'].cleanup()
         if do_log_hdfs:
-            hf=self.outf['_log_file']
+            hf=self.outf['log']
             print >>self._log,'putting:',\
                 hf['hdfs_file'].localfile,'->',hf['hdfs_file'].hdfs_url
 

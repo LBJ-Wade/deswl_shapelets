@@ -4,7 +4,8 @@ import deswl
 import esutil as eu
 
 _impyp_files={'shear':'%(run)s-%(expname)s-%(ccd)02d-shear.dat',
-              'stat':'%(run)s-%(expname)s-%(ccd)02d-stat.yaml'}
+              'stat':'%(run)s-%(expname)s-%(ccd)02d-stat.yaml',
+              'log':'%(run)s-%(expname)s-%(ccd)02d.log'}
 
 def impyp_dir(run, expname, **keys):
     rc=deswl.files.Runconfig()
