@@ -595,7 +595,13 @@ def se_test_path(serun, subdir=None, extra=None, fext='fits'):
 
 
 def collated_dir(run):
-    dir=run_dir('wlbnl',run)
+
+    if run[0:2] == 'se' or run[0:5] == 'me':
+        dir=run_dir('wlbnl',run)
+    elif run[0:5] == 'impyp':
+        dir=run_dir('impyp',run)
+    else:
+        raise ValueError("Expected runs to start with me or se or impyp")
     dir = path_join(dir, 'collated')
     return dir
 
@@ -618,7 +624,7 @@ def collated_path(run,
         elif run[0:2] == 'me':
             ctypes = rc.me_collated_filetypes
         else:
-            raise ValueError("Expected runs to start with me or se")
+            raise ValueError("Expected runs to start with me or se or impyp")
 
         ftype = ctypes.get(objclass,'fits')
         

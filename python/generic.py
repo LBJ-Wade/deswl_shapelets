@@ -1,3 +1,44 @@
+"""
+The process is similar to what happens for the SE and ME runs
+
+In short
+    - Generate a runconfig
+    - /bin/generate-generic-wq
+
+        - ~/des-wq/{run}/{expname}.yaml
+            These are the actual process jobs; calls the code
+            for each ccd using the config files under /byccd
+
+        - for each ccd, there are config file
+            ~/des-wq/{run}/byccd/{expname}-{ccd}-config.yaml
+
+        - ~/des-wq/{run}/{expname}-check.yaml
+            These are jobs to check the processing
+
+        - ~/des-wq/{run}/check-reduce.py
+            Run this to collate the results into the "goodlist"
+            and "badlist"
+
+    - submit wq jobs
+        Follow the .wqlog files for very brief updates.
+    - submit the check wq jobs
+        Follow the .wqlog files for very brief updates.
+    - run the reducer to generate the goodlist and badlist
+
+The GenericProcessor will send stdout and stderr for process, and
+some other diagnostics to the 'log' entry in config['output_files']['log']
+
+    - .../DES/{fileclass}/{run}/{expname}/{run}-{expname}-{ccd}.log
+
+Similarly, the GenericProcessor writes the stat file
+
+    - .../DES/{fileclass}/{run}/{expname}/{run}-{expname}-{ccd}-stat.yaml
+
+The stat file holds the exit_status and whatever was in the config file.
+
+The collation step is not yet implemented; probably each owner of the code will
+have to do this step.
+"""
 import os
 from sys import stderr
 import esutil as eu
@@ -64,6 +105,7 @@ class GenericProcessor(dict):
         self.setup_files()
 
         log_name = self.outf['log']['local_url']
+        eu.ostools.makedirs_fromfile(log_name)
         self._log = open(log_name,'w')
 
     def __enter__(self):

@@ -76,9 +76,9 @@ eu.ostools.makedirs_fromfile(goodfile)
 print >>stderr,"Found %s/%s problems" % (len(badlist),nf)
 
 print >>stderr,"Writing goodlist:",goodfile
-eu.io.write(goodfile,goodlist)
+eu.io.write(goodfile,goodlist,clobber=True)
 print >>stderr,"Writing badlist:",badfile
-eu.io.write(badfile,badlist)\n""".format(run=run,
+eu.io.write(badfile,badlist,clobber=True)\n""".format(run=run,
                                          expected_num=expected_num)
 
     d=deswl.files.wq_dir(run)
