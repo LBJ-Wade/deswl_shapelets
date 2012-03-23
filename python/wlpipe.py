@@ -214,10 +214,10 @@ class ImageProcessor(dict):
             hdfs_outf={}
 
             for k in in_types:
-                hdfs_inf[k] = eu.hdfs.HDFSFile(self[k],verbose=True, tmpdir=_wlpipe_tmpdir)
+                hdfs_inf[k] = eu.hdfs.HDFSFile(self[k],verbose=True)
                 inf[k] = hdfs_inf[k].localfile
             for k in out_types:
-                hdfs_outf[k] = eu.hdfs.HDFSFile(self[k],verbose=True, tmpdir=_wlpipe_tmpdir)
+                hdfs_outf[k] = eu.hdfs.HDFSFile(self[k],verbose=True)
                 outf[k] = hdfs_outf[k].localfile
 
             self.hdfs_inf  = hdfs_inf
@@ -377,10 +377,10 @@ class CoaddTileProcessor(dict):
             hdfs_outf={}
 
             for k in in_types:
-                hdfs_inf[k] = eu.hdfs.HDFSFile(self[k],verbose=True,tmpdir=_wlpipe_tmpdir)
+                hdfs_inf[k] = eu.hdfs.HDFSFile(self[k],verbose=True)
                 inf[k] = hdfs_inf[k].localfile
             for k in out_types:
-                hdfs_outf[k] = eu.hdfs.HDFSFile(self[k],verbose=True,tmpdir=_wlpipe_tmpdir)
+                hdfs_outf[k] = eu.hdfs.HDFSFile(self[k],verbose=True)
                 outf[k] = hdfs_outf[k].localfile
 
             self.hdfs_inf  = hdfs_inf

@@ -221,9 +221,13 @@ class Runconfig(dict):
 
         # me runs depend on se runs
         if run_type in ['me','impyp']:
-            if 'serun' not in extra:
+            serun=extra.get('serun',None)
+            if serun is None:
                 raise RuntimeError("You must send serun=something for run "
                                    "type '%s'"  % run_type)
+            # make sure serun exists by reading the config
+            tmp=Runconfig(serun)
+
 
         if run_type in ['me','se'] and wl_config is None:
             raise ValueError("Send wl_config for run type '%s'" % run_type)
@@ -1111,9 +1115,9 @@ class HDFSSrclist:
                 image,shear,fitpsf = line.split()
 
                 t={}
-                t['image'] = eu.hdfs.HDFSFile(image,verbose=True,tmpdir=_wlpipe_tmpdir)
-                t['shear'] = eu.hdfs.HDFSFile(shear,verbose=True,tmpdir=_wlpipe_tmpdir)
-                t['fitpsf'] = eu.hdfs.HDFSFile(fitpsf,verbose=True,tmpdir=_wlpipe_tmpdir)
+                t['image'] = eu.hdfs.HDFSFile(image,verbose=True)
+                t['shear'] = eu.hdfs.HDFSFile(shear,verbose=True)
+                t['fitpsf'] = eu.hdfs.HDFSFile(fitpsf,verbose=True)
 
                 self.hdfs_files.append(t)
 

@@ -105,7 +105,7 @@ class GenericProcessor(dict):
         self.setup_files()
 
         log_name = self.outf['log']['local_url']
-        eu.ostools.makedirs_fromfile(log_name)
+        #eu.ostools.makedirs_fromfile(log_name)
         self._log = open(log_name,'w')
 
     def __enter__(self):
@@ -131,7 +131,7 @@ class GenericProcessor(dict):
         from subprocess import STDOUT
         print >>self._log,os.uname()[1]
         
-        self.make_output_dirs()
+        #self.make_output_dirs()
         self.stage()
 
         command=self.get_command()
@@ -249,7 +249,7 @@ class GenericProcessor(dict):
             if v[0:4] == 'hdfs':
                 fdict[f]['in_hdfs'] = True
                 fdict[f]['hdfs_file'] = \
-                    eu.hdfs.HDFSFile(v, tmpdir=deswl.wlpipe._wlpipe_tmpdir)
+                    eu.hdfs.HDFSFile(v)
                 fdict[f]['local_url'] = fdict[f]['hdfs_file'].localfile
         return fdict
 
