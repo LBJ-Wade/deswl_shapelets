@@ -27,15 +27,21 @@ static void doFullPipeline(
     inCat.read();
 
     // Do FindStars script
-    log.reset(
-        new FindStarsLog(params,logFile,makeName(params,"stars",false,false)));
     std::auto_ptr<StarCatalog> starCat;
-    if (shouldOutputInfo) {
-        std::cerr<<"Finding Stars"<<std::endl;
+    if ( (params.read("cat_all_stars",false) || 
+          params.read("stars_trust_sg",false)) ) {
+        starCat.reset(new StarCatalog(inCat,params));
+    } else {
+        log.reset(
+            new FindStarsLog(params,logFile,makeName(params,"stars",false,false)));
+        std::auto_ptr<StarCatalog> starCat;
+        if (shouldOutputInfo) {
+            std::cerr<<"Finding Stars"<<std::endl;
+        }
+        doFindStars(
+            params, static_cast<FindStarsLog&>(*log), im, weightIm.get(), trans,
+            inCat, starCat);
     }
-    doFindStars(
-        params, static_cast<FindStarsLog&>(*log), im, weightIm.get(), trans,
-        inCat, starCat);
 
     // Do MeasurePsf script
     log.reset(new PsfLog(params,logFile,makeName(params,"psf",false,false)));

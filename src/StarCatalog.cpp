@@ -182,6 +182,12 @@ StarCatalog::StarCatalog(
     Assert(int(_isAStar.size()) == size());
     if (params.read("cat_all_stars",false)) {
         for(int i=0;i<size();++i) _isAStar[i] = 1;
+    } else if (params.read("stars_trust_sg",false)) {
+        double minsg = params.get("stars_minsg");
+        double maxsg = params.get("stars_maxsg");
+        Assert(int(_sg.size()) == size());
+        for(int i=0;i<size();++i) 
+            _isAStar[i] = (_sg[i] >= minsg && _sg[i] <= maxsg);
     } else {
         Assert(int(_mag.size()) == size());
     }

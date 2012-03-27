@@ -55,7 +55,8 @@ int main(int argc, char **argv) try
         }
 
         std::auto_ptr<StarCatalog> starCat;
-        if (params.read("cat_all_stars",false)) {
+        if ( (params.read("cat_all_stars",false) || 
+              params.read("stars_trust_sg",false)) ) {
             // Read input catalog
             InputCatalog inCat(params,&im);
             inCat.read();
