@@ -73,7 +73,7 @@ opts.Add('LIBS','Libraries to send to the linker','')
 opts.Add(BoolVariable('CACHE_LIB',
             'Cache the results of the library checks',True))
 
-opts.Add(BoolVariable('WITH_PYTHON','Build Python bindings.', False))
+opts.Add(BoolVariable('WITH_PYTHON','Install Python libraries and scripts.', False))
 opts.Add(BoolVariable('WITH_OPENMP','Look for openmp and use if found.', True))
 opts.Add(BoolVariable('WITH_TMV',
             'Use TMV for Matrix/Vector (rather than Eigen)', True))
