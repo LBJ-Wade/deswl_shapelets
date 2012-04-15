@@ -1,47 +1,14 @@
 import os
 from sys import stderr
 import deswl
+from deswl import generic
 import esutil as eu
 
-_impyp_files={'shear':'%(run)s-%(expname)s-%(ccd)02d-shear.dat',
-              'stat':'%(run)s-%(expname)s-%(ccd)02d-stat.yaml',
-              'log':'%(run)s-%(expname)s-%(ccd)02d.log'}
+_impyp_patterns={'shear':'%(run)s-%(expname)s-%(ccd)02d-shear.dat',
+                 'stat':'%(run)s-%(expname)s-%(ccd)02d-stat.yaml',
+                 'log':'%(run)s-%(expname)s-%(ccd)02d.log'}
 
-def impyp_dir(run, expname, **keys):
-    rc=deswl.files.Runconfig()
 
-    fileclass=rc.run_types['impyp']['fileclass']
-    rundir=deswl.files.run_dir(fileclass, run, **keys)
-    dir=os.path.join(rundir, expname)
-    return dir
-
-def impyp_url(run, expname, ccd, ftype, **keys):
-    if ftype not in _impyp_files:
-        raise ValueError("bad impyp ftype: '%s'" % ftype)
-
-    basename=_impyp_files[ftype] % {'run':run,
-                                    'expname':expname,
-                                    'ccd':int(ccd)}
-
-    dir = impyp_dir(run, expname, **keys)
-
-    url = os.path.join(dir, basename)
-    return url
-
-def generate_impyp_filenames(run, expname, ccd, **keys):
-    """
-    Output filenames for impyp
-    """
-    fdict={}
-
-    rc=deswl.files.Runconfig()
-
-    # output file names
-    for ftype in _impyp_files:
-        name= impyp_url(run, expname, ccd, ftype, **keys)
-        fdict[ftype] = name
-
-    return fdict
 
 class ImpypConfig(dict):
     """
@@ -99,8 +66,11 @@ class ImpypConfig(dict):
                 fdict['ccd'] = ccd
                 fdict['input_files'] = {'image':fd['image'],'stars':fd['stars']}
                 fdict['output_files']=\
-                    generate_impyp_filenames(self['run'],expname,ccd)
-                
+                    generic.generate_filenames(_impyp_patterns,
+                                               'impyp',
+                                               self['run'],
+                                               expname,
+                                               ccd=ccd)
                 
                 fdict['command'] = self.get_command(fdict)
                 fdict['timeout'] = 15*60 # fifteen minute timeout
@@ -132,3 +102,47 @@ python $IMHOME/bnl_impyp.py $image $stars $shear\n"""
                                  impyp_load=impyp_load)
         return command
 
+
+
+
+
+
+
+'''
+def impyp_dir(run, expname, **keys):
+    rc=deswl.files.Runconfig()
+
+    fileclass=rc.run_types['impyp']['fileclass']
+    rundir=deswl.files.run_dir(fileclass, run, **keys)
+    dir=os.path.join(rundir, expname)
+    return dir
+
+def impyp_url(run, expname, ccd, ftype, **keys):
+    if ftype not in _impyp_patterns:
+        raise ValueError("bad impyp ftype: '%s'" % ftype)
+
+    basename=_impyp_patterns[ftype] % {'run':run,
+                                    'expname':expname,
+                                    'ccd':int(ccd)}
+
+    dir = impyp_dir(run, expname, **keys)
+
+    url = os.path.join(dir, basename)
+    return url
+
+def generate_impyp_filenames(run, expname, ccd, **keys):
+    """
+    Output filenames for impyp
+    """
+    fdict={}
+
+    # output file names
+    for ftype in _impyp_patterns:
+        #name= impyp_url(run, expname, ccd, ftype, **keys)
+        name=generic.genurl(_impyp_patterns[ftype],
+                            'impyp',run, expname, ccd=ccd, **keys)
+        fdict[ftype] = name
+
+    return fdict
+
+'''

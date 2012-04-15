@@ -71,8 +71,8 @@ class Runconfig(dict):
         # these are "external" codes.  The only places we explicitly work with
         # them is in this class, otherwise operations specific to these are are
         # in {type}.py or something similar
-        self.run_types['impyp'] = {'name':'impyp',
-                                   'fileclass': 'impyp'}
+        self.run_types['impyp'] = {'name':'impyp', 'fileclass': 'impyp'}
+        self.run_types['am'] = {'name':'am', 'fileclass': 'am'}
 
 
         self.se_executables = ['findstars','measurepsf','measureshear']
@@ -194,7 +194,7 @@ class Runconfig(dict):
         parameters
         ----------
         run_type: string
-            e.g. 'se' or 'me' 'impyp'
+            e.g. 'se' or 'me' 'impyp' 'am'
         dataset: string
             e.g. 'dr012'
         band: string
@@ -264,6 +264,10 @@ class Runconfig(dict):
             runconfig['impypvers'] = extra.get('impypvers','trunk')
             runconfig['wlvers'] = wlvers
 
+        if run_type == 'am':
+            runconfig['espyvers'] = extra.get('espyvers','trunk')
+            runconfig['wlvers'] = wlvers
+ 
         if comment is not None:
             runconfig['comment'] = comment
 
@@ -600,10 +604,10 @@ def se_test_path(serun, subdir=None, extra=None, fext='fits'):
 
 def collated_dir(run):
 
-    if run[0:2] == 'se' or run[0:5] == 'me':
-        dir=run_dir('wlbnl',run)
+    if run[0:2] == 'se' or run[0:2] == 'me':
+        dir=run_dir('wlbnl',run,fs='nfs')
     elif run[0:5] == 'impyp':
-        dir=run_dir('impyp',run)
+        dir=run_dir('impyp',run,fs='nfs')
     else:
         raise ValueError("Expected runs to start with me or se or impyp")
     dir = path_join(dir, 'collated')

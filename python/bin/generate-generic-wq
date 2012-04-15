@@ -105,6 +105,8 @@ def main():
 
     if rc['run_type'] == 'impyp':
         cfobj = deswl.impyp.ImpypConfig(run)
+    elif rc['run_type'] == 'am':
+        cfobj = deswl.am.AMConfig(run)
     else:
         raise ValueError("unsupported run type: '%s'" % rc['run_type'])
 
@@ -114,6 +116,7 @@ def main():
         cfobj.write()
 
     if 'wq' in types:
+        # every class must have the get_config_data method
         expnames = list(cfobj.get_config_data().keys())
         expnames.sort()
 
@@ -123,7 +126,8 @@ def main():
         print >>stderr,'writing wq scripts for',nexp,'exposures'
         for i,expname in enumerate(expnames):
             job=deswl.generic.GenericSEWQJob(run,expname,
-                                             groups=options.groups,priority=options.priority)
+                                             groups=options.groups,
+                                             priority=options.priority)
             if ((i+1) % modnum) == 0:
                 print >>stderr,'%d/%d %s' % (i+1,nexp,job['job_file'])
 

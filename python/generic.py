@@ -44,6 +44,128 @@ from sys import stderr
 import esutil as eu
 import deswl
 
+_url_pattern_byexp='%(run)s-%(expname)s-%(ftype)s.%(ext)s'
+_url_pattern_byccd='%(run)s-%(expname)s-%(ccd)02d-%(ftype)s.%(ext)s'
+
+def gendir(fileclass, run, expname, **keys):
+    """
+    Generate a directory url.
+
+    The format is $DESDATA/{fileclass}/{run}/{expname}
+    $DESDATA may be in hdfs
+
+    parameters
+    ----------
+    fileclass: string
+        The fileclass, e.g. 'am' etc.
+    run: string
+        The run identifier
+    expname:
+        The DES exposure name
+    """
+
+    rundir=deswl.files.run_dir(fileclass, run, **keys)
+    dir=os.path.join(rundir, expname)
+    return dir
+
+def genurl(pattern, fileclass, run, expname, **keys):
+    """
+    Generate a url using the input pattern.
+
+    parameters
+    ----------
+    pattern: string 
+        A patterns to convert run, expname, etc. into a file url.  If ccd is
+        sent in the keywords it will also be used.
+    fileclass: string
+        The fileclass, e.g. 'impyp' or 'am' etc.
+    run: string
+        The run identifier
+    expname:
+        The DES exposure name
+    ccd: integer, optional
+        The ccd number.
+    """
+
+    ccd=keys.get('ccd',None)
+    if ccd is not None:
+        basename=pattern % {'run':run,
+                            'expname':expname,
+                            'ccd':int(ccd)}
+    else:
+        basename=pattern % {'run':run,
+                            'expname':expname,
+                            'ccd':int(ccd)}
+
+    dir = gendir(fileclass, run, expname, **keys)
+
+    url = os.path.join(dir, basename)
+    return url
+
+def generate_filenames(patterns, fileclass, run, expname, **keys):
+    """
+    Generate all files for the input pattern dictionary.
+
+    parameters
+    ----------
+    patterns: dict
+        A dictionary with format patterns to convert run, expname, etc.  into a
+        file url.  If ccd is sent in the keywords it will also be used.
+    fileclass: string
+        The fileclass, e.g. 'impyp' or 'am' etc.
+    run: string
+        The run identifier
+    expname:
+        The DES exposure name
+    ccd: integer, optional
+        The ccd number.
+    """
+    fdict={}
+    for ftype,pattern in patterns.iteritems():
+        fdict[ftype] = genurl(pattern,fileclass,run,expname,**keys)
+
+    return fdict
+
+
+class GenericConfig(dict):
+    """
+    to create and write the "config" files, which hold the command
+    to run, input/output file lists, and other metadata.
+    """
+    def __init__(self,run):
+        self['run'] = run
+        # this has serun in it
+        self.rc = deswl.files.Runconfig(self['run'])
+
+        self.config_data=None
+
+    def write_byccd(self):
+        """
+        Write all config files for expname/ccd
+        """
+        all_fd = self.get_config_data()
+        i=1
+        ne=62*len(all_fd)
+        for expname,fdlist in all_fd.iteritems():
+            # now by ccd
+            for fd in fdlist:
+                config_file=deswl.files.se_config_path(self['run'],
+                                                       fd['expname'],
+                                                       ccd=fd['ccd'])
+                if (i % 1000) == 0:
+                    print >>stderr,"Writing config (%d/%d) %s" % (i,ne,config_file)
+                eu.ostools.makedirs_fromfile(config_file)
+                eu.io.write(config_file, fd)
+                i += 1
+
+
+    def get_config_data(self):
+        raise RuntimeError("you must over-ride get_config_data")
+
+    def get_command(self, fdict):
+        raise RuntimeError("you must over-ride get_config_data")
+
+
 class GenericProcessor(dict):
     def __init__(self, config):
         """
@@ -304,6 +426,7 @@ class GenericSEWQJob(dict):
         wl_load = deswl.files._make_load_command('wl',rc['wlvers'])
         esutil_load = deswl.files._make_load_command('esutil', rc['esutilvers'])
 
+        # naming schemem for this generic type figurd out from run
         config_file1=deswl.files.se_config_path(self['run'], 
                                                 self['expname'], 
                                                 ccd=1)

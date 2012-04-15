@@ -16,6 +16,9 @@
             ~/python/des/src/checksum-compare (compile it)
         for the comparison.
 
+
+
+
         # create a run name and its configuration
             rc=deswl.files.Runconfig()
             rc.generate_new_runconfig('se', dataset, band, wl_config)
