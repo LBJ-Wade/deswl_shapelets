@@ -1850,7 +1850,8 @@ def _make_load_command(modname, vers):
     """
     convention is that trunk is exported to ~/exports/modname-work
     """
-    load_command = "module unload {modname} && module load {modname}".format(modname=modname)
+    load_command = \
+        "module unload {modname} && module load {modname}".format(modname=modname)
     if vers == 'trunk' and modname != 'desfiles':
         load_command += '/work'
     else:

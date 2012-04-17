@@ -76,7 +76,7 @@ source ~esheldon/.bashrc
 image=%(image)s
 cat=%(cat)s
 am=%(am)s
-python $ESPY_DIR/des/admom_des.py $image $cat $shear\n"""
+python $ESPY_DIR/des/bin/admom-des.py $image $cat $am\n"""
 
         command = command.format(esutil_load=esutil_load,
                                  wl_load=wl_load,

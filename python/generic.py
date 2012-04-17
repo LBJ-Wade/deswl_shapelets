@@ -449,6 +449,8 @@ command: |
     source /opt/astro/SL53/bin/setup.hadoop.sh
     source ~astrodat/setup/setup.sh
     source ~/.dotfiles/bash/astro.bnl.gov/modules.sh
+    source ~esheldon/local/des-oracle/setup.sh
+
     %(esutil_load)s
     %(wl_load)s
 

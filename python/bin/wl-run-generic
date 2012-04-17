@@ -48,5 +48,5 @@ with open(config_file) as fobj:
     import yaml
     conf=yaml.load(fobj)
 
-with deswl.generic.GenericProcessor(conf) as gip:
-    gip.run()
+with deswl.generic.GenericProcessor(conf) as gp:
+    gp.run()
