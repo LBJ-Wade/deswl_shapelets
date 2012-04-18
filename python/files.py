@@ -606,6 +606,8 @@ def collated_dir(run):
 
     if run[0:2] == 'se' or run[0:2] == 'me':
         dir=run_dir('wlbnl',run,fs='nfs')
+    elif run[0:2] == 'am':
+        dir=run_dir('am',run,fs='nfs')
     elif run[0:5] == 'impyp':
         dir=run_dir('impyp',run,fs='nfs')
     else:
@@ -627,7 +629,7 @@ def collated_path(run,
         rc=Runconfig()
 
 
-        if run[0:2] == 'se' or run[0:5] == 'impyp':
+        if run[0:2] in ['se','am'] or run[0:5] == 'impyp':
             ctypes = rc.se_collated_filetypes
         elif run[0:2] == 'me':
             ctypes = rc.me_collated_filetypes
