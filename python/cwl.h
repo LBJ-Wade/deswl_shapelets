@@ -39,17 +39,23 @@ class WLQuick {
             image=NULL;
         }
 
-        void set_image(PyObject* image_obj, 
-                       double rcen, 
-                       double ccen) throw (const char*) {
+        void set_image(PyObject* image_obj, double rcen, double ccen) 
+                       throw (const char*) {
             check_numpy_image(image_obj);
             if (image) { delete image; image=NULL; }
             image = copy_numpy_image(image_obj);
+
+            image_cen = 
         }
-        void set_psf(PyObject* psf_obj) throw (const char*) {
+        void set_psf(PyObject* psf_obj, double rcen, double ccen) 
+                     throw (const char*) {
             check_numpy_image(psf_obj);
             if (psf) { delete psf; psf=NULL; }
+
             psf = copy_numpy_image(psf_obj);
+
+            std::complex<double> tcen(rcen,ccen);
+            psf_cen = tcen;
         }
 
         double get_image_val(int row, int col) throw (const char*) {
