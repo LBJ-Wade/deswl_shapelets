@@ -72,8 +72,8 @@ class WLQuick(_object):
     __swig_getmethods__ = {}
     __getattr__ = lambda self, name: _swig_getattr(self, WLQuick, name)
     __repr__ = _swig_repr
-    def __init__(self): 
-        this = _cwl.new_WLQuick()
+    def __init__(self, *args): 
+        this = _cwl.new_WLQuick(*args)
         try: self.this.append(this)
         except: self.this = this
     __swig_destroy__ = _cwl.delete_WLQuick
@@ -82,7 +82,14 @@ class WLQuick(_object):
     def set_psf(self, *args): return _cwl.WLQuick_set_psf(self, *args)
     def get_image_val(self, *args): return _cwl.WLQuick_get_image_val(self, *args)
     def get_psf_val(self, *args): return _cwl.WLQuick_get_psf_val(self, *args)
-    def calculate_psf_sigma(self): return _cwl.WLQuick_calculate_psf_sigma(self)
+    def get_psf_sigma(self): return _cwl.WLQuick_get_psf_sigma(self)
+    def get_psf_nu(self): return _cwl.WLQuick_get_psf_nu(self)
+    def print_psf_shapelets(self): return _cwl.WLQuick_print_psf_shapelets(self)
+    def calculate_psf_sigma(self, *args): return _cwl.WLQuick_calculate_psf_sigma(self, *args)
+    def calculate_psf_shapelets(self): return _cwl.WLQuick_calculate_psf_shapelets(self)
+    def calculate_shear(self): return _cwl.WLQuick_calculate_shear(self)
+    def get_shear1(self): return _cwl.WLQuick_get_shear1(self)
+    def get_shear2(self): return _cwl.WLQuick_get_shear2(self)
     def copy_numpy_image(self, *args): return _cwl.WLQuick_copy_numpy_image(self, *args)
     def check_numpy_image(self, *args): return _cwl.WLQuick_check_numpy_image(self, *args)
     def hello(self): return _cwl.WLQuick_hello(self)

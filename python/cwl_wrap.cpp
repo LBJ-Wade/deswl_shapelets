@@ -2792,6 +2792,16 @@ namespace swig {
 #include <string>
 
 
+#include <limits.h>
+#if !defined(SWIG_NO_LLONG_MAX)
+# if !defined(LLONG_MAX) && defined(__GNUC__) && defined (__LONG_LONG_MAX__)
+#   define LLONG_MAX __LONG_LONG_MAX__
+#   define LLONG_MIN (-LLONG_MAX - 1LL)
+#   define ULLONG_MAX (LLONG_MAX * 2ULL + 1ULL)
+# endif
+#endif
+
+
 SWIGINTERN int
 SWIG_AsVal_double (PyObject *obj, double *val)
 {
@@ -2834,16 +2844,6 @@ SWIG_AsVal_double (PyObject *obj, double *val)
 #endif
   return res;
 }
-
-
-#include <limits.h>
-#if !defined(SWIG_NO_LLONG_MAX)
-# if !defined(LLONG_MAX) && defined(__GNUC__) && defined (__LONG_LONG_MAX__)
-#   define LLONG_MAX __LONG_LONG_MAX__
-#   define LLONG_MIN (-LLONG_MAX - 1LL)
-#   define ULLONG_MAX (LLONG_MAX * 2ULL + 1ULL)
-# endif
-#endif
 
 
 #include <float.h>
@@ -2938,6 +2938,9 @@ SWIG_AsVal_int (PyObject * obj, int *val)
 
 
   #define SWIG_From_double   PyFloat_FromDouble 
+
+
+  #define SWIG_From_long   PyInt_FromLong 
 
 
 SWIGINTERN swig_type_info*
@@ -3075,10 +3078,28 @@ extern "C" {
 #endif
 SWIGINTERN PyObject *_wrap_new_WLQuick(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
+  int arg1 ;
+  int arg2 ;
+  int val1 ;
+  int ecode1 = 0 ;
+  int val2 ;
+  int ecode2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
   WLQuick *result = 0 ;
   
-  if (!PyArg_ParseTuple(args,(char *)":new_WLQuick")) SWIG_fail;
-  result = (WLQuick *)new WLQuick();
+  if (!PyArg_ParseTuple(args,(char *)"OO:new_WLQuick",&obj0,&obj1)) SWIG_fail;
+  ecode1 = SWIG_AsVal_int(obj0, &val1);
+  if (!SWIG_IsOK(ecode1)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode1), "in method '" "new_WLQuick" "', argument " "1"" of type '" "int""'");
+  } 
+  arg1 = static_cast< int >(val1);
+  ecode2 = SWIG_AsVal_int(obj1, &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "new_WLQuick" "', argument " "2"" of type '" "int""'");
+  } 
+  arg2 = static_cast< int >(val2);
+  result = (WLQuick *)new WLQuick(arg1,arg2);
   resultobj = SWIG_NewPointerObj(SWIG_as_voidptr(result), SWIGTYPE_p_WLQuick, SWIG_POINTER_NEW |  0 );
   return resultobj;
 fail:
@@ -3113,18 +3134,30 @@ SWIGINTERN PyObject *_wrap_WLQuick_set_image(PyObject *SWIGUNUSEDPARM(self), PyO
   PyObject *arg2 = (PyObject *) 0 ;
   double arg3 ;
   double arg4 ;
+  double arg5 ;
+  double arg6 ;
+  double arg7 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   double val3 ;
   int ecode3 = 0 ;
   double val4 ;
   int ecode4 = 0 ;
+  double val5 ;
+  int ecode5 = 0 ;
+  double val6 ;
+  int ecode6 = 0 ;
+  double val7 ;
+  int ecode7 = 0 ;
   PyObject * obj0 = 0 ;
   PyObject * obj1 = 0 ;
   PyObject * obj2 = 0 ;
   PyObject * obj3 = 0 ;
+  PyObject * obj4 = 0 ;
+  PyObject * obj5 = 0 ;
+  PyObject * obj6 = 0 ;
   
-  if (!PyArg_ParseTuple(args,(char *)"OOOO:WLQuick_set_image",&obj0,&obj1,&obj2,&obj3)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"OOOOOOO:WLQuick_set_image",&obj0,&obj1,&obj2,&obj3,&obj4,&obj5,&obj6)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_WLQuick, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "WLQuick_set_image" "', argument " "1"" of type '" "WLQuick *""'"); 
@@ -3141,8 +3174,23 @@ SWIGINTERN PyObject *_wrap_WLQuick_set_image(PyObject *SWIGUNUSEDPARM(self), PyO
     SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "WLQuick_set_image" "', argument " "4"" of type '" "double""'");
   } 
   arg4 = static_cast< double >(val4);
+  ecode5 = SWIG_AsVal_double(obj4, &val5);
+  if (!SWIG_IsOK(ecode5)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "WLQuick_set_image" "', argument " "5"" of type '" "double""'");
+  } 
+  arg5 = static_cast< double >(val5);
+  ecode6 = SWIG_AsVal_double(obj5, &val6);
+  if (!SWIG_IsOK(ecode6)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode6), "in method '" "WLQuick_set_image" "', argument " "6"" of type '" "double""'");
+  } 
+  arg6 = static_cast< double >(val6);
+  ecode7 = SWIG_AsVal_double(obj6, &val7);
+  if (!SWIG_IsOK(ecode7)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode7), "in method '" "WLQuick_set_image" "', argument " "7"" of type '" "double""'");
+  } 
+  arg7 = static_cast< double >(val7);
   try {
-    (arg1)->set_image(arg2,arg3,arg4);
+    (arg1)->set_image(arg2,arg3,arg4,arg5,arg6,arg7);
   }
   catch(char const *_e) {
     PyErr_SetString(PyExc_RuntimeError, _e);
@@ -3163,18 +3211,22 @@ SWIGINTERN PyObject *_wrap_WLQuick_set_psf(PyObject *SWIGUNUSEDPARM(self), PyObj
   PyObject *arg2 = (PyObject *) 0 ;
   double arg3 ;
   double arg4 ;
+  double arg5 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   double val3 ;
   int ecode3 = 0 ;
   double val4 ;
   int ecode4 = 0 ;
+  double val5 ;
+  int ecode5 = 0 ;
   PyObject * obj0 = 0 ;
   PyObject * obj1 = 0 ;
   PyObject * obj2 = 0 ;
   PyObject * obj3 = 0 ;
+  PyObject * obj4 = 0 ;
   
-  if (!PyArg_ParseTuple(args,(char *)"OOOO:WLQuick_set_psf",&obj0,&obj1,&obj2,&obj3)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"OOOOO:WLQuick_set_psf",&obj0,&obj1,&obj2,&obj3,&obj4)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_WLQuick, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "WLQuick_set_psf" "', argument " "1"" of type '" "WLQuick *""'"); 
@@ -3191,8 +3243,13 @@ SWIGINTERN PyObject *_wrap_WLQuick_set_psf(PyObject *SWIGUNUSEDPARM(self), PyObj
     SWIG_exception_fail(SWIG_ArgError(ecode4), "in method '" "WLQuick_set_psf" "', argument " "4"" of type '" "double""'");
   } 
   arg4 = static_cast< double >(val4);
+  ecode5 = SWIG_AsVal_double(obj4, &val5);
+  if (!SWIG_IsOK(ecode5)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode5), "in method '" "WLQuick_set_psf" "', argument " "5"" of type '" "double""'");
+  } 
+  arg5 = static_cast< double >(val5);
   try {
-    (arg1)->set_psf(arg2,arg3,arg4);
+    (arg1)->set_psf(arg2,arg3,arg4,arg5);
   }
   catch(char const *_e) {
     PyErr_SetString(PyExc_RuntimeError, _e);
@@ -3303,21 +3360,184 @@ fail:
 }
 
 
-SWIGINTERN PyObject *_wrap_WLQuick_calculate_psf_sigma(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+SWIGINTERN PyObject *_wrap_WLQuick_get_psf_sigma(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  WLQuick *arg1 = (WLQuick *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  double result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:WLQuick_get_psf_sigma",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_WLQuick, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "WLQuick_get_psf_sigma" "', argument " "1"" of type '" "WLQuick *""'"); 
+  }
+  arg1 = reinterpret_cast< WLQuick * >(argp1);
+  result = (double)(arg1)->get_psf_sigma();
+  resultobj = SWIG_From_double(static_cast< double >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_WLQuick_get_psf_nu(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  WLQuick *arg1 = (WLQuick *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  double result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:WLQuick_get_psf_nu",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_WLQuick, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "WLQuick_get_psf_nu" "', argument " "1"" of type '" "WLQuick *""'"); 
+  }
+  arg1 = reinterpret_cast< WLQuick * >(argp1);
+  result = (double)(arg1)->get_psf_nu();
+  resultobj = SWIG_From_double(static_cast< double >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_WLQuick_print_psf_shapelets(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   WLQuick *arg1 = (WLQuick *) 0 ;
   void *argp1 = 0 ;
   int res1 = 0 ;
   PyObject * obj0 = 0 ;
   
-  if (!PyArg_ParseTuple(args,(char *)"O:WLQuick_calculate_psf_sigma",&obj0)) SWIG_fail;
+  if (!PyArg_ParseTuple(args,(char *)"O:WLQuick_print_psf_shapelets",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_WLQuick, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "WLQuick_print_psf_shapelets" "', argument " "1"" of type '" "WLQuick *""'"); 
+  }
+  arg1 = reinterpret_cast< WLQuick * >(argp1);
+  (arg1)->print_psf_shapelets();
+  resultobj = SWIG_Py_Void();
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_WLQuick_calculate_psf_sigma(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  WLQuick *arg1 = (WLQuick *) 0 ;
+  double arg2 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  double val2 ;
+  int ecode2 = 0 ;
+  PyObject * obj0 = 0 ;
+  PyObject * obj1 = 0 ;
+  long result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"OO:WLQuick_calculate_psf_sigma",&obj0,&obj1)) SWIG_fail;
   res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_WLQuick, 0 |  0 );
   if (!SWIG_IsOK(res1)) {
     SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "WLQuick_calculate_psf_sigma" "', argument " "1"" of type '" "WLQuick *""'"); 
   }
   arg1 = reinterpret_cast< WLQuick * >(argp1);
-  (arg1)->calculate_psf_sigma();
-  resultobj = SWIG_Py_Void();
+  ecode2 = SWIG_AsVal_double(obj1, &val2);
+  if (!SWIG_IsOK(ecode2)) {
+    SWIG_exception_fail(SWIG_ArgError(ecode2), "in method '" "WLQuick_calculate_psf_sigma" "', argument " "2"" of type '" "double""'");
+  } 
+  arg2 = static_cast< double >(val2);
+  result = (long)(arg1)->calculate_psf_sigma(arg2);
+  resultobj = SWIG_From_long(static_cast< long >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_WLQuick_calculate_psf_shapelets(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  WLQuick *arg1 = (WLQuick *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  long result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:WLQuick_calculate_psf_shapelets",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_WLQuick, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "WLQuick_calculate_psf_shapelets" "', argument " "1"" of type '" "WLQuick *""'"); 
+  }
+  arg1 = reinterpret_cast< WLQuick * >(argp1);
+  result = (long)(arg1)->calculate_psf_shapelets();
+  resultobj = SWIG_From_long(static_cast< long >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_WLQuick_calculate_shear(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  WLQuick *arg1 = (WLQuick *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  long result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:WLQuick_calculate_shear",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_WLQuick, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "WLQuick_calculate_shear" "', argument " "1"" of type '" "WLQuick *""'"); 
+  }
+  arg1 = reinterpret_cast< WLQuick * >(argp1);
+  result = (long)(arg1)->calculate_shear();
+  resultobj = SWIG_From_long(static_cast< long >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_WLQuick_get_shear1(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  WLQuick *arg1 = (WLQuick *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  double result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:WLQuick_get_shear1",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_WLQuick, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "WLQuick_get_shear1" "', argument " "1"" of type '" "WLQuick *""'"); 
+  }
+  arg1 = reinterpret_cast< WLQuick * >(argp1);
+  result = (double)(arg1)->get_shear1();
+  resultobj = SWIG_From_double(static_cast< double >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_WLQuick_get_shear2(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  WLQuick *arg1 = (WLQuick *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  double result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:WLQuick_get_shear2",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_WLQuick, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "WLQuick_get_shear2" "', argument " "1"" of type '" "WLQuick *""'"); 
+  }
+  arg1 = reinterpret_cast< WLQuick * >(argp1);
+  result = (double)(arg1)->get_shear2();
+  resultobj = SWIG_From_double(static_cast< double >(result));
   return resultobj;
 fail:
   return NULL;
@@ -4703,7 +4923,14 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"WLQuick_set_psf", _wrap_WLQuick_set_psf, METH_VARARGS, NULL},
 	 { (char *)"WLQuick_get_image_val", _wrap_WLQuick_get_image_val, METH_VARARGS, NULL},
 	 { (char *)"WLQuick_get_psf_val", _wrap_WLQuick_get_psf_val, METH_VARARGS, NULL},
+	 { (char *)"WLQuick_get_psf_sigma", _wrap_WLQuick_get_psf_sigma, METH_VARARGS, NULL},
+	 { (char *)"WLQuick_get_psf_nu", _wrap_WLQuick_get_psf_nu, METH_VARARGS, NULL},
+	 { (char *)"WLQuick_print_psf_shapelets", _wrap_WLQuick_print_psf_shapelets, METH_VARARGS, NULL},
 	 { (char *)"WLQuick_calculate_psf_sigma", _wrap_WLQuick_calculate_psf_sigma, METH_VARARGS, NULL},
+	 { (char *)"WLQuick_calculate_psf_shapelets", _wrap_WLQuick_calculate_psf_shapelets, METH_VARARGS, NULL},
+	 { (char *)"WLQuick_calculate_shear", _wrap_WLQuick_calculate_shear, METH_VARARGS, NULL},
+	 { (char *)"WLQuick_get_shear1", _wrap_WLQuick_get_shear1, METH_VARARGS, NULL},
+	 { (char *)"WLQuick_get_shear2", _wrap_WLQuick_get_shear2, METH_VARARGS, NULL},
 	 { (char *)"WLQuick_copy_numpy_image", _wrap_WLQuick_copy_numpy_image, METH_VARARGS, NULL},
 	 { (char *)"WLQuick_check_numpy_image", _wrap_WLQuick_check_numpy_image, METH_VARARGS, NULL},
 	 { (char *)"WLQuick_hello", _wrap_WLQuick_hello, METH_VARARGS, NULL},

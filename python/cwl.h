@@ -6,6 +6,8 @@
 #include "../src/PsfCatalog.h"
 #include "../src/FittedPsf.h"
 #include "../src/ShearCatalog.h"
+#include "../src/Pixel.h"
+#include "../src/MeasureShearAlgo.h"
 #include "errors.h"
 
 #include <Python.h>
@@ -26,56 +28,205 @@ using std::string;
 class WLQuick {
     public:
 
-        WLQuick() : psf(NULL), image(NULL) {
+        WLQuick(int order_psf, int order_shear_gal) 
+                : psf_order(order_psf), shear_gal_order(order_shear_gal),
+                  psf(NULL), image(NULL), 
+                  psf_shapelets(order_psf,1.0),
+                  gal_shapelets(order_shear_gal,1.0) {
             import_array();
-            psf=NULL;
-            image=NULL;
+
+            // set all the parametes that are not entered
+            // these are defaults ala wl.config
+            this->shear_aperture = 4.0; //sigma?
+            // this will get set below
+            this->shear_max_aperture = 44.0; // pixels?  We use 12'' so 44 pix
+            this->shear_gal_order2 = 20;
+            this->shear_min_gal_order = 4;
+            this->shear_min_gal_size = 0.5; // in multiples of psf size
+            this->shear_base_order_on_nu = false;
+
+
+            this->minfpsf = 2.0;
+            this->maxfpsf = 2.0;
+            this->shear_fix_centroid=false;
+
+            this->shear_do_force_sigma=false;
+            this->shear_force_sigma_val=0;
+
+            this->native_only=false;
+
+            this->xoffset=0;
+            this->yoffset=0;
+
         };
         ~WLQuick() {
-            if (psf) delete psf;
-            if (image) delete image;
+            if (this->psf) delete this->psf;
+            if (this->image) delete this->image;
 
-            psf=NULL;
-            image=NULL;
+            this->psf=NULL;
+            this->image=NULL;
         }
 
-        void set_image(PyObject* image_obj, double rcen, double ccen) 
+        void set_image(PyObject* image_obj, 
+                       double rcen, 
+                       double ccen, 
+                       double sky, 
+                       double skysig,
+                       double aperture) 
                        throw (const char*) {
             check_numpy_image(image_obj);
-            if (image) { delete image; image=NULL; }
-            image = copy_numpy_image(image_obj);
-
-            image_cen = 
-        }
-        void set_psf(PyObject* psf_obj, double rcen, double ccen) 
-                     throw (const char*) {
-            check_numpy_image(psf_obj);
-            if (psf) { delete psf; psf=NULL; }
-
-            psf = copy_numpy_image(psf_obj);
+            if (this->image) { delete this->image; this->image=NULL; }
+            this->image = copy_numpy_image(image_obj);
 
             std::complex<double> tcen(rcen,ccen);
-            psf_cen = tcen;
+            this->image_cen = tcen;
+
+            this->image_sky=sky;
+            this->image_skysig=skysig;
+
+            this->shear_max_aperture = aperture;
+
+        }
+        void set_psf(PyObject* psf_obj, 
+                     double rcen, 
+                     double ccen,
+                     double sky)
+                     throw (const char*) {
+            check_numpy_image(psf_obj);
+            if (this->psf) { delete this->psf; this->psf=NULL; }
+
+            this->psf = copy_numpy_image(psf_obj);
+
+            std::complex<double> tcen(rcen,ccen);
+            this->psf_cen = tcen;
+            this->psf_sky = sky;
         }
 
         double get_image_val(int row, int col) throw (const char*) {
-            if (!image) { throw "image is NULL"; }
-            return (*image)(row,col);
+            if (!this->image) { throw "image is NULL"; }
+            return (*this->image)(row,col);
         }
         double get_psf_val(int row, int col) throw (const char*) {
-            if (!psf) { throw "psf is NULL"; }
-            return (*psf)(row,col);
+            if (!this->psf) { throw "psf is NULL"; }
+            return (*this->psf)(row,col);
         }
 
-        void calculate_psf_sigma() {
-            double sigma=-9999;
-            /*
-            calculateSigma1(
-                    sigma,
-                    *psf, pos, sky, noise, gain, weightIm,
-                    trans, psfAp, xOffset, yOffset, flag, shouldUseShapeletSigma);
-                    */
+        double get_psf_sigma() {
+            return this->psf_sigma;
         }
+        double get_psf_nu() {
+            return this->psf_nu;
+        }
+        void print_psf_shapelets() {
+            std::cout<<this->psf_shapelets<<"\n";
+        }
+
+        long calculate_psf_sigma(double guess) {
+            this->psf_sigma=guess;
+
+            Image<double>* weightIm=NULL;
+            Transformation trans; // defaults to identity
+
+            bool shouldUseShapeletSigma=0;
+            double skysig=0;
+            double gain=1;
+            long flags=0;
+            calculateSigma(
+                    this->psf_sigma,
+                    *this->psf, this->psf_cen, this->psf_sky, 
+                    skysig, gain, weightIm,
+                    trans, this->shear_max_aperture,
+                    this->xoffset, this->yoffset, flags, 
+                    shouldUseShapeletSigma);
+            return flags;
+        }
+
+        long calculate_psf_shapelets() {
+
+            Image<double>* weightIm=NULL;
+            Transformation trans; // defaults to identity
+            double skysig=1;
+            double gain=1;
+            long flags=0;
+            bool fix_cen=false;
+            //ConfigFile fake_config;
+            //PsfLog log(fake_config,"","");
+            PsfLog log;
+            int maxm=psf_order;
+
+            measureSinglePsf( 
+                    // Input data:
+                    this->psf_cen, *this->psf, this->psf_sky, 
+                    trans, 
+                    // Noise values:
+                    skysig, gain, weightIm,
+                    // Parameters:
+                    this->psf_sigma, this->shear_max_aperture, 
+                    this->psf_order, maxm,
+                    fix_cen, this->xoffset, this->yoffset,
+                    // Log information
+                    log,
+                    // Ouput value:
+                    this->psf_shapelets, this->psf_nu, flags);
+            return flags;
+        }
+
+        long calculate_shear() {
+            Image<double>* weightIm=NULL;
+            Transformation trans; // defaults to identity
+
+            std::vector<PixelList> pix(1);
+            //ConfigFile fake_config;
+            //ShearLog log(fake_config); 
+            ShearLog log;
+            // we are forced to make a copy of our psf shapelets
+            // because the function takes a vector
+            std::vector<BVec> vpsf(1, this->psf_shapelets);
+            double gain=1.0;
+            long flags=0;
+
+            // on return will hold order we used
+            this->meas_gal_order = this->shear_gal_order;
+            getPixList(*this->image,pix[0],this->image_cen, 
+                       this->image_sky,this->image_skysig,
+                       gain,weightIm, trans,
+                       this->shear_max_aperture,
+                       xoffset,yoffset,flags);
+
+            if (flags != 0) {
+                return flags;
+            }
+
+            int maxm=shear_gal_order;
+
+            measureSingleShear(
+                    // Input data:
+                    pix, vpsf,
+                    // Parameters:
+                    this->shear_aperture, this->shear_max_aperture,
+                    meas_gal_order, shear_gal_order2, maxm,
+                    shear_min_gal_order, shear_base_order_on_nu,
+                    minfpsf, maxfpsf, shear_min_gal_size, shear_fix_centroid,
+                    shear_do_force_sigma,shear_force_sigma_val, 
+                    native_only,
+                    // Log information
+                    log,
+                    // Ouput values:
+                    this->gal_shapelets, 
+                    this->shear, this->shear_cov, this->shear_nu, flags);
+            return flags;
+        }
+
+        double get_shear1() {
+            return real(this->shear);
+        }
+        double get_shear2() {
+            return imag(this->shear);
+        }
+
+
+
+
         // python stuff
         Image<double>* copy_numpy_image(PyObject* npyim) {
             npy_intp* dims = PyArray_DIMS(npyim);
@@ -102,11 +253,47 @@ class WLQuick {
         }
 
     private:
+        int psf_order;
         Image<double> *psf;
         Position psf_cen;
+        double psf_sigma;
+        double psf_sky;
+        BVec psf_shapelets; // must be initialized on construction
+        double psf_nu;
+
         Image<double> *image;
         Position image_cen;
+
+        std::complex<double> shear;
+        DSmallMatrix22 shear_cov;
+        double shear_nu;
+
+        double image_sky;
+        double image_skysig;
+
+        int shear_gal_order;
+        int shear_gal_order2;
+        int shear_min_gal_order;
+        int meas_gal_order;  // will hold what we actually used
+        bool shear_fix_centroid;
+        bool shear_base_order_on_nu;
+        double shear_aperture; // in sigma
+        double shear_max_aperture; // in pixels?
+        double shear_min_gal_size;  // multiples of psf size
+
+        bool native_only;
+        bool shear_do_force_sigma;
+        double shear_force_sigma_val;
+        double minfpsf;
+        double maxfpsf;
+
+        BVec gal_shapelets; // must be initialized on construction
+
+        double xoffset;
+        double yoffset;
 };
+
+
 class CWL {
   public:
     CWL() {};
