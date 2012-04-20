@@ -96,7 +96,7 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
 
                 _measGalOrder[i] = galOrder;
 #if 1
-                DoMeasureShear(
+                measureSingleShear(
                     // Input data:
                     _pixList[i], _psfList[i],
                     // Parameters:

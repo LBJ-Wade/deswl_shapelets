@@ -186,7 +186,7 @@ int ShearCatalog::measureShears(
 
                 // Now measure the shape and shear:
                 _measGalOrder[i] = galOrder;
-                DoMeasureShear(
+                measureSingleShear(
                     // Input data:
                     pix, psf,
                     // Parameters:

@@ -16,7 +16,7 @@
 #define MAX_DELTA_GAMMA2 1.e-3
 #define FAIL_DELTA_GAMMA2 1.e-1
 
-void DoMeasureShear(
+void measureSingleShear(
     const std::vector<PixelList>& allpix,
     const std::vector<BVec>& psf,
     double galAperture, double maxAperture,
@@ -28,7 +28,7 @@ void DoMeasureShear(
     double& nu, long& flag)
 {
     try {
-        dbg<<"Start MeasureShear\n";
+        dbg<<"Start MeasureSingleShear\n";
         dbg<<"allpix.size = "<<allpix.size()<<std::endl;
         const int nExp = allpix.size();
         for(int i=0;i<nExp;++i)

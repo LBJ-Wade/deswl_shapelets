@@ -18,7 +18,7 @@ bool Ellipse::doMeasure(
 {
     if (!(ell_meas)) ell_meas = this;
 
-    dbg<<"Start DoMeasure: galOrder = "<<galOrder<<", psf = "<<bool(psf)<<std::endl;
+    dbg<<"Start doMeasure: galOrder = "<<galOrder<<", psf = "<<bool(psf)<<std::endl;
     dbg<<"fix = "<<_isFixedCen<<"  "<<_isFixedGamma<<"  "<<_isFixedMu<<std::endl;
     dbg<<"Thresh = "<<thresh<<std::endl;
     dbg<<"ell_meas = "<<*ell_meas<<std::endl;

@@ -8,7 +8,7 @@
 #include "Log.h"
 #include "Pixel.h"
 
-void DoMeasureShear(
+void measureSingleShear(
     const std::vector<PixelList>& allpix,
     const std::vector<BVec>& psf,
     double galAperture, double maxAperture,
