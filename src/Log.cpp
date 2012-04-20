@@ -10,7 +10,7 @@ Log::Log(
     std::string logFile, std::string fitsFile
 ) :
     _exitCode(SUCCESS), _extraExitInfo(""),
-    _params(params), _logOut(0), _fitsFile(fitsFile)
+    _params(&params), _logOut(0), _fitsFile(fitsFile)
 {
     bool shouldOutputDesQa = params.read("des_qa",false);
     if (shouldOutputDesQa) { 
@@ -82,7 +82,7 @@ void ShearLog::writeLogToFitsHeader() const
     if (_fitsFile.find(".fits") == std::string::npos) return;
 
     try {
-        int hdu = getHdu(this->_params,"shear",_fitsFile,2);
+        int hdu = getHdu(*this->_params,"shear",_fitsFile,2);
         CCfits::FITS fits(_fitsFile, CCfits::Write, hdu-1);
 
         CCfits::ExtHDU& table=fits.extension(hdu-1);
@@ -153,12 +153,12 @@ void ShearLog::writeLog() const
         // Emit logging information
         if (_exitCode) {
             *_logOut << 
-                StatusText1(_exitCode,this->_params)<<" "<<
+                StatusText1(_exitCode,*this->_params)<<" "<<
                 Text(_exitCode)<<" "<<
                 _extraExitInfo<<" ";
             if (_fitsFile != "")
                 *_logOut << " (Name="<<_fitsFile<<") ";
-            *_logOut<< StatusText2(_exitCode,this->_params)<<std::endl;
+            *_logOut<< StatusText2(_exitCode,*this->_params)<<std::endl;
         } else {
             std::string name = "measureshear";
             if (_fitsFile != "") name = _fitsFile;
@@ -238,7 +238,7 @@ void PsfLog::writeLogToFitsHeader() const
     if (_fitsFile.find(".fits") == std::string::npos) return;
 
     try {
-        int hdu = getHdu(this->_params,"psf",_fitsFile,2);
+        int hdu = getHdu(*this->_params,"psf",_fitsFile,2);
         CCfits::FITS fits(_fitsFile, CCfits::Write, hdu-1);
 
         CCfits::ExtHDU& table=fits.extension(hdu-1);
@@ -287,12 +287,12 @@ void PsfLog::writeLog() const
         // Emit logging information
         if (_exitCode) {
             *_logOut << 
-                StatusText1(_exitCode,this->_params)<<" "<<
+                StatusText1(_exitCode,*this->_params)<<" "<<
                 Text(_exitCode)<<" "<<
                 _extraExitInfo<<" ";
             if (_fitsFile != "")
                 *_logOut << " (Name="<<_fitsFile<<") ";
-            *_logOut<< StatusText2(_exitCode,this->_params)<<std::endl;
+            *_logOut<< StatusText2(_exitCode,*this->_params)<<std::endl;
         } else {
             std::string name = "measurepsf";
             if (_fitsFile != "") name = _fitsFile;
@@ -363,7 +363,7 @@ void FindStarsLog::writeLogToFitsHeader() const
     if (_fitsFile.find(".fits") == std::string::npos) return;
 
     try {
-        int hdu = getHdu(this->_params,"stars",_fitsFile,2);
+        int hdu = getHdu(*this->_params,"stars",_fitsFile,2);
         CCfits::FITS fits(_fitsFile, CCfits::Write, hdu-1);
 
         CCfits::ExtHDU& table=fits.extension(hdu-1);
@@ -402,12 +402,12 @@ void FindStarsLog::writeLog() const
         // Emit logging information
         if (_exitCode) {
             *_logOut << 
-                StatusText1(_exitCode,this->_params)<<" "<<
+                StatusText1(_exitCode,*this->_params)<<" "<<
                 Text(_exitCode)<<" "<<
                 _extraExitInfo<<" ";
             if (_fitsFile != "")
                 *_logOut << " (Name="<<_fitsFile<<") ";
-            *_logOut<< StatusText2(_exitCode,this->_params)<<std::endl;
+            *_logOut<< StatusText2(_exitCode,*this->_params)<<std::endl;
         } else {
             std::string name = "findstars";
             if (_fitsFile != "") name = _fitsFile;

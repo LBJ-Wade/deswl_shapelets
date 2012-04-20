@@ -10,6 +10,9 @@ class Log
 {
 public :
 
+    // Default Log constructor doesn't write anything anywhere.
+    Log() : _params(0), _logOut(0), _fitsFile("") {}
+
     Log(const ConfigFile& params,
         std::string logFile="", std::string fitsFile="");
     virtual ~Log();
@@ -32,7 +35,7 @@ protected :
     ExitCode _exitCode;
     std::string _extraExitInfo;
 
-    const ConfigFile& _params;
+    const ConfigFile* _params;
     std::ostream* _logOut;
     std::string _fitsFile;
 
@@ -42,6 +45,7 @@ class ShearLog : public Log
 {
 public :
 
+    ShearLog() {}
     ShearLog(const ConfigFile& params,
              std::string logFile="", std::string fitsFile="");
     virtual ~ShearLog();
@@ -92,6 +96,7 @@ class PsfLog : public Log
 {
 public :
 
+    PsfLog() {}
     PsfLog(const ConfigFile& params,
            std::string logFile="", std::string fitsFile="");
     virtual ~PsfLog();
@@ -130,6 +135,7 @@ class FindStarsLog : public Log
 {
 public :
 
+    FindStarsLog() {}
     FindStarsLog(const ConfigFile& params,
                  std::string logFile="", std::string fitsFile="");
     virtual ~FindStarsLog();
