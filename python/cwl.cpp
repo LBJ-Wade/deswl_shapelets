@@ -377,3 +377,7 @@ void CWL::check_load(const char types, size_t size) {
   }
 }
 */
+
+//WLQuick::WLQuick() {
+
+//}

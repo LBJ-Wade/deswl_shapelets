@@ -8,6 +8,9 @@
 #include "../src/ShearCatalog.h"
 #include "errors.h"
 
+#include <Python.h>
+#include "numpy/arrayobject.h" 
+
 // a wrapper class for the wl classes and functions.  This is designed to
 // be simple to call from python and supports less general functionality.
 // Another principle is encapsulation to simplify calls
@@ -19,6 +22,85 @@
 
 using std::string;
 
+// A class to make it easy to run on an input image and PSF.
+class WLQuick {
+    public:
+
+        WLQuick() : psf(NULL), image(NULL) {
+            import_array();
+            psf=NULL;
+            image=NULL;
+        };
+        ~WLQuick() {
+            if (psf) delete psf;
+            if (image) delete image;
+
+            psf=NULL;
+            image=NULL;
+        }
+
+        void set_image(PyObject* image_obj, 
+                       double rcen, 
+                       double ccen) throw (const char*) {
+            check_numpy_image(image_obj);
+            if (image) { delete image; image=NULL; }
+            image = copy_numpy_image(image_obj);
+        }
+        void set_psf(PyObject* psf_obj) throw (const char*) {
+            check_numpy_image(psf_obj);
+            if (psf) { delete psf; psf=NULL; }
+            psf = copy_numpy_image(psf_obj);
+        }
+
+        double get_image_val(int row, int col) throw (const char*) {
+            if (!image) { throw "image is NULL"; }
+            return (*image)(row,col);
+        }
+        double get_psf_val(int row, int col) throw (const char*) {
+            if (!psf) { throw "psf is NULL"; }
+            return (*psf)(row,col);
+        }
+
+        void calculate_psf_sigma() {
+            double sigma=-9999;
+            /*
+            calculateSigma1(
+                    sigma,
+                    *psf, pos, sky, noise, gain, weightIm,
+                    trans, psfAp, xOffset, yOffset, flag, shouldUseShapeletSigma);
+                    */
+        }
+        // python stuff
+        Image<double>* copy_numpy_image(PyObject* npyim) {
+            npy_intp* dims = PyArray_DIMS(npyim);
+            Image<double> *im = new Image<double>(dims[0], dims[1]);
+
+            double *pdata;
+            for (npy_intp row=0; row<dims[0]; row++) {
+                for (npy_intp col=0; col<dims[1]; col++) {
+                    pdata = (double*) PyArray_GETPTR2(npyim,row,col);
+                    (*im)(row,col) = *pdata;
+                }
+            }
+            return im;
+        }
+        void check_numpy_image(PyObject* image_obj) throw (const char*) {
+            if (!PyArray_Check(image_obj) 
+                    || NPY_DOUBLE != PyArray_TYPE(image_obj)
+                    || 2 != PyArray_NDIM(image_obj)) {
+                throw "image input must be a 2D double PyArrayObject";
+            }
+        }
+        void hello() {
+            std::cout<<"hello world\n";
+        }
+
+    private:
+        Image<double> *psf;
+        Position psf_cen;
+        Image<double> *image;
+        Position image_cen;
+};
 class CWL {
   public:
     CWL() {};
