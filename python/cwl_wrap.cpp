@@ -3544,6 +3544,50 @@ fail:
 }
 
 
+SWIGINTERN PyObject *_wrap_WLQuick_get_e1(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  WLQuick *arg1 = (WLQuick *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  double result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:WLQuick_get_e1",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_WLQuick, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "WLQuick_get_e1" "', argument " "1"" of type '" "WLQuick *""'"); 
+  }
+  arg1 = reinterpret_cast< WLQuick * >(argp1);
+  result = (double)(arg1)->get_e1();
+  resultobj = SWIG_From_double(static_cast< double >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
+SWIGINTERN PyObject *_wrap_WLQuick_get_e2(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
+  PyObject *resultobj = 0;
+  WLQuick *arg1 = (WLQuick *) 0 ;
+  void *argp1 = 0 ;
+  int res1 = 0 ;
+  PyObject * obj0 = 0 ;
+  double result;
+  
+  if (!PyArg_ParseTuple(args,(char *)"O:WLQuick_get_e2",&obj0)) SWIG_fail;
+  res1 = SWIG_ConvertPtr(obj0, &argp1,SWIGTYPE_p_WLQuick, 0 |  0 );
+  if (!SWIG_IsOK(res1)) {
+    SWIG_exception_fail(SWIG_ArgError(res1), "in method '" "WLQuick_get_e2" "', argument " "1"" of type '" "WLQuick *""'"); 
+  }
+  arg1 = reinterpret_cast< WLQuick * >(argp1);
+  result = (double)(arg1)->get_e2();
+  resultobj = SWIG_From_double(static_cast< double >(result));
+  return resultobj;
+fail:
+  return NULL;
+}
+
+
 SWIGINTERN PyObject *_wrap_WLQuick_copy_numpy_image(PyObject *SWIGUNUSEDPARM(self), PyObject *args) {
   PyObject *resultobj = 0;
   WLQuick *arg1 = (WLQuick *) 0 ;
@@ -4931,6 +4975,8 @@ static PyMethodDef SwigMethods[] = {
 	 { (char *)"WLQuick_calculate_shear", _wrap_WLQuick_calculate_shear, METH_VARARGS, NULL},
 	 { (char *)"WLQuick_get_shear1", _wrap_WLQuick_get_shear1, METH_VARARGS, NULL},
 	 { (char *)"WLQuick_get_shear2", _wrap_WLQuick_get_shear2, METH_VARARGS, NULL},
+	 { (char *)"WLQuick_get_e1", _wrap_WLQuick_get_e1, METH_VARARGS, NULL},
+	 { (char *)"WLQuick_get_e2", _wrap_WLQuick_get_e2, METH_VARARGS, NULL},
 	 { (char *)"WLQuick_copy_numpy_image", _wrap_WLQuick_copy_numpy_image, METH_VARARGS, NULL},
 	 { (char *)"WLQuick_check_numpy_image", _wrap_WLQuick_check_numpy_image, METH_VARARGS, NULL},
 	 { (char *)"WLQuick_hello", _wrap_WLQuick_hello, METH_VARARGS, NULL},

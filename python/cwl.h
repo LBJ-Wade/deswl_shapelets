@@ -223,6 +223,14 @@ class WLQuick {
         double get_shear2() {
             return imag(this->shear);
         }
+        double get_e1() {
+            return this->gal_shapelets(3)/gal_shapelets(0)*sqrt(2);
+        }
+        double get_e2() {
+            return this->gal_shapelets(4)/gal_shapelets(0)*sqrt(2);
+        }
+
+
 
 
 

@@ -90,6 +90,8 @@ class WLQuick(_object):
     def calculate_shear(self): return _cwl.WLQuick_calculate_shear(self)
     def get_shear1(self): return _cwl.WLQuick_get_shear1(self)
     def get_shear2(self): return _cwl.WLQuick_get_shear2(self)
+    def get_e1(self): return _cwl.WLQuick_get_e1(self)
+    def get_e2(self): return _cwl.WLQuick_get_e2(self)
     def copy_numpy_image(self, *args): return _cwl.WLQuick_copy_numpy_image(self, *args)
     def check_numpy_image(self, *args): return _cwl.WLQuick_check_numpy_image(self, *args)
     def hello(self): return _cwl.WLQuick_hello(self)
