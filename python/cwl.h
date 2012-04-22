@@ -90,7 +90,8 @@ class WLQuick {
         void set_psf(PyObject* psf_obj, 
                      double rcen, 
                      double ccen,
-                     double sky)
+                     double sky,
+                     double aperture)
                      throw (const char*) {
             check_numpy_image(psf_obj);
             if (this->psf) { delete this->psf; this->psf=NULL; }
@@ -100,26 +101,9 @@ class WLQuick {
             std::complex<double> tcen(rcen,ccen);
             this->psf_cen = tcen;
             this->psf_sky = sky;
+            this->psf_max_aperture=aperture;
         }
 
-        double get_image_val(int row, int col) throw (const char*) {
-            if (!this->image) { throw "image is NULL"; }
-            return (*this->image)(row,col);
-        }
-        double get_psf_val(int row, int col) throw (const char*) {
-            if (!this->psf) { throw "psf is NULL"; }
-            return (*this->psf)(row,col);
-        }
-
-        double get_psf_sigma() {
-            return this->psf_sigma;
-        }
-        double get_psf_nu() {
-            return this->psf_nu;
-        }
-        void print_psf_shapelets() {
-            std::cout<<this->psf_shapelets<<"\n";
-        }
 
         long calculate_psf_sigma(double guess) {
             this->psf_sigma=guess;
@@ -129,13 +113,14 @@ class WLQuick {
 
             bool shouldUseShapeletSigma=0;
             double skysig=0;
-            double gain=1;
+            // gain=0 means ignore gain and don't add im/gain to variance
+            double gain=0;
             long flags=0;
             calculateSigma(
                     this->psf_sigma,
                     *this->psf, this->psf_cen, this->psf_sky, 
                     skysig, gain, weightIm,
-                    trans, this->shear_max_aperture,
+                    trans, this->psf_max_aperture,
                     this->xoffset, this->yoffset, flags, 
                     shouldUseShapeletSigma);
             return flags;
@@ -146,7 +131,8 @@ class WLQuick {
             Image<double>* weightIm=NULL;
             Transformation trans; // defaults to identity
             double skysig=1;
-            double gain=1;
+            // gain=0 means ignore gain and don't add im/gain to variance
+            double gain=0;
             long flags=0;
             bool fix_cen=false;
             //ConfigFile fake_config;
@@ -182,7 +168,8 @@ class WLQuick {
             // we are forced to make a copy of our psf shapelets
             // because the function takes a vector
             std::vector<BVec> vpsf(1, this->psf_shapelets);
-            double gain=1.0;
+            // gain=0 means ignore gain and don't add im/gain to variance
+            double gain=0;
             long flags=0;
 
             // on return will hold order we used
@@ -217,6 +204,41 @@ class WLQuick {
             return flags;
         }
 
+
+        double get_image_val(int row, int col) throw (const char*) {
+            if (!this->image) { throw "image is NULL"; }
+            return (*this->image)(row,col);
+        }
+        double get_psf_val(int row, int col) throw (const char*) {
+            if (!this->psf) { throw "psf is NULL"; }
+            return (*this->psf)(row,col);
+        }
+
+        double get_psf_sigma() {
+            return this->psf_sigma;
+        }
+        double get_psf_nu() {
+            return this->psf_nu;
+        }
+        void print_psf_shapelets() {
+            std::cout<<this->psf_shapelets<<"\n";
+        }
+
+        double get_sigma() {
+            return gal_shapelets.getSigma();
+        }
+        double get_nu() {
+            return shear_nu;
+        }
+        double get_cov11() {
+            return shear_cov(0,0);
+        }
+        double get_cov12() {
+            return shear_cov(0,1);
+        }
+        double get_cov22() {
+            return shear_cov(1,1);
+        }
         double get_shear1() {
             return real(this->shear);
         }
@@ -264,6 +286,7 @@ class WLQuick {
         int psf_order;
         Image<double> *psf;
         Position psf_cen;
+        double psf_max_aperture; // in pixels?
         double psf_sigma;
         double psf_sky;
         BVec psf_shapelets; // must be initialized on construction
