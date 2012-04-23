@@ -55,6 +55,8 @@ class WLQuick {
 
             this->native_only=false;
 
+            // gain=0 means ignore gain and don't add im/gain to variance
+            this->gain=0;
             this->xoffset=0;
             this->yoffset=0;
 
@@ -71,8 +73,8 @@ class WLQuick {
                        double rcen, 
                        double ccen, 
                        double sky, 
-                       double skysig,
-                       double aperture) 
+                       double skyvar,
+                       double aperture)  // this is max aperture pixels
                        throw (const char*) {
             check_numpy_image(image_obj);
             if (this->image) { delete this->image; this->image=NULL; }
@@ -82,7 +84,7 @@ class WLQuick {
             this->image_cen = tcen;
 
             this->image_sky=sky;
-            this->image_skysig=skysig;
+            this->image_skyvar=skyvar;
 
             this->shear_max_aperture = aperture;
 
@@ -91,7 +93,7 @@ class WLQuick {
                      double rcen, 
                      double ccen,
                      double sky,
-                     double aperture)
+                     double aperture)  // max aperture
                      throw (const char*) {
             check_numpy_image(psf_obj);
             if (this->psf) { delete this->psf; this->psf=NULL; }
@@ -112,14 +114,12 @@ class WLQuick {
             Transformation trans; // defaults to identity
 
             bool shouldUseShapeletSigma=0;
-            double skysig=0;
-            // gain=0 means ignore gain and don't add im/gain to variance
-            double gain=0;
+            double skyvar=1;
             long flags=0;
             calculateSigma(
                     this->psf_sigma,
                     *this->psf, this->psf_cen, this->psf_sky, 
-                    skysig, gain, weightIm,
+                    skyvar, this->gain, weightIm,
                     trans, this->psf_max_aperture,
                     this->xoffset, this->yoffset, flags, 
                     shouldUseShapeletSigma);
@@ -130,9 +130,7 @@ class WLQuick {
 
             Image<double>* weightIm=NULL;
             Transformation trans; // defaults to identity
-            double skysig=1;
-            // gain=0 means ignore gain and don't add im/gain to variance
-            double gain=0;
+            double skyvar=1;
             long flags=0;
             bool fix_cen=false;
             //ConfigFile fake_config;
@@ -145,7 +143,7 @@ class WLQuick {
                     this->psf_cen, *this->psf, this->psf_sky, 
                     trans, 
                     // Noise values:
-                    skysig, gain, weightIm,
+                    skyvar, this->gain, weightIm,
                     // Parameters:
                     this->psf_sigma, this->shear_max_aperture, 
                     this->psf_order, maxm,
@@ -168,15 +166,13 @@ class WLQuick {
             // we are forced to make a copy of our psf shapelets
             // because the function takes a vector
             std::vector<BVec> vpsf(1, this->psf_shapelets);
-            // gain=0 means ignore gain and don't add im/gain to variance
-            double gain=0;
             long flags=0;
 
             // on return will hold order we used
             this->meas_gal_order = this->shear_gal_order;
             getPixList(*this->image,pix[0],this->image_cen, 
-                       this->image_sky,this->image_skysig,
-                       gain,weightIm, trans,
+                       this->image_sky,this->image_skyvar,
+                       this->gain,weightIm, trans,
                        this->shear_max_aperture,
                        xoffset,yoffset,flags);
 
@@ -300,7 +296,7 @@ class WLQuick {
         double shear_nu;
 
         double image_sky;
-        double image_skysig;
+        double image_skyvar;
 
         int shear_gal_order;
         int shear_gal_order2;
@@ -320,6 +316,7 @@ class WLQuick {
 
         BVec gal_shapelets; // must be initialized on construction
 
+        double gain;
         double xoffset;
         double yoffset;
 };
