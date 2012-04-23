@@ -60,6 +60,7 @@ class WLQuick {
             this->xoffset=0;
             this->yoffset=0;
 
+            this->psf_sigma=-9999;
         };
         ~WLQuick() {
             if (this->psf) delete this->psf;
@@ -107,7 +108,10 @@ class WLQuick {
         }
 
 
-        long calculate_psf_sigma(double guess) {
+        long calculate_psf_sigma(double guess) throw (const char*) {
+            if (!this->psf) {
+                throw "psf is not set";
+            }
             this->psf_sigma=guess;
 
             Image<double>* weightIm=NULL;
@@ -125,8 +129,36 @@ class WLQuick {
                     shouldUseShapeletSigma);
             return flags;
         }
+        long calculate_sigma0(double guess) throw (const char*) {
+            if (!this->image) {
+                throw "image is not set";
+            }
+            this->sigma0=guess;
 
-        long calculate_psf_shapelets() {
+            Image<double>* weightIm=NULL;
+            Transformation trans; // defaults to identity
+
+            bool shouldUseShapeletSigma=0;
+            double skyvar=1;
+            long flags=0;
+            calculateSigma(
+                    this->sigma0,
+                    *this->image, this->image_cen, this->image_sky, 
+                    this->image_skyvar, this->gain, weightIm,
+                    trans, this->shear_max_aperture,
+                    this->xoffset, this->yoffset, flags, 
+                    shouldUseShapeletSigma);
+            return flags;
+        }
+
+
+        long calculate_psf_shapelets() throw (const char*) {
+            if (!this->psf) {
+                throw "psf is not set";
+            }
+            if (this->psf_sigma <= 0) {
+                throw "run calculate_psf_sigma first";
+            }
 
             Image<double>* weightIm=NULL;
             Transformation trans; // defaults to identity
@@ -155,7 +187,11 @@ class WLQuick {
             return flags;
         }
 
-        long calculate_shear() {
+        long calculate_shear() throw (const char*) {
+            if (!this->image || !this->psf) {
+                throw "set both psf and image first";
+            }
+
             Image<double>* weightIm=NULL;
             Transformation trans; // defaults to identity
 
@@ -220,6 +256,9 @@ class WLQuick {
             std::cout<<this->psf_shapelets<<"\n";
         }
 
+        double get_sigma0() {
+            return sigma0;
+        }
         double get_sigma() {
             return gal_shapelets.getSigma();
         }
@@ -279,6 +318,9 @@ class WLQuick {
         }
 
     private:
+
+        double sigma0;
+
         int psf_order;
         Image<double> *psf;
         Position psf_cen;
