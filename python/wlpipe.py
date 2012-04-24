@@ -399,8 +399,11 @@ class CoaddTileProcessor(dict):
         self.inf  = inf
         self.outf = outf
 
+
+
 #
 # deprecated
+#
 
 ERROR_SE_UNKNOWN=2**0
 ERROR_SE_MISC=2**1
@@ -414,7 +417,7 @@ ERROR_SE_SPLIT_STARS=2**8
 ERROR_SE_IO=2**9
 ERROR_SE_SET_LOG=2**10
 
-
+'''
 class ExposureProcessorOld:
     def __init__(self, expname, **keys):
         """
@@ -953,7 +956,6 @@ class ExposureProcessorOld:
         if not os.path.exists(outdir):
             stdout.write("Creating output dir: '%s'\n" % outdir)
             os.makedirs(outdir)
-
 class ImageProcessorOld(deswl.WL):
     """
     Much simpler than ExposureProcessor for processing a single image/catalog pair.
@@ -1072,7 +1074,7 @@ class ImageProcessorOld(deswl.WL):
             if 'shear' in types:
                 t.process('shear')
 
-
+'''
 
 class SECondorJobs(dict):
     def __init__(self, serun, band, 

@@ -1,5 +1,5 @@
 import sys
-from sys import stdout
+from sys import stdout, stderr
 
 def version():
     from sys import stderr
@@ -67,11 +67,9 @@ def get_python_version(numerical=False):
 
 try:
     import cwl
-    from cwl import CWL as WL
 except:
-    stdout.write('Could not import cwl\n')
+    stderr.write('Could not import cwl\n')
     pass
-
 
 import wlpipe
 import files

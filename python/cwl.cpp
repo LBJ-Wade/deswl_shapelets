@@ -2,8 +2,9 @@
 #include "cwl.h"
 #include "../src/StarFinder.h"
 #include "../src/dbg.h"
-
 #include "../src/fp.h"
+
+// the only purpose of the cpp file is to setup debugging
 
 #if defined(__GNUC__) && defined(OPENMP_LINK)
 //__thread std::ostream* dbgout=&std::cout;
@@ -17,7 +18,7 @@ std::ostream* dbgout=0;
 bool XDEBUG=false;
 #endif
 
-
+/*
 CWL::CWL(string config_file) throw (const char*) {
   this->load_config(config_file);
   this->load_fitsparams();
@@ -369,15 +370,4 @@ void CWL::measure_shear(string shear_file) throw (const char*) {
   this->write_shearcat(shear_file);
 }
 
-/*
-void CWL::check_load(const char types, size_t size) {
-
-  for (size_t i=0; i<size; i++) {
-
-  }
-}
 */
-
-//WLQuick::WLQuick() {
-
-//}

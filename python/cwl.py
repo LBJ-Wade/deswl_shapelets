@@ -66,81 +66,45 @@ except AttributeError:
     _newclass = 0
 
 
-class WLQuick(_object):
+class WLObject(_object):
     __swig_setmethods__ = {}
-    __setattr__ = lambda self, name, value: _swig_setattr(self, WLQuick, name, value)
+    __setattr__ = lambda self, name, value: _swig_setattr(self, WLObject, name, value)
     __swig_getmethods__ = {}
-    __getattr__ = lambda self, name: _swig_getattr(self, WLQuick, name)
+    __getattr__ = lambda self, name: _swig_getattr(self, WLObject, name)
     __repr__ = _swig_repr
     def __init__(self, *args): 
-        this = _cwl.new_WLQuick(*args)
+        this = _cwl.new_WLObject(*args)
         try: self.this.append(this)
         except: self.this = this
-    __swig_destroy__ = _cwl.delete_WLQuick
+    __swig_destroy__ = _cwl.delete_WLObject
     __del__ = lambda self : None;
-    def set_image(self, *args): return _cwl.WLQuick_set_image(self, *args)
-    def set_psf(self, *args): return _cwl.WLQuick_set_psf(self, *args)
-    def calculate_psf_sigma(self, *args): return _cwl.WLQuick_calculate_psf_sigma(self, *args)
-    def calculate_sigma0(self, *args): return _cwl.WLQuick_calculate_sigma0(self, *args)
-    def calculate_psf_shapelets(self): return _cwl.WLQuick_calculate_psf_shapelets(self)
-    def calculate_shear(self): return _cwl.WLQuick_calculate_shear(self)
-    def get_image_val(self, *args): return _cwl.WLQuick_get_image_val(self, *args)
-    def get_psf_val(self, *args): return _cwl.WLQuick_get_psf_val(self, *args)
-    def get_psf_sigma(self): return _cwl.WLQuick_get_psf_sigma(self)
-    def get_psf_nu(self): return _cwl.WLQuick_get_psf_nu(self)
-    def print_psf_shapelets(self): return _cwl.WLQuick_print_psf_shapelets(self)
-    def get_sigma0(self): return _cwl.WLQuick_get_sigma0(self)
-    def get_sigma(self): return _cwl.WLQuick_get_sigma(self)
-    def get_nu(self): return _cwl.WLQuick_get_nu(self)
-    def get_cov11(self): return _cwl.WLQuick_get_cov11(self)
-    def get_cov12(self): return _cwl.WLQuick_get_cov12(self)
-    def get_cov22(self): return _cwl.WLQuick_get_cov22(self)
-    def get_shear1(self): return _cwl.WLQuick_get_shear1(self)
-    def get_shear2(self): return _cwl.WLQuick_get_shear2(self)
-    def get_e1(self): return _cwl.WLQuick_get_e1(self)
-    def get_e2(self): return _cwl.WLQuick_get_e2(self)
-    def copy_numpy_image(self, *args): return _cwl.WLQuick_copy_numpy_image(self, *args)
-    def check_numpy_image(self, *args): return _cwl.WLQuick_check_numpy_image(self, *args)
-    def hello(self): return _cwl.WLQuick_hello(self)
-WLQuick_swigregister = _cwl.WLQuick_swigregister
-WLQuick_swigregister(WLQuick)
+    def get_sigma0(self): return _cwl.WLObject_get_sigma0(self)
+    def get_flags(self): return _cwl.WLObject_get_flags(self)
+WLObject_swigregister = _cwl.WLObject_swigregister
+WLObject_swigregister(WLObject)
 
-class CWL(_object):
+class WLShear(_object):
     __swig_setmethods__ = {}
-    __setattr__ = lambda self, name, value: _swig_setattr(self, CWL, name, value)
+    __setattr__ = lambda self, name, value: _swig_setattr(self, WLShear, name, value)
     __swig_getmethods__ = {}
-    __getattr__ = lambda self, name: _swig_getattr(self, CWL, name)
+    __getattr__ = lambda self, name: _swig_getattr(self, WLShear, name)
     __repr__ = _swig_repr
     def __init__(self, *args): 
-        this = _cwl.new_CWL(*args)
+        this = _cwl.new_WLShear(*args)
         try: self.this.append(this)
         except: self.this = this
-    def load_config(self, *args): return _cwl.CWL_load_config(self, *args)
-    def load_fitsparams(self): return _cwl.CWL_load_fitsparams(self)
-    def set_param(self, *args): return _cwl.CWL_set_param(self, *args)
-    def set_log(self, *args): return _cwl.CWL_set_log(self, *args)
-    def load_config_images_catalog(self, *args): return _cwl.CWL_load_config_images_catalog(self, *args)
-    def load_images(self, *args): return _cwl.CWL_load_images(self, *args)
-    def load_catalog(self, *args): return _cwl.CWL_load_catalog(self, *args)
-    def load_trans(self, *args): return _cwl.CWL_load_trans(self, *args)
-    def write_starcat(self, *args): return _cwl.CWL_write_starcat(self, *args)
-    def load_starcat(self, *args): return _cwl.CWL_load_starcat(self, *args)
-    def write_psfcat(self, *args): return _cwl.CWL_write_psfcat(self, *args)
-    def load_psfcat(self, *args): return _cwl.CWL_load_psfcat(self, *args)
-    def write_fitpsf(self, *args): return _cwl.CWL_write_fitpsf(self, *args)
-    def load_fitpsf(self, *args): return _cwl.CWL_load_fitpsf(self, *args)
-    def write_shearcat(self, *args): return _cwl.CWL_write_shearcat(self, *args)
-    def load_shearcat(self, *args): return _cwl.CWL_load_shearcat(self, *args)
-    def split_starcat(self, *args): return _cwl.CWL_split_starcat(self, *args)
-    def find_stars(self, *args): return _cwl.CWL_find_stars(self, *args)
-    def measure_psf(self, *args): return _cwl.CWL_measure_psf(self, *args)
-    def measure_shear(self, *args): return _cwl.CWL_measure_shear(self, *args)
-    def print_config(self): return _cwl.CWL_print_config(self)
-    def set_verbose(self, *args): return _cwl.CWL_set_verbose(self, *args)
-    __swig_destroy__ = _cwl.delete_CWL
+    def get_flags(self): return _cwl.WLShear_get_flags(self)
+    def get_nu(self): return _cwl.WLShear_get_nu(self)
+    def get_cov11(self): return _cwl.WLShear_get_cov11(self)
+    def get_cov12(self): return _cwl.WLShear_get_cov12(self)
+    def get_cov22(self): return _cwl.WLShear_get_cov22(self)
+    def get_shear1(self): return _cwl.WLShear_get_shear1(self)
+    def get_shear2(self): return _cwl.WLShear_get_shear2(self)
+    def get_prepsf_sigma(self): return _cwl.WLShear_get_prepsf_sigma(self)
+    __swig_destroy__ = _cwl.delete_WLShear
     __del__ = lambda self : None;
-CWL_swigregister = _cwl.CWL_swigregister
-CWL_swigregister(CWL)
+WLShear_swigregister = _cwl.WLShear_swigregister
+WLShear_swigregister(WLShear)
 
 
 
