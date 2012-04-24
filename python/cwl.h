@@ -325,7 +325,7 @@ class WLShear {
                 this->flags |= PSF_BAD_FLUX;
                 return 0;
             }
-
+            return 1;
         }
 };
 
