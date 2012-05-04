@@ -15,8 +15,8 @@
 void calculateSigma(
     double& sigma, // Initial value -- use <=0 if no initial guess
     const Image<double>& im, const Position& pos, double sky, 
-    double noise, double gain, const Image<double>* weightIm,
-    const Transformation& trans, double psfAp, double xOffset, double yOffset,
+    double noise, const Image<double>* weightIm,
+    const Transformation& trans, const ConfigFile& params,
     long& flag, bool shouldUseShapeletSigma);
 
 class StarCatalog

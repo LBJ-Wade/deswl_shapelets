@@ -30,13 +30,6 @@ double PsfCatalog::estimateSigma(
         sigmaP = seeing / 2.35;
     }
 
-    // Calculate a good value of sigma to use:
-    double gain = _params.read("gain",0.);
-    double psfAp = _params.read<double>("psf_aperture");
-    dbg<<"psfap = "<<psfAp<<std::endl;
-    double xOffset = _params.read("cat_x_offset",0.);
-    double yOffset = _params.read("cat_y_offset",0.);
-
     const bool shouldUseShapeletSigma = true;
 
     int nStars = _pos.size();
@@ -52,8 +45,8 @@ double PsfCatalog::estimateSigma(
         long flag1 = 0; // Ignore flags set by CalcSigma
         calculateSigma(
             sigma,
-            im, _pos[i], _sky[i], _noise[i], gain, weightIm, 
-            trans, psfAp, xOffset, yOffset, flag1, shouldUseShapeletSigma);
+            im, _pos[i], _sky[i], _noise[i], weightIm, 
+            trans, _params, flag1, shouldUseShapeletSigma);
         // Ignore errors -- just don't add to meanMu
         if (flag1) continue;
         meanMu += log(sigma);
@@ -83,15 +76,7 @@ int PsfCatalog::measurePsf(
     const Transformation& trans, double sigmaP, PsfLog& log)
 {
     // Read some needed parameters
-    int psfOrder = _params.read<int>("psf_order");
-    int maxm = _params.read("psf_maxm",psfOrder);
     bool shouldOutputDots = _params.read("output_dots",false);
-    double gain = _params.read("image_gain",0.);
-    double psfAp = _params.read<double>("psf_aperture");
-    bool psfFixCen = _params.read("psf_fix_centroid",false);
-    double xOffset = _params.read("cat_x_offset",0.);
-    double yOffset = _params.read("cat_y_offset",0.);
-    dbg<<"psfap = "<<psfAp<<std::endl;
 
     int nStars = size();
     dbg<<"nstars = "<<nStars<<std::endl;
@@ -152,10 +137,9 @@ int PsfCatalog::measurePsf(
                     // Input data:
                     _pos[i], im, _sky[i], trans, 
                     // Noise values:
-                    _noise[i], gain, weightIm,
+                    _noise[i], weightIm,
                     // Parameters:
-                    sigmaP, psfAp, psfOrder, maxm,
-                    psfFixCen, xOffset, yOffset,
+                    sigmaP, _params,
                     // Log information
                     log1,
                     // Ouput value:

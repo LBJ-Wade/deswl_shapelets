@@ -21,16 +21,17 @@
 
 static bool GetPixPsf(
     const Image<double>& im, PixelList& pix,
-    const Position pos, double sky, double noise, double gain,
+    const Position pos, double sky, double noise, 
     const Image<double>* weightIm, const Transformation& trans,
-    double maxAperture, double xOffset, double yOffset, long& flags,
+    const ConfigFile& params, long& flags,
     const FittedPsf& fitPsf, BVec& psf, ShearLog& log)
 {
+    double maxAperture = params.read<double>("shear_max_aperture");
     // Get the main PixelList for this galaxy:
     try {
         getPixList(
-            im,pix,pos,sky,noise,gain,weightIm,
-            trans,maxAperture,xOffset,yOffset,flags);
+            im,pix,pos,sky,noise,weightIm,
+            trans,maxAperture,params,flags);
         int npix = pix.size();
         dbg<<"npix = "<<npix<<std::endl;
         if (npix < 10) {
@@ -97,25 +98,8 @@ int ShearCatalog::measureShears(
     dbg<<"ngals = "<<nGals<<std::endl;
 
     // Read some needed parameters
-    double galAperture = _params.read<double>("shear_aperture");
-    double maxAperture = _params.read("shear_max_aperture",0.);
-    int galOrder = _params.read<int>("shear_gal_order");
-    int galOrder2 = _params.read<int>("shear_gal_order2");
-    int maxm = _params.read("shear_maxm",galOrder);
-    int minGalOrder = _params.read("shear_min_gal_order",4);
-    bool baseOrderOnNu = _params.read("shear_base_order_on_nu",true);
-    double minFPsf = _params.read("shear_f_psf",1.);
-    double maxFPsf = _params.read("shear_max_f_psf",minFPsf);
-    double gain = _params.read("image_gain",0.);
-    double minGalSize = _params.read<double>("shear_min_gal_size");
-    bool galFixCen = _params.read("shear_fix_centroid",false);
-    bool galFixSigma = _params.keyExists("shear_force_sigma");
-    double galFixSigmaValue = _params.read("shear_force_sigma",0.);
-    double xOffset = _params.read("cat_x_offset",0.);
-    double yOffset = _params.read("cat_y_offset",0.);
     bool shouldOutputDots = _params.read("output_dots",false);
     bool shouldOutputDesQa = _params.read("des_qa",false); 
-    bool nativeOnly = _params.read("shear_native_only",false);
 
     // This need to have been set.
     Assert(_trans);
@@ -178,23 +162,18 @@ int ShearCatalog::measureShears(
                 dbg<<"pos = "<<_pos[i]<<std::endl;
 
                 if (!GetPixPsf(
-                        im,pix[0],_pos[i],_sky[i],_noise[i],gain,weightIm,
-                        *_trans,maxAperture,xOffset,yOffset,_flags[i],
+                        im,pix[0],_pos[i],_sky[i],_noise[i],weightIm,
+                        *_trans,_params,_flags[i],
                         *_fitPsf,psf[0],log1)) {
                     continue;
                 }
 
                 // Now measure the shape and shear:
-                _measGalOrder[i] = galOrder;
                 measureSingleShear(
                     // Input data:
                     pix, psf,
                     // Parameters:
-                    galAperture, maxAperture,
-                    _measGalOrder[i], galOrder2, maxm,
-                    minGalOrder, baseOrderOnNu,
-                    minFPsf, maxFPsf, minGalSize, galFixCen,
-                    galFixSigma, galFixSigmaValue, nativeOnly,
+                    _measGalOrder[i], _params,
                     // Log information
                     log1,
                     // Ouput values:

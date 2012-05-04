@@ -3,6 +3,7 @@
 #root=decam--24--27-i-2_61   # dc4
 #root=decam--24--37-i-14_06  # dc4
 root=decam--23--42-i-5_01   # dc5
+#config="../example_config/wl.config omp_num_threads=1"
 config=../example_config/wl.config
 #input=/home/mjarvis/des/wl/testdata/data
 #output=/home/mjarvis/des/wl/testdata/output2
