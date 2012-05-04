@@ -745,7 +745,7 @@ def DoConfig(env):
             if env['WITH_TMV']:
                 # Once tmv v0.70 is standard, this can be removed.
                 print 'TMV Debugging turned off'
-                env.Append(CPPDEFINES=['TMVNDEBUG'])
+                env.Append(CPPDEFINES=['TMV_NDEBUG'])
             else:
                 print 'Eigen Debugging turned off'
                 env.Append(CPPDEFINES=['EIGEN_NO_DEBUG'])
