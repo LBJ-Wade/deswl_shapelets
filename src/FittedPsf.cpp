@@ -122,13 +122,11 @@ void FittedPsf::calculate(
             *_avePsf += psf[n].vec();
             ++nGoodPsf;
         }
-        xdbg<<"nGoodPsf = "<<nGoodPsf<<std::endl;
         if (nGoodPsf == 0) {
             dbg<<"ngoodpsf = 0 in FittedPsf::calculate\n";
             throw ProcessingException("No good stars found for interpolation.");
         }
         *_avePsf /= double(nGoodPsf);
-        xdbg<<"_avePsf = "<<*_avePsf<<std::endl;
 
         // Rotate the vectors into their eigen directions.
         // The matrix V is stored to let us get back to the original basis.
@@ -148,7 +146,6 @@ void FittedPsf::calculate(
         mM = inverseSigma EIGEN_asDiag() * mM;
 
         int nPcaTot = std::min(nGoodPsf,psfSize);
-        xdbg<<"nPcaTot = "<<nPcaTot<<std::endl;
         DDiagMatrix mS(nPcaTot);
 #ifdef USE_TMV
         DMatrixView mU = mM.colRange(0,nPcaTot);
@@ -160,8 +157,6 @@ void FittedPsf::calculate(
             SV_Decompose(_mV->transpose(),mS.view(),mU.transpose());
         }
         xdbg<<"In FittedPSF: SVD S = "<<mS.diag()<<std::endl;
-        //xdbg<<"U = "<<mU<<std::endl;
-        //xdbg<<"V = "<<*_mV<<std::endl;
 #else
         DMatrix mU(mM.TMV_colsize(),nPcaTot);
         _mV_transpose.reset(new DMatrix(psfSize,nPcaTot));
@@ -187,7 +182,7 @@ void FittedPsf::calculate(
                 thresh *= double(_params["fitpsf_pca_thresh"]);
             else thresh *= std::numeric_limits<double>::epsilon();
             dbg<<"thresh = "<<thresh<<std::endl;
-            for(_nPca=1;_nPca<int(mS.size());++_nPca) {
+            for(_nPca=1;_nPca<int(mM.TMV_rowsize());++_nPca) {
                 if (mS(_nPca) < thresh) break;
             }
             dbg<<"npca = "<<_nPca<<std::endl;

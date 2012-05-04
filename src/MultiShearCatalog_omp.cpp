@@ -16,10 +16,24 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
     dbg<<"ngals = "<<nGals<<std::endl;
 
     // Read some needed parameters
+    double galAperture = _params.read<double>("shear_aperture");
+    double maxAperture = _params.read("shear_max_aperture",0.);
+    int galOrder = _params.read<int>("shear_gal_order");
+    int galOrder2 = _params.read<int>("shear_gal_order2");
+    int maxm = _params.read("shear_maxm",galOrder);
+    int minGalOrder = _params.read("shear_min_gal_order",4);
+    bool baseOrderOnNu = _params.read("shear_base_order_on_nu",true);
+    double minFPsf = _params.read("shear_f_psf",1.);
+    double maxFPsf = _params.read("shear_max_f_psf",minFPsf);
+    double minGalSize = _params.read<double>("shear_min_gal_size");
+    bool galFixCen = _params.read("shear_fix_centroid",false);
+    bool galFixSigma = _params.keyExists("shear_force_sigma");
+    double galFixSigmaValue = _params.read("shear_force_sigma",0.);
     bool shouldOutputDots = _params.read("output_dots",false);
 #ifdef _OPENMP
     bool shouldOutputDesQa = _params.read("des_qa",false); 
 #endif
+    bool nativeOnly = _params.read("shear_native_only",false);
 
     int nSuccess = 0;
 
@@ -80,18 +94,22 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
                         _sePos[i][k]<<std::endl;
                 }
 
+                _measGalOrder[i] = galOrder;
 #if 1
                 measureSingleShear(
                     // Input data:
                     _pixList[i], _psfList[i],
                     // Parameters:
-                    _measGalOrder[i], _params,
+                    galAperture, maxAperture,
+                    _measGalOrder[i], galOrder2, maxm,
+                    minGalOrder, baseOrderOnNu,
+                    minFPsf, maxFPsf, minGalSize, galFixCen, 
+                    galFixSigma, galFixSigmaValue, nativeOnly,
                     // Log information
                     log1,
                     // Ouput values:
                     _shape[i], _shear[i], _cov[i], _nu[i], _flags[i]);
 #else
-                _measGalOrder[i] = 0;
                 _shear[i] = std::complex<double>(0.1,0.2);
                 _cov[i] << 1., 0., 0., 1.;
                 _shape[i].vec().setZero();
@@ -161,14 +179,12 @@ static void getImagePixList(
     const ShearCatalog& shearCat,
     const ShearCatalogTree& shearCatTree,
     const Image<double>*const weightIm,
-    const double noise, const double meanSky, 
+    const double noise, const double gain,
+    const std::string& skyMethod, const double meanSky, 
     const Image<double>*const skyMap,
-    double galAperture, double maxAperture, const ConfigFile& params)
+    double galAperture, double maxAperture, double xOffset, double yOffset,
+    bool require_match)
 {
-    std::string skyMethod = params.get("multishear_sky_method");
-    Assert(skyMethod=="MEAN" || skyMethod=="NEAREST" || skyMethod=="MAP");
-    bool require_match = params.read("multishear_require_match",false);
-
     Assert(psfList.size() == pixList.size());
     Assert(seNum.size() == pixList.size());
     Assert(sePos.size() == pixList.size());
@@ -256,7 +272,7 @@ static void getImagePixList(
         sky = shearCat.getSky(nearest);
     } else {
         Assert(skyMethod == "MAP");
-        sky = getLocalSky(*skyMap,pos,trans,galAp,params,flag);
+        sky = getLocalSky(*skyMap,pos,trans,galAp,xOffset,yOffset,flag);
         // If no pixels in aperture, then
         // a) something is very wrong, but
         // b) use the NEAREST method instead.
@@ -277,7 +293,7 @@ static void getImagePixList(
     xdbg<<"Before getPixList mem = "<<memory_usage()<<std::endl;
     getPixList(
         im,pixList.back(),pos,
-        sky,noise,weightIm,trans,galAp,params,flag);
+        sky,noise,gain,weightIm,trans,galAp,xOffset,yOffset,flag);
     xdbg<<"Got pixellist, flag = "<<FlagText(flag)<<std::endl;
     xdbg<<"After getPixList mem = "<<memory_usage()<<std::endl;
     
@@ -414,9 +430,10 @@ bool MultiShearCatalog::getImagePixelLists(
         image.reset(new Image<double>(_params,weightIm,subBounds));
     }
 
-    // We are using the weight image so the noise is a dummy variable
+    // We are using the weight image so the noise and gain are dummy variables
     Assert(weightIm.get());
     double noise = 0.0;
+    double gain = 0.0;
 
     dbg<<"Extracting pixel lists\n";
     // loop over the the objects, if the object falls on the image get
@@ -430,7 +447,10 @@ bool MultiShearCatalog::getImagePixelLists(
     Assert(int(_nImagesGotPix.size()) == size());
 
     const int nGals = size();
+    double xOffset = _params.read("cat_x_offset",0.);
+    double yOffset = _params.read("cat_y_offset",0.);
     double maxMem = _params.read("max_vmem",64)*1024.;
+    bool require_match = _params.read("multishear_require_match",false);
     dbg<<"Before getImagePixList loop: memory_usage = "<<memory_usage()<<std::endl;
     for (int i=0; i<nGals; ++i) {
         if (_flags[i]) continue;
@@ -442,8 +462,9 @@ bool MultiShearCatalog::getImagePixelLists(
             _seNum[i], _sePos[i], seIndex,
             _inputFlags[i], _nImagesFound[i], _nImagesGotPix[i], _skyPos[i], 
             *image, trans, invTrans, psf, fitPsf, shearCat, shearCatTree,
-            weightIm.get(), noise, meanSky, skyMap.get(),
-            galAperture, maxAperture, _params);
+            weightIm.get(), noise, gain,
+            skyMethod, meanSky, skyMap.get(),
+            galAperture, maxAperture, xOffset, yOffset, require_match);
         double mem = memory_usage();
         // memory_usage is in KB
         // max_vmem is in GB

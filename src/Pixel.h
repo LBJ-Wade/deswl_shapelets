@@ -109,14 +109,14 @@ private :
 
 void getPixList(
     const Image<double>& im, PixelList& pix,
-    const Position cen, double sky, double noise,
+    const Position cen, double sky, double noise, double gain,
     const Image<double>* weightImage, const Transformation& trans,
-    double aperture, const ConfigFile& params, long& flag);
+    double aperture, double xOffset, double yOffset, long& flag);
 
 double getLocalSky(
     const Image<double>& bkg, 
-    const Position cen, const Transformation& trans, double aperture,
-    const ConfigFile& params, long& flag);
+    const Position cen, const Transformation& trans,
+    double aperture, double xOffset, double yOffset, long& flag);
 
 void getSubPixList(
     PixelList& pix, const PixelList& allPix,

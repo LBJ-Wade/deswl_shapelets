@@ -17,17 +17,14 @@
 void measureSinglePsf1(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans,
-    double noise, const Image<double>* weightIm,
-    double sigmaP, const ConfigFile& params,
+    double noise, double gain, const Image<double>* weightIm,
+    double sigmaP, double psfAp, int psfOrder, int maxm,
+    bool fixCen, double xOffset, double yOffset,
     PsfLog& log, BVec& psf, double& nu, long& flag)
 {
-    int psfOrder = params.read<int>("psf_order");
-    bool fixCen = params.read("psf_fix_centroid",false);
-    double psfAp = params.read<double>("psf_aperture");
-    int maxm = params.read("psf_maxm",psfOrder);
-
     std::vector<PixelList> pix(1);
-    getPixList(im,pix[0],cen,sky,noise,weightIm,trans,psfAp,params,flag);
+    getPixList(im,pix[0],cen,sky,noise,gain,weightIm,trans,
+               psfAp,xOffset,yOffset,flag);
 
     int nPix = pix[0].size();
     xdbg<<"npix = "<<nPix<<std::endl;
@@ -98,8 +95,9 @@ void measureSinglePsf1(
 void measureSinglePsf(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans,
-    double noise, const Image<double>* weightIm,
-    double sigmaP, const ConfigFile& params,
+    double noise, double gain, const Image<double>* weightIm,
+    double sigmaP, double psfAp, int psfOrder, int maxm,
+    bool fixCen, double xOffset, double yOffset,
     PsfLog& log, BVec& psf, double& nu, long& flag)
 {
     try {
@@ -119,8 +117,8 @@ void measureSinglePsf(
 
     try {
         measureSinglePsf1(
-            cen,im,sky,trans,noise,weightIm,
-            sigmaP,params,log,psf,nu,flag);
+            cen,im,sky,trans,noise,gain,weightIm,
+            sigmaP,psfAp,psfOrder,maxm,fixCen,xOffset,yOffset,log,psf,nu,flag);
 #ifdef USE_TMV
     } catch (tmv::Error& e) {
         dbg<<"TMV Error thrown in MeasureSinglePSF\n";

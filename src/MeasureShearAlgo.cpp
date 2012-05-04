@@ -19,28 +19,14 @@
 void measureSingleShear(
     const std::vector<PixelList>& allpix,
     const std::vector<BVec>& psf,
-    int& galOrder, const ConfigFile& params,
+    double galAperture, double maxAperture,
+    int& galOrder, int galOrder2, int maxm, int minGalOrder, bool baseOrderOnNu,
+    double minFPsf, double maxFPsf, double minGalSize, bool fixCen,
+    bool fixSigma, double fixSigmaValue, bool nativeOnly,
     ShearLog& log, BVec& shapelet, 
     std::complex<double>& gamma, DSmallMatrix22& cov,
     double& nu, long& flag)
 {
-    double galAperture = params.read<double>("shear_aperture");
-    double maxAperture = params.read("shear_max_aperture",0.);
-    // Initial value, but also returned with actual final value.
-    int galOrderInit = params.read<int>("shear_gal_order");
-    galOrder = galOrderInit;
-    int galOrder2 = params.read<int>("shear_gal_order2");
-    int maxm = params.read("shear_maxm",galOrder);
-    int minGalOrder = params.read("shear_min_gal_order",4);
-    bool baseOrderOnNu = params.read("shear_base_order_on_nu",true);
-    double minFPsf = params.read("shear_f_psf",1.);
-    double maxFPsf = params.read("shear_max_f_psf",minFPsf);
-    double minGalSize = params.read<double>("shear_min_gal_size");
-    bool fixCen = params.read("shear_fix_centroid",false);
-    bool fixSigma = params.keyExists("shear_force_sigma");
-    double fixSigmaValue = params.read("shear_force_sigma",0.);
-    bool nativeOnly = params.read("shear_native_only",false);
-
     try {
         dbg<<"Start MeasureSingleShear\n";
         dbg<<"allpix.size = "<<allpix.size()<<std::endl;
@@ -307,7 +293,7 @@ void measureSingleShear(
         // Reduce order if necessary so that
         // (order+1)*(order+2)/2 < nu
         //
-        galOrder = galOrderInit;
+        int galOrderInit = galOrder;
         if (baseOrderOnNu) {
             int galSize;
             while (galOrder > minGalOrder) {

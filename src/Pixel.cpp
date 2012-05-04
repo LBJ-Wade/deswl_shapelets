@@ -5,15 +5,10 @@
 
 void getPixList(
     const Image<double>& im, PixelList& pix,
-    const Position cen, double sky, double noise,
+    const Position cen, double sky, double noise, double gain,
     const Image<double>* weightImage, const Transformation& trans,
-    double aperture, const ConfigFile& params, long& flag)
+    double aperture, double xOffset, double yOffset, long& flag)
 {
-    double gain = params.read("image_gain",0.);
-    double xOffset = params.read("cat_x_offset",0.);
-    double yOffset = params.read("cat_y_offset",0.);
-    bool ignore_edges = params.read("ignore_edges",false);
-
     xdbg<<"Start GetPixList\n";
     if (weightImage) {
         xdbg<<"Using weight image for pixel noise.\n";
@@ -63,7 +58,7 @@ void getPixList(
         dbg<<xMin<<"  "<<xMax<<"  "<<yMin<<"  "<<yMax<<std::endl;
         dbg<<"returning with no pixels\n";
         pix.resize(0);
-        if (!ignore_edges) flag |= EDGE;
+        flag |= EDGE;
         flag |= LT10PIX;
         return;
     }
@@ -75,10 +70,10 @@ void getPixList(
     int j2 = int(ceil(yCen+yAp-yMin));
     xdbg<<"i1,i2,j1,j2 = "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
 
-    if (i1 < 0) { i1 = 0; if (!ignore_edges) flag |= EDGE; }
-    if (i2 > int(im.getMaxI())) { i2 = im.getMaxI(); if (!ignore_edges) flag |= EDGE; }
-    if (j1 < 0) { j1 = 0; if (!ignore_edges) flag |= EDGE; }
-    if (j2 > int(im.getMaxJ())) { j2 = im.getMaxJ(); if (!ignore_edges) flag |= EDGE; }
+    if (i1 < 0) { i1 = 0; flag |= EDGE; }
+    if (i2 > int(im.getMaxI())) { i2 = im.getMaxI(); flag |= EDGE; }
+    if (j1 < 0) { j1 = 0; flag |= EDGE; }
+    if (j2 > int(im.getMaxJ())) { j2 = im.getMaxJ(); flag |= EDGE; }
     xdbg<<"i1,i2,j1,j2 => "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
 
     double apsq = aperture*aperture;
@@ -161,11 +156,8 @@ void getPixList(
 double getLocalSky(
     const Image<double>& bkg, 
     const Position cen, const Transformation& trans, double aperture,
-    const ConfigFile& params, long& flag)
+    double xOffset, double yOffset, long& flag)
 {
-    double xOffset = params.read("cat_x_offset",0.);
-    double yOffset = params.read("cat_y_offset",0.);
-
     // This function is very similar in structure to the above getPixList
     // function.  It does the same thing with the distortion and the 
     // aperture and such.  

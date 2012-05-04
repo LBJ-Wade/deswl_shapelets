@@ -23,17 +23,15 @@
 static void calculateSigma1(
     double& sigma,
     const Image<double>& im, const Position& pos, double sky,
-    double noise, const Image<double>* weightIm, 
-    const Transformation& trans, const ConfigFile& params, long& flag,
-    bool shouldUseShapeletSigma)
+    double noise, double gain, const Image<double>* weightIm, 
+    const Transformation& trans, double psfAp, double xOffset, double yOffset,
+    long& flag, bool shouldUseShapeletSigma)
 {
-    double psfAp = params.read<double>("psf_aperture");
-
     std::vector<PixelList> pix(1);
     long flag1 = 0;
     try {
-        getPixList(im, pix[0], pos, sky, noise, weightIm, trans, 
-                   psfAp, params, flag1);
+        getPixList(im, pix[0], pos, sky, noise, gain, weightIm, trans, 
+                   psfAp, xOffset, yOffset, flag1);
     } catch (RangeException& e) {
         dbg<<"distortion range error: \n";
         xdbg<<"center = "<<pos<<", b = "<<e.getBounds()<<std::endl;
@@ -74,15 +72,15 @@ static void calculateSigma1(
 void calculateSigma(
     double& sigma,
     const Image<double>& im, const Position& pos, double sky,
-    double noise, const Image<double>* weightIm, 
-    const Transformation& trans, const ConfigFile& params,
+    double noise, double gain, const Image<double>* weightIm, 
+    const Transformation& trans, double psfAp, double xOffset, double yOffset,
     long& flag, bool shouldUseShapeletSigma)
 {
     try {
         calculateSigma1(
             sigma,
-            im, pos, sky, noise, weightIm,
-            trans, params, flag, shouldUseShapeletSigma);
+            im, pos, sky, noise, gain, weightIm,
+            trans, psfAp, xOffset, yOffset, flag, shouldUseShapeletSigma);
         dbg<<"objsize: "<<sigma<<std::endl;
         dbg<<"flags: "<<flag<<std::endl;
 #ifdef USE_TMV

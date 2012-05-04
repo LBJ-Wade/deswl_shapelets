@@ -28,9 +28,14 @@ void StarCatalog::calculateSizes(
 
     const int n = _pos.size();
     dbg<<"n = "<<n<<std::endl;
+    double psfAp = _params.read<double>("psf_aperture"); 
+    double gain = _params.read("image_gain",0.);
+    double xOffset = _params.read("cat_x_offset",0.);
+    double yOffset = _params.read("cat_y_offset",0.);
 
-    bool shouldUseShapeletSigma = _params.read("stars_use_shapelet_sigma",true);
-    bool shouldOutputDots = _params.read("output_dots",false);
+    const bool shouldUseShapeletSigma = _params.read(
+        "stars_use_shapelet_sigma",true);
+    const bool shouldOutputDots = _params.read("output_dots",false);
 
 #ifdef _OPENMP
 #pragma omp parallel for schedule(guided)
@@ -58,8 +63,9 @@ void StarCatalog::calculateSizes(
         if (_objSize[i] <= 0.) _objSize[i] = 1.;
         calculateSigma(
             _objSize[i],
-            im, _pos[i], _sky[i], _noise[i], weightIm, 
-            trans, _params, _flags[i], shouldUseShapeletSigma);
+            im, _pos[i], _sky[i], _noise[i], gain, weightIm, 
+            trans, psfAp, xOffset, yOffset, 
+            _flags[i], shouldUseShapeletSigma);
     }
     if (shouldOutputDots) std::cerr<<std::endl;
     dbg<<"Done MeasureSigmas\n";
