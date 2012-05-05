@@ -15,11 +15,11 @@
 //
 
 Transformation::Transformation() : 
-    _isRaDec(false), _u(0), _v(0), _dudx(0), _dudy(0), _dvdx(0), _dvdy(0)
+    _is_ra_dec(false), _u(0), _v(0), _dudx(0), _dudy(0), _dvdx(0), _dvdy(0)
 {}
 
 Transformation::Transformation(const ConfigFile& params) : 
-    _isRaDec(false), _u(0), _v(0), _dudx(0), _dudy(0), _dvdx(0), _dvdy(0)
+    _is_ra_dec(false), _u(0), _v(0), _dudx(0), _dudy(0), _dvdx(0), _dvdy(0)
 {
   this->initFromParams(params);
 }
@@ -39,14 +39,14 @@ void Transformation::initFromParams(const ConfigFile& params) {
         double dvdy = params.read<double>("dvdy");
         setToJacobian(dudx,dudy,dvdx,dvdy);
     } else if (distMethod == "FUNC2D") {
-        std::string distFile = makeName(params,"dist",true,true);
+        std::string distFile = MakeName(params,"dist",true,true);
         std::ifstream distin(distFile.c_str());
         Assert(distin);
         readFunc2D(distin);
         xdbg<<"Done read distortion "<<distFile<<std::endl;
     } else if (distMethod == "WCS") {
-        std::string distFile = makeName(params,"dist",true,true);
-        int hdu = getHdu(params,"dist",distFile,1);
+        std::string distFile = MakeName(params,"dist",true,true);
+        int hdu = GetHdu(params,"dist",distFile,1);
         readWCS(distFile,hdu);
         xdbg<<"Done read WCS distortion "<<distFile<<std::endl;
     } else {
@@ -73,7 +73,7 @@ void Transformation::setToScale(double pixel_scale)
     _dudy.reset(new Constant2D(0.));
     _dvdx.reset(new Constant2D(0.));
     _dvdy.reset(new Constant2D(pixel_scale));
-    _isRaDec = false;
+    _is_ra_dec = false;
 }
 
 void Transformation::setToJacobian(
@@ -89,7 +89,7 @@ void Transformation::setToJacobian(
     _dudy.reset(new Constant2D(dudy));
     _dvdx.reset(new Constant2D(dvdx));
     _dvdy.reset(new Constant2D(dvdy));
-    _isRaDec = false;
+    _is_ra_dec = false;
 }
 
 void Transformation::readFunc2D(std::istream& is) 
@@ -106,7 +106,7 @@ void Transformation::readFunc2D(std::istream& is)
     _dudy = _u->dFdY();
     _dvdx = _v->dFdX();
     _dvdy = _v->dFdY();
-    _isRaDec = false;
+    _is_ra_dec = false;
 }
 
 void Transformation::writeFunc2D(std::ostream& os) const
@@ -163,7 +163,7 @@ void Transformation::getDistortion(
         dvdx = (*_dvdx)(pos);
         dvdy = (*_dvdy)(pos);
 
-        if (_isRaDec) {
+        if (_is_ra_dec) {
             // Then u is RA, v is Dec.
             // Need to scale du (RA) by cos(Dec).
             double dec = (*_v)(pos); // this is in arcsec.
@@ -293,7 +293,7 @@ Bounds Transformation::makeInverseOf(
     _dudy = _u->dFdY();
     _dvdx = _v->dFdX();
     _dvdy = _v->dFdY();
-    _isRaDec = false;
+    _is_ra_dec = false;
 
     return newbounds;
 }
@@ -849,6 +849,6 @@ void Transformation::readWCS(std::string fitsfile, int hdu)
 
     // The transformed variables u,v are RA and Dec.
     // This has implications for how we want to use _dudx etc. so keep
-    // track of this fact in the variable _isRaDec.
-    _isRaDec = true;
+    // track of this fact in the variable _is_ra_dec.
+    _is_ra_dec = true;
 }

@@ -16,52 +16,52 @@ public:
     Image() {};
 
     // Read new image from file
-    Image(std::string fitsFile, int hdu=1); 
-    void load(std::string fitsFile, int hdu=1);
+    Image(std::string fits_file, int hdu=1); 
+    void load(std::string fits_file, int hdu=1);
 
-    Image(std::string fitsFile, int hdu,
+    Image(std::string fits_file, int hdu,
           int x1, int x2, int y1, int y2);
 
-    Image(std::string fitsFile, int hdu, const Bounds& b);
+    Image(std::string fits_file, int hdu, const Bounds& b);
 
     // Create blank image
-    Image(int xSize, int ySize) : 
-        _fileName(""), _hdu(0),
-        _xMin(0),_xMax(xSize),_yMin(0),_yMax(ySize),
-        _source(new TMatrix(T)(xSize,ySize)),
+    Image(int x_size, int y_size) : 
+        _filename(""), _hdu(0),
+        _xmin(0),_xmax(x_size),_ymin(0),_ymax(y_size),
+        _source(new TMatrix(T)(x_size,y_size)),
         _m(new TMatrixView(T)(TMV_view(*_source))) 
     { _source->setZero(); }
 
     // New copy of image
     Image(const Image& rhs) : 
-        _fileName(""), _hdu(0),
-        _xMin(rhs._xMin), _xMax(rhs._xMax), _yMin(rhs._yMin), _yMax(rhs._yMax),
+        _filename(""), _hdu(0),
+        _xmin(rhs._xmin), _xmax(rhs._xmax), _ymin(rhs._ymin), _ymax(rhs._ymax),
         _source(new TMatrix(T)(*rhs._m)),
         _m(new TMatrixView(T)(TMV_view(*_source))) {}
 
     // subImage (with new storage)
     Image(const Image& rhs, int x1, int x2, int y1, int y2) :
-        _fileName(""), _hdu(0),
-        _xMin(x1), _xMax(x2), _yMin(y1), _yMax(y2),
+        _filename(""), _hdu(0),
+        _xmin(x1), _xmax(x2), _ymin(y1), _ymax(y2),
         _source(new TMatrix(T)(rhs._m->TMV_subMatrix(x1,x2,y1,y2))),
         _m(new TMatrixView(T)(TMV_view(*_source))) {}
     Image(const Image& rhs, const Bounds& b) :
-        _fileName(""), _hdu(0),
-        _xMin(int(floor(b.getXMin()))), _xMax(int(ceil(b.getXMax()))), 
-        _yMin(int(floor(b.getYMin()))), _yMax(int(ceil(b.getYMax()))),
-        _source(new TMatrix(T)(rhs._m->TMV_subMatrix(_xMin,_xMax,_yMin,_yMax))),
+        _filename(""), _hdu(0),
+        _xmin(int(floor(b.getXMin()))), _xmax(int(ceil(b.getXMax()))), 
+        _ymin(int(floor(b.getYMin()))), _ymax(int(ceil(b.getYMax()))),
+        _source(new TMatrix(T)(rhs._m->TMV_subMatrix(_xmin,_xmax,_ymin,_ymax))),
         _m(new TMatrixView(T)(TMV_view(*_source))) {}
 
     // Read image given configuration parameters
     Image(const ConfigFile& params);
-    Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm);
+    Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im);
 
     // Read partial image 
     Image(const ConfigFile& params, int x1, int x2, int y1, int y2);
     Image(const ConfigFile& params, const Bounds& b);
-    Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm,
+    Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im,
           int x1, int x2, int y1, int y2);
-    Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm,
+    Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_im,
           const Bounds& b);
 
     ~Image();
@@ -75,17 +75,17 @@ public:
 
     // Write back to existing file
     void flush() const;
-    void flush(std::string fitsFile, int hdu=1) const; 
+    void flush(std::string fits_file, int hdu=1) const; 
 
     // Write to new file
-    void write(std::string fitsFile) const; 
+    void write(std::string fits_file) const; 
 
     TConstMatrixView(T) getM() const { return *_m; }
     TMV_const TMatrixView(T)& getM() { return *_m; }
-    int getXMin() const { return _xMin; }
-    int getXMax() const { return _xMax; }
-    int getYMin() const { return _yMin; }
-    int getYMax() const { return _yMax; }
+    int getXMin() const { return _xmin; }
+    int getXMax() const { return _xmax; }
+    int getYMin() const { return _ymin; }
+    int getYMax() const { return _ymax; }
     int getMaxI() const { return _m->TMV_colsize()-1; }
     int getMaxJ() const { return _m->TMV_rowsize()-1; }
 
@@ -102,7 +102,7 @@ public:
     bool isSquare() { return _m->TMV_colsize() == _m->TMV_rowsize(); }
 
     Bounds getBounds() const 
-    { return Bounds(_xMin,_xMax,_yMin,_yMax); }
+    { return Bounds(_xmin,_xmax,_ymin,_ymax); }
 
     // subImage refers to the same storage as this.
     Image subImage(int x1, int x2, int y1, int y2)
@@ -133,16 +133,16 @@ public:
     bool loaded() { return _loaded; };
 private:
 
-    mutable std::string _fileName;
+    mutable std::string _filename;
     mutable int _hdu;
 
-    int _xMin,_xMax,_yMin,_yMax;
+    int _xmin,_xmax,_ymin,_ymax;
     std::auto_ptr<TMatrix(T)> _source;
     std::auto_ptr<TMatrixView(T)> _m;
 
     template <class M>
     Image(TMV_const M& m, int x1, int x2, int y1, int y2) :
-        _xMin(x1), _xMax(x2), _yMin(y1), _yMax(y2),
+        _xmin(x1), _xmax(x2), _ymin(y1), _ymax(y2),
         _source(0), _m(new TMatrixView(T)(m)) {}
 
     void readFits();

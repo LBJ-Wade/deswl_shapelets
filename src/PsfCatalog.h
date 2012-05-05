@@ -17,7 +17,7 @@ class PsfCatalog
 public :
 
     // Make from starcat
-    PsfCatalog(const StarCatalog& starCat, const ConfigFile& params);
+    PsfCatalog(const StarCatalog& starcat, const ConfigFile& params);
 
     // Just load the parameters.  Normally followed by read() or similar.
     PsfCatalog(const ConfigFile& params);
@@ -35,10 +35,10 @@ public :
 
     double estimateSigma(
         const Image<double>& im,
-        const Image<double>* weightIm, const Transformation& trans);
+        const Image<double>* weight_image, const Transformation& trans);
 
     int measurePsf(
-        const Image<double>& im, const Image<double>* weightIm,
+        const Image<double>& im, const Image<double>* weight_image,
         const Transformation& trans, double sigma_p, PsfLog& log);
 
     const std::vector<long>& getIdList() const { return _id; }
@@ -57,7 +57,7 @@ public :
     double getNu(int i) const { return _nu[i]; }
     const BVec& getPsf(int i) const { return _psf[i]; }
 
-    void setFlag(int i, long newFlag) { _flags[i] |= newFlag; }
+    void setFlag(int i, long newflag) { _flags[i] |= newflag; }
     std::vector<long>& getFlagsList() { return _flags; }
 
 private :
@@ -74,17 +74,17 @@ private :
 
 };
 
-void measureSinglePsf(
+void MeasureSinglePsf(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans,
-    double noise, const Image<double>* weightIm,
-    double sigmaP, const ConfigFile& params,
+    double noise, const Image<double>* weight_image,
+    double sigma_p, const ConfigFile& params,
     PsfLog& log, BVec& psf, double& nu, long& flag);
-void measureSinglePsf1(
+void MeasureSinglePsf1(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans,
-    double noise, const Image<double>* weightIm,
-    double sigmaP, const ConfigFile& params,
+    double noise, const Image<double>* weight_image,
+    double sigma_p, const ConfigFile& params,
     PsfLog& log, BVec& psf, double& nu, long& flag);
 
 #endif

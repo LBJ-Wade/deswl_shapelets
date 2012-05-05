@@ -380,20 +380,20 @@ public:
     ConfigFile();
 
     // Create and read from the specified file
-    ConfigFile( const std::string fileName,
+    ConfigFile( const std::string file_name,
                 const std::string delimiter = "=",
                 const std::string comment = "#",
                 const std::string include = "+",
                 const std::string sentry = "EndConfigFile" );
 
     // Load more value from a file.
-    void load( const std::string fileName )
-    { std::ifstream fs(fileName.c_str()); read(fs); }
+    void load( const std::string file_name )
+    { std::ifstream fs(file_name.c_str()); read(fs); }
 
     // Load a file that uses different delimiter or comment or ...
     // Note: these delimiter, comment, etc. are temporary for this load only.
     // "" means use existing values
-    void load( const std::string fileName,
+    void load( const std::string file_name,
                const std::string delimiter,
                const std::string comment = "",
                const std::string include = "",
@@ -588,8 +588,8 @@ bool ConfigFile::readInto( T& var, const std::string& key ) const
     std::string key2 = key;
     trim(key2);
     MapCIt p = _contents.find(key2);
-    bool isFound = ( p != _contents.end() );
-    if(isFound) {
+    bool is_found = ( p != _contents.end() );
+    if(is_found) {
 #ifndef NOTHROW
         try {
 #endif
@@ -605,7 +605,7 @@ bool ConfigFile::readInto( T& var, const std::string& key ) const
         }
 #endif
     }
-    return isFound;
+    return is_found;
 }
 
 
@@ -619,8 +619,8 @@ bool ConfigFile::readInto(
     std::string key2 = key;
     trim(key2);
     MapCIt p = _contents.find(key2);
-    bool isFound = ( p != _contents.end() );
-    if(isFound) {
+    bool is_found = ( p != _contents.end() );
+    if(is_found) {
 #ifndef NOTHROW
         try {
 #endif
@@ -638,7 +638,7 @@ bool ConfigFile::readInto(
     } else {
         var = value;
     }
-    return isFound;
+    return is_found;
 }
 
 template <typename T>

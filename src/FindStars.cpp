@@ -9,31 +9,31 @@
 int main(int argc, char **argv) try 
 {
     ConfigFile params;
-    if (basicSetup(argc,argv,params,"findstars")) return EXIT_FAILURE;
+    if (BasicSetup(argc,argv,params,"findstars")) return EXIT_FAILURE;
 
     // Setup Log
     std::string logFile = ""; // Default is to stdout
     if (params.keyExists("log_file") || params.keyExists("log_ext")) 
-        logFile = makeName(params,"log",false,false);
-    std::string starsFile=makeName(params,"stars",false,false);
+        logFile = MakeName(params,"log",false,false);
+    std::string starsFile=MakeName(params,"stars",false,false);
     std::auto_ptr<FindStarsLog> log(
         new FindStarsLog(params,logFile,starsFile)); 
 
     try {
-        bool isTiming = params.read("timing",false);
+        bool timing = params.read("timing",false);
         timeval tp;
         double t1=0.,t2=0.;
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t1 = tp.tv_sec + tp.tv_usec/1.e6;
         }
 
         // Read image, transformation
-        std::auto_ptr<Image<double> > weightIm;
-        Image<double> im(params,weightIm);
+        std::auto_ptr<Image<double> > weight_image;
+        Image<double> im(params,weight_image);
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
             std::cout<<"Time: Open imgae = "<<t2-t1<<std::endl;
@@ -43,7 +43,7 @@ int main(int argc, char **argv) try
         // Read distortion function
         Transformation trans(params);
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
             std::cout<<"Time: Read Transformation = "<<t2-t1<<std::endl;
@@ -51,18 +51,18 @@ int main(int argc, char **argv) try
         }
 
         // Read input catalog
-        InputCatalog inCat(params,&im);
-        inCat.read();
+        InputCatalog incat(params,&im);
+        incat.read();
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
             std::cout<<"Time: Read InputCatalog = "<<t2-t1<<std::endl;
             t1 = t2;
         }
 
-        std::auto_ptr<StarCatalog> starCat;
-        doFindStars(params,*log,im,weightIm.get(),trans,inCat,starCat);
+        std::auto_ptr<StarCatalog> starcat;
+        DoFindStars(params,*log,im,weight_image.get(),trans,incat,starcat);
     }
 #if 0
     // Change to 1 to let gdb see where the program bombed out.

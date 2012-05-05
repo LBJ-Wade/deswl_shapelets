@@ -12,71 +12,71 @@
 #include "WriteParam.h"
 
 static DVector definePXY(
-    int order, double x, double xMin, double xMax)
+    int order, double x, double xmin, double xmax)
 {
     DVector temp(order+1);
-    double newX = (2.*x-xMin-xMax)/(xMax-xMin);
+    double newx = (2.*x-xmin-xmax)/(xmax-xmin);
     temp[0] = 1.;
-    if(order>0) temp[1] = newX;
+    if(order>0) temp[1] = newx;
     for(int i=2;i<=order;++i) {
-        temp[i] = ((2.*i-1.)*newX*temp[i-1] - (i-1.)*temp[i-2])/i;
+        temp[i] = ((2.*i-1.)*newx*temp[i-1] - (i-1.)*temp[i-2])/i;
     }
     return temp;
 }
 
 #ifdef USE_TMV
 static void setPRow(
-    int fitOrder, Position pos, const Bounds& bounds, DVectorView pRow)
+    int fitorder, Position pos, const Bounds& bounds, DVectorView prow)
 #else
 static void setPRow(
-    int fitOrder, Position pos, const Bounds& bounds, DVector& pRow)
+    int fitorder, Position pos, const Bounds& bounds, DVector& prow)
 #endif
 {
-    Assert(int(pRow.size()) == (fitOrder+1)*(fitOrder+2)/2);
+    Assert(int(prow.size()) == (fitorder+1)*(fitorder+2)/2);
     DVector px = 
-        definePXY(fitOrder,pos.getX(),bounds.getXMin(),bounds.getXMax());
+        definePXY(fitorder,pos.getX(),bounds.getXMin(),bounds.getXMax());
     DVector py = 
-        definePXY(fitOrder,pos.getY(),bounds.getYMin(),bounds.getYMax());
+        definePXY(fitorder,pos.getY(),bounds.getYMin(),bounds.getYMax());
     int pq = 0;
-    for(int n=0;n<=fitOrder;++n) {
+    for(int n=0;n<=fitorder;++n) {
         for(int p=n,q=n-p;q<=n;--p,++q) {
-            Assert(pq < int(pRow.size()));
-            pRow(pq) = px[p]*py[q];
+            Assert(pq < int(prow.size()));
+            prow(pq) = px[p]*py[q];
             ++pq;
         }
     }
-    Assert(pq == int(pRow.size()));
+    Assert(pq == int(prow.size()));
 }
 
 FittedPsf::FittedPsf(
-    PsfCatalog& psfCat, const ConfigFile& params, PsfLog& log) :
-    _params(params), _psfOrder(_params.read<int>("psf_order")),
-    _fitOrder(_params.read<int>("fitpsf_order")),
-    _fitSize((_fitOrder+1)*(_fitOrder+2)/2)
+    PsfCatalog& psfcat, const ConfigFile& params, PsfLog& log) :
+    _params(params), _psforder(_params.read<int>("psf_order")),
+    _fitorder(_params.read<int>("fitpsf_order")),
+    _fitsize((_fitorder+1)*(_fitorder+2)/2)
 {
     xdbg<<"FittedPSF constructor\n";
     // Do a polynomial fit of the psf shapelet vectors
 
-    Assert(psfCat.size() > 0);
+    Assert(psfcat.size() > 0);
 
-    // This used to be set to the sigma of psfCat.getPsf(0).
+    // This used to be set to the sigma of psfcat.getPsf(0).
     // This doesn't work if the first object failed. 
     // So now I set it to -1, and then update it when we get to the first
     // object without an error flag (usually n = 0).
     _sigma = -1.;
-    const int nStars = psfCat.size();
-    for(int n=0;n<nStars;++n) if (!psfCat.getFlags(n)) {
-        _sigma = psfCat.getPsf(n).getSigma();
+    const int nstars = psfcat.size();
+    for(int n=0;n<nstars;++n) if (!psfcat.getFlags(n)) {
+        _sigma = psfcat.getPsf(n).getSigma();
         break;
     }
 
-    std::vector<long>& flags = psfCat.getFlagsList();
+    std::vector<long>& flags = psfcat.getFlagsList();
     //split_psf_stars(flags);
 
     calculate(
-        psfCat.getPosList(),
-        psfCat.getPsfList(),
-        psfCat.getNuList(),
+        psfcat.getPosList(),
+        psfcat.getPsfList(),
+        psfcat.getNuList(),
         flags,
         log);
 }
@@ -88,72 +88,72 @@ void FittedPsf::calculate(
     std::vector<long>& flags, 
     PsfLog& log)
 {
-    const int nStars = pos.size();
-    const int psfSize = (_psfOrder+1)*(_psfOrder+2)/2;
-    const double nSigmaClip = _params.read("fitpsf_nsigma_outlier",3);
+    const int nstars = pos.size();
+    const int psfsize = (_psforder+1)*(_psforder+2)/2;
+    const double nsigma_clip = _params.read("fitpsf_nsigma_outlier",3);
 
     // This is an empirical fit to the chisq level that corresponds to 
     // a 3-sigma outlier for more than 1 dimension.
     // I calculated the values up to n=100 and for n>30, they form a pretty
     // good approximation to a straight line.
-    // This is almost certainly wrong for nSigmaClip != 3, so if we start 
-    // choosing other values for nSigmaClip, it might be worth doing this 
+    // This is almost certainly wrong for nsigma_clip != 3, so if we start 
+    // choosing other values for nsigma_clip, it might be worth doing this 
     // right.
     // That means calculating the 1-d critical value for the given nSigma.
     // e.g. nSigma = 3 -> alpha = P(chisq > 9) = 0.0027.
     // Then calculate the critical value of chisq for that alpha with 
-    // the full degrees of freedom = psfSize
-    const double chisqLevel = 0.14*psfSize + 2.13;
+    // the full degrees of freedom = psfsize
+    const double chisq_level = 0.14*psfsize + 2.13;
 
-    const double outlierThresh = nSigmaClip * nSigmaClip * chisqLevel;
-    dbg<<"outlierThresh = "<<outlierThresh<<std::endl;
+    const double outlier_thresh = nsigma_clip * nsigma_clip * chisq_level;
+    dbg<<"outlier_thresh = "<<outlier_thresh<<std::endl;
 
-    int nGoodPsf, nOutliers, dof;
+    int ngood_psf, noutliers, dof;
     double chisq;
     do {
 
         // Calculate the average psf vector
-        _avePsf.reset(new DVector(psfSize));
-        Assert(psfSize == int(_avePsf->size()));
-        _avePsf->setZero();
-        nGoodPsf = 0;
-        for(int n=0;n<nStars;++n) if ( flags[n]==0 ) {
+        _avepsf.reset(new DVector(psfsize));
+        Assert(psfsize == int(_avepsf->size()));
+        _avepsf->setZero();
+        ngood_psf = 0;
+        for(int n=0;n<nstars;++n) if ( flags[n]==0 ) {
             Assert(psf[n].getSigma() == _sigma);
-            *_avePsf += psf[n].vec();
-            ++nGoodPsf;
+            *_avepsf += psf[n].vec();
+            ++ngood_psf;
         }
-        xdbg<<"nGoodPsf = "<<nGoodPsf<<std::endl;
-        if (nGoodPsf == 0) {
+        xdbg<<"ngood_psf = "<<ngood_psf<<std::endl;
+        if (ngood_psf == 0) {
             dbg<<"ngoodpsf = 0 in FittedPsf::calculate\n";
             throw ProcessingException("No good stars found for interpolation.");
         }
-        *_avePsf /= double(nGoodPsf);
-        xdbg<<"_avePsf = "<<*_avePsf<<std::endl;
+        *_avepsf /= double(ngood_psf);
+        xdbg<<"_avepsf = "<<*_avepsf<<std::endl;
 
         // Rotate the vectors into their eigen directions.
         // The matrix V is stored to let us get back to the original basis.
-        DMatrix mM(nGoodPsf,psfSize);
-        DDiagMatrix inverseSigma(nGoodPsf);
+        DMatrix mM(ngood_psf,psfsize);
+        DDiagMatrix inverseSigma(ngood_psf);
         int i=0;
-        for(int n=0;n<nStars;++n) if ( flags[n]==0 ) {
-            Assert(int(psf[n].size()) == psfSize);
-            Assert(i < nGoodPsf);
-            mM.row(i) = psf[n].vec() - *_avePsf;
+        for(int n=0;n<nstars;++n) if ( flags[n]==0 ) {
+            Assert(int(psf[n].size()) == psfsize);
+            Assert(i < ngood_psf);
+            mM.row(i) = psf[n].vec() - *_avepsf;
             inverseSigma(i) = nu[n];
             _bounds += pos[n];
             ++i;
         }
-        Assert(i == nGoodPsf);
+        Assert(i == ngood_psf);
         xdbg<<"bounds = "<<_bounds<<std::endl;
         mM = inverseSigma EIGEN_asDiag() * mM;
 
-        int nPcaTot = std::min(nGoodPsf,psfSize);
-        xdbg<<"nPcaTot = "<<nPcaTot<<std::endl;
-        DDiagMatrix mS(nPcaTot);
+        int npca_tot = std::min(ngood_psf,psfsize);
+        xdbg<<"npca_tot = "<<npca_tot<<std::endl;
+        DDiagMatrix mS(npca_tot);
 #ifdef USE_TMV
-        DMatrixView mU = mM.colRange(0,nPcaTot);
-        _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(nPcaTot,psfSize));
-        if (nGoodPsf > psfSize) {
+        DMatrixView mU = mM.colRange(0,npca_tot);
+        _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(npca_tot,psfsize));
+        if (ngood_psf > psfsize) {
             SV_Decompose(mU.view(),mS.view(),_mV->view(),true);
         } else {
             *_mV = mM;
@@ -163,10 +163,10 @@ void FittedPsf::calculate(
         //xdbg<<"U = "<<mU<<std::endl;
         //xdbg<<"V = "<<*_mV<<std::endl;
 #else
-        DMatrix mU(mM.TMV_colsize(),nPcaTot);
-        _mV_transpose.reset(new DMatrix(psfSize,nPcaTot));
-        if (nGoodPsf > psfSize) {
-            Eigen::SVD<DMatrix> svd = TMV_colRange(mM,0,nPcaTot).svd();
+        DMatrix mU(mM.TMV_colsize(),npca_tot);
+        _mV_transpose.reset(new DMatrix(psfsize,npca_tot));
+        if (ngood_psf > psfsize) {
+            Eigen::SVD<DMatrix> svd = TMV_colRange(mM,0,npca_tot).svd();
             mU = svd.matrixU();
             mS = svd.singularValues();
             *_mV_transpose = svd.matrixV();
@@ -179,56 +179,56 @@ void FittedPsf::calculate(
         xdbg<<"In FittedPSF: SVD S = "<<EIGEN_Transpose(mS)<<std::endl;
 #endif
         if (_params.keyExists("fitpsf_npca")) {
-            _nPca = _params["fitpsf_npca"];
-            dbg<<"npca = "<<_nPca<<" from parameter file\n";
+            _npca = _params["fitpsf_npca"];
+            dbg<<"npca = "<<_npca<<" from parameter file\n";
         } else {
             double thresh = mS(0);
             if (_params.keyExists("fitpsf_pca_thresh")) 
                 thresh *= double(_params["fitpsf_pca_thresh"]);
             else thresh *= std::numeric_limits<double>::epsilon();
             dbg<<"thresh = "<<thresh<<std::endl;
-            for(_nPca=1;_nPca<int(mS.size());++_nPca) {
-                if (mS(_nPca) < thresh) break;
+            for(_npca=1;_npca<int(mS.size());++_npca) {
+                if (mS(_npca) < thresh) break;
             }
-            dbg<<"npca = "<<_nPca<<std::endl;
+            dbg<<"npca = "<<_npca<<std::endl;
         }
 #ifdef USE_TMV
-        mU.colRange(0,_nPca) *= mS.subDiagMatrix(0,_nPca);
+        mU.colRange(0,_npca) *= mS.subDiagMatrix(0,_npca);
 #else
-        TMV_colRange(mU,0,_nPca) *= mS.TMV_subVector(0,_nPca).asDiagonal();
+        TMV_colRange(mU,0,_npca) *= mS.TMV_subVector(0,_npca).asDiagonal();
 #endif
         xdbg<<"After U *= S\n";
         // U S = M(orig) * Vt
 
-        while (nGoodPsf <= _fitSize && _fitSize > 1) {
-            --_fitOrder;
-            _fitSize = (_fitOrder+1)*(_fitOrder+2)/2;
+        while (ngood_psf <= _fitsize && _fitsize > 1) {
+            --_fitorder;
+            _fitsize = (_fitorder+1)*(_fitorder+2)/2;
             dbg<<"Too few good stars... reducing order of fit to "<<
-                _fitOrder<<std::endl;
+                _fitorder<<std::endl;
         }
-        DMatrix mP(nGoodPsf,_fitSize);
+        DMatrix mP(ngood_psf,_fitsize);
         mP.setZero();
         i=0;
-        for(int n=0;n<nStars;++n) if ( flags[n]==0 ) {
-            xdbg<<"n = "<<n<<" / "<<nStars<<std::endl;
+        for(int n=0;n<nstars;++n) if ( flags[n]==0 ) {
+            xdbg<<"n = "<<n<<" / "<<nstars<<std::endl;
 #ifdef USE_TMV
-            setPRow(_fitOrder,pos[n],_bounds,mP.row(i));
+            setPRow(_fitorder,pos[n],_bounds,mP.row(i));
 #else
             DVector mProwi(mP.TMV_rowsize());
-            setPRow(_fitOrder,pos[n],_bounds,mProwi);
+            setPRow(_fitorder,pos[n],_bounds,mProwi);
             mP.row(i) = mProwi.transpose();
 #endif
             ++i;
         }
-        Assert(i == nGoodPsf);
+        Assert(i == ngood_psf);
         mP = inverseSigma EIGEN_asDiag() * mP;
         xdbg<<"after mP = sigma * mP\n";
 
 #ifdef USE_TMV
-        _f.reset(new DMatrix(TMV_colRange(mU,0,_nPca)/mP));
+        _f.reset(new DMatrix(TMV_colRange(mU,0,_npca)/mP));
 #else
-        _f.reset(new DMatrix(_fitSize,_nPca));
-        mP.qr().solve(TMV_colRange(mU,0,_nPca),&(*_f));
+        _f.reset(new DMatrix(_fitsize,_npca));
+        mP.qr().solve(TMV_colRange(mU,0,_npca),&(*_f));
 #endif
         xdbg<<"Done making FittedPSF\n";
 
@@ -239,11 +239,11 @@ void FittedPsf::calculate(
         xdbg<<"Checking for outliers:\n";
 
         // Calculate the covariance matrix
-        DMatrix cov(psfSize,psfSize);
+        DMatrix cov(psfsize,psfsize);
         cov.setZero();
-        for(int n=0;n<nStars;++n) if ( flags[n]==0 ) {
+        for(int n=0;n<nstars;++n) if ( flags[n]==0 ) {
             const BVec& data = psf[n];
-            DVector fit(psfSize);
+            DVector fit(psfsize);
             interpolateVector(pos[n],TMV_vview(fit));
             DVector diff = data.vec() - fit;
 #ifdef USE_TMV
@@ -253,9 +253,9 @@ void FittedPsf::calculate(
 #endif
         }
 
-        chisq = (mP * *_f - TMV_colRange(mU,0,_nPca)).TMV_normSq();
+        chisq = (mP * *_f - TMV_colRange(mU,0,_npca)).TMV_normSq();
         dbg<<"chisq calculation #1 = "<<chisq<<std::endl;
-        dof = nGoodPsf - _fitSize;
+        dof = ngood_psf - _fitsize;
 
         if (dof > 0) { 
             cov /= double(dof);
@@ -272,22 +272,22 @@ void FittedPsf::calculate(
 #endif
 
         // Clip out 3 sigma outliers:
-        nOutliers = 0;
+        noutliers = 0;
         chisq = 0;
-        for(int n=0;n<nStars;++n) if ( flags[n]==0 ) {
+        for(int n=0;n<nstars;++n) if ( flags[n]==0 ) {
             const BVec& data = psf[n];
-            DVector fit(psfSize);
+            DVector fit(psfsize);
             interpolateVector(pos[n],TMV_vview(fit));
             DVector diff = data.vec() - fit;
 #ifdef USE_TMV
             double dev = diff * cov.inverse() * diff;
 #else
-            DVector temp(psfSize);
+            DVector temp(psfsize);
             cov_svd.solve(diff,&temp);
             double dev = (diff.transpose() * temp)(0,0);
 #endif
             chisq += dev;
-            if (dev > outlierThresh) {
+            if (dev > outlier_thresh) {
                 xdbg<<"n = "<<n<<" is an outlier.\n";
                 xdbg<<"data = "<<data.vec()<<std::endl;
                 xdbg<<"fit = "<<fit<<std::endl;
@@ -298,41 +298,41 @@ void FittedPsf::calculate(
                 xdbg<<"diff/cov = "<<temp<<std::endl;
 #endif
                 xdbg<<"dev = "<<dev<<std::endl;
-                ++nOutliers;
+                ++noutliers;
                 flags[n] |= PSF_INTERP_OUTLIER;
             }
         }
-        dbg<<"ngoodpsf = "<<nGoodPsf<<std::endl;
-        dbg<<"nOutliers = "<<nOutliers<<std::endl;
+        dbg<<"ngoodpsf = "<<ngood_psf<<std::endl;
+        dbg<<"noutliers = "<<noutliers<<std::endl;
         dbg<<"chisq calculation #2 = "<<chisq<<std::endl;
 
-    } while (nOutliers > 0);
+    } while (noutliers > 0);
 
-    log._nOutliers = nOutliers;
-    log._nFit = nGoodPsf;
-    log._nPC = _nPca;
-    log._chisqFit = chisq;
-    log._dofFit = dof;
+    log._noutliers = noutliers;
+    log._nfit = ngood_psf;
+    log._npc = _npca;
+    log._chisq_fit = chisq;
+    log._dof_fit = dof;
 
 }
 
 FittedPsf::FittedPsf(const ConfigFile& params) : 
-    _params(params), _psfOrder(_params.read<int>("psf_order")),
-    _fitOrder(_params.read<int>("fitpsf_order")),
-    _fitSize((_fitOrder+1)*(_fitOrder+2)/2)
+    _params(params), _psforder(_params.read<int>("psf_order")),
+    _fitorder(_params.read<int>("fitpsf_order")),
+    _fitsize((_fitorder+1)*(_fitorder+2)/2)
 { }
 
 void FittedPsf::writeAscii(std::string file) const
 {
     std::ofstream fout(file.c_str());
-    fout << _psfOrder <<"  "<< _sigma <<"  ";
-    fout << _fitOrder <<"  "<< _nPca << std::endl;
+    fout << _psforder <<"  "<< _sigma <<"  ";
+    fout << _fitorder <<"  "<< _npca << std::endl;
     fout << _bounds << std::endl;
-    fout << *_avePsf << std::endl;
+    fout << *_avepsf << std::endl;
 #ifdef USE_TMV
-    fout << _mV->rowRange(0,_nPca) <<std::endl;
+    fout << _mV->rowRange(0,_npca) <<std::endl;
 #else
-    fout << TMV_colRange(*_mV_transpose,0,_nPca).transpose() <<std::endl;
+    fout << TMV_colRange(*_mV_transpose,0,_npca).transpose() <<std::endl;
 #endif
     fout << *_f << std::endl;
 }
@@ -345,25 +345,25 @@ void FittedPsf::readAscii(std::string file)
     }
 
     xdbg<<"Reading FittedPSF:\n";
-    fin >> _psfOrder >> _sigma >> _fitOrder >> _nPca >> _bounds;
-    xdbg<<"psforder = "<<_psfOrder<<", sigma_psf = "<<_sigma<<std::endl;
-    xdbg<<"fitorder = "<<_fitOrder<<", npca = "<<_nPca<<std::endl;
+    fin >> _psforder >> _sigma >> _fitorder >> _npca >> _bounds;
+    xdbg<<"psforder = "<<_psforder<<", sigma_psf = "<<_sigma<<std::endl;
+    xdbg<<"fitorder = "<<_fitorder<<", npca = "<<_npca<<std::endl;
     xdbg<<"bounds = "<<_bounds<<std::endl;
-    _fitSize = (_fitOrder+1)*(_fitOrder+2)/2;
-    const int psfSize = (_psfOrder+1)*(_psfOrder+2)/2;
-    _avePsf.reset(new DVector(psfSize));
-    _f.reset(new DMatrix(_fitSize,_nPca));
+    _fitsize = (_fitorder+1)*(_fitorder+2)/2;
+    const int psfsize = (_psforder+1)*(_psforder+2)/2;
+    _avepsf.reset(new DVector(psfsize));
+    _f.reset(new DMatrix(_fitsize,_npca));
 #ifdef USE_TMV
-    fin >> *_avePsf;
-    _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(_nPca,psfSize));
+    fin >> *_avepsf;
+    _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(_npca,psfsize));
     fin >> *_mV;
     fin >> *_f;
 #else
-    for(int i=0;i<_avePsf->size();++i) fin >> (*_avePsf)(i);
-    _mV_transpose.reset(new DMatrix(psfSize,_nPca));
-    for(int i=0;i<_nPca;++i) for(int j=0;j<psfSize;++j)
+    for(int i=0;i<_avepsf->size();++i) fin >> (*_avepsf)(i);
+    _mV_transpose.reset(new DMatrix(psfsize,_npca));
+    for(int i=0;i<_npca;++i) for(int j=0;j<psfsize;++j)
         fin >> (*_mV_transpose)(i,j);
-    for(int i=0;i<_fitSize;++i) for(int j=0;j<_nPca;++j)
+    for(int i=0;i<_fitsize;++i) for(int j=0;j<_npca;++j)
         fin >> (*_f)(i,j);
 #endif
     if (!fin) {
@@ -373,24 +373,24 @@ void FittedPsf::readAscii(std::string file)
 
 void FittedPsf::write() const
 {
-    std::vector<std::string> fileList = makeMultiName(_params, "fitpsf");  
+    std::vector<std::string> file_list = MakeMultiName(_params, "fitpsf");  
 
-    const int nFiles = fileList.size();
-    for(int i=0; i<nFiles; ++i) {
-        const std::string& file = fileList[i];
+    const int nfiles = file_list.size();
+    for(int i=0; i<nfiles; ++i) {
+        const std::string& file = file_list[i];
         dbg<<"Writing fitted psf to file: "<<file<<std::endl;
 
-        bool isFitsIo = false;
+        bool is_fits_io = false;
         if (_params.keyExists("fitpsf_io")) {
             std::vector<std::string> ios = _params["fitpsf_io"];
-            Assert(ios.size() == fileList.size());
-            isFitsIo = (ios[i] == "FITS");
+            Assert(ios.size() == file_list.size());
+            is_fits_io = (ios[i] == "FITS");
         } else if (file.find("fits") != std::string::npos) {
-            isFitsIo = true;
+            is_fits_io = true;
         }
 
         try {
-            if (isFitsIo) {
+            if (is_fits_io) {
                 writeFits(file);
             } else {
                 writeAscii(file);
@@ -414,7 +414,7 @@ void FittedPsf::write() const
 
 void FittedPsf::read()
 {
-    std::string file = makeName(_params,"fitpsf",false,true);
+    std::string file = MakeName(_params,"fitpsf",false,true);
     read(file);
 }
 
@@ -424,17 +424,17 @@ void FittedPsf::read(std::string file)
     // It is an input here, but it is in the output_prefix directory.
     dbg<< "Reading FittedPSF from file: " << file << std::endl;
 
-    bool isFitsIo = false;
+    bool is_fits_io = false;
     if (_params.keyExists("fitpsf_io")) 
-        isFitsIo = (_params["fitpsf_io"] == "FITS");
+        is_fits_io = (_params["fitpsf_io"] == "FITS");
     else if (file.find("fits") != std::string::npos) 
-        isFitsIo = true;
+        is_fits_io = true;
 
-    if (!doesFileExist(file)) {
+    if (!DoesFileExist(file)) {
         throw FileNotFoundException(file);
     }
     try {
-        if (isFitsIo) {
+        if (is_fits_io) {
             readFits(file);
         } else {
             readAscii(file);
@@ -466,68 +466,68 @@ void FittedPsf::writeFits(std::string file) const
 
     // Note the actual coeffs may be less than this the way Mike does things
     // but we will fill the extra with zeros
-    int nShapeletCoeff = (_psfOrder+1)*(_psfOrder+2)/2;
-    int nRotMatrix = _nPca*nShapeletCoeff;
+    int nshapelet_coeff = (_psforder+1)*(_psforder+2)/2;
+    int nrot_matrix = _npca*nshapelet_coeff;
 
-    int nFitCoeff = (_fitOrder+1)*(_fitOrder+2)/2;
-    int nInterpMatrix = _nPca*nFitCoeff;
+    int nfit_coeff = (_fitorder+1)*(_fitorder+2)/2;
+    int ninterp_matrix = _npca*nfit_coeff;
 
     const int nfields=11;
 
-    std::vector<string> colNames(nfields);
-    std::vector<string> colFmts(nfields);
-    std::vector<string> colUnits(nfields);
+    std::vector<string> col_names(nfields);
+    std::vector<string> col_fmts(nfields);
+    std::vector<string> col_units(nfields);
 
-    colNames[0] = _params["fitpsf_psf_order_col"];
-    colNames[1] = _params["fitpsf_sigma_col"];
-    colNames[2] = _params["fitpsf_fit_order_col"];
-    colNames[3] = _params["fitpsf_npca_col"];
+    col_names[0] = _params["fitpsf_psf_order_col"];
+    col_names[1] = _params["fitpsf_sigma_col"];
+    col_names[2] = _params["fitpsf_fit_order_col"];
+    col_names[3] = _params["fitpsf_npca_col"];
 
-    colNames[4] = _params["fitpsf_xmin_col"];
-    colNames[5] = _params["fitpsf_xmax_col"];
-    colNames[6] = _params["fitpsf_ymin_col"];
-    colNames[7] = _params["fitpsf_ymax_col"];
+    col_names[4] = _params["fitpsf_xmin_col"];
+    col_names[5] = _params["fitpsf_xmax_col"];
+    col_names[6] = _params["fitpsf_ymin_col"];
+    col_names[7] = _params["fitpsf_ymax_col"];
 
-    colNames[8] = _params["fitpsf_ave_psf_col"];
-    colNames[9] = _params["fitpsf_rot_matrix_col"];
-    colNames[10] = _params["fitpsf_interp_matrix_col"];
+    col_names[8] = _params["fitpsf_ave_psf_col"];
+    col_names[9] = _params["fitpsf_rot_matrix_col"];
+    col_names[10] = _params["fitpsf_interp_matrix_col"];
 
-    colFmts[0] = "1J"; // psf order
-    colFmts[1] = "1D"; // sigma
-    colFmts[2] = "1J"; // fit order
-    colFmts[3] = "1J"; // npca
-    colFmts[4] = "1E"; // xmin
-    colFmts[5] = "1E"; // xmax
-    colFmts[6] = "1E"; // ymin
-    colFmts[7] = "1E"; // ymax
+    col_fmts[0] = "1J"; // psf order
+    col_fmts[1] = "1D"; // sigma
+    col_fmts[2] = "1J"; // fit order
+    col_fmts[3] = "1J"; // npca
+    col_fmts[4] = "1E"; // xmin
+    col_fmts[5] = "1E"; // xmax
+    col_fmts[6] = "1E"; // ymin
+    col_fmts[7] = "1E"; // ymax
 
     std::stringstream fmt;
-    fmt << nShapeletCoeff << "D";
-    colFmts[8] = fmt.str(); // average psf shapelets
+    fmt << nshapelet_coeff << "D";
+    col_fmts[8] = fmt.str(); // average psf shapelets
     fmt.str("");
-    fmt << nRotMatrix << "D";
-    colFmts[9] = fmt.str(); // rotation matrix
+    fmt << nrot_matrix << "D";
+    col_fmts[9] = fmt.str(); // rotation matrix
     fmt.str("");
-    fmt << nInterpMatrix << "D";
-    colFmts[10] = fmt.str(); // interp matrix
+    fmt << ninterp_matrix << "D";
+    col_fmts[10] = fmt.str(); // interp matrix
 
-    colUnits[0] = "None";     // psf order
-    colUnits[1] = "arcsec";   // sigma
-    colUnits[2] = "None";     // fit order
-    colUnits[3] = "None";     // npca
-    colUnits[4] = "pixels";   // xmin
-    colUnits[5] = "pixels";   // xmax
-    colUnits[6] = "pixels";   // ymin
-    colUnits[7] = "pixels";   // ymax
-    colUnits[8] = "None";     // avg psf shapelets
-    colUnits[9] = "None";     // rot_matrix
-    colUnits[10] = "None";    // interp_matrix
+    col_units[0] = "None";     // psf order
+    col_units[1] = "arcsec";   // sigma
+    col_units[2] = "None";     // fit order
+    col_units[3] = "None";     // npca
+    col_units[4] = "pixels";   // xmin
+    col_units[5] = "pixels";   // xmax
+    col_units[6] = "pixels";   // ymin
+    col_units[7] = "pixels";   // ymax
+    col_units[8] = "None";     // avg psf shapelets
+    col_units[9] = "None";     // rot_matrix
+    col_units[10] = "None";    // interp_matrix
 
 
-    int nRows=1;
+    int nrows=1;
     dbg<<"Before Create table"<<std::endl;
     CCfits::Table* table;
-    table = fits.addTable("fitpsf",nRows,colNames,colFmts,colUnits);
+    table = fits.addTable("fitpsf",nrows,col_names,col_fmts,col_units);
     dbg<<"After Create table"<<std::endl;
 
 
@@ -536,8 +536,8 @@ void FittedPsf::writeFits(std::string file) const
     // dimensions information
     dbg<<"Adding dimensional info"<<std::endl;
     std::stringstream tdim10, tdim11;
-    tdim10<<"("<<_nPca<<","<<nShapeletCoeff<<")";
-    tdim11<<"("<<nFitCoeff<<","<<_nPca<<")";
+    tdim10<<"("<<_npca<<","<<nshapelet_coeff<<")";
+    tdim11<<"("<<nfit_coeff<<","<<_npca<<")";
 
     table->addKey("TDIM10",tdim10.str(),"dimensions of rot_matrix");
     table->addKey("TDIM11",tdim11.str(),"dimensions of interp_matrix");
@@ -548,7 +548,7 @@ void FittedPsf::writeFits(std::string file) const
 #else
     std::string tmvVersion = "Eigen";
 #endif
-    std::string wlVersion = getWlVersion();
+    std::string wlVersion = GetWlVersion();
 
     table->addKey("tmvvers", tmvVersion, "version of TMV code");
     table->addKey("wlvers", wlVersion, "version of weak lensing code");
@@ -562,59 +562,59 @@ void FittedPsf::writeFits(std::string file) const
     // if wlserun= is sent we'll put it in the header.  This allows us to 
     // associate some more, possibly complicated, metadata with this file
     if ( _params.keyExists("wlserun") ) {
-        writeParamToTable(_params, table, "wlserun", str);
+        WriteParamToTable(_params, table, "wlserun", str);
     }
 
-    writeParamToTable(_params, table, "noise_method", str);
-    writeParamToTable(_params, table, "dist_method", str);
+    WriteParamToTable(_params, table, "noise_method", str);
+    WriteParamToTable(_params, table, "dist_method", str);
 
-    writeParamToTable(_params, table, "fitpsf_order", intgr);
-    writeParamToTable(_params, table, "fitpsf_pca_thresh", dbl);
+    WriteParamToTable(_params, table, "fitpsf_order", intgr);
+    WriteParamToTable(_params, table, "fitpsf_pca_thresh", dbl);
     dbg<<"After Write Par Keys"<<std::endl;
 
 
     // write the data
-    int startRow=1;
+    int start_row=1;
 
     // CCfits write() doesn't allow constant scalar arguments, so we have copy
     // out.  Might as well be vectors to simplify the signature
 
-    std::vector<int> psfOrderV(1,_psfOrder);
-    std::vector<double> sigmaV(1,_sigma);
-    std::vector<int> fitOrderV(1,_fitOrder);
-    std::vector<int> nPcaV(1,_nPca); 
-    std::vector<double> xMin(1,_bounds.getXMin());
-    std::vector<double> xMax(1,_bounds.getXMax());
-    std::vector<double> yMin(1,_bounds.getYMin());
-    std::vector<double> yMax(1,_bounds.getYMax());
+    std::vector<int> psforder_vec(1,_psforder);
+    std::vector<double> sigma_vec(1,_sigma);
+    std::vector<int> fitorder_vec(1,_fitorder);
+    std::vector<int> npca_vec(1,_npca); 
+    std::vector<double> xmin(1,_bounds.getXMin());
+    std::vector<double> xmax(1,_bounds.getXMax());
+    std::vector<double> ymin(1,_bounds.getYMin());
+    std::vector<double> ymax(1,_bounds.getYMax());
 
-    table->column(colNames[0]).write(psfOrderV, startRow);
-    table->column(colNames[1]).write(sigmaV, startRow);
-    table->column(colNames[2]).write(fitOrderV, startRow);
-    table->column(colNames[3]).write(nPcaV, startRow);
-    table->column(colNames[4]).write(xMin, startRow);
-    table->column(colNames[5]).write(xMax, startRow);
-    table->column(colNames[6]).write(yMin, startRow);
-    table->column(colNames[7]).write(yMax, startRow);
+    table->column(col_names[0]).write(psforder_vec, start_row);
+    table->column(col_names[1]).write(sigma_vec, start_row);
+    table->column(col_names[2]).write(fitorder_vec, start_row);
+    table->column(col_names[3]).write(npca_vec, start_row);
+    table->column(col_names[4]).write(xmin, start_row);
+    table->column(col_names[5]).write(xmax, start_row);
+    table->column(col_names[6]).write(ymin, start_row);
+    table->column(col_names[7]).write(ymax, start_row);
 
     double* ptr;
 
-    ptr = TMV_ptr(*_avePsf);
-    table->column(colNames[8]).write(ptr, nShapeletCoeff, nRows, startRow);
+    ptr = TMV_ptr(*_avepsf);
+    table->column(col_names[8]).write(ptr, nshapelet_coeff, nrows, start_row);
 #ifdef USE_TMV
     ptr = _mV->ptr();
 #else
     ptr = TMV_ptr(*_mV_transpose);
 #endif
-    table->column(colNames[9]).write(ptr, nRotMatrix, nRows, startRow);
+    table->column(col_names[9]).write(ptr, nrot_matrix, nrows, start_row);
     ptr = TMV_ptr(*_f);
-    table->column(colNames[10]).write(ptr, nInterpMatrix, nRows, startRow);
+    table->column(col_names[10]).write(ptr, ninterp_matrix, nrows, start_row);
 }
 
 void FittedPsf::readFits(std::string file)
 {
     // must do this way because of the const thing
-    int hdu = getHdu(_params,"fitpsf",file,2);
+    int hdu = GetHdu(_params,"fitpsf",file,2);
 
     dbg<<"Opening FittedPsf file "<<file<<" at hdu "<<hdu<<std::endl;
     CCfits::FITS fits(file, CCfits::Read);
@@ -622,61 +622,61 @@ void FittedPsf::readFits(std::string file)
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 
-    std::string psfOrderCol=_params.get("fitpsf_psf_order_col");
-    std::string sigmaCol=_params.get("fitpsf_sigma_col");
-    std::string fitOrderCol=_params.get("fitpsf_fit_order_col");
-    std::string nPcaCol=_params.get("fitpsf_npca_col");
+    std::string psforder_col=_params.get("fitpsf_psf_order_col");
+    std::string sigma_col=_params.get("fitpsf_sigma_col");
+    std::string fitorder_col=_params.get("fitpsf_fit_order_col");
+    std::string npca_col=_params.get("fitpsf_npca_col");
 
-    std::string xMinCol=_params.get("fitpsf_xmin_col");
-    std::string xMaxCol=_params.get("fitpsf_xmax_col");
-    std::string yMinCol=_params.get("fitpsf_ymin_col");
-    std::string yMaxCol=_params.get("fitpsf_ymax_col");
+    std::string xmin_col=_params.get("fitpsf_xmin_col");
+    std::string xmax_col=_params.get("fitpsf_xmax_col");
+    std::string ymin_col=_params.get("fitpsf_ymin_col");
+    std::string ymax_col=_params.get("fitpsf_ymax_col");
 
-    std::string avePsfCol=_params.get("fitpsf_ave_psf_col");
-    std::string rotMatrixCol=_params.get("fitpsf_rot_matrix_col");
-    std::string interpMatrixCol=_params.get("fitpsf_interp_matrix_col");
+    std::string avepsf_col=_params.get("fitpsf_ave_psf_col");
+    std::string rot_matrix_col=_params.get("fitpsf_rot_matrix_col");
+    std::string interp_matrix_col=_params.get("fitpsf_interp_matrix_col");
 
     long start=1;
     long end=1;
 
-    std::vector<int> psfOrderV;
-    table.column(psfOrderCol).read(psfOrderV, start, end);
-    _psfOrder=psfOrderV[0];
-    xdbg<<"psforder = "<<_psfOrder<<std::endl;
+    std::vector<int> psforder_vec;
+    table.column(psforder_col).read(psforder_vec, start, end);
+    _psforder=psforder_vec[0];
+    xdbg<<"psforder = "<<_psforder<<std::endl;
 
-    std::vector<double> sigmaV;
-    table.column(sigmaCol).read(sigmaV, start, end);
-    _sigma=sigmaV[0];
+    std::vector<double> sigma_vec;
+    table.column(sigma_col).read(sigma_vec, start, end);
+    _sigma=sigma_vec[0];
     xdbg<<"sigma = "<<_sigma<<std::endl;
 
-    std::vector<int> _fitOrderV;
-    table.column(fitOrderCol).read(_fitOrderV, start, end);
-    _fitOrder=_fitOrderV[0];
-    xdbg<<"fitorder = "<<_fitOrder<<std::endl;
+    std::vector<int> _fitorder_vec;
+    table.column(fitorder_col).read(_fitorder_vec, start, end);
+    _fitorder=_fitorder_vec[0];
+    xdbg<<"fitorder = "<<_fitorder<<std::endl;
 
-    std::vector<int> nPcaV;
-    table.column(nPcaCol).read(nPcaV, start, end);
-    _nPca=nPcaV[0];
-    xdbg<<"npca = "<<_nPca<<std::endl;
+    std::vector<int> npca_vec;
+    table.column(npca_col).read(npca_vec, start, end);
+    _npca=npca_vec[0];
+    xdbg<<"npca = "<<_npca<<std::endl;
 
-    std::vector<double> xMin;
-    std::vector<double> xMax;
-    std::vector<double> yMin;
-    std::vector<double> yMax;
+    std::vector<double> xmin;
+    std::vector<double> xmax;
+    std::vector<double> ymin;
+    std::vector<double> ymax;
 
-    table.column(xMinCol).read(xMin, start, end);
-    xdbg<<"xmin = "<<xMin[0]<<std::endl;
-    table.column(xMaxCol).read(xMax, start, end);
-    xdbg<<"xmax = "<<xMax[0]<<std::endl;
-    table.column(yMinCol).read(yMin, start, end);
-    xdbg<<"ymin = "<<yMin[0]<<std::endl;
-    table.column(yMaxCol).read(yMax, start, end);
-    xdbg<<"ymax = "<<yMax[0]<<std::endl;
+    table.column(xmin_col).read(xmin, start, end);
+    xdbg<<"xmin = "<<xmin[0]<<std::endl;
+    table.column(xmax_col).read(xmax, start, end);
+    xdbg<<"xmax = "<<xmax[0]<<std::endl;
+    table.column(ymin_col).read(ymin, start, end);
+    xdbg<<"ymin = "<<ymin[0]<<std::endl;
+    table.column(ymax_col).read(ymax, start, end);
+    xdbg<<"ymax = "<<ymax[0]<<std::endl;
 
-    _bounds.setXMin(xMin[0]);
-    _bounds.setXMax(xMax[0]);
-    _bounds.setYMin(yMin[0]);
-    _bounds.setYMax(yMax[0]);
+    _bounds.setXMin(xmin[0]);
+    _bounds.setXMax(xmax[0]);
+    _bounds.setYMin(ymin[0]);
+    _bounds.setYMax(ymax[0]);
     xdbg<<"bounds = "<<_bounds<<std::endl;
 
 
@@ -685,48 +685,46 @@ void FittedPsf::readFits(std::string file)
     double* dptr=NULL;
     std::valarray<double> dVec;
 
-    const int psfSize = (_psfOrder+1)*(_psfOrder+2)/2;
-    _avePsf.reset(new DVector(psfSize));
+    const int psfsize = (_psforder+1)*(_psforder+2)/2;
+    _avepsf.reset(new DVector(psfsize));
 
     dVec.resize(0);
-    table.column(avePsfCol).read(dVec, 1);
-    dptr=TMV_ptr(*_avePsf);
+    table.column(avepsf_col).read(dVec, 1);
+    dptr=TMV_ptr(*_avepsf);
     int dSize = dVec.size();
-    Assert(dSize == psfSize);
+    Assert(dSize == psfsize);
     for (int j=0; j<dSize; ++j) {
         dptr[j] = dVec[j];
     }
 
     dVec.resize(0);
-    table.column(rotMatrixCol).read(dVec, 1);
+    table.column(rot_matrix_col).read(dVec, 1);
 #ifdef USE_TMV
-    _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(_nPca,_avePsf->size()));
-    Assert(int(_mV->linearView().size()) == _nPca*psfSize);
+    _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(_npca,_avepsf->size()));
+    Assert(int(_mV->linearView().size()) == _npca*psfsize);
     dptr=TMV_ptr(*_mV);
 #else
-    _mV_transpose.reset(new DMatrix(_avePsf->size(),_nPca));
+    _mV_transpose.reset(new DMatrix(_avepsf->size(),_npca));
     dptr=TMV_ptr(*_mV_transpose);
 #endif
     dSize = dVec.size();
-    Assert(dSize == _nPca*psfSize);
+    Assert(dSize == _npca*psfsize);
     for (int j=0; j<dSize; ++j) {
         dptr[j] = dVec[j];
     }
 
-
-
-    _fitSize = (_fitOrder+1)*(_fitOrder+2)/2;
-    xdbg<<"fitsize = "<<_fitSize<<std::endl;
-    _f.reset(new DMatrix(_fitSize,_nPca));
+    _fitsize = (_fitorder+1)*(_fitorder+2)/2;
+    xdbg<<"fitsize = "<<_fitsize<<std::endl;
+    _f.reset(new DMatrix(_fitsize,_npca));
 #ifdef USE_TMV
-    Assert(int(_f->linearView().size()) == _nPca*_fitSize);
+    Assert(int(_f->linearView().size()) == _npca*_fitsize);
 #endif
 
     dVec.resize(0);
-    table.column(interpMatrixCol).read(dVec, 1);
+    table.column(interp_matrix_col).read(dVec, 1);
     dptr=TMV_ptr(*_f);
     dSize = dVec.size();
-    Assert(dSize == _nPca*_fitSize);
+    Assert(dSize == _npca*_fitsize);
     for (int j=0; j<dSize; ++j) {
         dptr[j] = dVec[j];
     }
@@ -734,36 +732,36 @@ void FittedPsf::readFits(std::string file)
 
 double FittedPsf::interpolateSingleElement(Position pos, int i) const
 {
-    DVector P(_fitSize);
+    DVector P(_fitsize);
 #ifdef USE_TMV
-    setPRow(_fitOrder,pos,_bounds,P.view());
+    setPRow(_fitorder,pos,_bounds,P.view());
     DVector b1 = P * (*_f);
-    double bi = b1 * _mV->col(i,0,_nPca);
+    double bi = b1 * _mV->col(i,0,_npca);
 #else
-    setPRow(_fitOrder,pos,_bounds,P);
+    setPRow(_fitorder,pos,_bounds,P);
     DVector b1 = _f->transpose() * P;
     double bi = EIGEN_ToScalar(
-        EIGEN_Transpose(b1) * _mV_transpose->TMV_rowpart(i,0,_nPca));
+        EIGEN_Transpose(b1) * _mV_transpose->TMV_rowpart(i,0,_npca));
 #endif
-    bi += (*_avePsf)(i);
+    bi += (*_avepsf)(i);
     return bi;
 }
 
 void FittedPsf::interpolateVector(Position pos, DVectorView b) const
 {
-    DVector P(_fitSize);
+    DVector P(_fitsize);
 #ifdef USE_TMV
-    setPRow(_fitOrder,pos,_bounds,P.view());
+    setPRow(_fitorder,pos,_bounds,P.view());
     DVector b1 = P * (*_f);
-    b = b1 * _mV->rowRange(0,_nPca);
+    b = b1 * _mV->rowRange(0,_npca);
 #else
-    setPRow(_fitOrder,pos,_bounds,P);
+    setPRow(_fitorder,pos,_bounds,P);
     DVector b1 = _f->transpose() * P;
-    b = TMV_colRange(*_mV_transpose,0,_nPca) * b1;
+    b = TMV_colRange(*_mV_transpose,0,_npca) * b1;
 #endif
-    b += *_avePsf;
+    b += *_avepsf;
 }
 
 BVec FittedPsf::getMean() const
-{ return BVec(_psfOrder,_sigma,*_avePsf); }
+{ return BVec(_psforder,_sigma,*_avepsf); }
 

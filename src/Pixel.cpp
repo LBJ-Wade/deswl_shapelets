@@ -3,10 +3,10 @@
 #include "Pixel.h"
 #include "Params.h"
 
-void getPixList(
+void GetPixList(
     const Image<double>& im, PixelList& pix,
     const Position cen, double sky, double noise,
-    const Image<double>* weightImage, const Transformation& trans,
+    const Image<double>* weight_image, const Transformation& trans,
     double aperture, const ConfigFile& params, long& flag)
 {
     double gain = params.read("image_gain",0.);
@@ -15,7 +15,7 @@ void getPixList(
     bool ignore_edges = params.read("ignore_edges",false);
 
     xdbg<<"Start GetPixList\n";
-    if (weightImage) {
+    if (weight_image) {
         xdbg<<"Using weight image for pixel noise.\n";
     } else {
         xdbg<<"noise = "<<noise<<std::endl;
@@ -92,7 +92,7 @@ void getPixList(
     xdbg<<"ny = "<<j2-j1+1<<std::endl;
     Assert(i2-i1+1 >= 0);
     Assert(j2-j1+1 >= 0);
-    std::vector<std::vector<bool> > shouldUsePix(
+    std::vector<std::vector<bool> > use(
         i2-i1+1,std::vector<bool>(j2-j1+1,false));
     int nPix = 0;
 
@@ -105,7 +105,7 @@ void getPixList(
         for(int j=j1;j<=j2;++j,u+=D(0,1),v+=D(1,1)) {
             double rsq = u*u+v*v;
             if (rsq <= apsq) {
-                shouldUsePix[i-i1][j-j1] = true;
+                use[i-i1][j-j1] = true;
                 ++nPix;
                 if (im(i,j) > peak) peak = im(i,j);
             }
@@ -127,11 +127,11 @@ void getPixList(
         double u = D(0,0)*chipX+D(0,1)*chipY;
         double v = D(1,0)*chipX+D(1,1)*chipY;
         for(int j=j1;j<=j2;++j,u+=D(0,1),v+=D(1,1)) {
-            if (shouldUsePix[i-i1][j-j1]) {
+            if (use[i-i1][j-j1]) {
                 double flux = im(i,j)-sky;
                 double inverseVariance;
-                if (weightImage) {
-                    inverseVariance = (*weightImage)(i,j);
+                if (weight_image) {
+                    inverseVariance = (*weight_image)(i,j);
                 } else {
                     double var = noise;
                     if (gain != 0.) var += im(i,j)/gain;
@@ -158,7 +158,7 @@ void getPixList(
     if (nPix < 10) flag |= LT10PIX;
 }
 
-double getLocalSky(
+double GetLocalSky(
     const Image<double>& bkg, 
     const Position cen, const Transformation& trans, double aperture,
     const ConfigFile& params, long& flag)
@@ -166,7 +166,7 @@ double getLocalSky(
     double xOffset = params.read("cat_x_offset",0.);
     double yOffset = params.read("cat_y_offset",0.);
 
-    // This function is very similar in structure to the above getPixList
+    // This function is very similar in structure to the above GetPixList
     // function.  It does the same thing with the distortion and the 
     // aperture and such.  
     // The return value is the mean sky value within the aperture.
@@ -243,15 +243,15 @@ double getLocalSky(
     return meanSky;
 }
 
-void getSubPixList(
+void GetSubPixList(
     PixelList& pix, const PixelList& allPix,
     std::complex<double> cen_offset, std::complex<double> shear,
     double aperture, long& flag)
 {
     // Select a subset of allPix that are within the given aperture
-    const int nTot = allPix.size();
+    const int ntot = allPix.size();
     xdbg<<"Start GetSubPixList\n";
-    xdbg<<"allPix has "<<nTot<<" objects\n";
+    xdbg<<"allPix has "<<ntot<<" objects\n";
     xdbg<<"new aperture = "<<aperture<<std::endl;
     xdbg<<"cen_offset = "<<cen_offset<<std::endl;
     xdbg<<"shear = "<<shear<<std::endl;
@@ -266,11 +266,11 @@ void getSubPixList(
     // we will need, and go back through and enter the pixels.
     // This saves us a lot of resizing calls in vector, which are
     // both slow and can fragment the memory.
-    std::vector<bool> shouldUsePix(nTot,false);
+    std::vector<bool> use(ntot,false);
     int nPix = 0;
 
     double peak = 0.;
-    for(int i=0;i<nTot;++i) {
+    for(int i=0;i<ntot;++i) {
         std::complex<double> z = allPix[i].getPos() - cen_offset;
         double u = real(z);
         double v = imag(z);
@@ -282,7 +282,7 @@ void getSubPixList(
         rsq /= (1.-normg);
         if (rsq <= apsq) {
             //xdbg<<"u,v = "<<u<<','<<v<<"  rsq = "<<rsq<<std::endl;
-            shouldUsePix[i] = true;
+            use[i] = true;
             ++nPix;
             if (allPix[i].getFlux() > peak) peak = allPix[i].getFlux();
         }
@@ -296,7 +296,7 @@ void getSubPixList(
 
     int k=0;
     xdbg<<"Bright pixels are:\n";
-    for(int i=0;i<nTot;++i) if(shouldUsePix[i]) {
+    for(int i=0;i<ntot;++i) if(use[i]) {
         Pixel p = allPix[i];
         p.setPos(p.getPos() - cen_offset);
         pix[k++] = p;

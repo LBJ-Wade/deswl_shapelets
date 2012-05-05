@@ -24,59 +24,59 @@ int main(int argc, char **argv)
         exit(45);
     }
 
-    std::string configFile=argv[1];
-    std::string psfFile=argv[2];
-    std::string fitPsfFile=argv[3];
+    std::string config_file=argv[1];
+    std::string psf_file=argv[2];
+    std::string fitpsf_file=argv[3];
 
     std::cerr<<"\n";
-    std::cerr<<"config_file: "<<configFile<<"\n";
-    std::cerr<<"psf_file: "<<psfFile<<"\n";
-    std::cerr<<"fitpsf_file: "<<fitPsfFile<<"\n";
+    std::cerr<<"config_file: "<<config_file<<"\n";
+    std::cerr<<"psf_file: "<<psf_file<<"\n";
+    std::cerr<<"fitpsf_file: "<<fitpsf_file<<"\n";
 
     std::cerr<<"Loading config...\n";
-    ConfigFile params(configFile);
+    ConfigFile params(config_file);
     std::string fp((const char*)fitsparams_config,fitsparams_config_len);
     std::istringstream is(fp);
     params.read(is);
 
 
     std::cerr<<"Loading a PSFCatalog\n";
-    PsfCatalog psfCat(params);
-    psfCat.read(psfFile);
+    PsfCatalog psfcat(params);
+    psfcat.read(psf_file);
 
     std::cerr<<"Loading a FittedPSF\n";
-    FittedPsf fitPsf(params);
-    fitPsf.read(fitPsfFile);
+    FittedPsf fitpsf(params);
+    fitpsf.read(fitpsf_file);
 
-    BVec iPsf(fitPsf.getPsfOrder(), fitPsf.getSigma());
+    BVec ipsf(fitpsf.getPsfOrder(), fitpsf.getSigma());
 
     // Test the reconstructions
-    std::cout<<"NROWS = "<<psfCat.size()<<"\n";
+    std::cout<<"NROWS = "<<psfcat.size()<<"\n";
     std::cout<<"{'_DELIM': ' ',\n";
     std::cout<<" '_DTYPE': [('id','i4'),\n";
     std::cout<<"            ('psf_flags','i4'),\n";
     std::cout<<"            ('x','f4'),('y','f4'),\n";
     std::cout<<"            ('e1','f4'),('e2','f4'),\n";
     std::cout<<"            ('e1interp','f4'),('e2interp','f4')],\n";
-    std::cout<<" 'config_file': '"<<configFile<<"',\n";
-    std::cout<<" 'psf_file': '"<<psfFile<<"',\n";
-    std::cout<<" 'fitpsf_file': '"<<fitPsfFile<<"'}\n";
+    std::cout<<" 'config_file': '"<<config_file<<"',\n";
+    std::cout<<" 'psf_file': '"<<psf_file<<"',\n";
+    std::cout<<" 'fitpsf_file': '"<<fitpsf_file<<"'}\n";
     std::cout<<"END\n";
     std::cout<<"\n";
-    const int nStars = psfCat.size();
-    for (int i=0; i<nStars; ++i) {
+    const int nstars = psfcat.size();
+    for (int i=0; i<nstars; ++i) {
 
-        double e1 = sqrt(2.)*psfCat.getPsf(i)(3);
-        double e2 = sqrt(2.)*psfCat.getPsf(i)(4);
+        double e1 = sqrt(2.)*psfcat.getPsf(i)(3);
+        double e2 = sqrt(2.)*psfcat.getPsf(i)(4);
 
-        fitPsf.interpolate(psfCat.getPos(i), iPsf);
+        fitpsf.interpolate(psfcat.getPos(i), ipsf);
 
-        double ie1 = sqrt(2.)*iPsf(3);
-        double ie2 = sqrt(2.)*iPsf(4);
-        std::cout<<psfCat.getId(i)
-            <<" "<<psfCat.getFlags(i)
-            <<" "<<psfCat.getPos(i).getX()
-            <<" "<<psfCat.getPos(i).getY()
+        double ie1 = sqrt(2.)*ipsf(3);
+        double ie2 = sqrt(2.)*ipsf(4);
+        std::cout<<psfcat.getId(i)
+            <<" "<<psfcat.getFlags(i)
+            <<" "<<psfcat.getPos(i).getX()
+            <<" "<<psfcat.getPos(i).getY()
             <<" "<<e1
             <<" "<<e2
             <<" "<<ie1

@@ -16,27 +16,27 @@ public :
 
     Ellipse() :
         _cen(0.), _gamma(0.), _mu(0.),
-        _isFixedCen(false), _isFixedGamma(false), _isFixedMu(false), 
-        _shouldDoTimings(false) {}
+        _fixcen(false), _fixgamma(false), _fixmu(false), 
+        _dotimings(false) {}
 
     Ellipse(std::complex<double> cen, std::complex<double> gamma,
             std::complex<double> mu) :
         _cen(cen), _gamma(gamma), _mu(mu), 
-        _isFixedCen(false), _isFixedGamma(false), _isFixedMu(false), 
-        _shouldDoTimings(false) {}
+        _fixcen(false), _fixgamma(false), _fixmu(false), 
+        _dotimings(false) {}
 
     Ellipse(double vals[]) :
         _cen(vals[0],vals[1]), _gamma(vals[2],vals[3]), _mu(vals[4]),
-        _isFixedCen(false), _isFixedGamma(false), _isFixedMu(false),
-        _shouldDoTimings(false) {}
+        _fixcen(false), _fixgamma(false), _fixmu(false),
+        _dotimings(false) {}
 
     // Copy constructor and op= do not copy fixed-ness.  
     // They only copy the tranformation itself.
     Ellipse(const Ellipse& e2) :
         _cen(e2.getCen()), _gamma(e2.getGamma()),
         _mu(e2.getMu(),e2.getTheta()),
-        _isFixedCen(false), _isFixedGamma(false), _isFixedMu(false),
-        _shouldDoTimings(false) {}
+        _fixcen(false), _fixgamma(false), _fixmu(false),
+        _dotimings(false) {}
 
     Ellipse& operator=(const Ellipse& e2)
     { 
@@ -49,11 +49,11 @@ public :
     // Find the ellipse transformation in which the galaxy is observed
     // to be "round", where round means:
     // b10 = 0, so galaxy is centroided, 
-    //          iff _isFixedCen == false
+    //          iff _fixcen == false
     // b11 = 0, so shapelet is using optimal sigma, 
-    //          iff _isFixedMu == false, and not deconvolving by psf.
+    //          iff _fixmu == false, and not deconvolving by psf.
     // b20 = 0, so galaxy is round, 
-    //          iff _isFixedGamma == false
+    //          iff _fixgamma == false
     // The first one below is for the galaxy as observed, and the 
     // second is for the galaxy before being convolved by the psf.
     bool measure(
@@ -148,19 +148,19 @@ public :
     void setMu(double mu) { _mu = std::complex<double>(mu,getTheta()); }
     void setTheta(double theta) { _mu = std::complex<double>(getMu(),theta); }
 
-    void fixCen() { _isFixedCen = true; }
-    void fixGam() { _isFixedGamma = true; }
-    void fixMu() { _isFixedMu = true; }
+    void fixCen() { _fixcen = true; }
+    void fixGam() { _fixgamma = true; }
+    void fixMu() { _fixmu = true; }
 
-    void unfixCen() { _isFixedCen = false; }
-    void unfixGam() { _isFixedGamma = false; }
-    void unfixMu() { _isFixedMu = false; }
+    void unfixCen() { _fixcen = false; }
+    void unfixGam() { _fixgamma = false; }
+    void unfixMu() { _fixmu = false; }
 
-    bool isFixedCen() const { return _isFixedCen; }
-    bool isFixedGamma() const { return _isFixedGamma; }
-    bool isFixedMu() const { return _isFixedMu; }
+    bool isFixedCen() const { return _fixcen; }
+    bool isFixedGamma() const { return _fixgamma; }
+    bool isFixedMu() const { return _fixmu; }
 
-    void doTimings() { _shouldDoTimings = true; }
+    void doTimings() { _dotimings = true; }
 
     void write(std::ostream& os) const
     { os << _cen<<" "<<_gamma<<" "<<_mu; }
@@ -187,9 +187,9 @@ private :
     std::complex<double> _gamma;
     std::complex<double> _mu; 
 
-    bool _isFixedCen,_isFixedGamma,_isFixedMu;
+    bool _fixcen,_fixgamma,_fixmu;
 
-    bool _shouldDoTimings;
+    bool _dotimings;
 
 };
 
@@ -199,7 +199,7 @@ inline std::ostream& operator<<(std::ostream& os, const Ellipse& s)
 // The Miralda-Escude formula for adding two shears.
 // We transform to distortion first, then use his formula, then 
 // transform back to shear.
-std::complex<double> addShears(
+std::complex<double> AddShears(
     const std::complex<double> g1, const std::complex<double> g2);
 
 // Find the net Ellipse parameters from doing (c1,g1,m1) first,

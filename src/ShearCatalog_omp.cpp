@@ -22,16 +22,16 @@
 static bool GetPixPsf(
     const Image<double>& im, PixelList& pix,
     const Position pos, double sky, double noise, 
-    const Image<double>* weightIm, const Transformation& trans,
+    const Image<double>* weight_image, const Transformation& trans,
     const ConfigFile& params, long& flags,
-    const FittedPsf& fitPsf, BVec& psf, ShearLog& log)
+    const FittedPsf& fitpsf, BVec& psf, ShearLog& log)
 {
-    double maxAperture = params.read<double>("shear_max_aperture");
+    double max_aperture = params.read<double>("shear_max_aperture");
     // Get the main PixelList for this galaxy:
     try {
-        getPixList(
-            im,pix,pos,sky,noise,weightIm,
-            trans,maxAperture,params,flags);
+        GetPixList(
+            im,pix,pos,sky,noise,weight_image,
+            trans,max_aperture,params,flags);
         int npix = pix.size();
         dbg<<"npix = "<<npix<<std::endl;
         if (npix < 10) {
@@ -43,7 +43,7 @@ static bool GetPixPsf(
     } catch (RangeException& e) {
         dbg<<"distortion range error: \n";
         xdbg<<"p = "<<pos<<", b = "<<e.getBounds()<<std::endl;
-        ++log._nfRange1;
+        ++log._nf_range1;
         dbg<<"FLAG TRANSFORM_EXCEPTION\n";
         flags |= TRANSFORM_EXCEPTION;
         return false;
@@ -51,11 +51,11 @@ static bool GetPixPsf(
 
     // Get the interpolated psf for this galaxy:
     try {
-        psf = fitPsf(pos);
+        psf = fitpsf(pos);
     } catch (RangeException& e) {
         dbg<<"fittedpsf range error: \n";
         xdbg<<"p = "<<pos<<", b = "<<e.getBounds()<<std::endl;
-        ++log._nfRange2;
+        ++log._nf_range2;
         dbg<<"FLAG FITTEDPSF_EXCEPTION\n";
         flags |= FITTEDPSF_EXCEPTION;
         return false;
@@ -65,7 +65,7 @@ static bool GetPixPsf(
  
 int ShearCatalog::measureShears(
     const Image<double>& im,
-    const Image<double>* weightIm, ShearLog& log)
+    const Image<double>* weight_image, ShearLog& log)
 {
     static bool first = true;
 #ifdef _OPENMP
@@ -94,33 +94,33 @@ int ShearCatalog::measureShears(
         }
     }
 
-    int nGals = size();
-    dbg<<"ngals = "<<nGals<<std::endl;
+    int ngals = size();
+    dbg<<"ngals = "<<ngals<<std::endl;
 
     // Read some needed parameters
-    bool shouldOutputDots = _params.read("output_dots",false);
-    bool shouldOutputDesQa = _params.read("des_qa",false); 
+    bool output_dots = _params.read("output_dots",false);
+    bool des_qa = _params.read("des_qa",false); 
 
     // This need to have been set.
     Assert(_trans);
-    Assert(_fitPsf);
+    Assert(_fitpsf);
 
 #ifdef ENDAT
-    for(int i=ENDAT; i<nGals; ++i) _flags[i] |= INPUT_FLAG;
-    nGals = ENDAT;
+    for(int i=ENDAT; i<ngals; ++i) _flags[i] |= INPUT_FLAG;
+    ngals = ENDAT;
 #endif
 
-    log._nGals = nGals;
+    log._ngals = ngals;
 #ifdef STARTAT
     for(int i=0; i<STARTAT; ++i) _flags[i] |= INPUT_FLAG;
-    log._nGals -= STARTAT;
+    log._ngals -= STARTAT;
 #endif
 #ifdef SINGLEGAL
-    for(int i=0; i<nGals; ++i) if (i != SINGLEGAL)  _flags[i] |= INPUT_FLAG;
-    log._nGals = 1;
+    for(int i=0; i<ngals; ++i) if (i != SINGLEGAL)  _flags[i] |= INPUT_FLAG;
+    log._ngals = 1;
 #endif
-    log._nGoodIn = std::count(_flags.begin(),_flags.end(),0);
-    dbg<<log._nGoodIn<<"/"<<log._nGals<<" galaxies with no input flags\n";
+    log._ngoodin = std::count(_flags.begin(),_flags.end(),0);
+    dbg<<log._ngoodin<<"/"<<log._ngals<<" galaxies with no input flags\n";
     std::vector<Position> initPos = _pos;
 
     // Main loop to measure shapes
@@ -134,11 +134,11 @@ int ShearCatalog::measureShears(
             log1.noWriteLog();
             std::vector<PixelList> pix(1);
             std::vector<BVec> psf(
-                1, BVec(_fitPsf->getPsfOrder(), _fitPsf->getSigma()));
+                1, BVec(_fitpsf->getPsfOrder(), _fitpsf->getSigma()));
 #ifdef _OPENMP
 #pragma omp for schedule(dynamic)
 #endif
-            for(int i=0;i<nGals;++i) {
+            for(int i=0;i<ngals;++i) {
                 if (_flags[i]) {
                     xdbg<<i<<" skipped because has flag "<<_flags[i]<<std::endl;
                     continue;
@@ -150,7 +150,7 @@ int ShearCatalog::measureShears(
                 if (i < SINGLEGAL) continue;
                 if (i > SINGLEGAL) break;
 #endif
-                if (shouldOutputDots) {
+                if (output_dots) {
 #ifdef _OPENMP
 #pragma omp critical (output)
 #endif
@@ -162,18 +162,18 @@ int ShearCatalog::measureShears(
                 dbg<<"pos = "<<_pos[i]<<std::endl;
 
                 if (!GetPixPsf(
-                        im,pix[0],_pos[i],_sky[i],_noise[i],weightIm,
+                        im,pix[0],_pos[i],_sky[i],_noise[i],weight_image,
                         *_trans,_params,_flags[i],
-                        *_fitPsf,psf[0],log1)) {
+                        *_fitpsf,psf[0],log1)) {
                     continue;
                 }
 
                 // Now measure the shape and shear:
-                measureSingleShear(
+                MeasureSingleShear(
                     // Input data:
                     pix, psf,
                     // Parameters:
-                    _measGalOrder[i], _params,
+                    _meas_galorder[i], _params,
                     // Log information
                     log1,
                     // Ouput values:
@@ -201,14 +201,14 @@ int ShearCatalog::measureShears(
 #ifdef _OPENMP
         } catch (std::exception& e) {
             // This isn't supposed to happen.
-            if (shouldOutputDesQa) {
+            if (des_qa) {
                 std::cerr<<"STATUS5BEG Caught error in parallel region STATUS5END\n";
             } 
             std::cerr<<"Caught "<<e.what()<<std::endl;
             std::cerr<<"Caught error in parallel region.  Aborting.\n";
             exit(1);
         } catch (...) {
-            if (shouldOutputDesQa) {
+            if (des_qa) {
                 std::cerr<<"STATUS5BEG Caught error in parallel region STATUS5END\n";
             }
             std::cerr<<"Caught error in parallel region.  Aborting.\n";
@@ -216,18 +216,18 @@ int ShearCatalog::measureShears(
         }
     }
 #endif
-    dbg<<log._nsGamma<<" successful shape measurements, ";
-    dbg<<nGals-log._nsGamma<<" unsuccessful\n";
-    log._nGood = std::count(_flags.begin(),_flags.end(),0);
-    dbg<<log._nGood<<" with no flags\n";
+    dbg<<log._ns_gamma<<" successful shape measurements, ";
+    dbg<<ngals-log._ns_gamma<<" unsuccessful\n";
+    log._ngood = std::count(_flags.begin(),_flags.end(),0);
+    dbg<<log._ngood<<" with no flags\n";
     dbg<<"Breakdown of flags:\n";
     if (dbgout) PrintFlags(_flags,*dbgout);
 
-    if (shouldOutputDots) {
+    if (output_dots) {
         std::cerr
             <<std::endl
-            <<"Success rate: "<<log._nsGamma<<"/"<<log._nGoodIn
-            <<"  # with no flags: "<<log._nGood
+            <<"Success rate: "<<log._ns_gamma<<"/"<<log._ngoodin
+            <<"  # with no flags: "<<log._ngood
             <<std::endl;
         std::cerr<<"Breakdown of flags:\n";
         PrintFlags(_flags,std::cerr);
@@ -242,42 +242,42 @@ int ShearCatalog::measureShears(
         SHAPE_LOCAL_MIN |
         SHAPE_BAD_FLUX );
 
-    if (shouldOutputDots && !shouldOutputDesQa) {
-        std::complex<double> meanShear = 0.;
-        int nGoodShear = 0;
-        for(int i=0;i<nGals;++i) if (!(_flags[i] & ~ok_flags)) {
-            meanShear += _shear[i];
-            ++nGoodShear;
+    if (output_dots && !des_qa) {
+        std::complex<double> mean_shear = 0.;
+        int ngood_shear = 0;
+        for(int i=0;i<ngals;++i) if (!(_flags[i] & ~ok_flags)) {
+            mean_shear += _shear[i];
+            ++ngood_shear;
         }
 
-        meanShear /= nGoodShear;
-        dbg<<"nGoodShear = "<<nGoodShear<<"   meanShear = "<<meanShear<<std::endl;
+        mean_shear /= ngood_shear;
+        dbg<<"ngood_shear = "<<ngood_shear<<"   mean_shear = "<<mean_shear<<std::endl;
         std::cerr
-            <<"nGoodShear = "<<nGoodShear
-            <<"   meanShear = "<<meanShear<<std::endl;
+            <<"ngood_shear = "<<ngood_shear
+            <<"   mean_shear = "<<mean_shear<<std::endl;
     }
 
     // Check if the input positions are biased with respect to the 
     // actual values.  If they are, then this can cause a bias in the
     // shears, so it's worth fixing.
-    std::complex<double> meanOffset(0);
-    int nOffset=0;
-    for(int i=0;i<nGals;++i) if (!_flags[i]) {
-        meanOffset += _pos[i] - initPos[i];
-        ++nOffset;
+    std::complex<double> mean_offset(0);
+    int noffset=0;
+    for(int i=0;i<ngals;++i) if (!_flags[i]) {
+        mean_offset += _pos[i] - initPos[i];
+        ++noffset;
     }
-    meanOffset /= nOffset;
-    if (std::abs(meanOffset) > 0.5) {
-        if (shouldOutputDesQa) {
+    mean_offset /= noffset;
+    if (std::abs(mean_offset) > 0.5) {
+        if (des_qa) {
             std::cerr<<"STATUS3BEG Warning: A bias in the input positions found: "
-                <<meanOffset<<".\nThis may bias the shear, so you should "
+                <<mean_offset<<".\nThis may bias the shear, so you should "
                 <<"change cat_x_offset, cat_y_offset.  STATUS3END\n";
         }
     }
-    dbg<<"Found mean offset of "<<meanOffset<<" using "<<nOffset<<
+    dbg<<"Found mean offset of "<<mean_offset<<" using "<<noffset<<
         " galaxies with no error codes.\n";
 
     xdbg<<log<<std::endl;
 
-    return log._nsGamma;
+    return log._ns_gamma;
 }

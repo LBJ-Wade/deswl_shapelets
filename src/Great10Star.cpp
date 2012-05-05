@@ -12,15 +12,15 @@ int main(int argc, char **argv) try
     //const double PI = 3.141592653589793;
 
     ConfigFile params;
-    if (basicSetup(argc,argv,params,"g10star")) return EXIT_FAILURE;
+    if (BasicSetup(argc,argv,params,"g10star")) return EXIT_FAILURE;
 
     // Setup Log
-    std::string logFile = ""; // Default is to stdout
+    std::string log_file = ""; // Default is to stdout
     if (params.keyExists("log_file") || params.keyExists("log_ext"))
-        logFile = makeName(params,"log",false,false);
-    std::string psfFile=makeName(params,"psf",false,false);
+        log_file = MakeName(params,"log",false,false);
+    std::string psf_file=MakeName(params,"psf",false,false);
     std::auto_ptr<PsfLog> log (
-        new PsfLog(params,logFile,psfFile));
+        new PsfLog(params,log_file,psf_file));
 
     try {
         bool isTiming = params.read("timing",false);
@@ -44,8 +44,8 @@ int main(int argc, char **argv) try
 
         // Read input catalog
         // Note: this is the target list for where to interpolate.
-        InputCatalog inCat(params);
-        inCat.read();
+        InputCatalog incat(params);
+        incat.read();
 
         if (isTiming) {
             gettimeofday(&tp,0);
@@ -55,8 +55,8 @@ int main(int argc, char **argv) try
         }
 
         // Read the fitted psf file
-        FittedPsf fitPsf(params);
-        fitPsf.read();
+        FittedPsf fitpsf(params);
+        fitpsf.read();
 
         if (isTiming) {
             gettimeofday(&tp,0);
@@ -65,34 +65,34 @@ int main(int argc, char **argv) try
             t1 = t2;
         }
 
-        const int nTarget = inCat.size();
+        const int ntarget = incat.size();
         const int pwidth = 48;
         const int pheight = 48;
         const double xOffset = params.read("cat_x_offset",0.);
         const double yOffset = params.read("cat_y_offset",0.);
         const Position cen(24.,24.);
-        std::vector<Image<double> > imList(
-            nTarget, Image<double>(pwidth,pheight));
+        std::vector<Image<double> > im_list(
+            ntarget, Image<double>(pwidth,pheight));
 
 #ifdef _OPENMP
 #pragma omp for
 #endif
-        for(int n=0; n<nTarget; ++n) {
-            Position pos = inCat.getPos(n);
-            BVec b = fitPsf(pos);
-            b.makeImage(imList[n],cen,0.,trans,xOffset,yOffset);
+        for(int n=0; n<ntarget; ++n) {
+            Position pos = incat.getPos(n);
+            BVec b = fitpsf(pos);
+            b.makeImage(im_list[n],cen,0.,trans,xOffset,yOffset);
         }
 
         // Write data to fits file:
         // (This is largely copied from Tom's example C code.)
         std::string output_file = 
-            std::string("!") + makeFitsName(params, "star_image");
+            std::string("!") + MakeFitsName(params, "star_image");
         // ! at the start means overwrite existing file if any.
-        fitsfile *fPtr;
-        int fitsErr=0;
-        fits_create_file(&fPtr, output_file.c_str(), &fitsErr);
-        if (fitsErr != 0) {
-            fits_report_error(stderr,fitsErr);
+        fitsfile *fptr;
+        int fits_err=0;
+        fits_create_file(&fptr, output_file.c_str(), &fits_err);
+        if (fits_err != 0) {
+            fits_report_error(stderr,fits_err);
             throw WriteException(
                 "Error opening fits file " + output_file);
         }
@@ -106,43 +106,43 @@ int main(int argc, char **argv) try
         long anaxes_out[3];
         anaxes_out[0] = pwidth;
         anaxes_out[1] = pheight;
-        anaxes_out[2] = nTarget;
-        int size3d = nTarget * pwidth * pheight;
+        anaxes_out[2] = ntarget;
+        int size3d = ntarget * pwidth * pheight;
         long fpixel_out[3] = {1,1,1};
 
         /* Need to fill the 3D data cube correctly*/
         std::vector<float> array3d(size3d);
-        const int postagesize = pwidth*pheight;
-        for (int n=0; n<nTarget; n++)
+        const int postage_size = pwidth*pheight;
+        for (int n=0; n<ntarget; n++)
         {
             /* write postage stamps into 3D array */
-            for (int i=0; i<postagesize; i++)
+            for (int i=0; i<postage_size; i++)
             {
-                int j = n*postagesize + i;
-                array3d[j] = (&imList[n](0,0))[i];
+                int j = n*postage_size + i;
+                array3d[j] = (&im_list[n](0,0))[i];
             }
         }
 
         /*first create the image, bits, and dimensionsm, to be filled with data*/
-        fits_create_img(fPtr, bitpix, anaxis, anaxes_out, &fitsErr);
-        if (fitsErr != 0) {
-            fits_report_error(stderr,fitsErr);
+        fits_create_img(fptr, bitpix, anaxis, anaxes_out, &fits_err);
+        if (fits_err != 0) {
+            fits_report_error(stderr,fits_err);
             throw WriteException(
                 "Error creating image " + output_file);
         }
 
         /*then fill the define image with data from array3d*/
         if (fits_write_pix(
-                fPtr, TFLOAT, fpixel_out, size3d, &array3d[0], &fitsErr))
+                fptr, TFLOAT, fpixel_out, size3d, &array3d[0], &fits_err))
         {
-            fits_report_error(stderr,fitsErr);
+            fits_report_error(stderr,fits_err);
             throw WriteException(
                 "Error writing postage stamps to " + output_file);
         }
         /* close the fits file */
-        fits_close_file(fPtr, &fitsErr);
-        if (fitsErr != 0) {
-            fits_report_error(stderr,fitsErr);
+        fits_close_file(fptr, &fits_err);
+        if (fits_err != 0) {
+            fits_report_error(stderr,fits_err);
             throw WriteException(
                 "Error closing fits file " + output_file);
         }

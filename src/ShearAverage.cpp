@@ -87,13 +87,13 @@ static double Weight(
 // This is currently just the Ascii output, which is written as _shear.dat.
 static void ReadData(
     std::istream& fin, 
-    std::vector<long>& idVec,
-    std::vector<double>& xVec,
-    std::vector<double>& yVec,
-    std::vector<double>& raVec,
-    std::vector<double>& decVec,
-    std::vector<std::complex<double> >& gVec,
-    std::vector<double>& vargVec)
+    std::vector<long>& id_vec,
+    std::vector<double>& x_vec,
+    std::vector<double>& y_vec,
+    std::vector<double>& ra_vec,
+    std::vector<double>& dec_vec,
+    std::vector<std::complex<double> >& g_vec,
+    std::vector<double>& varg_vec)
 {
     std::string line;
     while (getline(fin,line)) {
@@ -106,30 +106,30 @@ static void ReadData(
             flag >> ra >> dec >> g1 >> g2 >> nu >> c00 >> c01 >> c11;
 
         if (flag & ~ok_flags) continue;
-        idVec.push_back(id);
-        xVec.push_back(x);
-        yVec.push_back(y);
-        raVec.push_back(ra);
-        decVec.push_back(dec);
-        gVec.push_back(std::complex<double>(g1,g2));
+        id_vec.push_back(id);
+        x_vec.push_back(x);
+        y_vec.push_back(y);
+        ra_vec.push_back(ra);
+        dec_vec.push_back(dec);
+        g_vec.push_back(std::complex<double>(g1,g2));
         double varg = (c00 + c11)/2.;
-        vargVec.push_back(varg);
+        varg_vec.push_back(varg);
         // Correct for a noise bias in the shape measurements.
         // E(g) = g_true * (1 - 2*sigma^2)
-        gVec.back() /= (1.-(c00 + c11));
+        g_vec.back() /= (1.-(c00 + c11));
     }
 }
 
 int main(int argc, char **argv)
 {
     if (!(argc == 3 || argc == 5)) {
-        std::cerr<<"Usage: shearave inFile outFile\n";
-        std::cerr<<"or     shearave inFile outFile fileId answerslist\n";
+        std::cerr<<"Usage: shearave in_file out_file\n";
+        std::cerr<<"or     shearave in_file out_file file_id answerslist\n";
         std::cerr<<"The first version merely converts the standard ouput\n";
         std::cout<<"from measureshears into numbers that can be used for\n";
         std::cout<<"computing averages.\n";
         std::cout<<"The second version also computes the averages and writes\n";
-        std::cout<<"them to a file (appended) along with a fileId string.\n";
+        std::cout<<"them to a file (appended) along with a file_id string.\n";
         exit(1);
     }
 
@@ -137,23 +137,23 @@ int main(int argc, char **argv)
     // Open files
     //
 
-    std::string inFile = argv[1];
-    std::string outFile = argv[2];
-    std::ifstream fin(inFile.c_str());
+    std::string in_file = argv[1];
+    std::string out_file = argv[2];
+    std::ifstream fin(in_file.c_str());
     if (!fin) {
-        std::cerr<<"Unable to open input file "<<inFile<<std::endl;
+        std::cerr<<"Unable to open input file "<<in_file<<std::endl;
         exit(1);
     }
-    std::ofstream fout(outFile.c_str());
+    std::ofstream fout(out_file.c_str());
     if (!fout) {
-        std::cerr<<"Unable to open output file "<<outFile<<std::endl;
+        std::cerr<<"Unable to open output file "<<out_file<<std::endl;
         exit(1);
     }
-    std::string fileId;
-    std::string answersFile;
+    std::string file_id;
+    std::string answers_file;
     if (argc == 5) {
-        fileId = argv[3];
-        answersFile = argv[4];
+        file_id = argv[3];
+        answers_file = argv[4];
     }
 
 
@@ -161,29 +161,29 @@ int main(int argc, char **argv)
     // Read data
     //
 
-    std::vector<long> idVec;
-    std::vector<double> xVec;
-    std::vector<double> yVec;
-    std::vector<double> raVec;
-    std::vector<double> decVec;
-    std::vector<std::complex<double> > gVec;
-    std::vector<double> vargVec;
+    std::vector<long> id_vec;
+    std::vector<double> x_vec;
+    std::vector<double> y_vec;
+    std::vector<double> ra_vec;
+    std::vector<double> dec_vec;
+    std::vector<std::complex<double> > g_vec;
+    std::vector<double> varg_vec;
 
-    ReadData(fin,idVec,xVec,yVec,raVec,decVec,gVec,vargVec);
+    ReadData(fin,id_vec,x_vec,y_vec,ra_vec,dec_vec,g_vec,varg_vec);
 
     // 
     // Calculate shape noise
     //
 
-    const int nGal = idVec.size();
+    const int ngal = id_vec.size();
     double shapenoise=0., sumw=0.;
-    const int nPgBins = 10;
-    std::vector<double> Pg(nPgBins,0.);
-    int nPgTot = 0;
+    const int npg_bins = 10;
+    std::vector<double> Pg(npg_bins,0.);
+    int npg_tot = 0;
 
-    for(int i=0;i<nGal;++i) {
-        std::complex<double> g = gVec[i];
-        double varg = vargVec[i];
+    for(int i=0;i<ngal;++i) {
+        std::complex<double> g = g_vec[i];
+        double varg = varg_vec[i];
         double gsq = std::norm(g);
         double dr;
         if (varg > MAXVARG) continue; // Throw out sigma_g > 0.3
@@ -191,8 +191,8 @@ int main(int argc, char **argv)
         shapenoise += (gsq - varg) * galw;
         sumw += galw;
         double absg = sqrt(gsq);
-        int k = int(floor(absg*nPgBins));
-        if (k >= 0 && k < nPgBins) { ++Pg[k]; ++nPgTot; }
+        int k = int(floor(absg*npg_bins));
+        if (k >= 0 && k < npg_bins) { ++Pg[k]; ++npg_tot; }
         std::cout<<i<<"  "<<g<<"  "<<gsq<<"  "<<absg<<"  "<<k<<"  "<<varg<<"  "<<galw<<"  "<<shapenoise<<"  "<<sumw<<std::endl;
     }
     if (sumw == 0.) {
@@ -202,11 +202,11 @@ int main(int argc, char **argv)
     shapenoise /= 2.*sumw; // 2 so shapenoise per component
     std::cout<<"sigma_SN = "<<shapenoise<<std::endl;
 
-    std::cout<<"nPgTot = "<<nPgTot<<std::endl;
+    std::cout<<"npg_tot = "<<npg_tot<<std::endl;
     std::cout<<"Pg = \n";
-    for(int k=0; k<nPgBins; ++k) {
-        Pg[k] /= nPgTot;
-        std::cout<<(k+0.5)/nPgBins<<"   "<<Pg[k]<<"\n";
+    for(int k=0; k<npg_bins; ++k) {
+        Pg[k] /= npg_tot;
+        std::cout<<(k+0.5)/npg_bins<<"   "<<Pg[k]<<"\n";
     }
 
     //
@@ -216,10 +216,10 @@ int main(int argc, char **argv)
     double resp=0.,sumw2g2=0.;
     sumw = 0.;
     std::complex<double> sumwg = 0.;
-    for (int i=0; i<nGal; ++i) {
-        std::complex<double> g = gVec[i];
+    for (int i=0; i<ngal; ++i) {
+        std::complex<double> g = g_vec[i];
         double gsq = std::norm(g);
-        double varg = vargVec[i];
+        double varg = varg_vec[i];
         if (varg > MAXVARG) continue;
         double dr;
         double galw = Weight(g,varg,shapenoise,dr);
@@ -230,7 +230,7 @@ int main(int argc, char **argv)
     }
     if (sumw == 0.) { sumw = 1.; resp = 1.; }
     resp /= sumw;
-    std::cout<<"resp = "<<resp<<", ngal = "<<nGal<<std::endl;
+    std::cout<<"resp = "<<resp<<", ngal = "<<ngal<<std::endl;
 
     // 
     // Calculate estimate of applied shear
@@ -247,22 +247,22 @@ int main(int argc, char **argv)
     // Write out responsivity-corrected catalog
     //
 
-    for (int i=0; i<nGal; i++) {
+    for (int i=0; i<ngal; i++) {
         fout.precision(12);
         fout<<
-            xVec[i]<<"  "<<yVec[i]<<"  "<<
-            raVec[i]<<"  "<<decVec[i]<<"  ";
+            x_vec[i]<<"  "<<y_vec[i]<<"  "<<
+            ra_vec[i]<<"  "<<dec_vec[i]<<"  ";
         fout.precision(6);
         fout<<
-            real(gVec[i])/resp<<"  "<<imag(gVec[i])/resp<<"  "<<
-            sqrt(vargVec[i])/resp<<std::endl;
+            real(g_vec[i])/resp<<"  "<<imag(g_vec[i])/resp<<"  "<<
+            sqrt(varg_vec[i])/resp<<std::endl;
     }
     fout.close();
 
     if (argc == 5) {
-        std::ofstream answersout(answersFile.c_str(),std::ios_base::app);
+        std::ofstream answersout(answers_file.c_str(),std::ios_base::app);
         fout.precision(6);
-        answersout << fileId<<"  "<<real(gamma)<<"  "<<imag(gamma)<<"  ";
+        answersout << file_id<<"  "<<real(gamma)<<"  "<<imag(gamma)<<"  ";
         answersout << siggamma<<"  "<<siggamma<<std::endl;
     }
 

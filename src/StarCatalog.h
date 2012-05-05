@@ -12,12 +12,12 @@
 #include "Log.h"
 
 // This function is also used by PSFCatalog.
-void calculateSigma(
+void CalculateSigma(
     double& sigma, // Initial value -- use <=0 if no initial guess
     const Image<double>& im, const Position& pos, double sky, 
-    double noise, const Image<double>* weightIm,
+    double noise, const Image<double>* weight_image,
     const Transformation& trans, const ConfigFile& params,
-    long& flag, bool shouldUseShapeletSigma);
+    long& flag, bool use_shapelet_sigma);
 
 class StarCatalog
 {
@@ -26,26 +26,25 @@ public:
     // fs_prefix is the prefix of the keywords for the 
     // parameters used by the findstars algorithm.
     StarCatalog(
-        const InputCatalog& inCat,
-        const ConfigFile& params, std::string fsPrefix = "stars_");
+        const InputCatalog& incat,
+        const ConfigFile& params, std::string fs_prefix = "stars_");
 
     // copy the input StarCatalog
-    StarCatalog(const StarCatalog& inStarCat);
+    StarCatalog(const StarCatalog& rhs);
 
     // In this version, we take a subset of the input star catalog.
     // note indices must be sorted!
-    StarCatalog(const StarCatalog& inStarCat, const std::vector<long> indices);
+    StarCatalog(const StarCatalog& rhs, const std::vector<long> indices);
 
     // Setup the parameters.  Normally followed by read() or similar.
-    StarCatalog(const ConfigFile& params, std::string fsPrefix = "stars_");
+    StarCatalog(const ConfigFile& params, std::string fs_prefix = "stars_");
 
     // a deterministic seed is generated based on size of catalog and number
     // of stars
     void splitInTwo(const std::string f1, const std::string f2) const;
     // seed explicitly sent
     void splitInTwo(
-        const std::string f1, const std::string f2,
-        const int seed) const;
+        const std::string f1, const std::string f2, const int seed) const;
 
     int size() const { return _id.size(); }
     void read();
@@ -71,8 +70,8 @@ public:
     const std::vector<long>& getFlagsList() const { return _flags; }
     const std::vector<double>& getMagList() const { return _mag; }
     const std::vector<double>& getSgList() const { return _sg; }
-    const std::vector<double>& getObjSizeList() const { return _objSize; }
-    const std::vector<bool>& getIsAStarList() const { return _isAStar; }
+    const std::vector<double>& getObjSizeList() const { return _objsize; }
+    const std::vector<bool>& getIsStarList() const { return _is_star; }
 
 
     const ConfigFile& getParams() const { return _params; }
@@ -86,16 +85,16 @@ public:
     long     getFlags(int i)   const { return _flags[i]; }
     double   getMag(int i)     const { return _mag[i]; }
     double   getSg(int i)      const { return _sg[i]; }
-    double   getObjSize(int i) const { return _objSize[i]; }
-    bool     getIsAStar(int i) const { return _isAStar[i]; }
+    double   getObjSize(int i) const { return _objsize[i]; }
+    bool     getIsStar(int i)  const { return _is_star[i]; }
              
     // This one looks for the given id.  
     // If it is in the catalog _and_ it is marked as a star, it returns true.
     // This way the StarCatalog may have a different number of objects than
     // some other catalog that wants to use it, so the i's don't have to match.
     // But the ID's should still refer to the same objects.
-    // If you know you have the same i values, getIsAStar is faster.
-    bool isAStar(long id) const;
+    // If you know you have the same i values, getIsStar is faster.
+    bool isStar(long id) const;
 
     void printall(int i);
 
@@ -109,8 +108,8 @@ private :
 
     std::vector<double> _mag;
     std::vector<double> _sg;
-    std::vector<double> _objSize;
-    std::vector<bool> _isAStar;
+    std::vector<double> _objsize;
+    std::vector<bool> _is_star;
 
     //const ConfigFile& _params;
     // We need to be able to alter this if we want to write alternative

@@ -87,33 +87,33 @@ class Bounds
 public:
 
     Bounds(double x1, double x2, double y1, double y2) :
-        _isDefined(true),_xMin(x1),_xMax(x2),_yMin(y1),_yMax(y2) {}
+        _defined(true),_xmin(x1),_xmax(x2),_ymin(y1),_ymax(y2) {}
 
     Bounds(const Position& pos) :
-        _isDefined(true), _xMin(pos.getX()), _xMax(pos.getX()),
-        _yMin(pos.getY()), _yMax(pos.getY()) {}
+        _defined(true), _xmin(pos.getX()), _xmax(pos.getX()),
+        _ymin(pos.getY()), _ymax(pos.getY()) {}
 
-    Bounds(): _isDefined(false),_xMin(0.),_xMax(0.),_yMin(0.),_yMax(0.) {}
+    Bounds(): _defined(false),_xmin(0.),_xmax(0.),_ymin(0.),_ymax(0.) {}
 
     ~Bounds() {}
 
-    void setXMin(double x) { _xMin = x; _isDefined = true; }
+    void setXMin(double x) { _xmin = x; _defined = true; }
 
-    void setXMax(double x) { _xMax = x; _isDefined = true; }
+    void setXMax(double x) { _xmax = x; _defined = true; }
 
-    void setYMin(double y) { _yMin = y; _isDefined = true; }
+    void setYMin(double y) { _ymin = y; _defined = true; }
 
-    void setYMax(double y) { _yMax = y; _isDefined = true; }
+    void setYMax(double y) { _ymax = y; _defined = true; }
 
-    double getXMin() const { return _xMin; }
+    double getXMin() const { return _xmin; }
 
-    double getXMax() const { return _xMax; }
+    double getXMax() const { return _xmax; }
 
-    double getYMin() const { return _yMin; }
+    double getYMin() const { return _ymin; }
 
-    double getYMax() const { return _yMax; }
+    double getYMax() const { return _ymax; }
 
-    bool isDefined() const { return _isDefined; }
+    bool isDefined() const { return _defined; }
 
     Position getCenter() const;
 
@@ -151,22 +151,22 @@ public:
 
     void read(std::istream& fin);
 
-    Position get00() const { return Position(_xMin,_yMin); }
+    Position get00() const { return Position(_xmin,_ymin); }
 
-    Position get01() const { return Position(_xMin,_yMax); }
+    Position get01() const { return Position(_xmin,_ymax); }
 
-    Position get10() const { return Position(_xMax,_yMin); }
+    Position get10() const { return Position(_xmax,_ymin); }
 
-    Position get11() const { return Position(_xMax,_yMax); }
+    Position get11() const { return Position(_xmax,_ymax); }
 
-    bool isWide() const { return (_xMax-_xMin > _yMax-_yMin); }
+    bool isWide() const { return (_xmax-_xmin > _ymax-_ymin); }
 
-    bool isTall() const { return (_xMax-_xMin < _yMax-_yMin); }
+    bool isTall() const { return (_xmax-_xmin < _ymax-_ymin); }
 
 private:
 
-    bool _isDefined;
-    double _xMin,_xMax,_yMin,_yMax;
+    bool _defined;
+    double _xmin,_xmax,_ymin,_ymax;
 
 };
 

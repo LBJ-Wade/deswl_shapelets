@@ -16,16 +16,16 @@ RangeException::RangeException(const Position& p, const Bounds& b) :
 {}
 
 void Legendre2D::setFunction(
-    int xOrder, int yOrder, const DVector& fVect)
+    int xorder, int yorder, const DVector& fVect)
 {
-    if (_xOrder != xOrder || _yOrder != yOrder) {
-        _xOrder = xOrder; _yOrder = yOrder;
-        _coeffs.reset(new DMatrix(_xOrder+1,_yOrder+1));
+    if (_xorder != xorder || _yorder != yorder) {
+        _xorder = xorder; _yorder = yorder;
+        _coeffs.reset(new DMatrix(_xorder+1,_yorder+1));
         _coeffs->setZero();
     }
     int k=0;
-    for(int m=0; m <= std::max(_xOrder,_yOrder); ++m) {
-        for(int i=std::min(m,_xOrder);m-i<=std::min(m,_yOrder);--i) { 
+    for(int m=0; m <= std::max(_xorder,_yorder); ++m) {
+        for(int i=std::min(m,_xorder);m-i<=std::min(m,_yorder);--i) { 
             (*_coeffs)(i,m-i) = fVect(k++);
         }
     }
@@ -36,13 +36,13 @@ Legendre2D::Legendre2D(std::istream& fin) : Function2D()
 {
     // Order of parameters is same as for Polynomial2D.  Difference
     // is that instead of x,x^2,x^3,etc., we use P1(x),P2(x),P3(x),etc.
-    fin >> _xOrder >> _yOrder >> _bounds;
+    fin >> _xorder >> _yorder >> _bounds;
     if (!fin) throw std::runtime_error("reading order, bounds");
-    _coeffs.reset(new DMatrix(_xOrder+1,_yOrder+1));
+    _coeffs.reset(new DMatrix(_xorder+1,_yorder+1));
     _coeffs->setZero();
-    int maxOrder = std::max(_xOrder,_yOrder);
-    for(int m=0; m<=maxOrder; ++m) {
-        for(int i=std::min(m,_xOrder); m-i<=std::min(m,_yOrder); --i) {
+    int max_order = std::max(_xorder,_yorder);
+    for(int m=0; m<=max_order; ++m) {
+        for(int i=std::min(m,_xorder); m-i<=std::min(m,_yorder); --i) {
             fin >> (*_coeffs)(i,m-i);
         }
     }
@@ -54,13 +54,13 @@ void Legendre2D::write(std::ostream& fout) const
     int oldprec = fout.precision(6);
     std::ios::fmtflags oldf = 
         fout.setf(std::ios::scientific,std::ios::floatfield);
-    int maxOrder = std::max(_xOrder,_yOrder);
-    if (maxOrder == 0) {
+    int max_order = std::max(_xorder,_yorder);
+    if (max_order == 0) {
         fout << "C " << (*_coeffs)(0,0) << std::endl;
     } else {
-        fout << "L " << _xOrder << ' ' << _yOrder << ' ' << _bounds << ' ';
-        for(int m=0; m<=maxOrder; ++m) {
-            for(int i=std::min(m,_xOrder);m-i<=std::min(m,_yOrder);--i) {
+        fout << "L " << _xorder << ' ' << _yorder << ' ' << _bounds << ' ';
+        for(int m=0; m<=max_order; ++m) {
+            for(int i=std::min(m,_xorder);m-i<=std::min(m,_yorder);--i) {
                 fout << (*_coeffs)(i,m-i) << ' ';
             }
         }
@@ -95,19 +95,19 @@ void Legendre2D::operator+=(const Function2D& rhs)
     const Legendre2D* lrhs = dynamic_cast<const Legendre2D*>(&rhs);
     Assert(lrhs);
     Assert(getBounds() == lrhs->getBounds());
-    if (_xOrder == lrhs->_xOrder && _yOrder == lrhs->_yOrder) {
+    if (_xorder == lrhs->_xorder && _yorder == lrhs->_yorder) {
         *_coeffs += *lrhs->_coeffs;
     } else {
-        int newXOrder = std::max(_xOrder,lrhs->_xOrder);
-        int newYOrder = std::max(_yOrder,lrhs->_yOrder);
+        int new_xorder = std::max(_xorder,lrhs->_xorder);
+        int new_yorder = std::max(_yorder,lrhs->_yorder);
         std::auto_ptr<DMatrix > newc(
-            new DMatrix(newXOrder+1,newYOrder+1));
+            new DMatrix(new_xorder+1,new_yorder+1));
         newc->setZero();
-        newc->TMV_subMatrix(0,_xOrder+1,0,_yOrder+1) = *_coeffs;
-        newc->TMV_subMatrix(0,lrhs->_xOrder+1,0,lrhs->_yOrder+1) += *lrhs->_coeffs;
+        newc->TMV_subMatrix(0,_xorder+1,0,_yorder+1) = *_coeffs;
+        newc->TMV_subMatrix(0,lrhs->_xorder+1,0,lrhs->_yorder+1) += *lrhs->_coeffs;
         _coeffs = newc;
-        _xOrder = newXOrder;
-        _yOrder = newYOrder;
+        _xorder = new_xorder;
+        _yorder = new_yorder;
     }
 }
 
@@ -115,24 +115,24 @@ void Legendre2D::operator+=(const Function2D& rhs)
 // dP_2n+1(x)/dx = Sum_k=0..n (4k+1) P_2k(x)
 std::auto_ptr<Function2D > Legendre2D::dFdX() const 
 {
-    if (_xOrder == 0) {
+    if (_xorder == 0) {
         return std::auto_ptr<Function2D >(new Constant2D());
     }
-    if (_xOrder == 1 && _yOrder == 0) {
+    if (_xorder == 1 && _yorder == 0) {
         return std::auto_ptr<Function2D >(
             new Constant2D((*_coeffs)(1,0)*2./(getXMax()-getXMin())));
     }
 
-    int newXOrder = _xOrder-1;
-    int newYOrder = _xOrder > _yOrder ? _yOrder : _yOrder-1;
+    int new_xorder = _xorder-1;
+    int new_yorder = _xorder > _yorder ? _yorder : _yorder-1;
 
     std::auto_ptr<Legendre2D > temp(
-        new Legendre2D(newXOrder,newYOrder,_bounds));
+        new Legendre2D(new_xorder,new_yorder,_bounds));
     // initialized to 0's
 
-    int maxOrder = std::max(_xOrder,_yOrder);
-    for(int i=_xOrder;i>=1;--i) {
-        for(int j=std::min(maxOrder-i,_yOrder);j>=0;--j) {
+    int max_order = std::max(_xorder,_yorder);
+    for(int i=_xorder;i>=1;--i) {
+        for(int j=std::min(max_order-i,_yorder);j>=0;--j) {
             if (i%2 == 0) {
                 for(int k=0;k<=i/2-1;++k) 
                     (*temp->_coeffs)(2*k+1,j) += (4.*k+3.)*(*_coeffs)(i,j);
@@ -142,9 +142,9 @@ std::auto_ptr<Function2D > Legendre2D::dFdX() const
             }
         }
     }
-    maxOrder = std::max(newXOrder,newYOrder);
-    for(int i=newXOrder;i>=0;--i) {
-        for(int j=std::min(maxOrder-i,newYOrder);j>=0;--j) {
+    max_order = std::max(new_xorder,new_yorder);
+    for(int i=new_xorder;i>=0;--i) {
+        for(int j=std::min(max_order-i,new_yorder);j>=0;--j) {
             (*temp->_coeffs)(i,j) *= 2./(getXMax()-getXMin());
         }
     }
@@ -155,24 +155,24 @@ std::auto_ptr<Function2D > Legendre2D::dFdX() const
 // dP_2n+1(x)/dx = Sum_k=0..n-1 (4k+1) P_2k(x)
 std::auto_ptr<Function2D > Legendre2D::dFdY() const 
 {
-    if (_yOrder == 0) {
+    if (_yorder == 0) {
         return std::auto_ptr<Function2D >(new Constant2D());
     }
-    if (_yOrder == 1 && _xOrder == 0) {
+    if (_yorder == 1 && _xorder == 0) {
         return std::auto_ptr<Function2D >(new Constant2D(
                 (*_coeffs)(0,1)*2./(getYMax()-getYMin())));
     }
 
-    int newXOrder = _yOrder > _xOrder ? _xOrder : _xOrder-1;
-    int newYOrder = _yOrder-1;
+    int new_xorder = _yorder > _xorder ? _xorder : _xorder-1;
+    int new_yorder = _yorder-1;
 
     std::auto_ptr<Legendre2D > temp(
-        new Legendre2D(newXOrder,newYOrder,_bounds));
+        new Legendre2D(new_xorder,new_yorder,_bounds));
     // initialized to 0's
 
-    int maxOrder = std::max(_xOrder,_yOrder);
-    for(int j=_yOrder;j>=1;--j) {
-        for(int i=std::min(maxOrder-j,_xOrder);i>=0;--i) {
+    int max_order = std::max(_xorder,_yorder);
+    for(int j=_yorder;j>=1;--j) {
+        for(int i=std::min(max_order-j,_xorder);i>=0;--i) {
             if (j%2 == 0) {
                 for(int k=0;k<=(j-2)/2;++k) 
                     (*temp->_coeffs)(i,2*k+1) += (4.*k+3.)*(*_coeffs)(i,j);
@@ -182,9 +182,9 @@ std::auto_ptr<Function2D > Legendre2D::dFdY() const
             }
         }
     }
-    maxOrder = std::max(newXOrder,newYOrder);
-    for(int j=newYOrder;j>=0;--j) {
-        for(int i=std::min(maxOrder-j,newXOrder);i>=0;--i) {
+    max_order = std::max(new_xorder,new_yorder);
+    for(int j=new_yorder;j>=0;--j) {
+        for(int i=std::min(max_order-j,new_xorder);i>=0;--i) {
             (*temp->_coeffs)(i,j) *= 2./(getYMax()-getYMin());
         }
     }

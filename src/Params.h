@@ -51,7 +51,7 @@ static const long CENTROID_SHIFT          = 0x40000000;
 
 static const long NFLAGS = 31;
 
-static const char*const flagName[NFLAGS] = {
+static const char*const flag_name[NFLAGS] = {
     "INPUT_FLAG",
     "TRANSFORM_EXCEPTION",
     "FITTEDPSF_EXCEPTION",

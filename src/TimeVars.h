@@ -6,192 +6,192 @@
 struct EllipseTimes
 {
     EllipseTimes() : 
-        _tInteg(0.0), _tCentroid(0.0), _tGamma(0.0),
-        _tMu(0.0), _tFixFlux(0.0), _tFinal(0.0) {}
+        _tinteg(0.0), _tcentroid(0.0), _tgamma(0.0),
+        _tmu(0.0), _tfixflux(0.0), _tfinal(0.0) {}
 
     EllipseTimes& operator+=(const EllipseTimes& rhs)
     {
-        _tInteg += rhs._tInteg;
-        _tCentroid += rhs._tCentroid;
-        _tGamma += rhs._tGamma;
-        _tMu += rhs._tMu;
-        _tFixFlux += rhs._tFixFlux;
-        _tFinal += rhs._tFinal;
+        _tinteg += rhs._tinteg;
+        _tcentroid += rhs._tcentroid;
+        _tgamma += rhs._tgamma;
+        _tmu += rhs._tmu;
+        _tfixflux += rhs._tfixflux;
+        _tfinal += rhs._tfinal;
         return *this;
     }
 
     void reset()
     { 
-        _tInteg = _tCentroid = _tGamma = _tMu = _tFixFlux = _tFinal = 0.0;
+        _tinteg = _tcentroid = _tgamma = _tmu = _tfixflux = _tfinal = 0.0;
     }
 
-    double _tInteg, _tCentroid, _tGamma, _tMu, _tFixFlux, _tFinal;
+    double _tinteg, _tcentroid, _tgamma, _tmu, _tfixflux, _tfinal;
 };
 
 struct OverallFitTimes 
 {
     OverallFitTimes() :
-        _nfRange1(0), _nfRange2(0),
-        _nfPixFlag1(0), _nfNPix1(0), _nfSmall(0),
-        _nfPixFlag2(0), _nfNPix2(0),
-        _nsCentroid(0), _nfCentroid(0),
-        _nsNative(0), _nfNative(0),
-        _nsMu(0), _nfMu(0),
-        _nsGamma(0), _nfGamma(0) {}
+        _nf_range1(0), _nf_range2(0),
+        _nf_pixFlag1(0), _nf_npix1(0), _nf_small(0),
+        _nf_pixFlag2(0), _nf_npix2(0),
+        _ns_centroid(0), _nf_centroid(0),
+        _ns_native(0), _nf_native(0),
+        _ns_mu(0), _nf_mu(0),
+        _ns_gamma(0), _nf_gamma(0) {}
 
     void successCentroid(const EllipseTimes& et)
     {
-        _tsCentroid += et;
-        ++_nsCentroid;
+        _ts_centroid += et;
+        ++_ns_centroid;
     }
 
     void failCentroid(const EllipseTimes& et)
     {
-        _tfCentroid += et;
-        ++_nfCentroid;
+        _tf_centroid += et;
+        ++_nf_centroid;
     }
 
-    void successNative(const EllipseTimes& et)
+    void success_native(const EllipseTimes& et)
     {
-        _tsNative += et;
-        ++_nsNative;
+        _ts_native += et;
+        ++_ns_native;
     }
 
-    void failNative(const EllipseTimes& et)
+    void fail_native(const EllipseTimes& et)
     {
-        _tfNative += et;
-        ++_nfNative;
+        _tf_native += et;
+        ++_nf_native;
     }
 
     void successMu(const EllipseTimes& et)
     {
-        _tsMu += et;
-        ++_nsMu;
+        _ts_mu += et;
+        ++_ns_mu;
     }
 
     void failMu(const EllipseTimes& et)
     {
-        _tfMu += et;
-        ++_nfMu;
+        _tf_mu += et;
+        ++_nf_mu;
     }
 
     void successGamma(const EllipseTimes& et)
     {
-        _tsGamma += et;
-        ++_nsGamma;
+        _ts_gamma += et;
+        ++_ns_gamma;
     }
 
     void failGamma(const EllipseTimes& et)
     {
-        _tfGamma += et;
-        ++_nfGamma;
+        _tf_gamma += et;
+        ++_nf_gamma;
     }
 
     OverallFitTimes& operator+=(const OverallFitTimes& rhs)
     {
-        _tsCentroid += rhs._tsCentroid;
-        _tfCentroid += rhs._tfCentroid;
-        _tsNative += rhs._tsNative;
-        _tfNative += rhs._tfNative;
-        _tsMu += rhs._tsMu;
-        _tfMu += rhs._tfMu;
-        _tsGamma += rhs._tsGamma;
-        _tfGamma += rhs._tfGamma;
+        _ts_centroid += rhs._ts_centroid;
+        _tf_centroid += rhs._tf_centroid;
+        _ts_native += rhs._ts_native;
+        _tf_native += rhs._tf_native;
+        _ts_mu += rhs._ts_mu;
+        _tf_mu += rhs._tf_mu;
+        _ts_gamma += rhs._ts_gamma;
+        _tf_gamma += rhs._tf_gamma;
 
-        _nfRange1 += rhs._nfRange1;
-        _nfRange2 += rhs._nfRange2;
-        _nfPixFlag1 += rhs._nfPixFlag1;
-        _nfNPix1 += rhs._nfNPix1;
-        _nfSmall += rhs._nfSmall;
-        _nfPixFlag2 += rhs._nfPixFlag2;
-        _nfNPix2 += rhs._nfNPix2;
-        _nsCentroid += rhs._nsCentroid;
-        _nfCentroid += rhs._nfCentroid;
-        _nsNative += rhs._nsNative;
-        _nfNative += rhs._nfNative;
-        _nsMu += rhs._nsMu;
-        _nfMu += rhs._nfMu;
-        _nsGamma += rhs._nsGamma;
-        _nfGamma += rhs._nfGamma;
+        _nf_range1 += rhs._nf_range1;
+        _nf_range2 += rhs._nf_range2;
+        _nf_pixflag1 += rhs._nf_pixflag1;
+        _nf_npix1 += rhs._nf_npix1;
+        _nf_small += rhs._nf_small;
+        _nf_pixflag2 += rhs._nf_pixflag2;
+        _nf_npix2 += rhs._nf_npix2;
+        _ns_centroid += rhs._ns_centroid;
+        _nf_centroid += rhs._nf_centroid;
+        _ns_native += rhs._ns_native;
+        _nf_native += rhs._nf_native;
+        _ns_mu += rhs._ns_mu;
+        _nf_mu += rhs._nf_mu;
+        _ns_gamma += rhs._ns_gamma;
+        _nf_gamma += rhs._nf_gamma;
         return *this;
     }
 
     void write(std::ostream& os) const
     {
-        os<<"N_Rejected for range error - distortion = "<<_nfRange1<<std::endl;
-        os<<"N_Rejected for range error - psf interp = "<<_nfRange2<<std::endl;
-        os<<"N_Rejected for pixel flag (#1) = "<<_nfPixFlag1<<std::endl;
-        os<<"N_Rejected for too few pixels (#1) = "<<_nfNPix1<<std::endl;
+        os<<"N_Rejected for range error - distortion = "<<_nf_range1<<std::endl;
+        os<<"N_Rejected for range error - psf interp = "<<_nf_range2<<std::endl;
+        os<<"N_Rejected for pixel flag (#1) = "<<_nf_pixflag1<<std::endl;
+        os<<"N_Rejected for too few pixels (#1) = "<<_nf_npix1<<std::endl;
 
         os<<"Centroid step:\n";
-        os<<"  N_Success = "<<_nsCentroid<<std::endl;
-        os<<"  Times = "<<_tsCentroid._tInteg<<"  "<<_tsCentroid._tCentroid<<"  "<<
-            _tsCentroid._tGamma<<"  "<<_tsCentroid._tMu<<"  "<<
-            _tsCentroid._tFixFlux<<"  "<<_tsCentroid._tFinal<<std::endl;
-        os<<"  N_Fail = "<<_nfCentroid<<std::endl;
-        os<<"  Times = "<<_tfCentroid._tInteg<<"  "<<_tfCentroid._tCentroid<<"  "<<
-            _tfCentroid._tGamma<<"  "<<_tfCentroid._tMu<<"  "<<
-            _tfCentroid._tFixFlux<<"  "<<_tfCentroid._tFinal<<std::endl;
+        os<<"  N_Success = "<<_ns_centroid<<std::endl;
+        os<<"  Times = "<<_ts_centroid._tInteg<<"  "<<_ts_centroid._tcentroid<<"  "<<
+            _ts_centroid._tgamma<<"  "<<_ts_centroid._tmu<<"  "<<
+            _ts_centroid._tfixflux<<"  "<<_ts_centroid._tfinal<<std::endl;
+        os<<"  N_Fail = "<<_nf_centroid<<std::endl;
+        os<<"  Times = "<<_tf_centroid._tInteg<<"  "<<_tf_centroid._tcentroid<<"  "<<
+            _tf_centroid._tgamma<<"  "<<_tf_centroid._tmu<<"  "<<
+            _tf_centroid._tfixflux<<"  "<<_tf_centroid._tfinal<<std::endl;
 
         os<<"Native fits:\n";
-        os<<"  N_Success = "<<_nsNative<<std::endl;
-        os<<"  Times = "<<_tsNative._tInteg<<"  "<<_tsNative._tCentroid<<"  "<<
-            _tsNative._tGamma<<"  "<<_tsNative._tMu<<"  "<<
-            _tsNative._tFixFlux<<"  "<<_tsNative._tFinal<<std::endl;
-        os<<"  N_Fail = "<<_nfNative<<std::endl;
-        os<<"  Times = "<<_tfNative._tInteg<<"  "<<_tfNative._tCentroid<<"  "<<
-            _tfNative._tGamma<<"  "<<_tfNative._tMu<<"  "<<
-            _tfNative._tFixFlux<<"  "<<_tfNative._tFinal<<std::endl;
+        os<<"  N_Success = "<<_ns_native<<std::endl;
+        os<<"  Times = "<<_ts_native._tInteg<<"  "<<_ts_native._tcentroid<<"  "<<
+            _ts_native._tgamma<<"  "<<_ts_native._tmu<<"  "<<
+            _ts_native._tfixflux<<"  "<<_ts_native._tfinal<<std::endl;
+        os<<"  N_Fail = "<<_nf_native<<std::endl;
+        os<<"  Times = "<<_tf_native._tInteg<<"  "<<_tf_native._tcentroid<<"  "<<
+            _tf_native._tgamma<<"  "<<_tf_native._tmu<<"  "<<
+            _tf_native._tfixflux<<"  "<<_tf_native._tfinal<<std::endl;
 
-        os<<"N_Rejected for being too small = "<<_nfSmall<<std::endl;
-        os<<"N_Rejected for pixel flag (#2) = "<<_nfPixFlag2<<std::endl;
-        os<<"N_Rejected for too few pixels (#2) = "<<_nfNPix2<<std::endl;
+        os<<"N_Rejected for being too small = "<<_nf_small<<std::endl;
+        os<<"N_Rejected for pixel flag (#2) = "<<_nf_pixflag2<<std::endl;
+        os<<"N_Rejected for too few pixels (#2) = "<<_nf_npix2<<std::endl;
 
         os<<"Mu fits:\n";
-        os<<"  N_Success = "<<_nsMu<<std::endl;
-        os<<"  Times = "<<_tsMu._tInteg<<"  "<<_tsMu._tCentroid<<"  "<<
-            _tsMu._tGamma<<"  "<<_tsMu._tMu<<"  "<<
-            _tsMu._tFixFlux<<"  "<<_tsMu._tFinal<<std::endl;
-        os<<"  N_Fail = "<<_nfMu<<std::endl;
-        os<<"  Times = "<<_tfMu._tInteg<<"  "<<_tfMu._tCentroid<<"  "<<
-            _tfMu._tGamma<<"  "<<_tfMu._tMu<<"  "<<
-            _tfMu._tFixFlux<<"  "<<_tfMu._tFinal<<std::endl;
+        os<<"  N_Success = "<<_ns_mu<<std::endl;
+        os<<"  Times = "<<_ts_mu._tInteg<<"  "<<_ts_mu._tcentroid<<"  "<<
+            _ts_mu._tgamma<<"  "<<_ts_mu._tmu<<"  "<<
+            _ts_mu._tfixflux<<"  "<<_ts_mu._tfinal<<std::endl;
+        os<<"  N_Fail = "<<_nf_mu<<std::endl;
+        os<<"  Times = "<<_tf_mu._tInteg<<"  "<<_tf_mu._tcentroid<<"  "<<
+            _tf_mu._tgamma<<"  "<<_tf_mu._tmu<<"  "<<
+            _tf_mu._tfixflux<<"  "<<_tf_mu._tfinal<<std::endl;
 
         os<<"Gamma fits:\n";
-        os<<"  N_Success = "<<_nsGamma<<std::endl;
-        os<<"  Times = "<<_tsGamma._tInteg<<"  "<<_tsGamma._tCentroid<<"  "<<
-            _tsGamma._tGamma<<"  "<<_tsGamma._tMu<<"  "<<
-            _tsGamma._tFixFlux<<"  "<<_tsGamma._tFinal<<std::endl;
-        os<<"  N_Fail = "<<_nfGamma<<std::endl;
-        os<<"  Times = "<<_tfGamma._tInteg<<"  "<<_tfGamma._tCentroid<<"  "<<
-            _tfGamma._tGamma<<"  "<<_tfGamma._tMu<<"  "<<
-            _tfGamma._tFixFlux<<"  "<<_tfGamma._tFinal<<std::endl;
+        os<<"  N_Success = "<<_ns_gamma<<std::endl;
+        os<<"  Times = "<<_ts_gamma._tInteg<<"  "<<_ts_gamma._tcentroid<<"  "<<
+            _ts_gamma._tgamma<<"  "<<_ts_gamma._tmu<<"  "<<
+            _ts_gamma._tfixflux<<"  "<<_ts_gamma._tfinal<<std::endl;
+        os<<"  N_Fail = "<<_nf_gamma<<std::endl;
+        os<<"  Times = "<<_tf_gamma._tInteg<<"  "<<_tf_gamma._tcentroid<<"  "<<
+            _tf_gamma._tgamma<<"  "<<_tf_gamma._tmu<<"  "<<
+            _tf_gamma._tfixflux<<"  "<<_tf_gamma._tfinal<<std::endl;
     }
 
-    EllipseTimes _tsCentroid;
-    EllipseTimes _tfCentroid;
-    EllipseTimes _tsNative;
-    EllipseTimes _tfNative;
-    EllipseTimes _tsMu;
-    EllipseTimes _tfMu;
-    EllipseTimes _tsGamma;
-    EllipseTimes _tfGamma;
+    EllipseTimes _ts_centroid;
+    EllipseTimes _tf_centroid;
+    EllipseTimes _ts_native;
+    EllipseTimes _tf_native;
+    EllipseTimes _ts_mu;
+    EllipseTimes _tf_mu;
+    EllipseTimes _ts_gamma;
+    EllipseTimes _tf_gamma;
 
-    int _nfRange1;
-    int _nfRange2;
-    int _nfPixFlag1;
-    int _nfNPix1;
-    int _nfSmall;
-    int _nfPixFlag2;
-    int _nfNPix2;
-    int _nsCentroid;
-    int _nfCentroid;
-    int _nsNative;
-    int _nfNative;
-    int _nsMu;
-    int _nfMu;
-    int _nsGamma;
-    int _nfGamma;
+    int _nf_range1;
+    int _nf_range2;
+    int _nf_pixflag1;
+    int _nf_npix1;
+    int _nf_small;
+    int _nf_pixflag2;
+    int _nf_npix2;
+    int _ns_centroid;
+    int _nf_centroid;
+    int _ns_native;
+    int _nf_native;
+    int _ns_mu;
+    int _nf_mu;
+    int _ns_gamma;
+    int _nf_gamma;
 };
 
 inline std::ostream& operator<<(std::ostream& os, const OverallFitTimes& t)

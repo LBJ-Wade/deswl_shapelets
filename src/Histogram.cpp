@@ -4,23 +4,23 @@
 #include "Histogram.h"
 
 template <typename T>
-Histogram<T>::Histogram(double binSize, double minValue, double maxValue) :
-    _binSize(binSize)
+Histogram<T>::Histogram(double bin_size, double min_value, double max_value) :
+    _bin_size(bin_size)
 {
     // Add an extra bin to prevent rounding errors from giving you a
     // value outsize the allowed range.
-    int nBins = int(ceil((maxValue-minValue)/_binSize))+1;
-    _minValue = minValue - binSize/2.;
-    _maxValue = maxValue + binSize/2.;
+    int nBins = int(ceil((max_value-min_value)/_bin_size))+1;
+    _min_value = min_value - bin_size/2.;
+    _max_value = max_value + bin_size/2.;
     _refs = std::vector<std::vector<T> >(nBins);
     _values = std::vector<std::vector<double> >(nBins);
-    if (value(nBins-1) > _maxValue) _maxValue = value(nBins-1)+binSize/4.;
+    if (value(nBins-1) > _max_value) _max_value = value(nBins-1)+bin_size/4.;
 
     dbg<<"made histogram:\n";
-    dbg<<"minvalue="<<_minValue<<
-        " index(minvalue)="<<index(_minValue)<<std::endl;
-    dbg<<"maxvalue="<<_maxValue<<
-        " index(maxvalue)="<<index(_maxValue)<<std::endl;
+    dbg<<"minvalue="<<_min_value<<
+        " index(minvalue)="<<index(_min_value)<<std::endl;
+    dbg<<"maxvalue="<<_max_value<<
+        " index(maxvalue)="<<index(_max_value)<<std::endl;
     dbg<<"mini=0  value(mini)="<<value(0)<<std::endl;
     dbg<<"maxi="<<_refs.size()-1;
     dbg<<" value(maxi)="<<value(_refs.size()-1)<<std::endl;
@@ -44,175 +44,175 @@ int Histogram<T>::getCount(int i) const
 template <typename T>
 double Histogram<T>::findPeak(double val1, double val2) const
 {
-    if (val1<_minValue) val1 = _minValue;
-    if (val2>_maxValue) val2 = _maxValue;
+    if (val1<_min_value) val1 = _min_value;
+    if (val2>_max_value) val2 = _max_value;
     int i1=index(val1), i2=index(val2);
     Assert(i1<int(_refs.size()));
     Assert(i2<int(_refs.size()));
-    int iPeak=i1;
-    int maxCount = getCount(i1);
+    int ipeak=i1;
+    int maxcount = getCount(i1);
 
     for(int i=i1+1;i<=i2;++i) {
-        if (getCount(i) > maxCount) {
-            maxCount = getCount(i);
-            iPeak = i;
+        if (getCount(i) > maxcount) {
+            maxcount = getCount(i);
+            ipeak = i;
         }
     }
-    return value(iPeak);
+    return value(ipeak);
 }
 
 template <typename T>
 bool Histogram<T>::hasSinglePeak(double val1, double val2) const
-// Finds the first peak from the left... set to iPeak1
-// and the first peak from the right... set to iPeak2
+// Finds the first peak from the left... set to ipeak1
+// and the first peak from the right... set to ipeak2
 // Returns whether they are the same peak
 {
-    if (val1<_minValue) val1 = _minValue;
-    if (val2>_maxValue) val2 = _maxValue;
+    if (val1<_min_value) val1 = _min_value;
+    if (val2>_max_value) val2 = _max_value;
     int i1=index(val1), i2=index(val2);
     Assert(i1<int(_refs.size()));
     Assert(i2<int(_refs.size()));
-    int iPeak1=i1,iPeak2=i2;
-    while(iPeak1+1<=i2 && getCount(iPeak1+1)>=getCount(iPeak1)) ++iPeak1;
-    while(iPeak2-1>=i1 && getCount(iPeak2-1)>=getCount(iPeak2)) --iPeak2;
-    return iPeak1 >= iPeak2; // Usually ==, but if plateau, they swap
+    int ipeak1=i1,ipeak2=i2;
+    while(ipeak1+1<=i2 && getCount(ipeak1+1)>=getCount(ipeak1)) ++ipeak1;
+    while(ipeak2-1>=i1 && getCount(ipeak2-1)>=getCount(ipeak2)) --ipeak2;
+    return ipeak1 >= ipeak2; // Usually ==, but if plateau, they swap
 }
 
 template <typename T>
 double Histogram<T>::findValley(double val1, double val2) const
 {
-    if (val1<_minValue) val1 = _minValue;
-    if (val2>_maxValue) val2 = _maxValue;
+    if (val1<_min_value) val1 = _min_value;
+    if (val2>_max_value) val2 = _max_value;
     int i1=index(val1), i2=index(val2);
     Assert(i1<int(_refs.size()));
     Assert(i2<int(_refs.size()));
-    int iValley=i1;
+    int ivalley=i1;
     int minCount = getCount(i1);
 
     for(int i=i1+1;i<=i2;++i) {
         if (getCount(i) < minCount) {
             minCount = getCount(i);
-            iValley = i;
+            ivalley = i;
         }
     }
     // Make sure you're not still sloping down.  If so, keep going.
-    if (iValley==i2) {
-        int nRefs = _refs.size();
-        while(iValley+1 < nRefs && getCount(iValley+1) < getCount(iValley)) 
-            ++iValley;
+    if (ivalley==i2) {
+        int nrefs = _refs.size();
+        while(ivalley+1 < nrefs && getCount(ivalley+1) < getCount(ivalley)) 
+            ++ivalley;
     }
 
-    return value(iValley);
+    return value(ivalley);
 }
 
 template <typename T>
-double Histogram<T>::findFirstValleyAfter(double val1,bool hasPoissonNoise) const
+double Histogram<T>::findFirstValleyAfter(double val1, bool poisson_noise) const
 {
     dbg<<"Start FindFirstValleyAfter "<<val1<<std::endl;
-    if (val1<_minValue) val1 = _minValue;
+    if (val1<_min_value) val1 = _min_value;
     int i1=index(val1);
     Assert(i1<int(_refs.size()));
     // Keep going until it stops dropping
     // The sqrt bit allows for Poisson noise in the counts
     // Otherwise you can get caught early by ledges.
     // eg. 15 9 10 4 1 3 3 ... would stop at the 9 instead of at the 1
-    int iValley=i1;
+    int ivalley=i1;
     double minCount = getCount(i1);
-    int iCheck=i1+1;
-    const int nRefs = _refs.size();
-    while(iCheck < nRefs && getCount(iCheck) <= minCount +
-          (hasPoissonNoise ? int(sqrt(float(getCount(iCheck)))) : 0)) {
-        if (getCount(iCheck) < minCount) {
-            minCount = getCount(iCheck);
-            iValley = iCheck;
+    int icheck=i1+1;
+    const int nrefs = _refs.size();
+    while(icheck < nrefs && getCount(icheck) <= minCount +
+          (poisson_noise ? int(sqrt(float(getCount(icheck)))) : 0)) {
+        if (getCount(icheck) < minCount) {
+            minCount = getCount(icheck);
+            ivalley = icheck;
         }
-        if (++iCheck == nRefs) break;
+        if (++icheck == nrefs) break;
     }
-    dbg<<"valley = "<<value(iValley)<<std::endl;
-    return value(iValley);
+    dbg<<"valley = "<<value(ivalley)<<std::endl;
+    return value(ivalley);
 }
 
 template <typename T>
-double Histogram<T>::findFirstValleyBefore(double val1,bool hasPoissonNoise) const
+double Histogram<T>::findFirstValleyBefore(double val1, bool poisson_noise) const
 {
-    if (val1>_maxValue) val1 = _maxValue;
+    if (val1>_max_value) val1 = _max_value;
     int i1=index(val1);
     Assert(i1<int(_refs.size()));
     // Keep going until it stops dropping
     // The sqrt bit allows for Poisson noise in the counts
     // Otherwise you can get caught early by ledges.
     // eg. 15 9 10 4 1 3 3 ... would stop at the 9 instead of at the 1
-    int iValley=i1;
+    int ivalley=i1;
     double minCount = getCount(i1);
     if (i1 > 0) {
-        int iCheck=i1-1;
-        while(getCount(iCheck) <= minCount +
-              (hasPoissonNoise ? int(sqrt(float(getCount(iCheck)))) : 0)) {
-            if (getCount(iCheck) < minCount) {
-                minCount = getCount(iCheck);
-                iValley = iCheck;
+        int icheck=i1-1;
+        while(getCount(icheck) <= minCount +
+              (poisson_noise ? int(sqrt(float(getCount(icheck)))) : 0)) {
+            if (getCount(icheck) < minCount) {
+                minCount = getCount(icheck);
+                ivalley = icheck;
             }
-            if (iCheck == 0) break;
-            --iCheck;
+            if (icheck == 0) break;
+            --icheck;
         }
     }
-    return value(iValley);
+    return value(ivalley);
 }
 
 template <typename T>
 double Histogram<T>::findFirstValueAfter(double start) const
 {
-    int i = (start<_minValue) ? index(_minValue) : index(start)+1;
-    const int nValues = _values.size();
-    while (i<nValues && _values[i].size() == 0) ++i;
-    if (i == nValues) return _maxValue;
+    int i = (start<_min_value) ? index(_min_value) : index(start)+1;
+    const int nvalues = _values.size();
+    while (i<nvalues && _values[i].size() == 0) ++i;
+    if (i == nvalues) return _max_value;
     else return *std::min_element(_values[i].begin(),_values[i].end());
 }
 
 template <typename T>
-double Histogram<T>::findFirstPeakAfter(double val1,bool hasPoissonNoise) const
+double Histogram<T>::findFirstPeakAfter(double val1, bool poisson_noise) const
 {
-    if (val1<_minValue) val1 = _minValue;
+    if (val1<_min_value) val1 = _min_value;
     int i1=index(val1);
-    const int nRefs = _refs.size();
-    Assert(i1 < nRefs);
+    const int nrefs = _refs.size();
+    Assert(i1 < nrefs);
     // Keep going until it stops rising
-    int iPeak=i1;
-    double maxCount = getCount(i1);
-    int iCheck=i1+1;
-    while(iCheck < nRefs && maxCount <= getCount(iCheck) +
-          (hasPoissonNoise ? int(sqrt(float(getCount(iCheck)))) : 0)) {
-        if (getCount(iCheck) > maxCount) {
-            maxCount = getCount(iCheck);
-            iPeak = iCheck;
+    int ipeak=i1;
+    double maxcount = getCount(i1);
+    int icheck=i1+1;
+    while(icheck < nrefs && maxcount <= getCount(icheck) +
+          (poisson_noise ? int(sqrt(float(getCount(icheck)))) : 0)) {
+        if (getCount(icheck) > maxcount) {
+            maxcount = getCount(icheck);
+            ipeak = icheck;
         }
-        if (++iCheck == nRefs) break;
+        if (++icheck == nrefs) break;
     }
-    return value(iPeak);
+    return value(ipeak);
 }
 
 template <typename T>
-double Histogram<T>::findFirstPeakBefore(double val1,bool hasPoissonNoise) const
+double Histogram<T>::findFirstPeakBefore(double val1, bool poisson_noise) const
 {
-    if (val1>_maxValue) val1 = _maxValue;
+    if (val1>_max_value) val1 = _max_value;
     int i1=index(val1);
     Assert(i1 < int(_refs.size()));
     // Keep going until it stops rising
-    int iPeak=i1;
-    double maxCount = getCount(i1);
+    int ipeak=i1;
+    double maxcount = getCount(i1);
     if (i1 > 0) {
-        int iCheck=i1-1;
-        while(maxCount <= getCount(iCheck) +
-              (hasPoissonNoise ? int(sqrt(float(getCount(iCheck)))) : 0)) {
-            if (getCount(iCheck) > maxCount) {
-                maxCount = getCount(iCheck);
-                iPeak = iCheck;
+        int icheck=i1-1;
+        while(maxcount <= getCount(icheck) +
+              (poisson_noise ? int(sqrt(float(getCount(icheck)))) : 0)) {
+            if (getCount(icheck) > maxcount) {
+                maxcount = getCount(icheck);
+                ipeak = icheck;
             }
-            if (iCheck == 0) break;
-            --iCheck;
+            if (icheck == 0) break;
+            --icheck;
         }
     }
-    return value(iPeak);
+    return value(ipeak);
 }
 
 template <typename T>
@@ -230,9 +230,9 @@ int Histogram<T>::getTotalCountAfter(double val1) const
 {
     int count=0;
     int i1 = index(val1);
-    const int nRefs = _refs.size();
-    Assert(i1 < nRefs);
-    for(int i=i1+1;i<nRefs;++i) count += getCount(i);
+    const int nrefs = _refs.size();
+    Assert(i1 < nrefs);
+    for(int i=i1+1;i<nrefs;++i) count += getCount(i);
     return count;
 }
 
@@ -240,31 +240,31 @@ template <typename T>
 int Histogram<T>::getRefinedPeakCount(double* peak) const
 // Takes the three bins around the peak and find the maximum number of
 // objects which fit into a bin width.  
-// It does this by sliding a window of width binSize along a sorted list
+// It does this by sliding a window of width bin_size along a sorted list
 // of values and counting how many objects fit into the window. 
 {
     std::vector<double> vals = 
-        getValuesInRange(*peak-1.5*_binSize,
-                         *peak+1.5*_binSize);
+        getValuesInRange(*peak-1.5*_bin_size,
+                         *peak+1.5*_bin_size);
     Assert(vals.size()>=1);
     std::sort(vals.begin(),vals.end());
-    int bestCount=0;
-    double bestVal=*peak;
+    int best_count=0;
+    double best_val=*peak;
     // i is the object at the left side of the virtual bin
     // j is the first object after the end of the virtual bin
-    const int nVals = vals.size();
-    for(int i=0,j=0;j<nVals;++i) {
+    const int nvals = vals.size();
+    for(int i=0,j=0;j<nvals;++i) {
         // Determine j for this value of i
-        while (j<nVals && vals[j] < vals[i]+_binSize) ++j;
-        // If the corresponding count is better than bestCount, update it
+        while (j<nvals && vals[j] < vals[i]+_bin_size) ++j;
+        // If the corresponding count is better than best_count, update it
         Assert(j>i);
-        if (j-i > bestCount) {
-            bestCount = j-i;
-            bestVal = (vals[i]+vals[j-1])/2.;
+        if (j-i > best_count) {
+            best_count = j-i;
+            best_val = (vals[i]+vals[j-1])/2.;
         }
     }
-    *peak = bestVal;
-    return bestCount;
+    *peak = best_val;
+    return best_count;
 }
 
 template <typename T>
@@ -277,31 +277,31 @@ int Histogram<T>::getRefinedValleyCount(double* valley) const
 // than j-i.
 {
     std::vector<double> vals = 
-        getValuesInRange(*valley-1.5*_binSize,
-                         *valley+1.5*_binSize);
-    const int nVals = vals.size();
-    if (nVals == 0) return 0;
+        getValuesInRange(*valley-1.5*_bin_size,
+                         *valley+1.5*_bin_size);
+    const int nvals = vals.size();
+    if (nvals == 0) return 0;
     std::sort(vals.begin(),vals.end());
     // start high since want to find the lowest count
-    int bestCount=nVals;
-    double bestVal=*valley;
+    int best_count=nvals;
+    double best_val=*valley;
     // i is the last object before the start of the virtual bin
     // j is the first object after the end of the virtual bin
-    for(int i=0,j=0; i<nVals && vals[i]<*valley+0.5*_binSize; ++i) {
+    for(int i=0,j=0; i<nvals && vals[i]<*valley+0.5*_bin_size; ++i) {
         // Determine j for this value of i
-        while (j<nVals && vals[j] < vals[i]+_binSize) ++j;
+        while (j<nvals && vals[j] < vals[i]+_bin_size) ++j;
         // If we can get rid of any i values, given this j, do so.
-        double nextBinStart = j<nVals ? vals[j] : *valley+1.5*_binSize;
-        while (i+1<nVals && vals[i+1]+_binSize < nextBinStart) ++i;
-        // If the corresponding count is better than bestCount, update it
+        double next_bin_start = j<nvals ? vals[j] : *valley+1.5*_bin_size;
+        while (i+1<nvals && vals[i+1]+_bin_size < next_bin_start) ++i;
+        // If the corresponding count is better than best_count, update it
         Assert(j>i);
-        if (j-i-1 < bestCount) {
-            bestCount = j-i-1;
-            bestVal = vals[i]+_binSize/2.;
+        if (j-i-1 < best_count) {
+            best_count = j-i-1;
+            best_val = vals[i]+_bin_size/2.;
         }
     }
-    *valley = bestVal;
-    return bestCount;
+    *valley = best_val;
+    return best_count;
 }
 
 template <typename T>
@@ -313,7 +313,7 @@ int Histogram<T>::operator[](double value) const
 }
 
 template <typename T>
-double Histogram<T>::findThresh(double minVal, double maxVal) const
+double Histogram<T>::findThresh(double min_val, double max_val) const
 // This function finds the threshold point which maximizes the 
 // "Normalized Between Group Variance" (var).
 // For a given threshold point, we have two groups, the left side and 
@@ -335,97 +335,97 @@ double Histogram<T>::findThresh(double minVal, double maxVal) const
 // the values as we go along the histogram to make it order N, rather than
 // N^2.
 //
-// nTot = Sumtot(N(i))
-// meanTot = Sumtot(N(i)*i)/Ntot
-// meanSqTot = Sumtot(N(i)*i*i)/Ntot
+// ntot = Sumtot(N(i))
+// meantot = Sumtot(N(i)*i)/Ntot
+// meanSqntt = Sumtot(N(i)*i*i)/Ntot
 //
 // (All sums below are from i=0..i1, "sumtot" above means from i=0..maxi)
 //
-// fL = Sum(N(i))/nTot
+// fL = Sum(N(i))/ntot
 // fR = 1-fL
-// xL = Sum(N(i)*i)/nTot/fL
-// xR = (meanTot - fL*xL)/fR
-// vL = Sum(N(i)*i*i)/nTot/fL - xL^2
-// vR = (meanSqTot - fL*(vL+xL^2))/fR
+// xL = Sum(N(i)*i)/ntot/fL
+// xR = (meantot - fL*xL)/fR
+// vL = Sum(N(i)*i*i)/ntot/fL - xL^2
+// vR = (meansqtot - fL*(vL+xL^2))/fR
 {
     const double EPSILON = 1.e-6;
 
     dbg<<"starting FindThresh\n";
     if (dbgout) print(*dbgout);
 
-    double nTot=0.,meanTot=0.,meanSqTot=0.;
+    double ntot=0.,meantot=0.,meansqtot=0.;
 
-    if (minVal < _minValue) minVal = _minValue;
-    if (maxVal > _maxValue) maxVal = _maxValue;
-    int i1 = index(minVal);
-    int i2 = index(maxVal);
+    if (min_val < _min_value) min_val = _min_value;
+    if (max_val > _max_value) max_val = _max_value;
+    int i1 = index(min_val);
+    int i2 = index(max_val);
     Assert(i1 < int(_refs.size()));
     Assert(i2 < int(_refs.size()));
 
     // First calculate the "tot" values:
     for(int i=i1;i<=i2;++i) {
         double dcount = getCount(i);
-        nTot += dcount;
-        meanTot += dcount*i;
-        meanSqTot += dcount*i*i;
+        ntot += dcount;
+        meantot += dcount*i;
+        meansqtot += dcount*i*i;
     }
-    meanTot /= nTot;
-    meanSqTot /= nTot;
-    dbg<<"ntot="<<nTot<<", meantot="<<meanTot<<
-        ", meansqtot="<<meanSqTot<<std::endl;
+    meantot /= ntot;
+    meansqtot /= ntot;
+    dbg<<"ntot="<<ntot<<", meantot="<<meantot<<
+        ", meansqtot="<<meansqtot<<std::endl;
 
-    double sumN=0.,sumNi=0.,sumNii=0.,varBest=-1.;
-    int iBest=-1;
+    double sumN=0.,sumNi=0.,sumNii=0.,bestvar=-1.;
+    int besti=-1;
 
-    const double minVariance = 0.25;
+    const double min_variance = 0.25;
 
     for(int i=i1;i<=i2;++i) {
         double dcount = getCount(i);
         sumN += dcount;
         sumNi += dcount*i;
         sumNii += dcount*i*i;
-        double fL = sumN/nTot;
+        double fL = sumN/ntot;
         double fR = 1.-fL;
         Assert(fL >=0. && fR >=0.);
         if (fL == 0. || fR == 0.) continue; // var = 0
-        double xL = sumNi/nTot;  // actuall fL*xL now
-        double xR = (meanTot-xL)/fR;
+        double xL = sumNi/ntot;  // actuall fL*xL now
+        double xR = (meantot-xL)/fR;
         xL /= fL;
-        double vL = sumNii/nTot; // actually fL*(vL+xL^2)
-        double vR = (meanSqTot-vL)/fR - xR*xR;
+        double vL = sumNii/ntot; // actually fL*(vL+xL^2)
+        double vR = (meansqtot-vL)/fR - xR*xR;
         vL = vL/fL - xL*xL;
-        if (vL<minVariance) vL = minVariance;
-        if (vR<minVariance) vR = minVariance;
+        if (vL<min_variance) vL = min_variance;
+        if (vR<min_variance) vR = min_variance;
         double var = fL*fR*std::pow(xR-xL,2)/sqrt(vL*vR);
         Assert(var >= 0.);
-        if (var > varBest+EPSILON) {
-            iBest = i;
-            varBest = var;
+        if (var > bestvar+EPSILON) {
+            besti = i;
+            bestvar = var;
         }
     }
 
-    dbg<<"besti = "<<iBest<<", bestvar = "<<varBest<<std::endl;
-    Assert(iBest >= 0);
-    Assert(varBest > 0.);
+    dbg<<"besti = "<<besti<<", bestvar = "<<bestvar<<std::endl;
+    Assert(besti >= 0);
+    Assert(bestvar > 0.);
     // +1 below forces thresh to be at least 1 bin away from first peak.
-    // otherwise if peak is only 1 bin, can get iBest = that bin.
-    dbg<<"returning thresh = "<<value(iBest)<<std::endl;
-    return value(iBest);
+    // otherwise if peak is only 1 bin, can get besti = that bin.
+    dbg<<"returning thresh = "<<value(besti)<<std::endl;
+    return value(besti);
 }
 
 template <typename T>
 std::vector<T> Histogram<T>::getRefsInRange(double min, double max) const
 {
-    if (min < _minValue) min = _minValue;
-    if (max > _maxValue) max = _maxValue;
+    if (min < _min_value) min = _min_value;
+    if (max > _max_value) max = _max_value;
     int i1=index(min);
     int i2=index(max);
 
     dbg<<"in getrefs: min,max = "<<min<<','<<max<<std::endl;
 
     std::vector<T> temp;
-    const int nRefs1 = _refs[i1].size();
-    for(int k=0; k<nRefs1; ++k) {
+    const int nrefs1 = _refs[i1].size();
+    for(int k=0; k<nrefs1; ++k) {
         if(_values[i1][k]>=min) {
             dbg<<"i1 - add ref @ "<<_values[i1][k]<<std::endl;
             temp.push_back(_refs[i1][k]);
@@ -437,8 +437,8 @@ std::vector<T> Histogram<T>::getRefsInRange(double min, double max) const
                 _values[i].front()<<std::endl;
         temp.insert(temp.end(),_refs[i].begin(),_refs[i].end());
     }
-    const int nRefs2 = _refs[i2].size();
-    for(int k=0; k<nRefs2; ++k) {
+    const int nrefs2 = _refs[i2].size();
+    for(int k=0; k<nrefs2; ++k) {
         if(_values[i2][k] <= max) {
             dbg<<"i2 - add ref @ "<<_values[i2][k]<<std::endl;
             temp.push_back(_refs[i2][k]);
@@ -451,19 +451,19 @@ template <typename T>
 std::vector<double> Histogram<T>::getValuesInRange(
     double min, double max) const
 {
-    if (min < _minValue) min = _minValue;
-    if (max > _maxValue) max = _maxValue;
+    if (min < _min_value) min = _min_value;
+    if (max > _max_value) max = _max_value;
     int i1=index(min);
     int i2=index(max);
 
     std::vector<double> temp;
-    const int nVals1 = _values[i1].size();
-    for(int k=0;k<nVals1;++k)
+    const int nvals1 = _values[i1].size();
+    for(int k=0;k<nvals1;++k)
         if(_values[i1][k]>=min) temp.push_back(_values[i1][k]);
     for(int i=i1+1;i<i2;++i)
         temp.insert(temp.end(),_values[i].begin(),_values[i].end());
-    const int nVals2 = _values[i2].size();
-    for(int k=0;k<nVals2;++k)
+    const int nvals2 = _values[i2].size();
+    for(int k=0;k<nvals2;++k)
         if(_values[i2][k]<=max) temp.push_back(_values[i2][k]);
     return temp;
 }
@@ -471,22 +471,22 @@ std::vector<double> Histogram<T>::getValuesInRange(
 template <typename T>
 int Histogram<T>::index(double value) const
 {
-    Assert (value >= _minValue && value <= _maxValue);
-    return int(floor((value - _minValue)/_binSize));
+    Assert (value >= _min_value && value <= _max_value);
+    return int(floor((value - _min_value)/_bin_size));
 }
 
 template <typename T>
 double Histogram<T>::value(int i) const
 {
     Assert(i<int(_refs.size()));
-    return _binSize*(i+0.5)+_minValue;
+    return _bin_size*(i+0.5)+_min_value;
 }
 
 template <typename T>
 void Histogram<T>::print(std::ostream& fout,double val1,double val2) const
 {
-    if (val1 < _minValue) val1 = _minValue;
-    if (val2 > _maxValue) val2 = _maxValue;
+    if (val1 < _min_value) val1 = _min_value;
+    if (val2 > _max_value) val2 = _max_value;
     int i1=index(val1);
     int i2=index(val2);
     Assert(i1 < int(_refs.size()));

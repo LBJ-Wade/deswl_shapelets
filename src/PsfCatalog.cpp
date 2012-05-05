@@ -14,50 +14,50 @@
 #include "WlVersion.h"
 #include "WriteParam.h"
 
-void measureSinglePsf1(
+void MeasureSinglePsf1(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans,
-    double noise, const Image<double>* weightIm,
-    double sigmaP, const ConfigFile& params,
+    double noise, const Image<double>* weight_image,
+    double sigma_p, const ConfigFile& params,
     PsfLog& log, BVec& psf, double& nu, long& flag)
 {
-    int psfOrder = params.read<int>("psf_order");
-    bool fixCen = params.read("psf_fix_centroid",false);
-    double psfAp = params.read<double>("psf_aperture");
-    int maxm = params.read("psf_maxm",psfOrder);
+    int psf_order = params.read<int>("psf_order");
+    bool fixcen = params.read("psf_fix_centroid",false);
+    double psf_ap = params.read<double>("psf_aperture");
+    int maxm = params.read("psf_maxm",psf_order);
 
     std::vector<PixelList> pix(1);
-    getPixList(im,pix[0],cen,sky,noise,weightIm,trans,psfAp,params,flag);
+    GetPixList(im,pix[0],cen,sky,noise,weight_image,trans,psf_ap,params,flag);
 
-    int nPix = pix[0].size();
-    xdbg<<"npix = "<<nPix<<std::endl;
+    int npix = pix[0].size();
+    xdbg<<"npix = "<<npix<<std::endl;
 
     Ellipse ell;
     ell.fixGam();
     ell.fixMu();
-    if (fixCen) ell.fixCen();
+    if (fixcen) ell.fixCen();
     else {
-        ell.peakCentroid(pix[0],psfAp/3.);
-        ell.crudeMeasure(pix[0],sigmaP);
+        ell.peakCentroid(pix[0],psf_ap/3.);
+        ell.crudeMeasure(pix[0],sigma_p);
     }
     DMatrix cov(int(psf.size()),int(psf.size()));
 
     // First make sure it is centered.
-    if (!(ell.measure(pix,psfOrder,psfOrder+4,maxm,sigmaP,flag,1.e-4))) {
+    if (!(ell.measure(pix,psf_order,psf_order+4,maxm,sigma_p,flag,1.e-4))) {
         xdbg<<"Initial measurement failed\n";
-        ++log._nfPsf;
+        ++log._nf_psf;
         dbg<<"FLAG MEASURE_PSF_FAILED\n";
         flag |= MEASURE_PSF_FAILED;
         return;
     } 
     
     // Then measure it with the accurate center.
-    psf.setSigma(sigmaP);
-    if (ell.measureShapelet(pix,psf,psfOrder,psfOrder+4,maxm,&cov)) {
-        ++log._nsPsf;
+    psf.setSigma(sigma_p);
+    if (ell.measureShapelet(pix,psf,psf_order,psf_order+4,maxm,&cov)) {
+        ++log._ns_psf;
     } else {
         xdbg<<"Shapelet Measurement failed\n";
-        ++log._nfPsf;
+        ++log._nf_psf;
         dbg<<"FLAG MEASURE_PSF_FAILED\n";
         flag |= MEASURE_PSF_FAILED;
         return;
@@ -67,16 +67,16 @@ void measureSinglePsf1(
     // with what we get at the full order.  It should be within a factor of 3
     // of the same value.  (Within 10s of percent usually, but we only call it
     // an error if it is more than a factor of 3 different.)
-    BVec flux(0,sigmaP);
-    DMatrix fluxCov(1,1);
-    if (!ell.measureShapelet(pix,flux,0,0,0,&fluxCov)) {
+    BVec flux(0,sigma_p);
+    DMatrix flux_cov(1,1);
+    if (!ell.measureShapelet(pix,flux,0,0,0,&flux_cov)) {
         xdbg<<"Measurement of flux failed.\n";
-        ++log._nfPsf;
+        ++log._nf_psf;
         dbg<<"FLAG PSF_BAD_FLUX\n";
         flag |= PSF_BAD_FLUX;
     }
-    nu = flux(0) / std::sqrt(fluxCov(0,0));
-    dbg<<"nu = "<<flux(0)<<" / sqrt("<<fluxCov(0,0)<<") = "<<nu<<std::endl;
+    nu = flux(0) / std::sqrt(flux_cov(0,0));
+    dbg<<"nu = "<<flux(0)<<" / sqrt("<<flux_cov(0,0)<<") = "<<nu<<std::endl;
     dbg<<" or  "<<psf(0)<<" / sqrt("<<cov(0,0)<<") = "<<
         psf(0)/std::sqrt(cov(0,0))<<std::endl;
     if (!(flux(0) > 0.0 &&
@@ -92,14 +92,14 @@ void measureSinglePsf1(
     xdbg<<"psf = "<<psf.vec()<<std::endl;
     psf.normalize();  // Divide by (0,0) element
     xdbg<<"Normalized psf: "<<psf.vec()<<std::endl;
-    if (!fixCen) cen += ell.getCen();
+    if (!fixcen) cen += ell.getCen();
 }
 
-void measureSinglePsf(
+void MeasureSinglePsf(
     Position& cen, const Image<double>& im, double sky,
     const Transformation& trans,
-    double noise, const Image<double>* weightIm,
-    double sigmaP, const ConfigFile& params,
+    double noise, const Image<double>* weight_image,
+    double sigma_p, const ConfigFile& params,
     PsfLog& log, BVec& psf, double& nu, long& flag)
 {
     try {
@@ -111,67 +111,67 @@ void measureSinglePsf(
     } catch (RangeException& e) {
         xdbg<<"skip: transformation range error: \n";
         xdbg<<"p = "<<cen<<", b = "<<e.getBounds()<<std::endl;
-        ++log._nfRange;
+        ++log._nf_range;
         dbg<<"FLAG TRANSFORM_EXCEPTION\n";
         flag |= TRANSFORM_EXCEPTION;
         return;
     }
 
     try {
-        measureSinglePsf1(
-            cen,im,sky,trans,noise,weightIm,
-            sigmaP,params,log,psf,nu,flag);
+        MeasureSinglePsf1(
+            cen,im,sky,trans,noise,weight_image,
+            sigma_p,params,log,psf,nu,flag);
 #ifdef USE_TMV
     } catch (tmv::Error& e) {
         dbg<<"TMV Error thrown in MeasureSinglePSF\n";
         dbg<<e<<std::endl;
-        ++log._nfTmvError;
+        ++log._nf_tmv_error;
         dbg<<"FLAG TMV_EXCEPTION\n";
         flag |= TMV_EXCEPTION;
 #endif
     } catch (...) {
         dbg<<"unkown exception in MeasureSinglePSF\n";
-        ++log._nfOtherError;
+        ++log._nf_other_error;
         dbg<<"FLAG UNKNOWN_EXCEPTION\n";
         flag |= UNKNOWN_EXCEPTION;
     }
 }
 
 PsfCatalog::PsfCatalog(
-    const StarCatalog& starCat, const ConfigFile& params) :
+    const StarCatalog& starcat, const ConfigFile& params) :
     _params(params)
 {
     dbg<<"Create PSFCatalog\n";
-    const int nTot = starCat.size();
-    dbg<<"ntot = "<<nTot<<std::endl;
-    const std::vector<bool>& isAStar = starCat.getIsAStarList();
-    const int nStars = std::count(isAStar.begin(),isAStar.end(),1);
-    dbg<<"count stars = "<<nStars<<std::endl;
-    _id.reserve(nStars);
-    _pos.reserve(nStars);
-    _flags.reserve(nStars);
-    for (int i=0; i<nTot; ++i) {
-        if (isAStar[i]) {
-            _id.push_back( starCat.getId(i) );
-            _pos.push_back( starCat.getPos(i) );
-            _sky.push_back( starCat.getSky(i) );
-            _noise.push_back( starCat.getNoise(i) );
-            _flags.push_back( starCat.getFlags(i) );
+    const int ntot = starcat.size();
+    dbg<<"ntot = "<<ntot<<std::endl;
+    const std::vector<bool>& is_star = starcat.getIsStarList();
+    const int nstars = std::count(is_star.begin(),is_star.end(),1);
+    dbg<<"count stars = "<<nstars<<std::endl;
+    _id.reserve(nstars);
+    _pos.reserve(nstars);
+    _flags.reserve(nstars);
+    for (int i=0; i<ntot; ++i) {
+        if (is_star[i]) {
+            _id.push_back( starcat.getId(i) );
+            _pos.push_back( starcat.getPos(i) );
+            _sky.push_back( starcat.getSky(i) );
+            _noise.push_back( starcat.getNoise(i) );
+            _flags.push_back( starcat.getFlags(i) );
         }
     }
-    Assert(int(_id.size()) == nStars);
-    dbg<<"nstars = "<<nStars<<std::endl;
+    Assert(int(_id.size()) == nstars);
+    dbg<<"nstars = "<<nstars<<std::endl;
 
     // Fix flags to only have INPUT_FLAG set.
     // i.e. Ignore any flags set by StarCatalog.
-    for (int i=0; i<nStars; ++i) {
+    for (int i=0; i<nstars; ++i) {
         if (_flags[i]) _flags[i] = INPUT_FLAG;
     }
 
     // Set up a default psf vector for output when an object measurement
     // fails
-    long psfOrder = _params.read<long>("psf_order");
-    BVec psfDefault(psfOrder,1.);
+    long psf_order = _params.read<long>("psf_order");
+    BVec psfDefault(psf_order,1.);
     const int psfSize = psfDefault.size();
     for (int i=0; i<psfSize; ++i) {
         psfDefault(i) = DEFVALNEG;
@@ -208,59 +208,59 @@ void PsfCatalog::writeFits(std::string file) const
     Assert(int(_nu.size()) == size());
     Assert(int(_flags.size()) == size());
     Assert(int(_psf.size()) == size());
-    const int nPsf = size();
+    const int npsf = size();
 
     // ! means overwrite existing file
     CCfits::FITS fits("!"+file, CCfits::Write);
 
     const int nFields = 10;
 
-    std::vector<string> colNames(nFields);
-    std::vector<string> colFmts(nFields);
-    std::vector<string> colUnits(nFields);
+    std::vector<string> col_names(nFields);
+    std::vector<string> col_fmts(nFields);
+    std::vector<string> col_units(nFields);
 
-    colNames[0] = _params["psf_id_col"];
-    colNames[1] = _params["psf_x_col"];
-    colNames[2] = _params["psf_y_col"];
-    colNames[3] = _params["psf_sky_col"];
-    colNames[4] = _params["psf_noise_col"];
-    colNames[5] = _params["psf_flags_col"];
-    colNames[6] = _params["psf_nu_col"];
-    colNames[7] = _params["psf_order_col"];
-    colNames[8] = _params["psf_sigma_col"];
-    colNames[9] = _params["psf_coeffs_col"];
+    col_names[0] = _params["psf_id_col"];
+    col_names[1] = _params["psf_x_col"];
+    col_names[2] = _params["psf_y_col"];
+    col_names[3] = _params["psf_sky_col"];
+    col_names[4] = _params["psf_noise_col"];
+    col_names[5] = _params["psf_flags_col"];
+    col_names[6] = _params["psf_nu_col"];
+    col_names[7] = _params["psf_order_col"];
+    col_names[8] = _params["psf_sigma_col"];
+    col_names[9] = _params["psf_coeffs_col"];
 
-    int nCoeff = _psf[0].size();
-    dbg<<"ncoeff = "<<nCoeff<<std::endl;
-    std::stringstream coeffForm;
-    coeffForm << nCoeff << "d";
+    int ncoeff = _psf[0].size();
+    dbg<<"ncoeff = "<<ncoeff<<std::endl;
+    std::stringstream coeff_form;
+    coeff_form << ncoeff << "d";
 
-    colFmts[0] = "1J"; //id
-    colFmts[1] = "1D"; //x
-    colFmts[2] = "1D"; //y
-    colFmts[3] = "1D"; //sky
-    colFmts[4] = "1D"; //noise
-    colFmts[5] = "1J"; //flags
-    colFmts[6] = "1D"; //nu
-    colFmts[7] = "1J"; //order
-    colFmts[8] = "1D"; //sigma
-    colFmts[9] = coeffForm.str(); //coeffs
+    col_fmts[0] = "1J"; //id
+    col_fmts[1] = "1D"; //x
+    col_fmts[2] = "1D"; //y
+    col_fmts[3] = "1D"; //sky
+    col_fmts[4] = "1D"; //noise
+    col_fmts[5] = "1J"; //flags
+    col_fmts[6] = "1D"; //nu
+    col_fmts[7] = "1J"; //order
+    col_fmts[8] = "1D"; //sigma
+    col_fmts[9] = coeff_form.str(); //coeffs
 
-    colUnits[0] = "None";     // id
-    colUnits[1] = "pixels";   // x
-    colUnits[2] = "pixels";   // y
-    colUnits[3] = "ADU";      // sky
-    colUnits[4] = "ADU^2";    // noise
-    colUnits[5] = "None";     // flags
-    colUnits[6] = "None";     // nu
-    colUnits[7] = "None";     // order
-    colUnits[8] = "Arcsec";   // sigma
-    colUnits[9] = "None";     // coeffs
+    col_units[0] = "None";     // id
+    col_units[1] = "pixels";   // x
+    col_units[2] = "pixels";   // y
+    col_units[3] = "ADU";      // sky
+    col_units[4] = "ADU^2";    // noise
+    col_units[5] = "None";     // flags
+    col_units[6] = "None";     // nu
+    col_units[7] = "None";     // order
+    col_units[8] = "Arcsec";   // sigma
+    col_units[9] = "None";     // coeffs
 
 
     dbg<<"Before Create table"<<std::endl;
     CCfits::Table* table;
-    table = fits.addTable("psfcat",nPsf,colNames,colFmts,colUnits);
+    table = fits.addTable("psfcat",npsf,col_names,col_fmts,col_units);
 
 
     // Header keywords
@@ -273,7 +273,7 @@ void PsfCatalog::writeFits(std::string file) const
 #else
     std::string tmvVers = "Eigen";
 #endif
-    std::string wlVers = getWlVersion();
+    std::string wlVers = GetWlVersion();
 
     table->addKey("tmvvers", tmvVers, "version of TMV code");
     table->addKey("wlvers", wlVers, "version of weak lensing code");
@@ -281,52 +281,51 @@ void PsfCatalog::writeFits(std::string file) const
     // if wlserun= is sent we'll put it in the header.  This allows us to 
     // associate some more, possibly complicated, metadata with this file
     if ( _params.keyExists("wlserun") ) {
-        writeParamToTable(_params, table, "wlserun", str);
+        WriteParamToTable(_params, table, "wlserun", str);
     }
 
-    writeParamToTable(_params, table, "noise_method", str);
-    writeParamToTable(_params, table, "dist_method", str);
+    WriteParamToTable(_params, table, "noise_method", str);
+    WriteParamToTable(_params, table, "dist_method", str);
 
-    writeParamToTable(_params, table, "psf_aperture", dbl);
-    writeParamToTable(_params, table, "psf_order", intgr);
-    writeParamToTable(_params, table, "psf_seeing_est", dbl);
-
+    WriteParamToTable(_params, table, "psf_aperture", dbl);
+    WriteParamToTable(_params, table, "psf_order", intgr);
+    WriteParamToTable(_params, table, "psf_seeing_est", dbl);
 
 
     // Data columns
 
     // make vector copies for writing
-    std::vector<double> x(nPsf);
-    std::vector<double> y(nPsf);
-    for(int i=0;i<nPsf;++i) {
+    std::vector<double> x(npsf);
+    std::vector<double> y(npsf);
+    for(int i=0;i<npsf;++i) {
         x[i] = _pos[i].getX();
         y[i] = _pos[i].getY();
     }
 
     int startrow=1;
 
-    table->column(colNames[0]).write(_id,startrow);
-    table->column(colNames[1]).write(x,startrow);
-    table->column(colNames[2]).write(y,startrow);
-    table->column(colNames[3]).write(_sky,startrow);
-    table->column(colNames[4]).write(_noise,startrow);
-    table->column(colNames[5]).write(_flags,startrow);
+    table->column(col_names[0]).write(_id,startrow);
+    table->column(col_names[1]).write(x,startrow);
+    table->column(col_names[2]).write(y,startrow);
+    table->column(col_names[3]).write(_sky,startrow);
+    table->column(col_names[4]).write(_noise,startrow);
+    table->column(col_names[5]).write(_flags,startrow);
 
-    table->column(colNames[6]).write(_nu,startrow);
+    table->column(col_names[6]).write(_nu,startrow);
 
-    for (int i=0; i<nPsf; ++i) {
+    for (int i=0; i<npsf; ++i) {
         int row = i+1;
-        long bOrder = _psf[i].getOrder();
-        double bSigma = _psf[i].getSigma();
+        long border = _psf[i].getOrder();
+        double bsigma = _psf[i].getSigma();
 
-        table->column(colNames[7]).write(&bOrder,1,row);
-        table->column(colNames[8]).write(&bSigma,1,row);
+        table->column(col_names[7]).write(&border,1,row);
+        table->column(col_names[8]).write(&bsigma,1,row);
         // There is a bug in the CCfits Column::write function that the 
         // first argument has to be S* rather than const S*, even though
         // it is only read from. 
         // Hence the const_cast.
         double* ptr = const_cast<double*>(TMV_cptr(_psf[i].vec()));
-        table->column(colNames[9]).write(ptr, nCoeff, 1, row);
+        table->column(col_names[9]).write(ptr, ncoeff, 1, row);
     }
 }
 
@@ -339,7 +338,7 @@ void PsfCatalog::writeAscii(std::string file, std::string delim) const
     Assert(int(_flags.size()) == size());
     Assert(int(_nu.size()) == size());
     Assert(int(_psf.size()) == size());
-    const int nPsf = size();
+    const int npsf = size();
 
     std::ofstream fout(file.c_str());
     if (!fout) {
@@ -350,7 +349,7 @@ void PsfCatalog::writeAscii(std::string file, std::string delim) const
     Form fix3; fix3.fix().trail(0).prec(3);
     Form fix6; fix6.fix().trail(0).prec(3);
 
-    for(int i=0;i<nPsf;++i) {
+    for(int i=0;i<npsf;++i) {
         fout
             << _id[i] << delim
             << fix3(_pos[i].getX()) << delim
@@ -361,8 +360,8 @@ void PsfCatalog::writeAscii(std::string file, std::string delim) const
             << fix3(_nu[i]) << delim
             << _psf[i].getOrder() << delim
             << fix6(_psf[i].getSigma());
-        const int nCoeff = _psf[i].size();
-        for(int j=0;j<nCoeff;++j) {
+        const int ncoeff = _psf[i].size();
+        for(int j=0;j<ncoeff;++j) {
             fout << delim << sci8(_psf[i](j));
         }
         fout << std::endl;
@@ -371,18 +370,18 @@ void PsfCatalog::writeAscii(std::string file, std::string delim) const
 
 void PsfCatalog::write() const
 {
-    std::vector<std::string> fileList = makeMultiName(_params, "psf");  
+    std::vector<std::string> file_list = MakeMultiName(_params, "psf");  
 
-    const int nFiles = fileList.size();
+    const int nFiles = file_list.size();
     for(int i=0; i<nFiles; ++i) {
-        const std::string& file = fileList[i];
+        const std::string& file = file_list[i];
         dbg<<"Writing psf catalog to file: "<<file<<std::endl;
 
         bool isFitsIo = false;
         if (_params.keyExists("psf_io")) {
-            std::vector<std::string> ioList = _params["psf_io"];
-            Assert(ioList.size() == fileList.size());
-            isFitsIo = (ioList[i] == "FITS");
+            std::vector<std::string> io_list = _params["psf_io"];
+            Assert(io_list.size() == file_list.size());
+            isFitsIo = (io_list[i] == "FITS");
         } else if (file.find("fits") != std::string::npos) {
             isFitsIo = true;
         }
@@ -393,9 +392,9 @@ void PsfCatalog::write() const
             } else {
                 std::string delim = "  ";
                 if (_params.keyExists("psf_delim")) {
-                    std::vector<std::string> delimList = _params["psf_delim"];
-                    Assert(delimList.size() == fileList.size());
-                    delim = delimList[i];
+                    std::vector<std::string> delim_list = _params["psf_delim"];
+                    Assert(delim_list.size() == file_list.size());
+                    delim = delim_list[i];
                 } else if (file.find("csv") != std::string::npos) {
                     delim = ",";
                 }
@@ -420,7 +419,7 @@ void PsfCatalog::write() const
 
 void PsfCatalog::readFits(std::string file)
 {
-    int hdu = getHdu(_params,"psf",file,2);
+    int hdu = GetHdu(_params,"psf",file,2);
 
     dbg<<"Opening PsfCatalog file "<<file<<" at hdu "<<hdu<<std::endl;
     CCfits::FITS fits(file, CCfits::Read);
@@ -428,77 +427,77 @@ void PsfCatalog::readFits(std::string file)
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 
-    long nRows=table.rows();
+    long nrows=table.rows();
 
-    dbg<<"  nrows = "<<nRows<<std::endl;
-    if (nRows <= 0) {
+    dbg<<"  nrows = "<<nrows<<std::endl;
+    if (nrows <= 0) {
         throw ReadException(
             "PSFCatalog found to have 0 rows.  Must have > 0 rows.");
     }
 
-    std::string idCol=_params.get("psf_id_col");
-    std::string xCol=_params.get("psf_x_col");
-    std::string yCol=_params.get("psf_y_col");
-    std::string skyCol=_params.get("psf_sky_col");
-    std::string noiseCol=_params.get("psf_noise_col");
-    std::string flagsCol=_params.get("psf_flags_col");
-    std::string nuCol=_params.get("psf_nu_col");
-    std::string orderCol=_params.get("psf_order_col");
-    std::string sigmaCol=_params.get("psf_sigma_col");
-    std::string coeffsCol=_params.get("psf_coeffs_col");
+    std::string id_col=_params.get("psf_id_col");
+    std::string x_col=_params.get("psf_x_col");
+    std::string y_col=_params.get("psf_y_col");
+    std::string sky_col=_params.get("psf_sky_col");
+    std::string noise_col=_params.get("psf_noise_col");
+    std::string flags_col=_params.get("psf_flags_col");
+    std::string nu_col=_params.get("psf_nu_col");
+    std::string order_col=_params.get("psf_order_col");
+    std::string sigma_col=_params.get("psf_sigma_col");
+    std::string coeffs_col=_params.get("psf_coeffs_col");
 
     long start=1;
-    long end=nRows;
+    long end=nrows;
 
 
     dbg<<"Reading columns"<<std::endl;
-    dbg<<"  "<<idCol<<std::endl;
-    table.column(idCol).read(_id, start, end);
+    dbg<<"  "<<id_col<<std::endl;
+    table.column(id_col).read(_id, start, end);
 
-    dbg<<"  "<<xCol<<"  "<<yCol<<std::endl;
-    _pos.resize(nRows);
+    dbg<<"  "<<x_col<<"  "<<y_col<<std::endl;
+    _pos.resize(nrows);
     std::vector<double> x;
     std::vector<double> y;
-    table.column(xCol).read(x, start, end);
-    table.column(yCol).read(y, start, end);
-    for(long i=0;i<nRows;++i) _pos[i] = Position(x[i],y[i]);
+    table.column(x_col).read(x, start, end);
+    table.column(y_col).read(y, start, end);
+    for(long i=0;i<nrows;++i) _pos[i] = Position(x[i],y[i]);
 
-    dbg<<"  "<<skyCol<<std::endl;
-    table.column(skyCol).read(_sky, start, end);
+    dbg<<"  "<<sky_col<<std::endl;
+    table.column(sky_col).read(_sky, start, end);
 
-    dbg<<"  "<<noiseCol<<std::endl;
-    table.column(noiseCol).read(_noise, start, end);
+    dbg<<"  "<<noise_col<<std::endl;
+    table.column(noise_col).read(_noise, start, end);
 
-    dbg<<"  "<<flagsCol<<std::endl;
-    table.column(flagsCol).read(_flags, start, end);
+    dbg<<"  "<<flags_col<<std::endl;
+    table.column(flags_col).read(_flags, start, end);
 
-    dbg<<"  "<<nuCol<<std::endl;
-    table.column(nuCol).read(_nu, start, end);
+    dbg<<"  "<<nu_col<<std::endl;
+    table.column(nu_col).read(_nu, start, end);
 
     // these are temporary
     std::vector<double> sigma;
     std::vector<long> order;
 
-    dbg<<"  "<<sigmaCol<<std::endl;
-    table.column(sigmaCol).read(sigma, start, end);
+    dbg<<"  "<<sigma_col<<std::endl;
+    table.column(sigma_col).read(sigma, start, end);
 
-    dbg<<"  "<<orderCol<<std::endl;
-    table.column(orderCol).read(order, start, end);
+    dbg<<"  "<<order_col<<std::endl;
+    table.column(order_col).read(order, start, end);
 
 
     // gotta loop for this one
-    _psf.reserve(nRows);
-    for (int i=0; i<nRows; ++i) {
+    _psf.reserve(nrows);
+    for (int i=0; i<nrows; ++i) {
         int row=i+1;
 
         _psf.push_back(BVec(order[i],sigma[i]));
-        int nCoeff=(order[i]+1)*(order[i]+2)/2;
+        int ncoeff=(order[i]+1)*(order[i]+2)/2;
         // although we are allowed to write lots of different ways, the
         // reading is less flexible.  We can *only* read a vector
         // column into a valarray, period
         std::valarray<double> coeffs;
-        table.column(coeffsCol).read(coeffs, row);
-        for (int j=0; j<nCoeff; ++j) _psf[i](j) = coeffs[j];
+        table.column(coeffs_col).read(coeffs, row);
+        for (int j=0; j<ncoeff; ++j) _psf[i](j) = coeffs[j];
     }
 }
 
@@ -514,8 +513,8 @@ void PsfCatalog::readAscii(std::string file, std::string delim)
 
     if (delim == "  ") {
         ConvertibleString flag;
-        long id1,bOrder;
-        double x,y,sky1,noise1,nu1,bSigma;
+        long id1,border;
+        double x,y,sky1,noise1,nu1,bsigma;
         while ( fin
                 >> id1
                 >> x >> y
@@ -523,16 +522,16 @@ void PsfCatalog::readAscii(std::string file, std::string delim)
                 >> noise1
                 >> flag
                 >> nu1
-                >> bOrder >> bSigma) {
+                >> border >> bsigma) {
             _id.push_back(id1);
             _pos.push_back(Position(x,y));
             _sky.push_back(sky1);
             _noise.push_back(noise1);
             _flags.push_back(flag);
             _nu.push_back(nu1);
-            _psf.push_back(BVec(bOrder,bSigma));
-            const int nCoeffs = _psf.back().size();
-            for(int j=0;j<nCoeffs;++j) fin >> _psf.back()(j);
+            _psf.push_back(BVec(border,bsigma));
+            const int ncoeffs = _psf.back().size();
+            for(int j=0;j<ncoeffs;++j) fin >> _psf.back()(j);
         }
     } else {
         if (delim.size() > 1) {
@@ -545,8 +544,8 @@ void PsfCatalog::readAscii(std::string file, std::string delim)
         }
         char d = delim[0];
         ConvertibleString temp;
-        long bOrder;
-        double x,y,bSigma;
+        long border;
+        double x,y,bsigma;
         while (getline(fin,temp,d)) {
             _id.push_back(temp);
             getline(fin,temp,d); x = temp;
@@ -556,22 +555,22 @@ void PsfCatalog::readAscii(std::string file, std::string delim)
             getline(fin,temp,d); _noise.push_back(temp);
             getline(fin,temp,d); _flags.push_back(temp);
             getline(fin,temp,d); _nu.push_back(temp);
-            getline(fin,temp,d); bOrder = temp;
-            getline(fin,temp,d); bSigma = temp;
-            _psf.push_back(BVec(bOrder,bSigma));
-            const int nCoeffs = _psf.back().size();
-            for(int j=0;j<nCoeffs-1;++j) {
+            getline(fin,temp,d); border = temp;
+            getline(fin,temp,d); bsigma = temp;
+            _psf.push_back(BVec(border,bsigma));
+            const int ncoeffs = _psf.back().size();
+            for(int j=0;j<ncoeffs-1;++j) {
                 getline(fin,temp,d); _psf.back()(j) = temp;
             }
             // Last one doesn't have a following delimiter
-            getline(fin,temp); _psf.back()(nCoeffs-1) = temp;
+            getline(fin,temp); _psf.back()(ncoeffs-1) = temp;
         }
     }
 }
 
 void PsfCatalog::read()
 {
-    std::string file = makeName(_params,"psf",false,true);
+    std::string file = MakeName(_params,"psf",false,true);
     read(file);
 }
 
@@ -587,7 +586,7 @@ void PsfCatalog::read(std::string file)
     else if (file.find("fits") != std::string::npos) 
         isFitsIo = true;
 
-    if (!doesFileExist(file)) {
+    if (!DoesFileExist(file)) {
         throw FileNotFoundException(file);
     }
     try {

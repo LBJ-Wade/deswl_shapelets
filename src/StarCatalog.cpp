@@ -20,20 +20,20 @@
 #include "WlVersion.h"
 #include "WriteParam.h"
 
-static void calculateSigma1(
+static void CalculateSigma1(
     double& sigma,
     const Image<double>& im, const Position& pos, double sky,
-    double noise, const Image<double>* weightIm, 
+    double noise, const Image<double>* weight_image, 
     const Transformation& trans, const ConfigFile& params, long& flag,
-    bool shouldUseShapeletSigma)
+    bool use_shapelet_sigma)
 {
-    double psfAp = params.read<double>("psf_aperture");
+    double psf_ap = params.read<double>("psf_aperture");
 
     std::vector<PixelList> pix(1);
     long flag1 = 0;
     try {
-        getPixList(im, pix[0], pos, sky, noise, weightIm, trans, 
-                   psfAp, params, flag1);
+        GetPixList(im, pix[0], pos, sky, noise, weight_image, trans, 
+                   psf_ap, params, flag1);
     } catch (RangeException& e) {
         dbg<<"distortion range error: \n";
         xdbg<<"center = "<<pos<<", b = "<<e.getBounds()<<std::endl;
@@ -48,11 +48,11 @@ static void calculateSigma1(
 
     Ellipse ell;
     ell.fixGam();
-    ell.peakCentroid(pix[0],psfAp/3.);
+    ell.peakCentroid(pix[0],psf_ap/3.);
     ell.crudeMeasure(pix[0],sigma);
     xdbg<<"Crude Measure: centroid = "<<ell.getCen();
     xdbg<<", mu = "<<ell.getMu()<<std::endl;
-    if (shouldUseShapeletSigma) {
+    if (use_shapelet_sigma) {
         if (ell.measure(pix,2,6,2,sigma,flag1,0.01)) {
             xdbg<<"Successful 2nd order measure.\n";
             xdbg<<"mu = "<<ell.getMu()<<std::endl;
@@ -71,18 +71,18 @@ static void calculateSigma1(
     Assert(sigma > 0);
 }
 
-void calculateSigma(
+void CalculateSigma(
     double& sigma,
     const Image<double>& im, const Position& pos, double sky,
-    double noise, const Image<double>* weightIm, 
+    double noise, const Image<double>* weight_image, 
     const Transformation& trans, const ConfigFile& params,
-    long& flag, bool shouldUseShapeletSigma)
+    long& flag, bool use_shapelet_sigma)
 {
     try {
-        calculateSigma1(
+        CalculateSigma1(
             sigma,
-            im, pos, sky, noise, weightIm,
-            trans, params, flag, shouldUseShapeletSigma);
+            im, pos, sky, noise, weight_image,
+            trans, params, flag, use_shapelet_sigma);
         dbg<<"objsize: "<<sigma<<std::endl;
         dbg<<"flags: "<<flag<<std::endl;
 #ifdef USE_TMV
@@ -105,17 +105,17 @@ void calculateSigma(
     }
 }
 
-StarCatalog::StarCatalog(const StarCatalog& inStarCat) :
-    _id(inStarCat.getIdList()), 
-    _pos(inStarCat.getPosList()), 
-    _sky(inStarCat.getSkyList()), 
-    _noise(inStarCat.getNoiseList()),
-    _flags(inStarCat.getFlagsList()), 
-    _mag(inStarCat.getMagList()), 
-    _sg(inStarCat.getSgList()),
-    _objSize(inStarCat.getObjSizeList()),
-    _isAStar(inStarCat.getIsAStarList()),
-    _params(inStarCat.getParams())
+StarCatalog::StarCatalog(const StarCatalog& instarcat) :
+    _id(instarcat.getIdList()), 
+    _pos(instarcat.getPosList()), 
+    _sky(instarcat.getSkyList()), 
+    _noise(instarcat.getNoiseList()),
+    _flags(instarcat.getFlagsList()), 
+    _mag(instarcat.getMagList()), 
+    _sg(instarcat.getSgList()),
+    _objsize(instarcat.getObjSizeList()),
+    _is_star(instarcat.getIsStarList()),
+    _params(instarcat.getParams())
 {
     Assert(int(_id.size()) == size());
     Assert(int(_pos.size()) == size());
@@ -124,16 +124,16 @@ StarCatalog::StarCatalog(const StarCatalog& inStarCat) :
     Assert(int(_flags.size()) == size());
     Assert(int(_mag.size()) == size());
     Assert(int(_sg.size()) == size());
-    Assert(int(_objSize.size()) == size());
-    Assert(int(_isAStar.size()) == size());
+    Assert(int(_objsize.size()) == size());
+    Assert(int(_is_star.size()) == size());
 
 
 }
 
 
 StarCatalog::StarCatalog(
-    const StarCatalog& inStarCat, const std::vector<long> indices) :
-    _params(inStarCat.getParams())
+    const StarCatalog& instarcat, const std::vector<long> indices) :
+    _params(instarcat.getParams())
 {
     int nind = indices.size();
     _id.resize(nind);
@@ -144,33 +144,33 @@ StarCatalog::StarCatalog(
 
     _mag.resize(nind);
     _sg.resize(nind);
-    _objSize.resize(nind);
-    _isAStar.resize(nind);
+    _objsize.resize(nind);
+    _is_star.resize(nind);
 
     for (int i=0; i<nind; i++) {
         long ind = indices[i];
-        _id[i]      = inStarCat.getId(ind);
-        _pos[i]     = inStarCat.getPos(ind);
-        _sky[i]     = inStarCat.getSky(ind);
-        _noise[i]   = inStarCat.getNoise(ind);
-        _flags[i]   = inStarCat.getFlags(ind);
+        _id[i]      = instarcat.getId(ind);
+        _pos[i]     = instarcat.getPos(ind);
+        _sky[i]     = instarcat.getSky(ind);
+        _noise[i]   = instarcat.getNoise(ind);
+        _flags[i]   = instarcat.getFlags(ind);
 
-        _mag[i]     = inStarCat.getMag(ind);
-        _sg[i]      = inStarCat.getSg(ind);
-        _objSize[i] = inStarCat.getObjSize(ind);
-        _isAStar[i] = inStarCat.getIsAStar(ind);
+        _mag[i]     = instarcat.getMag(ind);
+        _sg[i]      = instarcat.getSg(ind);
+        _objsize[i] = instarcat.getObjSize(ind);
+        _is_star[i] = instarcat.getIsStar(ind);
     }
 }
 
 
 StarCatalog::StarCatalog(
-    const InputCatalog& inCat,
-    const ConfigFile& params, std::string fsPrefix) :
-    _id(inCat.getIdList()), _pos(inCat.getPosList()), 
-    _sky(inCat.getSkyList()), _noise(inCat.getNoiseList()),
-    _flags(inCat.getFlagsList()), _mag(inCat.getMagList()), 
-    _sg(inCat.getSgList()), _objSize(inCat.getObjSizeList()),
-    _isAStar(_id.size(),0), _params(params), _prefix(fsPrefix)
+    const InputCatalog& incat,
+    const ConfigFile& params, std::string fs_prefix) :
+    _id(incat.getIdList()), _pos(incat.getPosList()), 
+    _sky(incat.getSkyList()), _noise(incat.getNoiseList()),
+    _flags(incat.getFlagsList()), _mag(incat.getMagList()), 
+    _sg(incat.getSgList()), _objsize(incat.getObjSizeList()),
+    _is_star(_id.size(),0), _params(params), _prefix(fs_prefix)
 {
     Assert(int(_id.size()) == size());
     Assert(int(_pos.size()) == size());
@@ -179,34 +179,34 @@ StarCatalog::StarCatalog(
     Assert(int(_flags.size()) == size());
     if (_sg.size() == 0) _sg.resize(size(),DEFVALNEG);
     Assert(int(_sg.size()) == size());
-    if (_objSize.size() == 0) _objSize.resize(size(),DEFVALNEG);
-    Assert(int(_objSize.size()) == size());
-    Assert(int(_isAStar.size()) == size());
+    if (_objsize.size() == 0) _objsize.resize(size(),DEFVALNEG);
+    Assert(int(_objsize.size()) == size());
+    Assert(int(_is_star.size()) == size());
     if (params.read("cat_all_stars",false)) {
-        for(int i=0;i<size();++i) _isAStar[i] = 1;
+        for(int i=0;i<size();++i) _is_star[i] = 1;
     } else if (params.read("stars_trust_sg",false)) {
         double minsg = params.get("stars_minsg");
         double maxsg = params.get("stars_maxsg");
         Assert(int(_sg.size()) == size());
         for(int i=0;i<size();++i) 
-            _isAStar[i] = (_sg[i] >= minsg && _sg[i] <= maxsg);
+            _is_star[i] = (_sg[i] >= minsg && _sg[i] <= maxsg);
     } else {
         Assert(int(_mag.size()) == size());
     }
 }
 
-StarCatalog::StarCatalog(const ConfigFile& params, std::string fsPrefix) :
-    _params(params), _prefix(fsPrefix)
+StarCatalog::StarCatalog(const ConfigFile& params, std::string fs_prefix) :
+    _params(params), _prefix(fs_prefix)
 { 
     Assert(int(_id.size()) == size());
     Assert(int(_pos.size()) == size());
     Assert(int(_sky.size()) == size());
     Assert(int(_noise.size()) == size());
     Assert(int(_flags.size()) == size());
-    Assert(int(_objSize.size()) == size());
+    Assert(int(_objsize.size()) == size());
     Assert(int(_mag.size()) == size());
     Assert(int(_sg.size()) == size());
-    Assert(int(_isAStar.size()) == size());
+    Assert(int(_is_star.size()) == size());
 }
 
 
@@ -218,7 +218,7 @@ void StarCatalog::splitInTwo(
     // that are stars
     int nstar=0;
     for (int i=0;i<this->size();i++) {
-        if (this->isAStar(i)) {
+        if (this->isStar(i)) {
             nstar++;
         }
     }
@@ -266,67 +266,67 @@ int StarCatalog::findStars(FindStarsLog& log)
     // First get a list of potential stars
     dbg<<"Finding stars"<<std::endl;
     long count=0;
-    const int nObj = size();
-    log._nTot = nObj;
+    const int nobj = size();
+    log._ntot = nobj;
 
-    for (int i=0; i<nObj; ++i) {
+    for (int i=0; i<nobj; ++i) {
         // A series of checks
         // Only objects with no flags in SExtractor or updated size calculation
         if (_flags[i]) {
             xdbg<<"Reject "<<i<<" for input flags: "<<_flags[i]<<"\n";
-            ++log._nrFlag;
+            ++log._nr_flag;
             continue;
         }
         // Range checking
-        if (!finder.isOkSize(_objSize[i])) {
-            xdbg<<"Reject "<<i<<" for size "<<_objSize[i]<<" outside range "<<
+        if (!finder.isOkSize(_objsize[i])) {
+            xdbg<<"Reject "<<i<<" for size "<<_objsize[i]<<" outside range "<<
                 finder.getMinSize()<<" -- "<<finder.getMaxSize()<<std::endl;
-            ++log._nrSize;
+            ++log._nr_size;
             continue;
         }
         if (!finder.isOkMag(_mag[i])) {
             xdbg<<"Reject "<<i<<" for mag "<<_mag[i]<<" outside range "<<
                 finder.getMinMag()<<" -- "<<finder.getMaxMag()<<std::endl;
-            ++log._nrMag;
+            ++log._nr_mag;
             continue;
         }
         // Count how many are initially selected by star-galaxy cut
         if (finder.isOkSg(_sg[i]) && finder.isOkSgMag(_mag[i])) {
-          ++log._nSg;
+          ++log._nsg;
         }
         
         ++count;
-        double logObjSize = finder.convertToLogSize(_objSize[i]);
+        double logObjSize = finder.convertToLogSize(_objsize[i]);
         maybestars.push_back(
             new PotentialStar(_pos[i],_mag[i],logObjSize,_sg[i],i,""));
     }
-    log._nObj = count;
+    log._nobj = count;
     dbg<<"  Possible Stars: "<<count<<"/"<<size()<<"\n";
 
     dbg<<"  Running FindStars\n";
     std::vector<PotentialStar*> stars = finder.findStars(maybestars);
-    const int nStars = stars.size();
-    dbg<<"  Found "<<nStars<<"\n";
-    log._nAllStars = nStars;
+    const int nstars = stars.size();
+    dbg<<"  Found "<<nstars<<"\n";
+    log._nallstars = nstars;
 
-    _isAStar.resize(size(),0);
+    _is_star.resize(size(),0);
     count = 0;
 
-    for (int k=0; k<nStars;++k) {
+    for (int k=0; k<nstars;++k) {
         int i=stars[k]->getIndex();
         if (finder.isOkOutputMag(_mag[i])) {
-            _isAStar[i] = 1;
+            _is_star[i] = 1;
             ++count;
         }
     }
     dbg<<"  Cut to "<<count<<" by maxoutmag cut\n";
 
-    log._nStars = count;
+    log._nstars = count;
 
     if (_params.read("des_qa",false)) {
         if (count < 100) {
             try {
-                std::string name = makeName(_params,"stars",false,false);
+                std::string name = MakeName(_params,"stars",false,false);
                 std::cout
                     << "STATUS3BEG Warning: Only "<<count
                     << " stars found for Name="<<name
@@ -352,58 +352,58 @@ void StarCatalog::writeFits(std::string file) const
     Assert(int(_flags.size()) == size());
     Assert(int(_mag.size()) == size());
     Assert(int(_sg.size()) == size());
-    Assert(int(_objSize.size()) == size());
-    Assert(int(_isAStar.size()) == size());
+    Assert(int(_objsize.size()) == size());
+    Assert(int(_is_star.size()) == size());
 
-    const int nTot = size();
+    const int ntot = size();
 
     // ! means overwrite existing file
     CCfits::FITS fits("!"+file, CCfits::Write);
 
     const int nFields = 10;
 
-    std::vector<string> colNames(nFields);
-    std::vector<string> colFmts(nFields);
-    std::vector<string> colUnits(nFields);
+    std::vector<string> col_names(nFields);
+    std::vector<string> col_fmts(nFields);
+    std::vector<string> col_units(nFields);
 
-    colNames[0] = _params["stars_id_col"];
-    colNames[1] = _params["stars_x_col"];
-    colNames[2] = _params["stars_y_col"];
-    colNames[3] = _params["stars_sky_col"];
-    colNames[4] = _params["stars_noise_col"];
-    colNames[5] = _params["stars_flags_col"];
-    colNames[6] = _params["stars_mag_col"];
-    colNames[7] = _params["stars_sg_col"];
-    colNames[8] = _params["stars_objsize_col"];
-    colNames[9] = _params["stars_isastar_col"];
+    col_names[0] = _params["stars_id_col"];
+    col_names[1] = _params["stars_x_col"];
+    col_names[2] = _params["stars_y_col"];
+    col_names[3] = _params["stars_sky_col"];
+    col_names[4] = _params["stars_noise_col"];
+    col_names[5] = _params["stars_flags_col"];
+    col_names[6] = _params["stars_mag_col"];
+    col_names[7] = _params["stars_sg_col"];
+    col_names[8] = _params["stars_objsize_col"];
+    col_names[9] = _params["stars_isastar_col"];
 
-    colFmts[0] = "1J"; // id
-    colFmts[1] = "1D"; // x
-    colFmts[2] = "1D"; // y
-    colFmts[3] = "1D"; // sky
-    colFmts[4] = "1D"; // noise
-    colFmts[5] = "1J"; // flags
-    colFmts[6] = "1E"; // mag
-    colFmts[7] = "1E"; // star-galaxy
-    colFmts[8] = "1D"; // sigma
-    colFmts[9] = "1J"; // star flag
+    col_fmts[0] = "1J"; // id
+    col_fmts[1] = "1D"; // x
+    col_fmts[2] = "1D"; // y
+    col_fmts[3] = "1D"; // sky
+    col_fmts[4] = "1D"; // noise
+    col_fmts[5] = "1J"; // flags
+    col_fmts[6] = "1E"; // mag
+    col_fmts[7] = "1E"; // star-galaxy
+    col_fmts[8] = "1D"; // sigma
+    col_fmts[9] = "1J"; // star flag
 
 
 
-    colUnits[0] = "None";     // id
-    colUnits[1] = "pixels";   // x
-    colUnits[2] = "pixels";   // y
-    colUnits[3] = "ADU";      // sky
-    colUnits[4] = "ADU^2";    // noise
-    colUnits[5] = "None";     // flags
-    colUnits[6] = "mags";     // mag
-    colUnits[7] = "None";     // star-galaxy
-    colUnits[8] = "Arcsec";   // sigma0
-    colUnits[9] = "None";     // star flag
+    col_units[0] = "None";     // id
+    col_units[1] = "pixels";   // x
+    col_units[2] = "pixels";   // y
+    col_units[3] = "ADU";      // sky
+    col_units[4] = "ADU^2";    // noise
+    col_units[5] = "None";     // flags
+    col_units[6] = "mags";     // mag
+    col_units[7] = "None";     // star-galaxy
+    col_units[8] = "Arcsec";   // sigma0
+    col_units[9] = "None";     // star flag
 
 
     CCfits::Table* table;
-    table = fits.addTable("findstars",nTot,colNames,colFmts,colUnits);
+    table = fits.addTable("findstars",ntot,col_names,col_fmts,col_units);
 
     // Header Keywords
 #ifdef USE_TMV
@@ -411,7 +411,7 @@ void StarCatalog::writeFits(std::string file) const
 #else
     std::string tmvVers = "Eigen";
 #endif
-    std::string wlVers = getWlVersion();
+    std::string wlVers = GetWlVersion();
 
     table->addKey("tmvvers", tmvVers, "version of TMV code");
     table->addKey("wlvers", wlVers, "version of weak lensing code");
@@ -425,70 +425,70 @@ void StarCatalog::writeFits(std::string file) const
     // if wlserun= is sent we'll put it in the header.  This allows us to 
     // associate some more, possibly complicated, metadata with this file
     if ( _params.keyExists("wlserun") ) {
-        writeParamToTable(_params, table, "wlserun", str);
+        WriteParamToTable(_params, table, "wlserun", str);
     }
 
 
-    writeParamToTable(_params, table, "noise_method", str);
-    writeParamToTable(_params, table, "dist_method", str);
+    WriteParamToTable(_params, table, "noise_method", str);
+    WriteParamToTable(_params, table, "dist_method", str);
 
     if (_params.keyExists("stars_minsize")) {
-        writeParamToTable(_params, table, "stars_minsize", dbl);
-        writeParamToTable(_params, table, "stars_maxsize", dbl);
-        writeParamToTable(_params, table, "stars_minmag", dbl);
-        writeParamToTable(_params, table, "stars_maxmag", dbl);
-        writeParamToTable(_params, table, "stars_ndivx", intgr);
-        writeParamToTable(_params, table, "stars_ndivy", intgr);
+        WriteParamToTable(_params, table, "stars_minsize", dbl);
+        WriteParamToTable(_params, table, "stars_maxsize", dbl);
+        WriteParamToTable(_params, table, "stars_minmag", dbl);
+        WriteParamToTable(_params, table, "stars_maxmag", dbl);
+        WriteParamToTable(_params, table, "stars_ndivx", intgr);
+        WriteParamToTable(_params, table, "stars_ndivy", intgr);
 
-        writeParamToTable(_params, table, "stars_startn1", dbl);
-        writeParamToTable(_params, table, "stars_starfrac", dbl);
-        writeParamToTable(_params, table, "stars_magstep1", dbl);
-        writeParamToTable(_params, table, "stars_miniter1", intgr);
-        writeParamToTable(_params, table, "stars_reject1", dbl);
-        writeParamToTable(_params, table, "stars_binsize1", dbl);
-        writeParamToTable(_params, table, "stars_maxratio1", dbl);
-        writeParamToTable(_params, table, "stars_okvalcount", intgr);
-        writeParamToTable(_params, table, "stars_maxrms", dbl);
-        writeParamToTable(_params, table, "stars_starsperbin", intgr);
+        WriteParamToTable(_params, table, "stars_startn1", dbl);
+        WriteParamToTable(_params, table, "stars_starfrac", dbl);
+        WriteParamToTable(_params, table, "stars_magstep1", dbl);
+        WriteParamToTable(_params, table, "stars_miniter1", intgr);
+        WriteParamToTable(_params, table, "stars_reject1", dbl);
+        WriteParamToTable(_params, table, "stars_binsize1", dbl);
+        WriteParamToTable(_params, table, "stars_maxratio1", dbl);
+        WriteParamToTable(_params, table, "stars_okvalcount", intgr);
+        WriteParamToTable(_params, table, "stars_maxrms", dbl);
+        WriteParamToTable(_params, table, "stars_starsperbin", intgr);
 
-        writeParamToTable(_params, table, "stars_fitorder", intgr);
-        writeParamToTable(_params, table, "stars_fitsigclip", dbl);
-        writeParamToTable(_params, table, "stars_startn2", dbl);
-        writeParamToTable(_params, table, "stars_magstep2", dbl);
-        writeParamToTable(_params, table, "stars_miniter2", intgr);
-        writeParamToTable(_params, table, "stars_minbinsize", dbl);
-        writeParamToTable(_params, table, "stars_reject2", dbl);
+        WriteParamToTable(_params, table, "stars_fitorder", intgr);
+        WriteParamToTable(_params, table, "stars_fitsigclip", dbl);
+        WriteParamToTable(_params, table, "stars_startn2", dbl);
+        WriteParamToTable(_params, table, "stars_magstep2", dbl);
+        WriteParamToTable(_params, table, "stars_miniter2", intgr);
+        WriteParamToTable(_params, table, "stars_minbinsize", dbl);
+        WriteParamToTable(_params, table, "stars_reject2", dbl);
 
-        writeParamToTable(_params, table, "stars_purityratio", dbl);
-        writeParamToTable(_params, table, "stars_maxrefititer", intgr);
-        writeParamToTable(_params, table, "stars_minsg", dbl);
-        writeParamToTable(_params, table, "stars_maxsg", dbl);
-        writeParamToTable(_params, table, "stars_minsgmag", dbl);
-        writeParamToTable(_params, table, "stars_maxsgmag", dbl);
+        WriteParamToTable(_params, table, "stars_purityratio", dbl);
+        WriteParamToTable(_params, table, "stars_maxrefititer", intgr);
+        WriteParamToTable(_params, table, "stars_minsg", dbl);
+        WriteParamToTable(_params, table, "stars_maxsg", dbl);
+        WriteParamToTable(_params, table, "stars_minsgmag", dbl);
+        WriteParamToTable(_params, table, "stars_maxsgmag", dbl);
     }
   
 
     // Now the data columns
 
     // make vector copies for writing
-    std::vector<double> x(nTot);
-    std::vector<double> y(nTot);
-    for(int i=0;i<nTot;++i) {
+    std::vector<double> x(ntot);
+    std::vector<double> y(ntot);
+    for(int i=0;i<ntot;++i) {
         x[i] = _pos[i].getX();
         y[i] = _pos[i].getY();
     }
 
     int startrow=1;
-    table->column(colNames[0]).write(_id,startrow);
-    table->column(colNames[1]).write(x,startrow);
-    table->column(colNames[2]).write(y,startrow);
-    table->column(colNames[3]).write(_sky,startrow);
-    table->column(colNames[4]).write(_noise,startrow);
-    table->column(colNames[5]).write(_flags,startrow);
-    table->column(colNames[6]).write(_mag,startrow);
-    table->column(colNames[7]).write(_sg,startrow);
-    table->column(colNames[8]).write(_objSize,startrow);
-    table->column(colNames[9]).write(_isAStar,startrow);
+    table->column(col_names[0]).write(_id,startrow);
+    table->column(col_names[1]).write(x,startrow);
+    table->column(col_names[2]).write(y,startrow);
+    table->column(col_names[3]).write(_sky,startrow);
+    table->column(col_names[4]).write(_noise,startrow);
+    table->column(col_names[5]).write(_flags,startrow);
+    table->column(col_names[6]).write(_mag,startrow);
+    table->column(col_names[7]).write(_sg,startrow);
+    table->column(col_names[8]).write(_objsize,startrow);
+    table->column(col_names[9]).write(_is_star,startrow);
 
 
 }
@@ -502,8 +502,8 @@ void StarCatalog::writeAscii(std::string file, std::string delim) const
     Assert(int(_flags.size()) == size());
     Assert(int(_mag.size()) == size());
     Assert(int(_sg.size()) == size());
-    Assert(int(_objSize.size()) == size());
-    Assert(int(_isAStar.size()) == size());
+    Assert(int(_objsize.size()) == size());
+    Assert(int(_is_star.size()) == size());
 
     std::ofstream fout(file.c_str());
     if (!fout) {
@@ -514,8 +514,8 @@ void StarCatalog::writeAscii(std::string file, std::string delim) const
     Form fix3; fix3.fix().trail(0).prec(3);
     Form fix6; fix6.fix().trail(0).prec(6);
 
-    const int nTot = size();
-    for (int i=0; i<nTot; ++i) {
+    const int ntot = size();
+    for (int i=0; i<ntot; ++i) {
         fout 
             << _id[i] << delim
             << fix3(_pos[i].getX()) << delim
@@ -525,18 +525,18 @@ void StarCatalog::writeAscii(std::string file, std::string delim) const
             << _flags[i] << delim
             << fix3(_mag[i]) << delim
             << fix3(_sg[i]) << delim
-            << fix6(_objSize[i]) << delim
-            << _isAStar[i] << std::endl;
+            << fix6(_objsize[i]) << delim
+            << _is_star[i] << std::endl;
     }
 
 }
 
 void StarCatalog::write() const 
 {
-    std::vector<std::string> files = makeMultiName(_params, "stars");  
+    std::vector<std::string> files = MakeMultiName(_params, "stars");  
 
-    const int nFiles = files.size();
-    for(int i=0; i<nFiles; ++i) {
+    const int nfiles = files.size();
+    for(int i=0; i<nfiles; ++i) {
         const std::string& file = files[i];
         dbg<<"Writing star catalog to file: "<<file<<std::endl;
 
@@ -582,7 +582,7 @@ void StarCatalog::write() const
 
 void StarCatalog::readFits(std::string file) 
 {
-    int hdu = getHdu(_params,"stars",file,2);
+    int hdu = GetHdu(_params,"stars",file,2);
 
     dbg<<"Opening StarCatalog file "<<file<<" at hdu "<<hdu<<std::endl;
     CCfits::FITS fits(file, CCfits::Read);
@@ -599,16 +599,16 @@ void StarCatalog::readFits(std::string file)
     }
 
 
-    std::string idCol=_params.get("stars_id_col");
-    std::string xCol=_params.get("stars_x_col");
-    std::string yCol=_params.get("stars_y_col");
-    std::string skyCol=_params.get("stars_sky_col");
-    std::string noiseCol=_params.get("stars_noise_col");
-    std::string flagsCol=_params.get("stars_flags_col");
-    std::string magCol=_params.get("stars_mag_col");
-    std::string sgCol=_params.get("stars_sg_col");
-    std::string objSizeCol=_params.get("stars_objsize_col");
-    std::string isAStarCol=_params.get("stars_isastar_col");
+    std::string id_col=_params.get("stars_id_col");
+    std::string x_col=_params.get("stars_x_col");
+    std::string y_col=_params.get("stars_y_col");
+    std::string sky_col=_params.get("stars_sky_col");
+    std::string noise_col=_params.get("stars_noise_col");
+    std::string flags_col=_params.get("stars_flags_col");
+    std::string mag_col=_params.get("stars_mag_col");
+    std::string sg_col=_params.get("stars_sg_col");
+    std::string objsize_col=_params.get("stars_objsize_col");
+    std::string is_star_col=_params.get("stars_isastar_col");
 
     long start=1;
     long end=nRows;
@@ -618,25 +618,25 @@ void StarCatalog::readFits(std::string file)
     std::vector<double> x(nRows);
     std::vector<double> y(nRows);
 
-    dbg<<"  "<<idCol<<std::endl;
-    table.column(idCol).read(_id, start, end);
-    dbg<<"  "<<xCol<<"  "<<yCol<<std::endl;
-    table.column(xCol).read(x, start, end);
-    table.column(yCol).read(y, start, end);
-    dbg<<"  "<<skyCol<<std::endl;
-    table.column(skyCol).read(_sky, start, end);
-    dbg<<"  "<<noiseCol<<std::endl;
-    table.column(noiseCol).read(_noise, start, end);
-    dbg<<"  "<<flagsCol<<std::endl;
-    table.column(flagsCol).read(_flags, start, end);
-    dbg<<"  "<<magCol<<std::endl;
-    table.column(magCol).read(_mag, start, end);
-    dbg<<"  "<<sgCol<<std::endl;
-    table.column(sgCol).read(_sg, start, end);
-    dbg<<"  "<<objSizeCol<<std::endl;
-    table.column(objSizeCol).read(_objSize, start, end);
-    dbg<<"  "<<isAStarCol<<std::endl;
-    table.column(isAStarCol).read(_isAStar, start, end);
+    dbg<<"  "<<id_col<<std::endl;
+    table.column(id_col).read(_id, start, end);
+    dbg<<"  "<<x_col<<"  "<<y_col<<std::endl;
+    table.column(x_col).read(x, start, end);
+    table.column(y_col).read(y, start, end);
+    dbg<<"  "<<sky_col<<std::endl;
+    table.column(sky_col).read(_sky, start, end);
+    dbg<<"  "<<noise_col<<std::endl;
+    table.column(noise_col).read(_noise, start, end);
+    dbg<<"  "<<flags_col<<std::endl;
+    table.column(flags_col).read(_flags, start, end);
+    dbg<<"  "<<mag_col<<std::endl;
+    table.column(mag_col).read(_mag, start, end);
+    dbg<<"  "<<sg_col<<std::endl;
+    table.column(sg_col).read(_sg, start, end);
+    dbg<<"  "<<objsize_col<<std::endl;
+    table.column(objsize_col).read(_objsize, start, end);
+    dbg<<"  "<<is_star_col<<std::endl;
+    table.column(is_star_col).read(_is_star, start, end);
     
     _pos.resize(nRows);
     for(long i=0;i<nRows;++i) {
@@ -653,7 +653,7 @@ void StarCatalog::readAscii(std::string file, std::string delim)
     }
 
     _id.clear(); _pos.clear(); _sky.clear(); _noise.clear(); _flags.clear();
-    _mag.clear(); _sg.clear(); _objSize.clear(); _isAStar.clear();
+    _mag.clear(); _sg.clear(); _objsize.clear(); _is_star.clear();
 
     if (delim == "  ") {
         ConvertibleString flag;
@@ -668,8 +668,8 @@ void StarCatalog::readAscii(std::string file, std::string delim)
             _flags.push_back(flag);
             _mag.push_back(m);
             _sg.push_back(sg);
-            _objSize.push_back(s);
-            _isAStar.push_back(star);
+            _objsize.push_back(s);
+            _is_star.push_back(star);
         } 
     } else {
         if (delim.size() > 1) {
@@ -695,8 +695,8 @@ void StarCatalog::readAscii(std::string file, std::string delim)
             getline(fin,temp,d); _flags.push_back(temp);
             getline(fin,temp,d); _mag.push_back(temp);
             getline(fin,temp,d); _sg.push_back(temp);
-            getline(fin,temp,d); _objSize.push_back(temp);
-            getline(fin,temp); _isAStar.push_back(temp);
+            getline(fin,temp,d); _objsize.push_back(temp);
+            getline(fin,temp); _is_star.push_back(temp);
             dbg<<"Last elemnt in line = "<<temp<<std::endl;
         }
         dbg<<"nlines = "<<size()<<std::endl;
@@ -705,7 +705,7 @@ void StarCatalog::readAscii(std::string file, std::string delim)
 
 void StarCatalog::read()
 {
-    std::string file = makeName(_params,"stars",false,true);
+    std::string file = MakeName(_params,"stars",false,true);
     // false,true = input_prefix=false, mustexist=true.
     // It is an input here, but it is in the output_prefix directory.
     dbg<< "Reading star catalog from file: " << file << std::endl;
@@ -717,7 +717,7 @@ void StarCatalog::read()
         isFitsIo = true;
     }
 
-    if (!doesFileExist(file)) {
+    if (!DoesFileExist(file)) {
         throw FileNotFoundException(file);
     }
     try {
@@ -749,13 +749,13 @@ void StarCatalog::read()
 }
 
 
-bool StarCatalog::isAStar(long id) const
+bool StarCatalog::isStar(long id) const
 {
     std::vector<long>::const_iterator p = find(_id.begin(),_id.end(),id);
     if (p == _id.end()) return false;
     int i = p - _id.begin();
-    Assert(i < int(_isAStar.size()));
-    return _isAStar[i];
+    Assert(i < int(_is_star.size()));
+    return _is_star[i];
 }
 
 void StarCatalog::printall(int i) 
@@ -790,10 +790,10 @@ void StarCatalog::printall(int i)
         std::cout<<"  StarCatalog::printall index "<<i<<" is larger than sg.size\n";
     }
 
-    if (int(_objSize.size()) > i) {
-        std::cout<<"  StarCatalog::printall objSize["<<i<<"]: "<<_objSize[i]<<"\n";
+    if (int(_objsize.size()) > i) {
+        std::cout<<"  StarCatalog::printall objsize["<<i<<"]: "<<_objsize[i]<<"\n";
     } else {
-        std::cout<<"  StarCatalog::printall index "<<i<<" is larger than objSize.size\n";
+        std::cout<<"  StarCatalog::printall index "<<i<<" is larger than objsize.size\n";
     }
 
     if (int(_flags.size()) > i) {
@@ -807,10 +807,10 @@ void StarCatalog::printall(int i)
     } else {
         std::cout<<"  StarCatalog::printall index "<<i<<" is larger than noise.size\n";
     }
-    if (int(_isAStar.size()) > i) {
-        std::cout<<"  StarCatalog::printall isAStar["<<i<<"]: "<<this->_isAStar[i]<<"\n";
+    if (int(_is_star.size()) > i) {
+        std::cout<<"  StarCatalog::printall is_star["<<i<<"]: "<<this->_is_star[i]<<"\n";
     } else {
-        std::cout<<"  StarCatalog::printall index "<<i<<" is larger than isAStar.size\n";
+        std::cout<<"  StarCatalog::printall index "<<i<<" is larger than is_star.size\n";
     }
 
 

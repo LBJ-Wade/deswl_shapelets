@@ -96,22 +96,22 @@
 // There are also a number of ways they can fail.  
 // Two important ones which you should set appropriately are:
 //
-// fail if Norm2(delta x) < minStep * (Norm2(x) + epsilon2)
+// fail if Norm2(delta x) < minstep * (Norm2(x) + epsilon2)
 // fail if number of iterations > max_iter
 //
 // The defaults are:
 //
-// fTol = 1.e-8
-// gTol = 1.e-8
-// minStep = 1.e-8
-// maxIter = 200
+// ftol = 1.e-8
+// gtol = 1.e-8
+// minstep = 1.e-8
+// maxiter = 200
 //
 // These are set with the methods:
-// solver.setFTol(fTol)
-// solver.setGTol(gTol
-// solver.setTol(fTol,gTol)
-// solver.setMinStep(minStep)
-// solver.setMaxIter(maxIter)
+// solver.setFTol(ftol)
+// solver.setGTol(gtol
+// solver.setTol(ftol,gtol)
+// solver.setMinStep(minstep)
+// solver.setMaxIter(maxiter)
 //
 // There are other failure modes for the various algorithms which use
 // the above parameters for their tests, so no need to set anything else.
@@ -274,51 +274,51 @@ public :
     virtual void useSecantLM() { _method = SECANT_LM; }
     virtual void useSecantDogleg() { _method = SECANT_DOGLEG; }
 
-    virtual void setFTol(double fTol) { _fTol = fTol; }
-    virtual void setGTol(double gTol) { _gTol = gTol; }
-    virtual void setTol(double fTol, double gTol) 
-    { _fTol = fTol; _gTol = gTol; }
+    virtual void setFTol(double ftol) { _ftol = ftol; }
+    virtual void setGTol(double gtol) { _gtol = gtol; }
+    virtual void setTol(double ftol, double gtol) 
+    { _ftol = ftol; _gtol = gtol; }
 
-    virtual void setMinStep(double minStep) { _minStep = minStep; }
-    virtual void setMaxIter(int maxIter) { _maxIter = maxIter; }
+    virtual void setMinStep(double minstep) { _minstep = minstep; }
+    virtual void setMaxIter(int maxiter) { _maxiter = maxiter; }
     virtual void setTau(double tau) { _tau = tau; }
     virtual void setDelta0(double delta0) { _delta0 = delta0; }
 
-    virtual double getFTol() { return _fTol; }
-    virtual double getGTol() { return _gTol; }
-    virtual double getMinStep() { return _minStep; }
-    virtual int getMaxIter() { return _maxIter; }
+    virtual double getFTol() { return _ftol; }
+    virtual double getGTol() { return _gtol; }
+    virtual double getMinStep() { return _minstep; }
+    virtual int getMaxIter() { return _maxiter; }
     virtual double getTau() { return _tau; }
     virtual double getDelta0() { return _delta0; }
 
-    virtual void setOutput(std::ostream& os) { _nlOut = &os; }
+    virtual void setOutput(std::ostream& os) { _nlout = &os; }
     virtual void useVerboseOutput() { _verbose = 1; }
     virtual void useExtraVerboseOutput() { _verbose = 2; }
     virtual void noUseVerboseOutput() { _verbose = 0; }
 
-    virtual void useDirectH() { _hasDirectH = true; }
-    virtual void useSVD() { _shouldUseSvd = true; }
-    virtual void useCholesky() { _shouldUseCh = true; }
-    virtual void noUseDirectH() { _hasDirectH = false; }
-    virtual void noUseSVD() { _shouldUseSvd = false; }
-    virtual void noUseCholesky() { _shouldUseCh = false; }
+    virtual void useDirectH() { _directh = true; }
+    virtual void useSVD() { _usesvd = true; }
+    virtual void useCholesky() { _usech = true; }
+    virtual void noUseDirectH() { _directh = false; }
+    virtual void noUseSVD() { _usesvd = false; }
+    virtual void noUseCholesky() { _usech = false; }
 
 protected:
 
     enum Method { NEWTON, HYBRID, DOGLEG, LM, SECANT_DOGLEG, SECANT_LM };
 
     Method _method;
-    double _fTol;
-    double _gTol;
-    double _minStep;
-    int _maxIter;
+    double _ftol;
+    double _gtol;
+    double _minstep;
+    int _maxiter;
     double _tau;
     double _delta0;
-    std::ostream* _nlOut;
+    std::ostream* _nlout;
     int _verbose;
-    bool _hasDirectH;
-    bool _shouldUseCh;
-    bool _shouldUseSvd;
+    bool _directh;
+    bool _usech;
+    bool _usesvd;
 
     bool solveNewton(
         tmv::Vector<double>& x, tmv::Vector<double>& f) const;
@@ -378,33 +378,33 @@ public :
     virtual void useHybrid() { _method = HYBRID; }
     virtual void useDogleg() { _method = DOGLEG; }
 
-    virtual void setFTol(double fTol) { _fTol = fTol; }
-    virtual void setGTol(double gTol) { _gTol = gTol; }
-    virtual void setTol(double fTol, double gTol) 
-    { _fTol = fTol; _gTol = gTol; }
+    virtual void setFTol(double ftol) { _ftol = ftol; }
+    virtual void setGTol(double gtol) { _gtol = gtol; }
+    virtual void setTol(double ftol, double gtol) 
+    { _ftol = ftol; _gtol = gtol; }
 
-    virtual void setMinStep(double minStep) { _minStep = minStep; }
-    virtual void setMaxIter(int maxIter) { _maxIter = maxIter; }
+    virtual void setMinStep(double minstep) { _minstep = minstep; }
+    virtual void setMaxIter(int maxiter) { _maxiter = maxiter; }
     virtual void setTau(double tau) { _tau = tau; }
     virtual void setDelta0(double delta0) { _delta0 = delta0; }
 
-    virtual double getFTol() { return _fTol; }
-    virtual double getGTol() { return _gTol; }
-    virtual double getMinStep() { return _minStep; }
-    virtual int getMaxIter() { return _maxIter; }
+    virtual double getFTol() { return _ftol; }
+    virtual double getGTol() { return _gtol; }
+    virtual double getMinStep() { return _minstep; }
+    virtual int getMaxIter() { return _maxiter; }
     virtual double getTau() { return _tau; }
     virtual double getDelta0() { return _delta0; }
 
-    virtual void setOutput(std::ostream& os) { _nlOut = &os; }
+    virtual void setOutput(std::ostream& os) { _nlout = &os; }
     virtual void useVerboseOutput() { _verbose = 1; }
     virtual void useExtraVerboseOutput() { _verbose = 2; }
     virtual void noUseVerboseOutput() { _verbose = 0; }
 
     virtual void useDirectH() {}
-    virtual void useSVD() { _shouldUseSvd = true; }
+    virtual void useSVD() { _usesvd = true; }
     virtual void useCholesky() {}
     virtual void noUseDirectH() {}
-    virtual void noUseSVD() { _shouldUseSvd = false; }
+    virtual void noUseSVD() { _usesvd = false; }
     virtual void noUseCholesky() {}
 
 protected:
@@ -412,17 +412,17 @@ protected:
     enum Method { HYBRID, DOGLEG };
 
     Method _method;
-    double _fTol;
-    double _gTol;
-    double _minStep;
-    int _maxIter;
+    double _ftol;
+    double _gtol;
+    double _minstep;
+    int _maxiter;
     double _tau;
     double _delta0;
-    std::ostream* _nlOut;
+    std::ostream* _nlout;
     int _verbose;
-    bool _hasDirectH;
-    bool _shouldUseCh;
-    bool _shouldUseSvd;
+    bool _directh;
+    bool _usech;
+    bool _usesvd;
 
     bool solveDogleg(DVector& x, DVector& f) const;
     bool solveHybrid(DVector& x, DVector& f) const;

@@ -46,15 +46,15 @@ public:
 
     virtual void operator+=(const Function2D& rhs);
 
-    double getXMin() const {return _bounds.getXMin();}
+    double getXMin() const { return _bounds.getXMin(); }
 
-    double getXMax() const {return _bounds.getXMax();}
+    double getXMax() const { return _bounds.getXMax(); }
 
-    double getYMin() const {return _bounds.getYMin();}
+    double getYMin() const { return _bounds.getYMin(); }
 
-    double getYMax() const {return _bounds.getYMax();}
+    double getYMax() const { return _bounds.getYMax(); }
 
-    const Bounds& getBounds() const {return _bounds;}
+    const Bounds& getBounds() const { return _bounds; }
 
     virtual void setFunction(
         int xorder, int yorder, const DVector& fvect);
@@ -62,8 +62,8 @@ public:
 private:
 
     Bounds _bounds;
-    using Function2D::_xOrder;
-    using Function2D::_yOrder;
+    using Function2D::_xorder;
+    using Function2D::_yorder;
     using Function2D::_coeffs;
 
     DVector definePXY(

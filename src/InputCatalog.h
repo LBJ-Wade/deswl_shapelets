@@ -55,11 +55,11 @@ public :
     const std::vector<Position>& getPosList() const { return _pos; }
     const std::vector<double>& getSkyList() const { return _sky; }
     const std::vector<double>& getMagList() const { return _mag; }
-    const std::vector<double>& getMagErrList() const { return _magErr; }
+    const std::vector<double>& getMagErrList() const { return _mag_err; }
     const std::vector<double>& getSgList() const { return _sg; }
-    const std::vector<double>& getObjSizeList() const { return _objSize; }
+    const std::vector<double>& getObjSizeList() const { return _obj_size; }
     const std::vector<long>& getFlagsList() const { return _flags; }
-    const std::vector<Position>& getSkyPosList() const { return _skyPos; }
+    const std::vector<Position>& getSkyPosList() const { return _skypos; }
     const std::vector<double>& getNoiseList() const { return _noise; }
 
 
@@ -67,16 +67,16 @@ public :
     Position getPos(int i) const { return _pos[i]; }
     double getSky(int i) const { return _sky[i]; }
     double getMag(int i) const { return _mag[i]; }
-    double getMagErr(int i) const { return _magErr[i]; }
+    double getMagErr(int i) const { return _mag_err[i]; }
     double getSg(int i) const { return _sg[i]; }
-    double getObjSize(int i) const { return _objSize[i]; }
+    double getObjSize(int i) const { return _obj_size[i]; }
     long getFlags(int i) const { return _flags[i]; }
-    Position getSkyPos(int i) const { return _skyPos[i]; }
+    Position getSkyPos(int i) const { return _skypos[i]; }
     double getNoise(int i) const { return _noise[i]; }
 
 
     const Bounds& getBounds() const { return _bounds; }
-    const Bounds& getSkyBounds() const { return _skyBounds; }
+    const Bounds& getSkyBounds() const { return _skybounds; }
 
     void printall(int i);
 
@@ -89,15 +89,15 @@ private :
     std::vector<Position> _pos;
     std::vector<double> _sky;
     std::vector<double> _mag;
-    std::vector<double> _magErr;
+    std::vector<double> _mag_err;
     std::vector<double> _sg;
-    std::vector<double> _objSize;
+    std::vector<double> _obj_size;
     std::vector<long> _flags;
-    std::vector<Position> _skyPos;
+    std::vector<Position> _skypos;
     std::vector<double> _noise;
 
     Bounds _bounds;
-    Bounds _skyBounds;
+    Bounds _skybounds;
 
     const Image<double>* _im;
 
@@ -105,9 +105,9 @@ private :
         VALUE, CATALOG, CATALOG_SIGMA, GAIN_VALUE, GAIN_FITS, WEIGHT_IMAGE
     };
     NoiseMethod _nm;
-    double _noiseValue;
+    double _noise_value;
     double _gain;
-    double _readNoise;
+    double _read_noise;
 };
 
 #endif

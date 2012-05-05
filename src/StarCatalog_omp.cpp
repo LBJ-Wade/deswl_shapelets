@@ -18,19 +18,19 @@
 
 void StarCatalog::calculateSizes(
     const Image<double>& im, 
-    const Image<double>*const weightIm, const Transformation& trans)
+    const Image<double>*const weight_image, const Transformation& trans)
 {
     Assert(int(_pos.size()) == size());
     Assert(int(_sky.size()) == size());
     Assert(int(_noise.size()) == size());
-    Assert(int(_objSize.size()) == size());
+    Assert(int(_objsize.size()) == size());
     Assert(int(_flags.size()) == size());
 
     const int n = _pos.size();
     dbg<<"n = "<<n<<std::endl;
 
-    bool shouldUseShapeletSigma = _params.read("stars_use_shapelet_sigma",true);
-    bool shouldOutputDots = _params.read("output_dots",false);
+    bool use_shapelet_sigma = _params.read("stars_use_shapelet_sigma",true);
+    bool output_dots = _params.read("output_dots",false);
 
 #ifdef _OPENMP
 #pragma omp parallel for schedule(guided)
@@ -43,7 +43,7 @@ void StarCatalog::calculateSizes(
         if (i < SINGLEGAL) continue;
         if (i > SINGLEGAL) break;
 #endif
-        if (shouldOutputDots) {
+        if (output_dots) {
 #ifdef _OPENMP
 #pragma omp critical (output)
 #endif
@@ -55,13 +55,13 @@ void StarCatalog::calculateSizes(
         dbg<<"use i = "<<i<<std::endl;
 
         // Negative value indicates not set yet.  Start with 1 then.
-        if (_objSize[i] <= 0.) _objSize[i] = 1.;
-        calculateSigma(
-            _objSize[i],
-            im, _pos[i], _sky[i], _noise[i], weightIm, 
-            trans, _params, _flags[i], shouldUseShapeletSigma);
+        if (_objsize[i] <= 0.) _objsize[i] = 1.;
+        CalculateSigma(
+            _objsize[i],
+            im, _pos[i], _sky[i], _noise[i], weight_image, 
+            trans, _params, _flags[i], use_shapelet_sigma);
     }
-    if (shouldOutputDots) std::cerr<<std::endl;
+    if (output_dots) std::cerr<<std::endl;
     dbg<<"Done MeasureSigmas\n";
 }
 
