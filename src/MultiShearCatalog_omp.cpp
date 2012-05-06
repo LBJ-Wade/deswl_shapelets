@@ -281,7 +281,6 @@ static void getImagePixList(
     xdbg<<"Got pixellist, flag = "<<FlagText(flag)<<std::endl;
     xdbg<<"After GetPixList mem = "<<memory_usage()<<std::endl;
     
-
     // Make sure not (edge or < 10 pixels) although edge is already
     // checked above
     if (flag == 0) {

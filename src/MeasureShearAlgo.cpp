@@ -19,7 +19,7 @@
 void MeasureSingleShear(
     const std::vector<PixelList>& allpix,
     const std::vector<BVec>& psf,
-    int& galorder, const ConfigFile& params,
+    int& galorder, ConfigFile& params,
     ShearLog& log, BVec& shapelet, 
     std::complex<double>& gamma, DSmallMatrix22& cov,
     double& nu, long& flag)
@@ -27,17 +27,21 @@ void MeasureSingleShear(
     double gal_aperture = params.read("shear_aperture",3.);
     double max_aperture = params.read("shear_max_aperture",0.);
     // Initial value, but also returned with actual final value.
-    int galorder_init = params.read<int>("shear_gal_order");
+    int galorder_init = params.read("shear_gal_order",6);
     galorder = galorder_init;
-    int galorder2 = params.read<int>("shear_gal_order2");
+    int galorder2 = params.read("shear_gal_order2",20);
     int maxm = params.read("shear_maxm",galorder);
     int min_galorder = params.read("shear_min_gal_order",4);
     double min_fpsf = params.read("shear_f_psf",1.);
     double max_fpsf = params.read("shear_max_f_psf",min_fpsf);
-    double min_galsize = params.read<double>("shear_min_gal_size");
+    double min_galsize = params.read("shear_min_gal_size",0.);
     bool fixcen = params.read("shear_fix_centroid",false);
     bool fixsigma = params.keyExists("shear_force_sigma");
     double fixsigma_value = params.read("shear_force_sigma",0.);
+
+    bool use_fake_pixels = params.read("shear_use_fake_pixels",false);
+    double shear_inner_fake_aperture = params.read("shear_inner_fake_aperture",0.);
+    double shear_outer_fake_aperture = params.read("shear_outer_fake_aperture",0.);
 
     try {
         dbg<<"Start MeasureSingleShear\n";
@@ -88,7 +92,13 @@ void MeasureSingleShear(
         std::vector<PixelList> pix(nexp);
         int npix = 0;
         for(int i=0;i<nexp;++i) {
-            GetSubPixList(pix[i],allpix[i],cen_offset,galap,flag1);
+            if (use_fake_pixels) {
+                if (params.keyExists("shear_inner_fake_aperture"))
+                    params["inner_fake_ap"] = shear_inner_fake_aperture * sigma_obs;
+                if (params.keyExists("shear_outer_fake_aperture"))
+                    params["outer_fake_ap"] = shear_outer_fake_aperture * sigma_obs;
+            }
+            GetSubPixList(pix[i],allpix[i],cen_offset,0.,galap,params,flag1);
             npix += pix[i].size();
         }
         dbg<<"npix = "<<npix<<std::endl;
@@ -145,7 +155,13 @@ void MeasureSingleShear(
             dbg<<"New center = "<<cen_offset<<std::endl;
             npix = 0;
             for(int i=0;i<nexp;++i) {
-                GetSubPixList(pix[i],allpix[i],cen_offset,galap,flag1);
+                if (use_fake_pixels) {
+                    if (params.keyExists("shear_inner_fake_aperture"))
+                        params["inner_fake_ap"] = shear_inner_fake_aperture * sigma_obs;
+                    if (params.keyExists("shear_outer_fake_aperture"))
+                        params["outer_fake_ap"] = shear_outer_fake_aperture * sigma_obs;
+                }
+                GetSubPixList(pix[i],allpix[i],cen_offset,0.,galap,params,flag1);
                 npix += pix[i].size();
             }
             if (npix < 10) {
@@ -249,7 +265,13 @@ void MeasureSingleShear(
                     galap = max_aperture;
                 npix = 0;
                 for(int i=0;i<nexp;++i) {
-                    GetSubPixList(pix[i],allpix[i],cen_offset,galap,flag1);
+                    if (use_fake_pixels) {
+                        if (params.keyExists("shear_inner_fake_aperture"))
+                            params["inner_fake_ap"] = shear_inner_fake_aperture * sigma_obs;
+                        if (params.keyExists("shear_outer_fake_aperture"))
+                            params["outer_fake_ap"] = shear_outer_fake_aperture * sigma_obs;
+                    }
+                    GetSubPixList(pix[i],allpix[i],cen_offset,0.,galap,params,flag1);
                     npix += pix[i].size();
                 }
                 if (npix < 10) {
@@ -384,7 +406,13 @@ void MeasureSingleShear(
                 galap = max_aperture;
             npix = 0;
             for(int i=0;i<nexp;++i) {
-                GetSubPixList(pix[i],allpix[i],cen_offset,gamma,galap,flag1);
+                if (use_fake_pixels) {
+                    if (params.keyExists("shear_inner_fake_aperture"))
+                        params["inner_fake_ap"] = shear_inner_fake_aperture * sigma_obs;
+                    if (params.keyExists("shear_outer_fake_aperture"))
+                        params["outer_fake_ap"] = shear_outer_fake_aperture * sigma_obs;
+                }
+                GetSubPixList(pix[i],allpix[i],cen_offset,gamma,galap,params,flag1);
                 npix += pix[i].size();
             }
             dbg<<"npix = "<<npix<<std::endl;

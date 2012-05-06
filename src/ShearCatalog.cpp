@@ -21,7 +21,7 @@
 
 ShearCatalog::ShearCatalog(
     const InputCatalog& incat, const Transformation& trans,
-    const FittedPsf& fitpsf, const ConfigFile& params) :
+    const FittedPsf& fitpsf, ConfigFile& params) :
     _id(incat.getIdList()), _pos(incat.getPosList()), 
     _sky(incat.getSkyList()), _noise(incat.getNoiseList()),
     _flags(incat.getFlagsList()), _skypos(incat.getSkyPosList()),
@@ -122,7 +122,7 @@ ShearCatalog::ShearCatalog(
     Assert(int(_shape.size()) == size());
 }
 
-ShearCatalog::ShearCatalog(const ConfigFile& params) : _params(params)
+ShearCatalog::ShearCatalog(ConfigFile& params) : _params(params)
 {
     Assert(int(_id.size()) == size());
     Assert(int(_pos.size()) == size());

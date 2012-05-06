@@ -121,17 +121,6 @@ double GetLocalSky(
 void GetSubPixList(
     PixelList& pix, const PixelList& allpix,
     std::complex<double> cen_offset, std::complex<double> shear,
-    double aperture, long& flag);
-
-inline void GetSubPixList(
-    PixelList& pix, const PixelList& allpix,
-    std::complex<double> cen_offset, double aperture, long& flag)
-{ GetSubPixList(pix,allpix,cen_offset,0.,aperture,flag); }
-
-inline void GetSubPixList(
-    PixelList& pix, const PixelList& allpix,
-    double aperture, long& flag)
-{ GetSubPixList(pix,allpix,0.,0.,aperture,flag); }
-
+    double aperture, const ConfigFile& params, long& flag);
 
 #endif
