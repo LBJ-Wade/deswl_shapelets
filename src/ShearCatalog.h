@@ -21,10 +21,10 @@ public :
     // Make from incat, trans
     ShearCatalog(
         const InputCatalog& incat, const Transformation& trans,
-        const FittedPsf& fitpsf, ConfigFile& params);
+        const FittedPsf& fitpsf, const ConfigFile& params);
 
     // Just load parameter.  Normally followed by cat.read() or similar.
-    ShearCatalog(ConfigFile& params);
+    ShearCatalog(const ConfigFile& params);
 
     void setTrans(const Transformation& trans) { _trans = &trans; }
     void setFittedPsf(const FittedPsf& fitpsf) { _fitpsf = &fitpsf; }
@@ -92,7 +92,7 @@ private :
 
     const Transformation* _trans;
     const FittedPsf* _fitpsf;
-    ConfigFile& _params;
+    const ConfigFile& _params;
 
 };
 

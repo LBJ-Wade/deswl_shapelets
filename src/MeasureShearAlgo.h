@@ -11,7 +11,7 @@
 void MeasureSingleShear(
     const std::vector<PixelList>& allpix,
     const std::vector<BVec>& psf,
-    int& galorder, ConfigFile& params,
+    int& galorder, const ConfigFile& params,
     ShearLog& log, BVec& shapelet, 
     std::complex<double>& gamma, DSmallMatrix22& cov,
     double& nu, long& flag);

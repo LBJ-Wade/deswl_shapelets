@@ -19,7 +19,7 @@
 void MeasureSingleShear(
     const std::vector<PixelList>& allpix,
     const std::vector<BVec>& psf,
-    int& galorder, ConfigFile& params,
+    int& galorder, const ConfigFile& params,
     ShearLog& log, BVec& shapelet, 
     std::complex<double>& gamma, DSmallMatrix22& cov,
     double& nu, long& flag)
@@ -40,8 +40,10 @@ void MeasureSingleShear(
     double fixsigma_value = params.read("shear_force_sigma",0.);
 
     bool use_fake_pixels = params.read("shear_use_fake_pixels",false);
-    double shear_inner_fake_aperture = params.read("shear_inner_fake_aperture",0.);
-    double shear_outer_fake_aperture = params.read("shear_outer_fake_aperture",0.);
+    double shear_inner_fake_aperture = params.read("shear_inner_fake_aperture",gal_aperture);
+    double shear_outer_fake_aperture = params.read("shear_outer_fake_aperture",1.e100);
+    double inner_fake_ap = 0.;
+    double outer_fake_ap = 0.;
 
     try {
         dbg<<"Start MeasureSingleShear\n";
@@ -93,12 +95,11 @@ void MeasureSingleShear(
         int npix = 0;
         for(int i=0;i<nexp;++i) {
             if (use_fake_pixels) {
-                if (params.keyExists("shear_inner_fake_aperture"))
-                    params["inner_fake_ap"] = shear_inner_fake_aperture * sigma_obs;
-                if (params.keyExists("shear_outer_fake_aperture"))
-                    params["outer_fake_ap"] = shear_outer_fake_aperture * sigma_obs;
+                inner_fake_ap = shear_inner_fake_aperture * sigma_obs;
+                outer_fake_ap = shear_outer_fake_aperture * sigma_obs;
             }
-            GetSubPixList(pix[i],allpix[i],cen_offset,0.,galap,params,flag1);
+            GetSubPixList(pix[i],allpix[i],cen_offset,0.,galap,
+                          inner_fake_ap,outer_fake_ap,params,flag1);
             npix += pix[i].size();
         }
         dbg<<"npix = "<<npix<<std::endl;
@@ -156,12 +157,11 @@ void MeasureSingleShear(
             npix = 0;
             for(int i=0;i<nexp;++i) {
                 if (use_fake_pixels) {
-                    if (params.keyExists("shear_inner_fake_aperture"))
-                        params["inner_fake_ap"] = shear_inner_fake_aperture * sigma_obs;
-                    if (params.keyExists("shear_outer_fake_aperture"))
-                        params["outer_fake_ap"] = shear_outer_fake_aperture * sigma_obs;
+                    inner_fake_ap = shear_inner_fake_aperture * sigma_obs;
+                    outer_fake_ap = shear_outer_fake_aperture * sigma_obs;
                 }
-                GetSubPixList(pix[i],allpix[i],cen_offset,0.,galap,params,flag1);
+                GetSubPixList(pix[i],allpix[i],cen_offset,0.,galap,
+                              inner_fake_ap,outer_fake_ap,params,flag1);
                 npix += pix[i].size();
             }
             if (npix < 10) {
@@ -266,12 +266,11 @@ void MeasureSingleShear(
                 npix = 0;
                 for(int i=0;i<nexp;++i) {
                     if (use_fake_pixels) {
-                        if (params.keyExists("shear_inner_fake_aperture"))
-                            params["inner_fake_ap"] = shear_inner_fake_aperture * sigma_obs;
-                        if (params.keyExists("shear_outer_fake_aperture"))
-                            params["outer_fake_ap"] = shear_outer_fake_aperture * sigma_obs;
+                        inner_fake_ap = shear_inner_fake_aperture * sigma_obs;
+                        outer_fake_ap = shear_outer_fake_aperture * sigma_obs;
                     }
-                    GetSubPixList(pix[i],allpix[i],cen_offset,0.,galap,params,flag1);
+                    GetSubPixList(pix[i],allpix[i],cen_offset,0.,galap,
+                                  inner_fake_ap,outer_fake_ap,params,flag1);
                     npix += pix[i].size();
                 }
                 if (npix < 10) {
@@ -407,12 +406,11 @@ void MeasureSingleShear(
             npix = 0;
             for(int i=0;i<nexp;++i) {
                 if (use_fake_pixels) {
-                    if (params.keyExists("shear_inner_fake_aperture"))
-                        params["inner_fake_ap"] = shear_inner_fake_aperture * sigma_obs;
-                    if (params.keyExists("shear_outer_fake_aperture"))
-                        params["outer_fake_ap"] = shear_outer_fake_aperture * sigma_obs;
+                    inner_fake_ap = shear_inner_fake_aperture * sigma_obs;
+                    outer_fake_ap = shear_outer_fake_aperture * sigma_obs;
                 }
-                GetSubPixList(pix[i],allpix[i],cen_offset,gamma,galap,params,flag1);
+                GetSubPixList(pix[i],allpix[i],cen_offset,gamma,galap,
+                              inner_fake_ap,outer_fake_ap,params,flag1);
                 npix += pix[i].size();
             }
             dbg<<"npix = "<<npix<<std::endl;

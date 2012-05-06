@@ -246,14 +246,10 @@ double GetLocalSky(
 void GetSubPixList(
     PixelList& pix, const PixelList& allpix,
     std::complex<double> cen_offset, std::complex<double> shear,
-    double aperture, const ConfigFile& params, long& flag)
+    double aperture, double inner_fake_ap, double outer_fake_ap,
+    const ConfigFile& params, long& flag)
 {
-    bool use_fake = params.read("shear_use_fake_pixels",false);
-
-    // These need to be calculated by the calling routine based on the 
-    // shear_*_fake_aperture values and the galaxy's sigma
-    double inner_fake_ap = params.read("inner_fake_ap",aperture);
-    double outer_fake_ap = params.read("outer_fake_ap",1.e100);
+    bool use_fake = outer_fake_ap > aperture;
 
     // Select a subset of allpix that are within the given aperture
     const int ntot = allpix.size();
