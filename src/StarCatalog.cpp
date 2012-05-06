@@ -39,6 +39,7 @@ static void calculateSigma1(
         flag1 |= TRANSFORM_EXCEPTION;
     }
     if (flag1) {
+        dbg<<"getPixList returned flag "<<FlagText(flag1)<<std::endl;
         flag |= flag1;
         sigma = DEFVALNEG;
         return;
