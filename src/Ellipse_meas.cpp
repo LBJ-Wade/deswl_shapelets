@@ -1,7 +1,6 @@
 
 #include <fstream>
 #include <cmath>
-#include "dbg.h"
 #include "Ellipse.h"
 #include "EllipseSolver.h"
 #include "PsiHelper.h"
@@ -229,6 +228,7 @@ bool Ellipse::findRoundFrame(
                 dbg<<"Full cov = "<<cov5<<std::endl;
                 dbg<<"FLAG SHEAR_BAD_COVAR\n";
                 flag |= SHEAR_BAD_COVAR;
+                return false;
             }
             // update trCov for next section
             trCov = cov ? cov->trace() : 0.;
