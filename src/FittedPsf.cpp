@@ -127,6 +127,8 @@ void FittedPsf::calculate(
             throw ProcessingException("No good stars found for interpolation.");
         }
         *_avePsf /= double(nGoodPsf);
+        xdbg<<"nGoodPsf = "<<nGoodPsf<<std::endl;
+        xdbg<<"avePsf = "<<*_avePsf<<std::endl;
 
         // Rotate the vectors into their eigen directions.
         // The matrix V is stored to let us get back to the original basis.
@@ -143,20 +145,29 @@ void FittedPsf::calculate(
         }
         Assert(i == nGoodPsf);
         xdbg<<"bounds = "<<_bounds<<std::endl;
+        xdbg<<"mM = "<<mM<<std::endl;
+        xdbg<<"inverseSigma = "<<inverseSigma<<std::endl;
         mM = inverseSigma EIGEN_asDiag() * mM;
+        xdbg<<"mM => "<<mM<<std::endl;
 
         int nPcaTot = std::min(nGoodPsf,psfSize);
+        xdbg<<"nPcaTot = "<<nPcaTot<<std::endl;
         DDiagMatrix mS(nPcaTot);
 #ifdef USE_TMV
         DMatrixView mU = mM.colRange(0,nPcaTot);
         _mV.reset(new tmv::Matrix<double,tmv::RowMajor>(nPcaTot,psfSize));
-        if (nGoodPsf > psfSize) {
+        xdbg<<"mU = "<<mU<<std::endl;
+        if (nGoodPsf >= psfSize) {
+            xdbg<<"Regular nGood > psfSize\n";
             SV_Decompose(mU.view(),mS.view(),_mV->view(),true);
         } else {
+            xdbg<<"Transpose version nGood <= psfSize\n";
             *_mV = mM;
             SV_Decompose(_mV->transpose(),mS.view(),mU.transpose());
         }
         xdbg<<"In FittedPSF: SVD S = "<<mS.diag()<<std::endl;
+        xdbg<<"U => "<<mU<<std::endl;
+        xdbg<<"V => "<<*_mV<<std::endl;
 #else
         DMatrix mU(mM.TMV_colsize(),nPcaTot);
         _mV_transpose.reset(new DMatrix(psfSize,nPcaTot));
