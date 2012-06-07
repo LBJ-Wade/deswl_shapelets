@@ -19,10 +19,10 @@ public:
 class StarFinder
 {
 public :
-    StarFinder(const ConfigFile& params, std::string keyPrefix);
+    StarFinder(const ConfigFile& params, std::string key_prefix);
 
     std::vector<PotentialStar*> findStars(
-        std::vector<PotentialStar*>& allObj);
+        std::vector<PotentialStar*>& allobj);
 
     void findMinMax(
         const std::vector<PotentialStar*>& list,
@@ -30,94 +30,94 @@ public :
 
     void rejectOutliers(
         std::vector<PotentialStar*>& list, 
-        double nSigma, double minSigma, const Function2D& f);
+        double nsigma, double min_sigma, const Function2D& f);
 
     std::vector<PotentialStar*> getPeakList(
-        const std::vector<PotentialStar*>& objList,
-        double binSize, double minSize, double maxSize,
-        int nStart, int minIter, double magStep, double maxSignifRatio,
-        bool isFirstPass, const Function2D& f);
+        const std::vector<PotentialStar*>& obj_list,
+        double binSize, double min_size, double max_size,
+        int nstart, int min_iter, double mag_step, double maxSignif_ratio,
+        bool first_pass, const Function2D& f);
 
     void fitStellarSizes(
-        Function2D *f, int order, double sigClip,
-        const std::vector<PotentialStar*>& starList, double *outSigma);
+        Function2D *f, int order, double sig_clip,
+        const std::vector<PotentialStar*>& star_list, double *out_sigma);
 
     void roughlyFitBrightStars(
-        const std::vector<PotentialStar*>& objList,
-        Function2D *f,double *outSigma);
+        const std::vector<PotentialStar*>& obj_list,
+        Function2D *f, double *out_sigma);
 
     void setParams(
-        const ConfigFile& params, std::string keyPrefix,
+        const ConfigFile& params, std::string key_prefix,
         bool mustExist=false);
 
     bool isOkSize(const double size)
-    { return size >= _minSize && size <= _maxSize; }
+    { return size >= _min_size && size <= _max_size; }
 
     bool isOkMag(const double mag)
-    { return mag >= _minMag && mag <= _maxMag; }
+    { return mag >= _min_mag && mag <= _max_mag; }
 
     bool isOkOutputMag(const double mag)
-    { return mag >= _minMag && mag <= _maxOutMag; }
+    { return mag >= _min_mag && mag <= _max_out_mag; }
 
     bool isOkSg(const double sg)
-    { return sg >= _minSg && sg <= _maxSg; }
+    { return sg >= _min_sg && sg <= _max_sg; }
 
     bool isOkSgMag(const double mag)
-    { return mag >= _minSgMag && mag <= _maxSgMag; }
+    { return mag >= _min_sg_mag && mag <= _max_sg_mag; }
 
     double convertToLogSize(const double size)
-    { return _isSizeLog ? size : std::log(size); }
+    { return _is_size_log ? size : std::log(size); }
 
-    double getMinSize() const { return _minSize; }
-    double getMaxSize() const { return _maxSize; }
-    double getMinMag() const { return _minMag; }
-    double getMaxMag() const { return _maxMag; }
-    double getMinSg() const { return _minSg; }
-    double getMaxSg() const { return _maxSg; }
-    double getMinSgFrac() const { return _minSgFrac; }
+    double getMinSize() const { return _min_size; }
+    double getMaxSize() const { return _max_size; }
+    double getMinMag() const { return _min_mag; }
+    double getMaxMag() const { return _max_mag; }
+    double getMinSg() const { return _min_sg; }
+    double getMaxSg() const { return _max_sg; }
+    double getMinSgFrac() const { return _min_sg_frac; }
 
 private :
 
-    double _minSize;       // The min and max size to consider
-    double _maxSize;
-    bool _isSizeLog;       // true if sizes are already log(size)
-    double _minMag;        // The min and max magnitude to consider
-    double _maxMag;
-    double _maxOutMag;
-    double _minSg;         // The min and max star-galaxy value to consider
-    double _maxSg;
-    double _minSgMag;      // The min and max mag for initial star selection
-    double _maxSgMag;
-    double _minSgFrac;     // The minimum fraction of objects in the star-galaxy range
-    int _nDivX;         // Divide the image into nx by ny subsections
-    int _nDivY;
+    double _min_size;       // The min and max size to consider
+    double _max_size;
+    bool _is_size_log;       // true if sizes are already log(size)
+    double _min_mag;        // The min and max magnitude to consider
+    double _max_mag;
+    double _max_out_mag;
+    double _min_sg;         // The min and max star-galaxy value to consider
+    double _max_sg;
+    double _min_sg_mag;      // The min and max mag for initial star selection
+    double _max_sg_mag;
+    double _min_sg_frac;     // The minimum fraction of objects in the star-galaxy range
+    int _ndivx;         // Divide the image into nx by ny subsections
+    int _ndivy;
 
     // Parameters when finding stars in each subdivision
-    double _nStart1;       // # objects to start with on first pass 
-    double _starFrac;      // Of these, how many are probably stars?
-    double _magStep1;      // Step size in mag for each successive pass
+    double _nstart1;       // # objects to start with on first pass 
+    double _star_frac;      // Of these, how many are probably stars?
+    double _mag_step1;      // Step size in mag for each successive pass
     double _reject1;       // nsigma rejection.  (actually n x quartile size)
-    double _maxRatio1;     // max ratio of count in valley / count in peak
-    double _binSize1;      // binsize of histogram 
-    int _okValCount;    // if valley count <= this, ok no matter what peak is
-    int _minIter1;      // min number of mag steps to take
-    double _maxRms;        // in initial linear fit, max rms to allow 
+    double _max_ratio1;     // max ratio of count in valley / count in peak
+    double _bin_size1;      // binsize of histogram 
+    int _ok_val_count;    // if valley count <= this, ok no matter what peak is
+    int _min_iter1;      // min number of mag steps to take
+    double _max_rms;        // in initial linear fit, max rms to allow 
 
     // Parameters for last pass of whole image
-    double _nStart2;       // # objects to start with
-    double _magStep2;      // Step size in mag
-    double _minBinSize;    // Min width of histogram bins
+    double _nstart2;       // # objects to start with
+    double _mag_step2;      // Step size in mag
+    double _min_bin_size;    // Min width of histogram bins
     double _reject2;       // n quartile rejection
-    double _purityRatio;   // max ratio of count in valley / count in peak
-    int _minIter2;      // min number of mag steps to take
+    double _purity_ratio;   // max ratio of count in valley / count in peak
+    int _min_iter2;      // min number of mag steps to take
 
     // Parameters for fitting results of subsections
-    int _starsPerBin;   // How many stars per subsection?
-    int _fitOrder;      // order of fit for size(x,y)
-    double _fitSigClip;    // nsigma rejection in this fit
-    int _maxRefitIter;  // max number of times to refit whole image
+    int _stars_per_bin;   // How many stars per subsection?
+    int _fit_order;      // order of fit for size(x,y)
+    double _fit_sig_clip;    // nsigma rejection in this fit
+    int _max_refit_iter;  // max number of times to refit whole image
 
-    bool _shouldOutputDesQa;  // Output warnings in DES QA format
+    bool _des_qa;  // Output warnings in DES QA format
 
 };
 

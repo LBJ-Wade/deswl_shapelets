@@ -12,7 +12,7 @@ class Histogram {
 
 public:
 
-    Histogram(double binSize, double minValue, double maxValue);
+    Histogram(double bin_size, double min_value, double max_value);
     ~Histogram() {}
 
     void add(double value,const T& ref);
@@ -40,7 +40,7 @@ private:
     int index(double value) const;
     double value(int i) const;
 
-    double _binSize,_minValue,_maxValue;
+    double _bin_size,_min_value,_max_value;
     std::vector<std::vector<T> > _refs;
     std::vector<std::vector<double> > _values;
 };

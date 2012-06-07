@@ -5,9 +5,9 @@
 #include <string>
 #include "dbg.h"
 
-void executeCommand(
+void ExecuteCommand(
     std::string command, std::string& result,
-    bool shouldStripTrailingNewline = false);
+    bool strip_trailing_newline = false);
 
 
 #endif

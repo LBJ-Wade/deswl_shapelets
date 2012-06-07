@@ -214,28 +214,28 @@ bool Ellipse::doMeasureShapelet(
     int bsize2 = (order2+1)*(order2+2)/2;
     xdbg<<"bsize2 = "<<bsize2<<std::endl;
 
-    int nTot = 0;
-    const int nExp = pix.size();
-    for(int i=0;i<nExp;++i) nTot += pix[i].size();
-    dbg<<"ntot = "<<nTot<<" in "<<nExp<<" images\n";
-    if (nTot < bsize) {
+    int ntot = 0;
+    const int nexp = pix.size();
+    for(int i=0;i<nexp;++i) ntot += pix[i].size();
+    dbg<<"ntot = "<<ntot<<" in "<<nexp<<" images\n";
+    if (ntot < bsize) {
         dbg<<"Too few pixels for given order.\n";
         return false;
     }
 
-    DVector I(nTot);
-    DVector W(nTot);
-    CDVector Z(nTot);
+    DVector I(ntot);
+    DVector W(ntot);
+    CDVector Z(ntot);
 
-    for(int k=0,n=0;k<nExp;++k) {
+    for(int k=0,n=0;k<nexp;++k) {
         double sigma_obs = 
             psf ?
             sqrt(pow(sigma,2)+pow((*psf)[k].getSigma(),2)) :
             sigma;
         xdbg<<"sigma_obs["<<k<<"] = "<<sigma_obs<<std::endl;
 
-        const int nPix = pix[k].size();
-        for(int i=0;i<nPix;++i,++n) {
+        const int npix = pix[k].size();
+        for(int i=0;i<npix;++i,++n) {
             I(n) = pix[k][i].getFlux()*pix[k][i].getInverseSigma();
             W(n) = pix[k][i].getInverseSigma();
             std::complex<double> z1 = pix[k][i].getPos();
@@ -281,12 +281,12 @@ bool Ellipse::doMeasureShapelet(
     }
 #endif
 
-    DMatrix A(nTot,bsize);
-    Assert(nTot >= bsize); // Should have been addressed by calling routine.
+    DMatrix A(ntot,bsize);
+    Assert(ntot >= bsize); // Should have been addressed by calling routine.
     //xdbg<<"A = "<<A<<std::endl;
 
     if (psf) {
-        for(int k=0,n=0,nx;k<nExp;++k,n=nx) {
+        for(int k=0,n=0,nx;k<nexp;++k,n=nx) {
             xdbg<<"psf = "<<(*psf)[k]<<std::endl;
             int psforder = (*psf)[k].getOrder();
             int newpsforder = std::max(psforder,order2);
@@ -301,7 +301,7 @@ bool Ellipse::doMeasureShapelet(
             bool setnew = false;
             if (_gamma != 0.) {
                 DMatrix S(newpsfsize,psfsize);
-                calculateGTransform(_gamma,newpsforder,psforder,S);
+                CalculateGTransform(_gamma,newpsforder,psforder,S);
                 newpsf.vec() = S * (*psf)[k].vec();
                 setnew = true;
                 xdbg<<"newpsf = "<<newpsf<<std::endl;
@@ -309,11 +309,11 @@ bool Ellipse::doMeasureShapelet(
             if (real(_mu) != 0.) {
                 if (setnew) {
                     DMatrix D(newpsfsize,newpsfsize);
-                    calculateMuTransform(real(_mu),newpsforder,D);
+                    CalculateMuTransform(real(_mu),newpsforder,D);
                     newpsf.vec() = D * newpsf.vec();
                 } else {
                     DMatrix D(newpsfsize,psfsize);
-                    calculateMuTransform(real(_mu),newpsforder,psforder,D);
+                    CalculateMuTransform(real(_mu),newpsforder,psforder,D);
                     newpsf.vec() = D * (*psf)[k].vec();
                     setnew = true;
                 }
@@ -327,7 +327,7 @@ bool Ellipse::doMeasureShapelet(
 #else
                     DBandMatrix R(newpsfsize,newpsfsize);
 #endif
-                    calculateThetaTransform(imag(_mu),newpsforder,R);
+                    CalculateThetaTransform(imag(_mu),newpsforder,R);
                     newpsf.vec() = R * newpsf.vec();
                 } else {
 #ifdef USE_TMV
@@ -335,7 +335,7 @@ bool Ellipse::doMeasureShapelet(
 #else
                     DBandMatrix R(newpsfsize,psfsize);
 #endif
-                    calculateThetaTransform(imag(_mu),newpsforder,psforder,R);
+                    CalculateThetaTransform(imag(_mu),newpsforder,psforder,R);
                     newpsf.vec() = R * (*psf)[k].vec();
                     setnew = true;
                 }
@@ -343,21 +343,21 @@ bool Ellipse::doMeasureShapelet(
             }
             DMatrix C(bsize2,bsize);
             if (setnew) {
-                calculatePsfConvolve(newpsf,order2,order,b.getSigma(),C);
+                CalculatePsfConvolve(newpsf,order2,order,b.getSigma(),C);
             } else {
-                calculatePsfConvolve((*psf)[k],order2,order,b.getSigma(),C);
+                CalculatePsfConvolve((*psf)[k],order2,order,b.getSigma(),C);
             }
 
-            const int nPix = pix[k].size();
-            nx = n+nPix;
-            DMatrix A1(nPix,bsize2);
+            const int npix = pix[k].size();
+            nx = n+npix;
+            DMatrix A1(npix,bsize2);
             DVectorView W1 = W.TMV_subVector(n,nx);
-            makePsi(A1,Z.TMV_subVector(n,nx),order2,&W1);
+            MakePsi(A1,Z.TMV_subVector(n,nx),order2,&W1);
             TMV_rowRange(A,n,nx) = A1 * C;
         }
     } else {
         DVectorView W1 = TMV_view(W);
-        makePsi(A,TMV_vview(Z),order,&W1);
+        MakePsi(A,TMV_vview(Z),order,&W1);
     }
     const double MAX_CONDITION = 1.e8;
 
@@ -460,7 +460,7 @@ bool Ellipse::doAltMeasureShapelet(
     xdbg<<"b.order, sigma = "<<b.getOrder()<<", "<<b.getSigma()<<std::endl;
     xdbg<<"el = "<<*this<<std::endl;
     xdbg<<"pixScale = "<<pixScale<<std::endl;
-    const int nExp = pix.size();
+    const int nexp = pix.size();
 
     const int bsize = (order+1)*(order+2)/2;
     const int bsize2 = (order2+1)*(order2+2)/2;
@@ -477,10 +477,10 @@ bool Ellipse::doAltMeasureShapelet(
         cov1.reset(new DMatrix(bsize2,bsize2));
     }
 
-    for(int k=0;k<nExp;++k) {
-        const int nPix = pix[k].size();
-        DVector I(nPix);
-        CDVector Z(nPix);
+    for(int k=0;k<nexp;++k) {
+        const int npix = pix[k].size();
+        DVector I(npix);
+        CDVector Z(npix);
 
         double sigma_obs = 
             psf ?
@@ -489,7 +489,7 @@ bool Ellipse::doAltMeasureShapelet(
         xdbg<<"sigma_obs = "<<sigma_obs<<std::endl;
 
         DDiagMatrix normD(bsize2);
-        double val = pow(pixScale/sigma_obs,2) * exp(-2.*real(_mu)) / nExp;
+        double val = pow(pixScale/sigma_obs,2) * exp(-2.*real(_mu)) / nexp;
         for(int n=0,i=0;n<=order2;++n) {
             for(int p=n,q=0;p>=q;--p,++q,++i) {
                 if (p!=q) { normD(i) = val/2.; normD(++i) = val/2.; }
@@ -497,15 +497,15 @@ bool Ellipse::doAltMeasureShapelet(
             }
         }
 
-        for(int i=0;i<nPix;++i) {
+        for(int i=0;i<npix;++i) {
             I(i) = pix[k][i].getFlux();
             std::complex<double> z1 = pix[k][i].getPos();
             std::complex<double> z2 = m*((z1-_cen) - _gamma*conj(z1-_cen));
             Z(i) = z2 / sigma_obs;
         }
 
-        DMatrix A(nPix,bsize2);
-        makePsi(A,TMV_vview(Z),order2);
+        DMatrix A(npix,bsize2);
+        MakePsi(A,TMV_vview(Z),order2);
 
         // b = C^-1 normD At I
         DVector b1 = A.transpose() * I;
@@ -518,8 +518,8 @@ bool Ellipse::doAltMeasureShapelet(
             // Propagate this through to cov(b1)
             // b1 = normD At I
             // cov1 = normD At cov(I) A normD
-            DDiagMatrix W(nPix);
-            for(int i=0;i<nPix;++i) {
+            DDiagMatrix W(npix);
+            for(int i=0;i<npix;++i) {
                 W(i) = 1./pix[k][i].getInverseSigma();
             }
             DMatrix temp = normD * A.transpose() * W;
@@ -541,7 +541,7 @@ bool Ellipse::doAltMeasureShapelet(
             bool setnew = false;
             if (_gamma != 0.) {
                 DMatrix S(newpsfsize,psfsize);
-                calculateGTransform(_gamma,newpsforder,psforder,S);
+                CalculateGTransform(_gamma,newpsforder,psforder,S);
                 newpsf.vec() = S * (*psf)[k].vec();
                 setnew = true;
                 xdbg<<"newpsf = "<<newpsf<<std::endl;
@@ -549,11 +549,11 @@ bool Ellipse::doAltMeasureShapelet(
             if (real(_mu) != 0.) {
                 if (setnew) {
                     DMatrix D(newpsfsize,newpsfsize);
-                    calculateMuTransform(real(_mu),newpsforder,D);
+                    CalculateMuTransform(real(_mu),newpsforder,D);
                     newpsf.vec() = D * newpsf.vec();
                 } else {
                     DMatrix D(newpsfsize,psfsize);
-                    calculateMuTransform(real(_mu),newpsforder,psforder,D);
+                    CalculateMuTransform(real(_mu),newpsforder,psforder,D);
                     newpsf.vec() = D * (*psf)[k].vec();
                     setnew = true;
                 }
@@ -567,7 +567,7 @@ bool Ellipse::doAltMeasureShapelet(
 #else
                     DBandMatrix R(newpsfsize,newpsfsize);
 #endif
-                    calculateThetaTransform(imag(_mu),newpsforder,R);
+                    CalculateThetaTransform(imag(_mu),newpsforder,R);
                     newpsf.vec() = R * newpsf.vec();
                 } else {
 #ifdef USE_TMV
@@ -575,7 +575,7 @@ bool Ellipse::doAltMeasureShapelet(
 #else
                     DBandMatrix R(newpsfsize,psfsize);
 #endif
-                    calculateThetaTransform(imag(_mu),newpsforder,psforder,R);
+                    CalculateThetaTransform(imag(_mu),newpsforder,psforder,R);
                     newpsf.vec() = R * (*psf)[k].vec();
                     setnew = true;
                 }
@@ -584,9 +584,9 @@ bool Ellipse::doAltMeasureShapelet(
 
             DMatrix C(bsize2,bsize2);
             if (setnew) {
-                calculatePsfConvolve(newpsf,order2,b.getSigma(),C);
+                CalculatePsfConvolve(newpsf,order2,b.getSigma(),C);
             } else {
-                calculatePsfConvolve((*psf)[k],order2,b.getSigma(),C);
+                CalculatePsfConvolve((*psf)[k],order2,b.getSigma(),C);
             }
 #ifdef USE_TMV
             b1 /= C;

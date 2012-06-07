@@ -11,31 +11,31 @@
 int main(int argc, char **argv) try 
 {
     ConfigFile params;
-    if (basicSetup(argc,argv,params,"measureshear")) return EXIT_FAILURE;
+    if (BasicSetup(argc,argv,params,"measureshear")) return EXIT_FAILURE;
 
     // Setup Log
-    std::string logFile = ""; // Default is to stdout
+    std::string log_file = ""; // Default is to stdout
     if (params.keyExists("log_file") || params.keyExists("log_ext")) 
-        logFile = makeName(params,"log",false,false);
-    std::string shearFile = makeName(params,"shear",false,false);
+        log_file = MakeName(params,"log",false,false);
+    std::string shear_file = MakeName(params,"shear",false,false);
     std::auto_ptr<ShearLog> log (
-        new ShearLog(params,logFile,shearFile)); 
+        new ShearLog(params,log_file,shear_file)); 
 
     try {
-        bool isTiming = params.read("timing",false);
+        bool timing = params.read("timing",false);
         timeval tp;
         double t1=0.,t2=0.;
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t1 = tp.tv_sec + tp.tv_usec/1.e6;
         }
 
         // Load image:
-        std::auto_ptr<Image<double> > weightIm;
-        Image<double> im(params,weightIm);
+        std::auto_ptr<Image<double> > weight_image;
+        Image<double> im(params,weight_image);
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
             std::cout<<"Time: Open image = "<<t2-t1<<std::endl;
@@ -45,7 +45,7 @@ int main(int argc, char **argv) try
         // Read distortion function
         Transformation trans(params);
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
             std::cout<<"Time: Read Transformation = "<<t2-t1<<std::endl;
@@ -53,10 +53,10 @@ int main(int argc, char **argv) try
         }
 
         // Read input catalog
-        InputCatalog inCat(params,&im);
-        inCat.read();
+        InputCatalog incat(params,&im);
+        incat.read();
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
             std::cout<<"Time: Read InputCatalog = "<<t2-t1<<std::endl;
@@ -66,10 +66,10 @@ int main(int argc, char **argv) try
         bool nostars = params.read("cat_no_stars",false);
         if (!nostars) {
             // Read star catalog info
-            StarCatalog starCat(params);
-            starCat.read();
+            StarCatalog starcat(params);
+            starcat.read();
 
-            if (isTiming) {
+            if (timing) {
                 gettimeofday(&tp,0);
                 t2 = tp.tv_sec + tp.tv_usec/1.e6;
                 std::cout<<"Time: Read StarCatalog = "<<t2-t1<<std::endl;
@@ -78,9 +78,9 @@ int main(int argc, char **argv) try
 
             // Flag known stars as too small to bother trying to measure 
             // the shear.
-            inCat.flagStars(starCat);
+            incat.flagStars(starcat);
 
-            if (isTiming) {
+            if (timing) {
                 gettimeofday(&tp,0);
                 t2 = tp.tv_sec + tp.tv_usec/1.e6;
                 std::cout<<"Time: Flag stars = "<<t2-t1<<std::endl;
@@ -89,20 +89,20 @@ int main(int argc, char **argv) try
         }
 
         // Read the fitted psf file
-        FittedPsf fitPsf(params);
-        fitPsf.read();
+        FittedPsf fitpsf(params);
+        fitpsf.read();
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
             std::cout<<"Time: Read FittedPSF = "<<t2-t1<<std::endl;
             t1 = t2;
         }
 
-        std::auto_ptr<ShearCatalog> shearCat;
-        doMeasureShear(
-            params,*log,im,weightIm.get(),trans,inCat,fitPsf,
-            shearCat);
+        std::auto_ptr<ShearCatalog> shearcat;
+        DoMeasureShear(
+            params,*log,im,weight_image.get(),trans,incat,fitpsf,
+            shearcat);
     }
 #if 0
     // Change to 1 to let gdb see where the program bombed out.

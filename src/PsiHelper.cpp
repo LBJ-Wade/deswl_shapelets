@@ -18,7 +18,7 @@
 // remotely efficient, so I separate this out with an ifdef, rather than
 // use the TMV and EIGEN macros.
 
-void makePsi(DMatrix& psi, CDVectorView z, int order, const DVectorView* coeff)
+void MakePsi(DMatrix& psi, CDVectorView z, int order, const DVectorView* coeff)
 {
     // For p>=q:
     //
@@ -110,7 +110,7 @@ void makePsi(DMatrix& psi, CDVectorView z, int order, const DVectorView* coeff)
     }
 }
 
-void makePsi(DVector& psi, std::complex<double> z, int order)
+void MakePsi(DVector& psi, std::complex<double> z, int order)
 {
     const double invsqrtpi = 1./sqrtpi;
     double rsq = std::norm(z);
@@ -148,7 +148,7 @@ void makePsi(DVector& psi, std::complex<double> z, int order)
     }
 }
 
-void augmentPsi(DMatrix& psi, CDVectorView z, int order)
+void AugmentPsi(DMatrix& psi, CDVectorView z, int order)
 {
     Assert(int(psi.rowsize()) >= (order+3)*(order+4)/2);
     Assert(psi.colsize() == z.size());
@@ -195,7 +195,7 @@ void augmentPsi(DMatrix& psi, CDVectorView z, int order)
 
 #else
 
-void makePsi(DMatrix& psi, CDVectorView z, int order, const DVector* coeff)
+void MakePsi(DMatrix& psi, CDVectorView z, int order, const DVector* coeff)
 {
     // For p>=q:
     //
@@ -292,7 +292,7 @@ void makePsi(DMatrix& psi, CDVectorView z, int order, const DVector* coeff)
     }
 }
 
-void makePsi(DVector& psi, std::complex<double> z, int order)
+void MakePsi(DVector& psi, std::complex<double> z, int order)
 {
     const double invsqrtpi = 1./sqrtpi;
     double rsq = std::norm(z);
@@ -330,7 +330,7 @@ void makePsi(DVector& psi, std::complex<double> z, int order)
     }
 }
 
-void augmentPsi(DMatrix& psi, CDVectorView z, int order)
+void AugmentPsi(DMatrix& psi, CDVectorView z, int order)
 {
     Assert(int(psi.TMV_rowsize()) >= (order+3)*(order+4)/2);
     Assert(psi.TMV_colsize() == z.size());
@@ -381,7 +381,7 @@ void augmentPsi(DMatrix& psi, CDVectorView z, int order)
 
 #endif
 
-void setupGx(DMatrix& Gx, int order1, int order2)
+void SetupGx(DMatrix& Gx, int order1, int order2)
 {
     Assert(int(Gx.TMV_colsize()) == (order1+1)*(order1+2)/2);
     Assert(int(Gx.TMV_rowsize()) == (order2+1)*(order2+2)/2);
@@ -420,7 +420,7 @@ void setupGx(DMatrix& Gx, int order1, int order2)
     }
 }
 
-void setupGy(DMatrix& Gy, int order1, int order2)
+void SetupGy(DMatrix& Gy, int order1, int order2)
 {
     Assert(int(Gy.TMV_colsize()) == (order1+1)*(order1+2)/2);
     Assert(int(Gy.TMV_rowsize()) == (order2+1)*(order2+2)/2);
@@ -460,7 +460,7 @@ void setupGy(DMatrix& Gy, int order1, int order2)
     }
 }
 
-void setupGg1(DMatrix& Gg1, int order1, int order2)
+void SetupGg1(DMatrix& Gg1, int order1, int order2)
 {
     Assert(int(Gg1.TMV_colsize()) == (order1+1)*(order1+2)/2);
     Assert(int(Gg1.TMV_rowsize()) == (order2+1)*(order2+2)/2);
@@ -511,7 +511,7 @@ void setupGg1(DMatrix& Gg1, int order1, int order2)
     }
 }
 
-void setupGg2(DMatrix& Gg2, int order1, int order2)
+void SetupGg2(DMatrix& Gg2, int order1, int order2)
 {
     Assert(int(Gg2.TMV_colsize()) == (order1+1)*(order1+2)/2);
     Assert(int(Gg2.TMV_rowsize()) == (order2+1)*(order2+2)/2);
@@ -562,7 +562,7 @@ void setupGg2(DMatrix& Gg2, int order1, int order2)
     }
 }
 
-void setupGmu(DMatrix& Gmu, int order1, int order2)
+void SetupGmu(DMatrix& Gmu, int order1, int order2)
 {
     Assert(int(Gmu.TMV_colsize()) == (order1+1)*(order1+2)/2);
     Assert(int(Gmu.TMV_rowsize()) == (order2+1)*(order2+2)/2);
@@ -590,7 +590,7 @@ void setupGmu(DMatrix& Gmu, int order1, int order2)
     }
 }
 
-void setupGth(DMatrix& Gth, int order1, int order2)
+void SetupGth(DMatrix& Gth, int order1, int order2)
 {
     Assert(int(Gth.TMV_colsize()) == (order1+1)*(order1+2)/2);
     Assert(int(Gth.TMV_rowsize()) == (order2+1)*(order2+2)/2);

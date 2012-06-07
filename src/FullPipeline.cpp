@@ -10,87 +10,87 @@
 #include "Scripts.h"
 #include "BasicSetup.h"
 
-static void doFullPipeline(
-    ConfigFile& params, std::string logFile, std::auto_ptr<Log>& log)
+static void DoFullPipeline(
+    ConfigFile& params, std::string log_file, std::auto_ptr<Log>& log)
 {
-    bool shouldOutputInfo = params.read("output_info",true);
+    bool output_info = params.read("output_info",true);
 
     // Load image:
-    std::auto_ptr<Image<double> > weightIm;
-    Image<double> im(params,weightIm);
+    std::auto_ptr<Image<double> > weight_image;
+    Image<double> im(params,weight_image);
 
     // Read distortion function
     Transformation trans(params);
 
     // Read input catalog
-    InputCatalog inCat(params,&im);
-    inCat.read();
+    InputCatalog incat(params,&im);
+    incat.read();
 
     // Do FindStars script
-    std::auto_ptr<StarCatalog> starCat;
+    std::auto_ptr<StarCatalog> starcat;
     if ( (params.read("cat_all_stars",false) || 
           params.read("stars_trust_sg",false)) ) {
-        starCat.reset(new StarCatalog(inCat,params));
+        starcat.reset(new StarCatalog(incat,params));
     } else {
         log.reset(
-            new FindStarsLog(params,logFile,makeName(params,"stars",false,false)));
-        std::auto_ptr<StarCatalog> starCat;
-        if (shouldOutputInfo) {
+            new FindStarsLog(params,log_file,MakeName(params,"stars",false,false)));
+        std::auto_ptr<StarCatalog> starcat;
+        if (output_info) {
             std::cerr<<"Finding Stars"<<std::endl;
         }
-        doFindStars(
-            params, static_cast<FindStarsLog&>(*log), im, weightIm.get(), trans,
-            inCat, starCat);
+        DoFindStars(
+            params, static_cast<FindStarsLog&>(*log), im, weight_image.get(), trans,
+            incat, starcat);
     }
 
     // Do MeasurePsf script
-    log.reset(new PsfLog(params,logFile,makeName(params,"psf",false,false)));
-    std::auto_ptr<PsfCatalog> psfCat;
-    std::auto_ptr<FittedPsf> fitPsf;
-    double sigmaP = 0.;
-    if (shouldOutputInfo) {
+    log.reset(new PsfLog(params,log_file,MakeName(params,"psf",false,false)));
+    std::auto_ptr<PsfCatalog> psfcat;
+    std::auto_ptr<FittedPsf> fitpsf;
+    double sigma_p = 0.;
+    if (output_info) {
         std::cerr<<"Measuring PSF"<<std::endl;
     }
-    doMeasurePsf(
-        params, static_cast<PsfLog&>(*log), im, weightIm.get(), trans,
-        *starCat, psfCat, fitPsf, sigmaP);
+    DoMeasurePsf(
+        params, static_cast<PsfLog&>(*log), im, weight_image.get(), trans,
+        *starcat, psfcat, fitpsf, sigma_p);
 
     // Flag stars, so don't try to measure shears for them.
     bool nostars = params.read("cat_no_stars",false);
-    if (!nostars) inCat.flagStars(*starCat);
+    if (!nostars) incat.flagStars(*starcat);
 
     // Do MeasusreShear script
-    log.reset(new ShearLog(params,logFile,makeName(params,"shear",false,false)));
-    std::auto_ptr<ShearCatalog> shearCat;
-    if (shouldOutputInfo) {
+    log.reset(new ShearLog(params,log_file,MakeName(params,"shear",false,false)));
+    std::auto_ptr<ShearCatalog> shearcat;
+    if (output_info) {
         std::cerr<<"Measuring Shear"<<std::endl;
     }
-    doMeasureShear(
-        params, static_cast<ShearLog&>(*log), im, weightIm.get(), trans,
-        inCat, *fitPsf, shearCat);
+    DoMeasureShear(
+        params, static_cast<ShearLog&>(*log), im, weight_image.get(), trans,
+        incat, *fitpsf, shearcat);
 
     // Maybe do SplitStars script
     bool splitstars=params.read("splitstars",false);
     if (splitstars) {
-        doSplitStars(
-            params, logFile, log, im, weightIm.get(), trans,
-            inCat, *starCat, sigmaP);
+        DoSplitStars(
+            params, log_file, log, im, weight_image.get(), trans,
+            incat, *starcat, sigma_p);
     }
 }
 
 int main(int argc, char **argv) try 
 {
     ConfigFile params;
-    if (basicSetup(argc,argv,params,"fullpipe")) return EXIT_FAILURE;
+    if (BasicSetup(argc,argv,params,"fullpipe")) return EXIT_FAILURE;
 
     // Setup Log
-    std::string logFile = ""; // Default is to stdout
+    std::string log_file = ""; // Default is to stdout
     if (params.keyExists("log_file") || params.keyExists("log_ext")) 
-        logFile = makeName(params,"log",false,false);
+        log_file = MakeName(params,"log",false,false);
     std::auto_ptr<Log> log;
 
     try {
-        doFullPipeline(params,logFile,log);
+        DoFullPipeline(params,log_file,log);
     }
 #if 0
     // Change to 1 to let gdb see where the program bombed out.

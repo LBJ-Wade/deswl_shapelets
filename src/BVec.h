@@ -99,7 +99,7 @@ public :
     void makeImage(
         Image<double>& im,
         const Position cen, double sky, const Transformation& trans,
-        double xOffset, double yOffset) const;
+        double x_offset, double y_offset) const;
 
 private :
 
@@ -118,50 +118,50 @@ inline std::ostream& operator<<(std::ostream& os, const BVec& b)
 // for different values of mu, g, theta, and z.  So it is faster to 
 // just overwrite the locations that need to be written and skip the zeroes
 // each time you call these functions.
-void calculateZTransform(
+void CalculateZTransform(
     std::complex<double> z, int order1, int order2, DMatrix& T);
-inline void calculateZTransform(std::complex<double> z, int order, DMatrix& T)
-{ calculateZTransform(z,order,order,T); }
-void augmentZTransformCols(
+inline void CalculateZTransform(std::complex<double> z, int order, DMatrix& T)
+{ CalculateZTransform(z,order,order,T); }
+void AugmentZTransformCols(
     std::complex<double> z, int order1, int order2, DMatrix& T);
-inline void augmentZTransformCols(
+inline void AugmentZTransformCols(
     std::complex<double> z, int order, DMatrix& T)
-{ augmentZTransformCols(z,order,order,T); }
-void applyZ(std::complex<double> z, BVec& b);
+{ AugmentZTransformCols(z,order,order,T); }
+void ApplyZ(std::complex<double> z, BVec& b);
 
-void calculateMuTransform(double mu, int order1, int order2, DMatrix& D);
-inline void calculateMuTransform(double mu, int order, DMatrix& D)
-{ calculateMuTransform(mu,order,order,D); }
-void augmentMuTransformRows(double mu, int order1, int order2, DMatrix& D);
-void augmentMuTransformCols(double mu, int order1, int order2, DMatrix& D);
-inline void augmentMuTransformRows(double mu, int order, DMatrix& D)
-{ augmentMuTransformRows(mu,order,order,D); }
-inline void augmentMuTransformCols(double mu, int order, DMatrix& D)
-{ augmentMuTransformCols(mu,order,order,D); }
-void applyMu(double mu, BVec& b);
+void CalculateMuTransform(double mu, int order1, int order2, DMatrix& D);
+inline void CalculateMuTransform(double mu, int order, DMatrix& D)
+{ CalculateMuTransform(mu,order,order,D); }
+void AugmentMuTransformRows(double mu, int order1, int order2, DMatrix& D);
+void AugmentMuTransformCols(double mu, int order1, int order2, DMatrix& D);
+inline void AugmentMuTransformRows(double mu, int order, DMatrix& D)
+{ AugmentMuTransformRows(mu,order,order,D); }
+inline void AugmentMuTransformCols(double mu, int order, DMatrix& D)
+{ AugmentMuTransformCols(mu,order,order,D); }
+void ApplyMu(double mu, BVec& b);
 
-void calculateThetaTransform(
+void CalculateThetaTransform(
     double theta, int order1, int order2, DBandMatrix& R);
-inline void calculateThetaTransform(double theta, int order, DBandMatrix& R)
-{ calculateThetaTransform(theta,order,order,R); }
-void applyTheta(double theta, BVec& b);
+inline void CalculateThetaTransform(double theta, int order, DBandMatrix& R)
+{ CalculateThetaTransform(theta,order,order,R); }
+void ApplyTheta(double theta, BVec& b);
 
-void calculateGTransform(
+void CalculateGTransform(
     std::complex<double> g, int order1, int order2, DMatrix& S);
-inline void calculateGTransform(std::complex<double> g, int order, DMatrix& S)
-{ calculateGTransform(g,order,order,S); }
-void augmentGTransformCols(
+inline void CalculateGTransform(std::complex<double> g, int order, DMatrix& S)
+{ CalculateGTransform(g,order,order,S); }
+void AugmentGTransformCols(
     std::complex<double> g, int order1, int order2, DMatrix& S);
-inline void augmentGTransformCols(
+inline void AugmentGTransformCols(
     std::complex<double> g, int order, DMatrix& S)
-{ augmentGTransformCols(g,order,order,S); }
-void applyG(std::complex<double> g, BVec& b);
+{ AugmentGTransformCols(g,order,order,S); }
+void ApplyG(std::complex<double> g, BVec& b);
 
-void calculatePsfConvolve(
+void CalculatePsfConvolve(
     const BVec& bpsf, int order1, int order2, double sigma, DMatrix& C);
-inline void calculatePsfConvolve(
+inline void CalculatePsfConvolve(
     const BVec& bpsf, int order, double sigma, DMatrix& C)
-{ calculatePsfConvolve(bpsf,order,order,sigma,C); }
-void applyPsf(const BVec& bpsf, BVec& b);
+{ CalculatePsfConvolve(bpsf,order,order,sigma,C); }
+void ApplyPsf(const BVec& bpsf, BVec& b);
 
 #endif

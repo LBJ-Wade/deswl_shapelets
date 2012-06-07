@@ -3,27 +3,27 @@
 
 #include <stdexcept>
 
-extern bool shouldShowTests;
-extern bool shouldThrow;
-extern std::string lastSuccess;
+extern bool show_tests;
+extern bool should_throw;
+extern std::string last_success;
 extern std::ostream* testout;
 
-inline void preTest(std::string s)
+inline void PreTest(std::string s)
 {
-    if (shouldShowTests) {
+    if (show_tests) {
         (*testout)<<"Trying: "<<s;
         (*testout).flush();
     }
 }
 
-inline void doTest(bool x, std::string s)
+inline void DoTest(bool x, std::string s)
 {
     if (x) {
-        if (shouldShowTests) (*testout)<<"  Passed"<<std::endl;
-        lastSuccess = s;
+        if (show_tests) (*testout)<<"  Passed"<<std::endl;
+        last_success = s;
     } else {
-        if (shouldShowTests) (*testout)<<"  Failed"<<std::endl;
-        if (!shouldThrow) (*testout)<<"Failed test: "<<s<<std::endl;
+        if (show_tests) (*testout)<<"  Failed"<<std::endl;
+        if (!should_throw) (*testout)<<"Failed test: "<<s<<std::endl;
         else  {
 #ifdef NOTHROW
             (*testout)<<"Error in test: "<<s<<std::endl;
@@ -35,10 +35,10 @@ inline void doTest(bool x, std::string s)
     }
 }
 
-#define test(x,s) \
+#define Test(x,s) \
     do { \
-        preTest(s); \
-        doTest(x,s); \
+        PreTest(s); \
+        DoTest(x,s); \
     } while (false)
 
 #endif

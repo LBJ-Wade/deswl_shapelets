@@ -16,23 +16,23 @@
 // The columns correspond to each psi index (see above).
 // The input z vector has the position of each pixel.
 // The optional coeff parameter specifies a coefficient to multiply each row.
-void makePsi(
+void MakePsi(
     DMatrix& psi, CDVectorView z, int order, const DVectorView* coeff=0);
 
 // Same thing, but for a single pixel.
-void makePsi(DVector& psi, std::complex<double> z, int order);
+void MakePsi(DVector& psi, std::complex<double> z, int order);
 
 // Add some more columns to a psi matrix for two more radial orders.
 // The order is the original order of the matrix.
 // So the result is a psi matrix for order+2.
-void augmentPsi(DMatrix& psi, CDVectorView z, int order);
+void AugmentPsi(DMatrix& psi, CDVectorView z, int order);
 
 // Gx = d(psi)/dx.  Likewise for the other parameters.
-void setupGx(DMatrix& Gx, int order1, int order2);
-void setupGy(DMatrix& Gy, int order1, int order2);
-void setupGg1(DMatrix& Gg1, int order1, int order2);
-void setupGg2(DMatrix& Gg2, int order1, int order2);
-void setupGmu(DMatrix& Gmu, int order1, int order2);
-void setupGth(DMatrix& Gth, int order1, int order2);
+void SetupGx(DMatrix& Gx, int order1, int order2);
+void SetupGy(DMatrix& Gy, int order1, int order2);
+void SetupGg1(DMatrix& Gg1, int order1, int order2);
+void SetupGg2(DMatrix& Gg2, int order1, int order2);
+void SetupGmu(DMatrix& Gmu, int order1, int order2);
+void SetupGth(DMatrix& Gth, int order1, int order2);
 
 #endif

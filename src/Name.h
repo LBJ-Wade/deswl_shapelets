@@ -7,30 +7,27 @@
 #include "ConfigFile.h"
 #include "Params.h"
 
-void setRoot(ConfigFile& params);
-void setRoot(ConfigFile& params, const std::string& imageFileName);
+void SetRoot(ConfigFile& params);
+void SetRoot(ConfigFile& params, const std::string& image_file_name);
 
-bool doesFileExist(const std::string& fileName);
+bool DoesFileExist(const std::string& file_name);
 
-std::string makeName(
+std::string MakeName(
     const ConfigFile& params, const std::string& what,
-    bool isInputPrefix, bool mustExist);
+    bool is_input_prefix, bool must_exist);
 
-std::vector<std::string> makeMultiName(
+std::vector<std::string> MakeMultiName(
     const ConfigFile& params, const std::string& what);
 
 // By forcing fits we can avoid dealing with all the cases involved with the
 // naming scheme
-std::string makeFitsName(
-    const ConfigFile& params, 
-    const std::string& what);
+std::string MakeFitsName(const ConfigFile& params, const std::string& what);
 
 // for names like name.ext, add an extra string to make name{extra}.ext
-std::string addExtraToName(
-    const std::string& input_name, 
-    const std::string extra);
+std::string AddExtraToName(
+    const std::string& input_name, const std::string extra);
 
-int getHdu(
+int GetHdu(
     const ConfigFile& params, const std::string& what, 
     const std::string& name, int def);
 

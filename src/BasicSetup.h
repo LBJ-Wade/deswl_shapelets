@@ -15,9 +15,7 @@ std::ostream* dbgout = 0;
 bool XDEBUG = false;
 
 // Some things that are done at the beginning of each executable
-inline int basicSetup(
-    int argc, char **argv,
-    ConfigFile& params, std::string exec)
+inline int BasicSetup(int argc, char **argv, ConfigFile& params, std::string exec)
 {
     // Check args:
     if (argc < 2) {
@@ -57,15 +55,15 @@ inline int basicSetup(
         // Then use coaddcat_file rather than image_file to make root.
         params["image_file"] = params["coaddcat_file"];
     }
-    setRoot(params);
+    SetRoot(params);
 
     // Setup debugging
     if (params.read("verbose",0) > 0) {
         if (params.read<int>("verbose") > 1) XDEBUG = true;
         if (params.keyExists("debug_file") || params.keyExists("debug_ext"))
         {
-            std::string debugFile = makeName(params,"debug",false,false);
-            dbgout = new std::ofstream(debugFile.c_str());
+            std::string debug_file = MakeName(params,"debug",false,false);
+            dbgout = new std::ofstream(debug_file.c_str());
 
 #ifndef __PGI
             // This gives errors with pgCC, so just skip it.
@@ -84,13 +82,13 @@ inline int basicSetup(
 
 #pragma omp parallel copyin(dbgout, XDEBUG)
             {
-                int threadNum = omp_get_thread_num();
+                int thread_num = omp_get_thread_num();
                 std::stringstream ss;
-                ss << threadNum;
-                std::string debugFile2 = debugFile + "_" + ss.str();
-                if (threadNum > 0) {
+                ss << thread_num;
+                std::string debug_file2 = debug_file + "_" + ss.str();
+                if (thread_num > 0) {
                     // This is a memory leak, but a tiny one.
-                    dbgout = new std::ofstream(debugFile2.c_str());
+                    dbgout = new std::ofstream(debug_file2.c_str());
                     dbgout->setf(std::ios_base::unitbuf);
                 }
             }

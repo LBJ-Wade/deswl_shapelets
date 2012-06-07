@@ -8,31 +8,31 @@
 #include "ShearCatalog.h"
 #include "Log.h"
 
-void doFindStars(
+void DoFindStars(
     ConfigFile& params, FindStarsLog& log,
-    const Image<double>& im, const Image<double>* weightIm,
+    const Image<double>& im, const Image<double>* weight_image,
     const Transformation& trans, 
-    const InputCatalog& inCat,
-    std::auto_ptr<StarCatalog>& starCat);
+    const InputCatalog& incat,
+    std::auto_ptr<StarCatalog>& starcat);
 
-void doMeasurePsf(
+void DoMeasurePsf(
     ConfigFile& params, PsfLog& log,
-    const Image<double>& im, const Image<double>* weightIm,
-    const Transformation& trans, const StarCatalog& starCat,
-    std::auto_ptr<PsfCatalog>& psfCat, std::auto_ptr<FittedPsf>& fitPsf,
+    const Image<double>& im, const Image<double>* weight_image,
+    const Transformation& trans, const StarCatalog& starcat,
+    std::auto_ptr<PsfCatalog>& psfcat, std::auto_ptr<FittedPsf>& fitpsf,
     double& sigmaP);
 
-void doMeasureShear(
+void DoMeasureShear(
     ConfigFile& params, ShearLog& log,
-    const Image<double>& im, const Image<double>* weightIm,
+    const Image<double>& im, const Image<double>* weight_image,
     const Transformation& trans, 
-    const InputCatalog& inCat, const FittedPsf& fitPsf,
-    std::auto_ptr<ShearCatalog>& shearCat);
+    const InputCatalog& incat, const FittedPsf& fitpsf,
+    std::auto_ptr<ShearCatalog>& shearcat);
 
-void doSplitStars(
+void DoSplitStars(
     ConfigFile& params, std::string logFile, std::auto_ptr<Log>& log,
-    const Image<double>& im, const Image<double>* weightIm,
+    const Image<double>& im, const Image<double>* weight_image,
     const Transformation& trans, 
-    const InputCatalog& inCat, const StarCatalog& starCat,
+    const InputCatalog& incat, const StarCatalog& starcat,
     double sigmaP);
 

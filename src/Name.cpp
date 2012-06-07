@@ -7,14 +7,14 @@
 
 // This function is taken from:
 // http://www.techbytes.ca/techbyte103.html
-bool doesFileExist(const std::string& fileName) 
+bool DoesFileExist(const std::string& file_name) 
 {
-    struct stat fileInfo; 
-    int statValue; 
+    struct stat file_info; 
+    int stat_value; 
 
     // Attempt to get the file attributes 
-    statValue = stat(fileName.c_str(),&fileInfo); 
-    if (statValue == 0) {
+    stat_value = stat(file_name.c_str(),&file_info); 
+    if (stat_value == 0) {
         // We were able to get the file attributes 
         // so the file obviously exists. 
         return true;
@@ -29,12 +29,12 @@ bool doesFileExist(const std::string& fileName)
     } 
 }
 
-static int findExtNum(
-    const std::vector<std::string>& extList, const std::string& name)
+static int FindExtNum(
+    const std::vector<std::string>& ext_list, const std::string& name)
 {
-    const int nExt = extList.size();
-    for(int i=0;i<nExt;++i) {
-        std::string ext = extList[i];
+    const int next = ext_list.size();
+    for(int i=0;i<next;++i) {
+        std::string ext = ext_list[i];
         xdbg<<"ext = "<<ext<<std::endl;
         if (ext.size() > name.size()) continue;
         int extPos = name.size() - ext.size();
@@ -46,7 +46,7 @@ static int findExtNum(
     return -1;
 }
 
-void setRoot(ConfigFile& params, const std::string& imageFileName)
+void SetRoot(ConfigFile& params, const std::string& imageFileName)
 {
     // Get image name and extensions from params
     dbg<<"image_file = "<<imageFileName<<std::endl;
@@ -54,7 +54,7 @@ void setRoot(ConfigFile& params, const std::string& imageFileName)
     std::vector<std::string> allImageExt = params["image_ext"];
 
     // Find which extension is correct
-    int extNum = findExtNum(allImageExt, imageFileName);
+    int extNum = FindExtNum(allImageExt, imageFileName);
     if (extNum == -1) {
         throw ParameterException(
             "image file "+imageFileName+
@@ -86,7 +86,7 @@ void setRoot(ConfigFile& params, const std::string& imageFileName)
     if (!params.keyExists("output_prefix")) params["output_prefix"] = prefix;
 }
 
-void setRoot(ConfigFile& params)
+void SetRoot(ConfigFile& params)
 {
     Assert(params.keyExists("root") || params.keyExists("image_file"));
 
@@ -94,19 +94,19 @@ void setRoot(ConfigFile& params)
         // Get image name and extensions from params
         dbg<<"Make root from image_file\n";
         std::string imageFileName = params["image_file"];
-        setRoot(params,imageFileName);
+        SetRoot(params,imageFileName);
     }
     Assert(params.keyExists("root"));
 }
 
-std::string makeName(
+std::string MakeName(
     const ConfigFile& params, const std::string& what,
-    bool isInputPrefix, bool mustExist)
+    bool isInputPrefix, bool must_exist)
 {
     xdbg<<"Making name for "<<what<<std::endl;
 
-    std::vector<std::string> extList;
-    if (params.keyExists(what+"_ext")) extList = params[what+"_ext"];
+    std::vector<std::string> ext_list;
+    if (params.keyExists(what+"_ext")) ext_list = params[what+"_ext"];
     std::string startName;
 
     if (params.keyExists((what+"_file"))) {
@@ -121,15 +121,15 @@ std::string makeName(
         }
         std::string name = multiname[0];
         xdbg<<"name = "<<name<<std::endl;
-        int extNum = findExtNum(extList,name);
-        if (!mustExist || doesFileExist(name)) {
+        int extNum = FindExtNum(ext_list,name);
+        if (!must_exist || DoesFileExist(name)) {
             // File exists or doesn't need to.
             xdbg<<"name = "<<name<<std::endl;
             return name;
-        } else if (extList.size() > 1 && extNum != -1) {
+        } else if (ext_list.size() > 1 && extNum != -1) {
             // File is supposed to exist and doesn't.
             // But there may be other extensions to try.
-            std::string ext = extList[extNum];
+            std::string ext = ext_list[extNum];
             int extPos = name.size() - ext.size();
             startName = std::string(name,0,extPos);
         } else {
@@ -140,7 +140,7 @@ std::string makeName(
         // Determine the name from the root, prefix, and ext.
         Assert(params.keyExists("root"));
         Assert(params.keyExists(what+"_ext"));
-        Assert(extList.size() > 0);
+        Assert(ext_list.size() > 0);
         std::string root = params["root"];
         xdbg<<"No "<<(what+"_file")<<" parameter, so use root.\n";
         xdbg<<"root = "<<root<<std::endl;
@@ -161,10 +161,10 @@ std::string makeName(
     }
 
     // Add each extension in turn and check if the file exists.
-    const int nExt = extList.size();
-    for(int i=0;i<nExt;++i) {
-        std::string name = startName + extList[i];
-        if (!mustExist || doesFileExist(name)) {
+    const int next = ext_list.size();
+    for(int i=0;i<next;++i) {
+        std::string name = startName + ext_list[i];
+        if (!must_exist || DoesFileExist(name)) {
             xdbg<<"name = "<<name<<std::endl;
             return name;
         }
@@ -172,22 +172,20 @@ std::string makeName(
 
     // None of the extensions worked, so throw an exception.
     std::string allNames;
-    for(int j=0;j<nExt;++j) {
+    for(int j=0;j<next;++j) {
         if (j > 0) allNames += " , ";
-        allNames += startName + extList[j];
+        allNames += startName + ext_list[j];
     }
     throw FileNotFoundException(allNames);
 }
 
-std::string makeFitsName(
-    const ConfigFile& params, 
-    const std::string& what) {
-
+std::string MakeFitsName(const ConfigFile& params, const std::string& what) 
+{
     // Since we don't know what type the extension is, .fits, .dat, etc.  we will
     // replace .dat with .fits
 
     // Just get the first name and modify it if necessary
-    std::string file = makeName(params,what,false,false);  
+    std::string file = MakeName(params,what,false,false);  
 
     size_t fits_pos = file.rfind(".fits");
     size_t fit_pos = file.rfind(".fit");
@@ -207,9 +205,8 @@ std::string makeFitsName(
     return file;
 }
 
-std::string addExtraToName(
-    const std::string& input_name, 
-    const std::string extra) {
+std::string AddExtraToName(const std::string& input_name, const std::string extra) 
+{
 
     std::string name = input_name;
 
@@ -229,41 +226,39 @@ std::string addExtraToName(
     return name;
 }
 
-std::vector<std::string> makeMultiName(
-    const ConfigFile& params, const std::string& what)
+std::vector<std::string> MakeMultiName(const ConfigFile& params, const std::string& what)
 {
     xdbg<<"Making multi-name for "<<what<<std::endl;
-    std::vector<std::string> nameList;
+    std::vector<std::string> name_list;
 
     if (params.keyExists((what+"_file"))) {
-        nameList = params[what+"_file"];
+        name_list = params[what+"_file"];
     } else {
         Assert(params.keyExists("root"));
         Assert(params.keyExists(what+"_ext"));
         std::string root = params["root"];
-        std::vector<std::string> extList = params[what+"_ext"];
+        std::vector<std::string> ext_list = params[what+"_ext"];
         std::string pre = "";
         if (params.keyExists((what+"_prefix"))) pre=params[what+"_prefix"];
         else if (params.keyExists("output_prefix")) pre=params["output_prefix"];
 
-        const int nExt = extList.size();
-        for(int i=0;i<nExt;++i) {
-            std::string name = pre + root + extList[i];
+        const int next = ext_list.size();
+        for(int i=0;i<next;++i) {
+            std::string name = pre + root + ext_list[i];
             xdbg<<"name = "<<name<<std::endl;
-            nameList.push_back(name);
+            name_list.push_back(name);
         }
     }
-    return nameList;
+    return name_list;
 }
 
-int getHdu(const ConfigFile& params, const std::string& what, 
-           const std::string& name, int def)
+int GetHdu(const ConfigFile& params, const std::string& what, const std::string& name, int def)
 {
     if (params.keyExists(what+"_hdu_by_ext")) {
-        std::vector<int> hduList = params[what+"_hdu_by_ext"];
-        std::vector<std::string> extList = params[what+"_ext"];
-        int extNum = findExtNum(extList,name);
-        return hduList[extNum];
+        std::vector<int> hdu_list = params[what+"_hdu_by_ext"];
+        std::vector<std::string> ext_list = params[what+"_ext"];
+        int extNum = FindExtNum(ext_list,name);
+        return hdu_list[extNum];
     } else if (params.keyExists(what+"_hdu")) {
         return params[what+"_hdu"];
     } else {

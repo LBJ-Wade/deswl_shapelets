@@ -28,7 +28,7 @@ public :
     void setToJacobian(
         double dudx, double dudy, double dvdx, double dvdy);
     void writeFunc2D(std::ostream& os) const;
-    bool isRaDec() const { return _isRaDec; }
+    bool isRaDec() const { return _is_ra_dec; }
 
     // Calculate u,v = u(x,y),v(x,y)
     void transform(Position pxy, Position& puv) const;
@@ -66,7 +66,7 @@ public :
 
 private :
 
-    bool _isRaDec;
+    bool _is_ra_dec;
 
     std::auto_ptr<Function2D> _u;
     std::auto_ptr<Function2D> _v;

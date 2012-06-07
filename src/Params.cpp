@@ -6,11 +6,11 @@ std::string FlagText(long flag)
 {
     std::string ret = "(";
     bool first = true;
-    for(long flagNum = 0; flagNum < NFLAGS; ++flagNum) {
-        if (flag & (1 << flagNum)) {
+    for(long flagnum = 0; flagnum < NFLAGS; ++flagnum) {
+        if (flag & (1 << flagnum)) {
             if (first) first = false; 
             else ret += ",";
-            ret += flagName[flagNum];
+            ret += flag_name[flagnum];
         }
     }
     ret += ")";
@@ -19,24 +19,24 @@ std::string FlagText(long flag)
 
 void PrintFlags(const std::vector<long>& flags, std::ostream& os)
 {
-    const int nObj = flags.size();
+    const int nobj = flags.size();
 
-    std::vector<long> nFlagCount(NFLAGS,0);
-    long nNoFlag = 0;
+    std::vector<long> nflagcount(NFLAGS,0);
+    long nnoflag = 0;
 
-    for(int i=0;i<nObj;++i) {
+    for(int i=0;i<nobj;++i) {
         long flag = flags[i];
-        if (!flag) ++nNoFlag;
-        for(long flagNum = 0; flagNum < NFLAGS; ++flagNum) {
-            if (flag & (1 << flagNum)) ++nFlagCount[flagNum];
+        if (!flag) ++nnoflag;
+        for(long flagnum = 0; flagnum < NFLAGS; ++flagnum) {
+            if (flag & (1 << flagnum)) ++nflagcount[flagnum];
         }
     }
-    os<<"   Total N = "<<nObj<<std::endl;
-    os<<"     # with no flags = "<<nNoFlag<<std::endl;
-    for(long flagNum = 0; flagNum < NFLAGS; ++flagNum) {
-        if (nFlagCount[flagNum]) {
-            os<<"     # with "<<flagName[flagNum]<<" = "<<
-                nFlagCount[flagNum]<<std::endl;
+    os<<"   Total N = "<<nobj<<std::endl;
+    os<<"     # with no flags = "<<nnoflag<<std::endl;
+    for(long flagnum = 0; flagnum < NFLAGS; ++flagnum) {
+        if (nflagcount[flagnum]) {
+            os<<"     # with "<<flag_name[flagnum]<<" = "<<
+                nflagcount[flagnum]<<std::endl;
         }
     }
 }

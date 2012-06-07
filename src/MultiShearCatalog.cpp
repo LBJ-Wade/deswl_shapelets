@@ -23,36 +23,36 @@
 
 MultiShearCatalog::MultiShearCatalog(
     const CoaddCatalog& coaddCat, const ConfigFile& params) :
-    _id(coaddCat.getIdList()), _chipPos(coaddCat.getPosList()),
-    _skyPos(coaddCat.getSkyPosList()),
-    _flags(coaddCat.getFlagsList()), _skyBounds(coaddCat.getSkyBounds()),
+    _id(coaddCat.getIdList()), _chippos(coaddCat.getPosList()),
+    _skypos(coaddCat.getSkyPosList()),
+    _flags(coaddCat.getFlagsList()), _skybounds(coaddCat.getSkyBounds()),
     _params(params)
 {
     dbg<<"Start MultiShearCatalog constructor\n";
     xdbg<<"memory_usage = "<<memory_usage()<<std::endl;
 
-    std::complex<double> shearDefault(DEFVALPOS,DEFVALPOS);
-    DSmallMatrix22 covDefault;
-    covDefault << DEFVALPOS, 0, 0, DEFVALPOS;
+    std::complex<double> shear_default(DEFVALPOS,DEFVALPOS);
+    DSmallMatrix22 cov_default;
+    cov_default << DEFVALPOS, 0, 0, DEFVALPOS;
 
     const int n = coaddCat.size();
-    _pixList.resize(n);
-    _psfList.resize(n);
-    _seNum.resize(n);
-    _sePos.resize(n);
-    _inputFlags.resize(n,0);
-    _nImagesFound.resize(n, 0);
-    _nImagesGotPix.resize(n, 0);
+    _pix_list.resize(n);
+    _psf_list.resize(n);
+    _se_num.resize(n);
+    _se_pos.resize(n);
+    _input_flags.resize(n,0);
+    _nimages_found.resize(n, 0);
+    _nimages_gotpix.resize(n, 0);
 
-    _measGalOrder.resize(n,DEFVALNEG);
-    _shear.resize(n,shearDefault);
+    _meas_galorder.resize(n,DEFVALNEG);
+    _shear.resize(n,shear_default);
     _nu.resize(n,DEFVALNEG);
-    _cov.resize(n,covDefault);
+    _cov.resize(n,cov_default);
 
-    int galOrder = _params.get("shear_gal_order");
-    BVec shapeDefault(galOrder,1.);
-    shapeDefault.vec().TMV_setAllTo(DEFVALNEG);
-    _shape.resize(n,shapeDefault);
+    int galorder = _params.get("shear_gal_order");
+    BVec shape_default(galorder,1.);
+    shape_default.vec().TMV_setAllTo(DEFVALNEG);
+    _shape.resize(n,shape_default);
 
     xdbg<<"after resize, memory_usage = "<<memory_usage()<<std::endl;
 
@@ -64,10 +64,10 @@ MultiShearCatalog::MultiShearCatalog(
 
 int MultiShearCatalog::getNGalsWithPixels() const
 {
-    const int nGals = size();
-    int nGalsWithPix=0;
-    for (int i=0;i<nGals;++i) if (_pixList[i].size() > 0) ++nGalsWithPix;
-    return nGalsWithPix;
+    const int ngals = size();
+    int ngals_withpix=0;
+    for (int i=0;i<ngals;++i) if (_pix_list[i].size() > 0) ++ngals_withpix;
+    return ngals_withpix;
 }
 
 std::vector<Bounds> MultiShearCatalog::splitBounds()
@@ -78,15 +78,15 @@ std::vector<Bounds> MultiShearCatalog::splitBounds()
     xdbg<<"sectionSize = "<<sectionSize<<std::endl;
     sectionSize *= 60.; // arcmin -> arcsec
 
-    double xRange = _skyBounds.getXMax() - _skyBounds.getXMin();
-    double yRange = _skyBounds.getYMax() - _skyBounds.getYMin();
-    double dec = _skyBounds.getCenter().getY();
+    double xRange = _skybounds.getXMax() - _skybounds.getXMin();
+    double yRange = _skybounds.getYMax() - _skybounds.getYMin();
+    double dec = _skybounds.getCenter().getY();
     double cosdec = cos(dec / ARCSEC_PER_RAD);
     xRange *= cosdec;
 
     int nx = int(floor(xRange/sectionSize))+1;
     int ny = int(floor(yRange/sectionSize))+1;
-    return _skyBounds.divide(nx,ny);
+    return _skybounds.divide(nx,ny);
 }
 
 bool MultiShearCatalog::getPixels(const Bounds& bounds)
@@ -97,16 +97,16 @@ bool MultiShearCatalog::getPixels(const Bounds& bounds)
     // for each single-epoch observation that actually falls within the 
     // bounds for the section we are working on.
 
-    const int nPix = _pixList.size();
+    const int nPix = _pix_list.size();
 
     dbg<<"Start getPixels: memory_usage = "<<memory_usage()<<std::endl;
     for (int i=0;i<nPix;++i) {
-        _pixList[i].clear();
-        _psfList[i].clear();
+        _pix_list[i].clear();
+        _psf_list[i].clear();
     }
     dbg<<"After clear: memory_usage = "<<memory_usage()<<std::endl;
 
-    bool shouldOutputDesQa = _params.read("des_qa",false); 
+    bool des_qa = _params.read("des_qa",false); 
 
     try {
         dbg<<"Start GetPixels for b = "<<bounds<<std::endl;
@@ -115,49 +115,49 @@ bool MultiShearCatalog::getPixels(const Bounds& bounds)
         // The Transformation and FittedPSF constructors get the name
         // information from the parameter file, so we use that to set the 
         // names of each component image here.
-        const int nFiles = _imageFileList.size();
-        for (int iFile=0; iFile<nFiles; ++iFile) {
+        const int nfiles = _image_file_list.size();
+        for (int ifile=0; ifile<nfiles; ++ifile) {
 #ifdef ONLY_N_IMAGES
-            if (iFile >= ONLY_N_IMAGES) break;
+            if (ifile >= ONLY_N_IMAGES) break;
 #endif
-            dbg<<"iFile = "<<iFile<<std::endl;
+            dbg<<"ifile = "<<ifile<<std::endl;
 
             // Get the file names
-            Assert(iFile < int(_imageFileList.size()));
-            Assert(iFile < int(_fitPsfFileList.size()));
-            std::string imageFile = _imageFileList[iFile];
-            std::string fitPsfFile = _fitPsfFileList[iFile];
+            Assert(ifile < int(_image_file_list.size()));
+            Assert(ifile < int(_fitpsf_file_list.size()));
+            std::string image_file = _image_file_list[ifile];
+            std::string fitpsf_file = _fitpsf_file_list[ifile];
 
-            dbg<<"Reading image file: "<<imageFile<<"\n";
+            dbg<<"Reading image file: "<<image_file<<"\n";
             // Set the appropriate parameters
-            _params["image_file"] = imageFile;
-            setRoot(_params,imageFile);
-            _params["fitpsf_file"] = fitPsfFile;
+            _params["image_file"] = image_file;
+            SetRoot(_params,image_file);
+            _params["fitpsf_file"] = fitpsf_file;
 
-            if (_shearFileList.size() > 0) {
-                Assert(iFile < int(_shearFileList.size()));
-                std::string shearFile = _shearFileList[iFile];
-                _params["shear_file"] = shearFile;
+            if (_shear_file_list.size() > 0) {
+                Assert(ifile < int(_shear_file_list.size()));
+                std::string shear_file = _shear_file_list[ifile];
+                _params["shear_file"] = shear_file;
             }
 
-            if (_skyMapFileList.size() > 0) {
-                Assert(iFile < int(_skyMapFileList.size()));
-                std::string skyMapFile = _skyMapFileList[iFile];
-                _params["skymap_file"] = skyMapFile;
+            if (_skymap_file_list.size() > 0) {
+                Assert(ifile < int(_skymap_file_list.size()));
+                std::string skymap_file = _skymap_file_list[ifile];
+                _params["skymap_file"] = skymap_file;
             }
 
             // Load the pixels
-            dbg<<"Before load pixels for file "<<iFile<<
+            dbg<<"Before load pixels for file "<<ifile<<
                 ": memory_usage = "<<memory_usage()<<std::endl;
-            if (!getImagePixelLists(iFile,bounds)) {
+            if (!getImagePixelLists(ifile,bounds)) {
                 for (int i=0;i<nPix;++i) {
-                    _pixList[i].clear();
-                    _psfList[i].clear();
+                    _pix_list[i].clear();
+                    _psf_list[i].clear();
                 }
                 PixelList::reclaimMemory();
                 return false;
             }
-            dbg<<"After load pixels for file "<<iFile<<
+            dbg<<"After load pixels for file "<<ifile<<
                 ": memory_usage = "<<memory_usage()<<std::endl;
         }
     } catch (std::bad_alloc) {
@@ -166,7 +166,7 @@ bool MultiShearCatalog::getPixels(const Bounds& bounds)
         double peak_mem = peak_memory_usage();
         dbg<<"memory usage = "<<mem<<" MB\n";
         dbg<<"peak memory usage = "<<peak_mem<<" MB\n";
-        if (shouldOutputDesQa) std::cerr<<"STATUS5BEG ";
+        if (des_qa) std::cerr<<"STATUS5BEG ";
         std::cerr
             << "Memory exhausted in MultShearCatalog.\n"
             << "Memory Usage in MultiShearCatalog = "
@@ -178,7 +178,7 @@ bool MultiShearCatalog::getPixels(const Bounds& bounds)
             << "(Current values = "
             << _params["multishear_section_size"]
             << " , "<<_params["max_vmem"]<<")";
-        if (shouldOutputDesQa) std::cerr<<" STATUS5END";
+        if (des_qa) std::cerr<<" STATUS5END";
         std::cerr<<std::endl;
         dbg << "Memory exhausted in MultShearCatalog.\n"
             << "Memory Usage in MultiShearCatalog = "
@@ -214,13 +214,13 @@ MultiShearCatalog::~MultiShearCatalog()
 {}
 
 void MultiShearCatalog::addImage(
-    const std::string& imageFilename, const std::string& fitPsfFilename,
-    const std::string& shearFilename, const std::string& skyMapFilename)
+    const std::string& image_filename, const std::string& fitpsf_filename,
+    const std::string& shear_filename, const std::string& skymap_filename)
 {
-    _imageFileList.push_back(imageFilename);
-    _fitPsfFileList.push_back(fitPsfFilename);
-    if (shearFilename != "") _shearFileList.push_back(shearFilename);
-    if (skyMapFilename != "") _skyMapFileList.push_back(skyMapFilename);
+    _image_file_list.push_back(image_filename);
+    _fitpsf_file_list.push_back(fitpsf_filename);
+    if (shear_filename != "") _shear_file_list.push_back(shear_filename);
+    if (skymap_filename != "") _skymap_file_list.push_back(skymap_filename);
 }
 
 // readFileLists reads the srclist file specified in params
@@ -228,7 +228,7 @@ void MultiShearCatalog::addImage(
 void MultiShearCatalog::readFileLists()
 {
     std::string file = _params.get("coadd_srclist");
-    if (!doesFileExist(file)) {
+    if (!DoesFileExist(file)) {
         throw FileNotFoundException(file);
     }
 
@@ -239,35 +239,35 @@ void MultiShearCatalog::readFileLists()
             throw ReadException("Unable to open source list file " + file);
         }
 
-        _imageFileList.clear();
-        _shearFileList.clear();
-        _fitPsfFileList.clear();
-        _skyMapFileList.clear();
+        _image_file_list.clear();
+        _shear_file_list.clear();
+        _fitpsf_file_list.clear();
+        _skymap_file_list.clear();
 
-        std::string imageFilename;
-        std::string shearFilename;
-        std::string fitPsfFilename;
-        std::string skyMapFilename;
-        bool isSkyMapInList = _params.read("multishear_skymap_in_list",false);
+        std::string image_filename;
+        std::string shear_filename;
+        std::string fitpsf_filename;
+        std::string skymap_filename;
+        bool isSkyMapIn_list = _params.read("multishear_skymap_in_list",false);
 
-        while (flist >> imageFilename >> shearFilename >> fitPsfFilename) {
-            dbg<<"Files are :\n"<<imageFilename<<std::endl;
-            dbg<<shearFilename<<std::endl;
-            dbg<<fitPsfFilename<<std::endl;
-            if (isSkyMapInList) {
-                flist >> skyMapFilename;
+        while (flist >> image_filename >> shear_filename >> fitpsf_filename) {
+            dbg<<"Files are :\n"<<image_filename<<std::endl;
+            dbg<<shear_filename<<std::endl;
+            dbg<<fitpsf_filename<<std::endl;
+            if (isSkyMapIn_list) {
+                flist >> skymap_filename;
                 if (!flist) {
                     throw ReadException(
-                        "Unable to read skyMapFilename in list file " + file);
+                        "Unable to read skymap_filename in list file " + file);
                 }
-                addImage(imageFilename,fitPsfFilename,
-                         shearFilename,skyMapFilename);
+                addImage(image_filename,fitpsf_filename,
+                         shear_filename,skymap_filename);
             } else {
-                addImage(imageFilename,fitPsfFilename,shearFilename);
+                addImage(image_filename,fitpsf_filename,shear_filename);
             }
         }
-        if (isSkyMapInList) {
-            Assert(_skyMapFileList.size() == _imageFileList.size());
+        if (isSkyMapIn_list) {
+            Assert(_skymap_file_list.size() == _image_file_list.size());
         }
     } catch (std::exception& e) {
         xdbg<<"Caught std::exception: \n"<<e.what()<<std::endl;
@@ -280,25 +280,25 @@ void MultiShearCatalog::readFileLists()
     }
 
     dbg<<"Done reading file lists\n";
-    Assert(_shearFileList.size() == _imageFileList.size());
-    Assert(_fitPsfFileList.size() == _imageFileList.size());
+    Assert(_shear_file_list.size() == _image_file_list.size());
+    Assert(_fitpsf_file_list.size() == _image_file_list.size());
 }
 
 void MultiShearCatalog::write() const
 {
     xdbg<<"Start MultiShearCatalog.write\n";
-    std::vector<std::string> fileList = makeMultiName(_params, "multishear");
+    std::vector<std::string> file_list = MakeMultiName(_params, "multishear");
 
-    const int nFiles = fileList.size();
-    for(int i=0; i<nFiles; ++i) {
-        const std::string& file = fileList[i];
+    const int nfiles = file_list.size();
+    for(int i=0; i<nfiles; ++i) {
+        const std::string& file = file_list[i];
         dbg<<"Writing multishear catalog to file: "<<file<<std::endl;
 
         bool isFitsIo = false;
         if (_params.keyExists("multishear_io")) {
-            std::vector<std::string> ioList = _params["multishear_io"];
-            Assert(ioList.size() == fileList.size());
-            isFitsIo = (ioList[i] == "FITS");
+            std::vector<std::string> io_list = _params["multishear_io"];
+            Assert(io_list.size() == file_list.size());
+            isFitsIo = (io_list[i] == "FITS");
         } else if (file.find("fits") != std::string::npos) {
             isFitsIo = true;
         }
@@ -309,10 +309,10 @@ void MultiShearCatalog::write() const
             } else {
                 std::string delim = "  ";
                 if (_params.keyExists("multishear_delim")) {
-                    std::vector<std::string> delimList = 
+                    std::vector<std::string> delim_list = 
                         _params["multishear_delim"];
-                    Assert(delimList.size() == fileList.size());
-                    delim = delimList[i];
+                    Assert(delim_list.size() == file_list.size());
+                    delim = delim_list[i];
                 } else if (file.find("csv") != std::string::npos) {
                     delim = ",";
                 }
@@ -342,85 +342,85 @@ void MultiShearCatalog::writeFits(std::string file) const
     CCfits::FITS fits("!"+file, CCfits::Write);
     xdbg<<"Opened file\n";
 
-    std::vector<string> colNames;
-    std::vector<string> colFmts;
+    std::vector<string> col_names;
+    std::vector<string> col_fmts;
 
-    colNames.push_back(_params.get("multishear_id_col")); 
-    colFmts.push_back("1J");
-    int idColNum = colNames.size()-1;
+    col_names.push_back(_params.get("multishear_id_col")); 
+    col_fmts.push_back("1J");
+    int id_col_num = col_names.size()-1;
 
-    colNames.push_back(_params.get("multishear_flags_col"));
-    colFmts.push_back("1J"); // flags
-    int flagsColNum = colNames.size()-1;
+    col_names.push_back(_params.get("multishear_flags_col"));
+    col_fmts.push_back("1J"); // flags
+    int flags_col_num = col_names.size()-1;
 
-    colNames.push_back(_params.get("multishear_ra_col"));
-    colFmts.push_back("1D"); // ra
-    int raColNum = colNames.size()-1;
+    col_names.push_back(_params.get("multishear_ra_col"));
+    col_fmts.push_back("1D"); // ra
+    int ra_col_num = col_names.size()-1;
 
-    colNames.push_back(_params.get("multishear_dec_col"));
-    colFmts.push_back("1D"); // decl
-    int declColNum = colNames.size()-1;
+    col_names.push_back(_params.get("multishear_dec_col"));
+    col_fmts.push_back("1D"); // decl
+    int decl_col_num = col_names.size()-1;
 
-    colNames.push_back(_params.get("multishear_shear1_col"));
-    colFmts.push_back("1D"); // shear1
-    int shear1ColNum = colNames.size()-1;
+    col_names.push_back(_params.get("multishear_shear1_col"));
+    col_fmts.push_back("1D"); // shear1
+    int shear1_col_num = col_names.size()-1;
 
-    colNames.push_back(_params.get("multishear_shear2_col"));
-    colFmts.push_back("1D"); // shear2
-    int shear2ColNum = colNames.size()-1;
+    col_names.push_back(_params.get("multishear_shear2_col"));
+    col_fmts.push_back("1D"); // shear2
+    int shear2_col_num = col_names.size()-1;
 
-    colNames.push_back(_params.get("multishear_nu_col"));
-    colFmts.push_back("1D"); // nu
-    int nuColNum = colNames.size()-1;
+    col_names.push_back(_params.get("multishear_nu_col"));
+    col_fmts.push_back("1D"); // nu
+    int nu_col_num = col_names.size()-1;
 
-    colNames.push_back(_params.get("multishear_cov00_col"));
-    colFmts.push_back("1D"); // cov00
-    int cov00ColNum = colNames.size()-1;
+    col_names.push_back(_params.get("multishear_cov00_col"));
+    col_fmts.push_back("1D"); // cov00
+    int cov00_col_num = col_names.size()-1;
 
-    colNames.push_back(_params.get("multishear_cov01_col"));
-    colFmts.push_back("1D"); // cov01
-    int cov01ColNum = colNames.size()-1;
+    col_names.push_back(_params.get("multishear_cov01_col"));
+    col_fmts.push_back("1D"); // cov01
+    int cov01_col_num = col_names.size()-1;
 
-    colNames.push_back(_params.get("multishear_cov11_col"));
-    colFmts.push_back("1D"); // cov11
-    int cov11ColNum = colNames.size()-1;
+    col_names.push_back(_params.get("multishear_cov11_col"));
+    col_fmts.push_back("1D"); // cov11
+    int cov11_col_num = col_names.size()-1;
 
-    colNames.push_back(_params.get("multishear_order_col"));
-    colFmts.push_back("1J"); // order
-    int orderColNum = colNames.size()-1;
+    col_names.push_back(_params.get("multishear_order_col"));
+    col_fmts.push_back("1J"); // order
+    int order_col_num = col_names.size()-1;
 
-    colNames.push_back(_params.get("multishear_sigma_col"));
-    colFmts.push_back("1D"); // sigma
-    int sigmaColNum = colNames.size()-1;
+    col_names.push_back(_params.get("multishear_sigma_col"));
+    col_fmts.push_back("1D"); // sigma
+    int sigma_col_num = col_names.size()-1;
 
-    colNames.push_back(_params.get("multishear_coeffs_col"));
+    col_names.push_back(_params.get("multishear_coeffs_col"));
 
-    int nCoeff = _shape[0].size();
-    dbg<<"ncoeff = "<<nCoeff<<std::endl;
-    std::stringstream coeffForm;
-    coeffForm << nCoeff << "D";
-    colFmts.push_back(coeffForm.str()); // shapelet coeffs
+    int ncoeff = _shape[0].size();
+    dbg<<"ncoeff = "<<ncoeff<<std::endl;
+    std::stringstream coeff_form;
+    coeff_form << ncoeff << "D";
+    col_fmts.push_back(coeff_form.str()); // shapelet coeffs
 
-    int coeffsColNum = colNames.size()-1;
+    int coeffs_col_num = col_names.size()-1;
 
-    colNames.push_back(_params.get("multishear_nimages_found_col"));
-    colFmts.push_back("1J"); // nImages_found
-    int nImagesFoundColNum = colNames.size()-1;
+    col_names.push_back(_params.get("multishear_nimages_found_col"));
+    col_fmts.push_back("1J"); // nimages_found
+    int nimages_found_col_num = col_names.size()-1;
 
-    colNames.push_back(_params.get("multishear_nimages_gotpix_col"));
-    colFmts.push_back("1J"); // nImages_gotpix
-    int nImagesGotPixColNum = colNames.size()-1;
+    col_names.push_back(_params.get("multishear_nimages_gotpix_col"));
+    col_fmts.push_back("1J"); // nimages_gotpix
+    int nimages_gotpix_col_num = col_names.size()-1;
 
-    colNames.push_back(_params.get("multishear_input_flags_col"));
-    colFmts.push_back("1J"); // inputFlags
-    int inputFlagsColNum = colNames.size()-1;
+    col_names.push_back(_params.get("multishear_input_flags_col"));
+    col_fmts.push_back("1J"); // input_flags
+    int input_flags_col_num = col_names.size()-1;
 
     // We don't output units yet, just make it same size as others
-    std::vector<string> colunits(colFmts.size());
+    std::vector<string> col_units(col_fmts.size());
 
     xdbg<<"Before Create table"<<std::endl;
     CCfits::Table* table;
-    table = fits.addTable("coadd_shearcat",size(),colNames,colFmts,colunits);
+    table = fits.addTable("coadd_shearcat",size(),col_names,col_fmts,col_units);
     xdbg<<"Made table"<<std::endl;
 
     // Header keywords
@@ -429,7 +429,7 @@ void MultiShearCatalog::writeFits(std::string file) const
 #else
     std::string tmvVers = "Eigen";
 #endif
-    std::string wlVers = getWlVersion();
+    std::string wlVers = GetWlVersion();
 
     table->addKey("tmvvers", tmvVers, "version of TMV code");
     table->addKey("wlvers", wlVers, "version of weak lensing code");
@@ -437,38 +437,38 @@ void MultiShearCatalog::writeFits(std::string file) const
     std::string str;
     double dbl;
     int intgr;
-    writeParamToTable(_params, table, "noise_method", str);
-    writeParamToTable(_params, table, "dist_method", str);
+    WriteParamToTable(_params, table, "noise_method", str);
+    WriteParamToTable(_params, table, "dist_method", str);
 
-    writeParamToTable(_params, table, "shear_aperture", dbl);
-    writeParamToTable(_params, table, "shear_max_aperture", dbl);
-    writeParamToTable(_params, table, "shear_gal_order", intgr);
-    writeParamToTable(_params, table, "shear_gal_order2", intgr);
-    writeParamToTable(_params, table, "shear_min_gal_size", dbl);
-    writeParamToTable(_params, table, "shear_f_psf", dbl);
-    writeParamToTable(_params, table, "peak_mem", dbl);
+    WriteParamToTable(_params, table, "shear_aperture", dbl);
+    WriteParamToTable(_params, table, "shear_max_aperture", dbl);
+    WriteParamToTable(_params, table, "shear_gal_order", intgr);
+    WriteParamToTable(_params, table, "shear_gal_order2", intgr);
+    WriteParamToTable(_params, table, "shear_min_gal_size", dbl);
+    WriteParamToTable(_params, table, "shear_f_psf", dbl);
+    WriteParamToTable(_params, table, "peak_mem", dbl);
 
     // if wlmerun= is set we'll put it in the header.  This allows us to 
     // associate some more, possibly complicated, metadata with this file
     if (_params.keyExists("wlmerun")) {
-        writeParamToTable(_params, table, "wlmerun", str);
+        WriteParamToTable(_params, table, "wlmerun", str);
     }
 
-    const int nGals = size();
+    const int ngals = size();
     // data
     // make vector copies for writing
-    std::vector<double> ra(nGals);
-    std::vector<double> decl(nGals);
-    std::vector<double> shear1(nGals);
-    std::vector<double> shear2(nGals);
-    std::vector<double> cov00(nGals);
-    std::vector<double> cov01(nGals);
-    std::vector<double> cov11(nGals);
+    std::vector<double> ra(ngals);
+    std::vector<double> decl(ngals);
+    std::vector<double> shear1(ngals);
+    std::vector<double> shear2(ngals);
+    std::vector<double> cov00(ngals);
+    std::vector<double> cov01(ngals);
+    std::vector<double> cov11(ngals);
 
-    for(int i=0;i<nGals;++i) {
+    for(int i=0;i<ngals;++i) {
         // internally we use arcseconds
-        ra[i] = _skyPos[i].getX()/3600.;
-        decl[i] = _skyPos[i].getY()/3600.;
+        ra[i] = _skypos[i].getX()/3600.;
+        decl[i] = _skypos[i].getY()/3600.;
         shear1[i] = real(_shear[i]);
         shear2[i] = imag(_shear[i]);
         cov00[i] = _cov[i](0,0);
@@ -476,23 +476,23 @@ void MultiShearCatalog::writeFits(std::string file) const
         cov11[i] = _cov[i](1,1);
     }
 
-    int startRow=1;
+    int start_row=1;
 
-    table->column(colNames[idColNum]).write(_id,startRow);
-    table->column(colNames[flagsColNum]).write(_flags,startRow);
-    table->column(colNames[raColNum]).write(ra,startRow);
-    table->column(colNames[declColNum]).write(decl,startRow);
-    table->column(colNames[shear1ColNum]).write(shear1,startRow);
-    table->column(colNames[shear2ColNum]).write(shear2,startRow);
-    table->column(colNames[nuColNum]).write(_nu,startRow);
-    table->column(colNames[cov00ColNum]).write(cov00,startRow);
-    table->column(colNames[cov01ColNum]).write(cov01,startRow);
-    table->column(colNames[cov11ColNum]).write(cov11,startRow);
-    table->column(colNames[orderColNum]).write(_measGalOrder,startRow);
+    table->column(col_names[id_col_num]).write(_id,start_row);
+    table->column(col_names[flags_col_num]).write(_flags,start_row);
+    table->column(col_names[ra_col_num]).write(ra,start_row);
+    table->column(col_names[decl_col_num]).write(decl,start_row);
+    table->column(col_names[shear1_col_num]).write(shear1,start_row);
+    table->column(col_names[shear2_col_num]).write(shear2,start_row);
+    table->column(col_names[nu_col_num]).write(_nu,start_row);
+    table->column(col_names[cov00_col_num]).write(cov00,start_row);
+    table->column(col_names[cov01_col_num]).write(cov01,start_row);
+    table->column(col_names[cov11_col_num]).write(cov11,start_row);
+    table->column(col_names[order_col_num]).write(_meas_galorder,start_row);
 
-    for (int i=0; i<nGals; ++i) {
+    for (int i=0; i<ngals; ++i) {
         int row = i+1;
-        // Note: measGalOrder keeps track of the order of the shapelet that
+        // Note: meas_galorder keeps track of the order of the shapelet that
         // was actually measured.  It is <= the full order of the shapelet
         // vector, but the higher order terms are set to zero.
         // Since we can't have different numbers of columns for each row, 
@@ -500,34 +500,34 @@ void MultiShearCatalog::writeFits(std::string file) const
         // including the zeros.
 
         double bSigma = _shape[i].getSigma();
-        table->column(colNames[sigmaColNum]).write(&bSigma,1,row);
+        table->column(col_names[sigma_col_num]).write(&bSigma,1,row);
 
         // There is a bug in the CCfits Column::write function that the 
         // first argument has to be S* rather than const S*, even though
         // it is only read from. 
         // Hence the const_cast.
         double* ptr = const_cast<double*>(TMV_cptr(_shape[i].vec()));
-        table->column(colNames[coeffsColNum]).write(ptr, nCoeff, 1, row);
+        table->column(col_names[coeffs_col_num]).write(ptr, ncoeff, 1, row);
     }
 
-    table->column(colNames[nImagesFoundColNum]).write(_nImagesFound,startRow);
-    table->column(colNames[nImagesGotPixColNum]).write(_nImagesGotPix,startRow);
-    table->column(colNames[inputFlagsColNum]).write(_inputFlags,startRow);
+    table->column(col_names[nimages_found_col_num]).write(_nimages_found,start_row);
+    table->column(col_names[nimages_gotpix_col_num]).write(_nimages_gotpix,start_row);
+    table->column(col_names[input_flags_col_num]).write(_input_flags,start_row);
 }
 
 void MultiShearCatalog::writeAscii(std::string file, std::string delim) const
 {
     Assert(int(_id.size()) == size());
-    Assert(int(_skyPos.size()) == size());
+    Assert(int(_skypos.size()) == size());
     Assert(int(_flags.size()) == size());
     Assert(int(_shear.size()) == size());
     Assert(int(_nu.size()) == size());
     Assert(int(_cov.size()) == size());
-    Assert(int(_measGalOrder.size()) == size());
+    Assert(int(_meas_galorder.size()) == size());
     Assert(int(_shape.size()) == size());
-    Assert(int(_nImagesFound.size()) == size());
-    Assert(int(_nImagesGotPix.size()) == size());
-    Assert(int(_inputFlags.size()) == size());
+    Assert(int(_nimages_found.size()) == size());
+    Assert(int(_nimages_gotpix.size()) == size());
+    Assert(int(_input_flags.size()) == size());
 
     std::ofstream fout(file.c_str());
     if (!fout) {
@@ -539,12 +539,12 @@ void MultiShearCatalog::writeAscii(std::string file, std::string delim) const
     Form fix8; fix8.fix().trail(0).prec(8);
     Form fix6; fix6.fix().trail(0).prec(6);
 
-    const int nGals = size();
-    for(int i=0;i<nGals;++i) {
+    const int ngals = size();
+    for(int i=0;i<ngals;++i) {
         fout
             << _id[i] << delim
-            << fix8(_skyPos[i].getX()/3600.) << delim
-            << fix8(_skyPos[i].getY()/3600.) << delim
+            << fix8(_skypos[i].getX()/3600.) << delim
+            << fix8(_skypos[i].getY()/3600.) << delim
             << _flags[i] << delim
             << sci8(real(_shear[i])) << delim
             << sci8(imag(_shear[i])) << delim
@@ -552,13 +552,13 @@ void MultiShearCatalog::writeAscii(std::string file, std::string delim) const
             << sci8(_cov[i](0,0)) << delim
             << sci8(_cov[i](0,1)) << delim
             << sci8(_cov[i](1,1)) << delim
-            << _nImagesFound[i] << delim
-            << _nImagesGotPix[i] << delim
-            << _inputFlags[i] << delim
-            << _measGalOrder[i] << delim
+            << _nimages_found[i] << delim
+            << _nimages_gotpix[i] << delim
+            << _input_flags[i] << delim
+            << _meas_galorder[i] << delim
             << fix6(_shape[i].getSigma()) << delim;
-        const int nCoeffs = _shape[i].size();
-        for(int j=0;j<nCoeffs;++j)
+        const int ncoeffs = _shape[i].size();
+        for(int j=0;j<ncoeffs;++j)
             fout << delim << sci8(_shape[i](j));
         fout << std::endl;
     }
@@ -566,7 +566,7 @@ void MultiShearCatalog::writeAscii(std::string file, std::string delim) const
 
 void MultiShearCatalog::read()
 {
-    std::string file = makeName(_params,"multishear",false,true);
+    std::string file = MakeName(_params,"multishear",false,true);
     // false,true = input_prefix=false, mustexist=true.
     // It is an input here, but it is in the output_prefix directory.
     dbg<< "Reading Shear cat from file: " << file << std::endl;
@@ -577,7 +577,7 @@ void MultiShearCatalog::read()
     else if (file.find("fits") != std::string::npos)
         isFitsIo = true;
 
-    if (!doesFileExist(file)) {
+    if (!DoesFileExist(file)) {
         throw FileNotFoundException(file);
     }
     try {
@@ -608,7 +608,7 @@ void MultiShearCatalog::read()
 
 void MultiShearCatalog::readFits(std::string file)
 {
-    int hdu = getHdu(_params,"multishear",file,2);
+    int hdu = GetHdu(_params,"multishear",file,2);
 
     dbg<<"Opening MultiShearCatalog file "<<file<<" at hdu "<<hdu<<std::endl;
     CCfits::FITS fits(file, CCfits::Read);
@@ -616,32 +616,32 @@ void MultiShearCatalog::readFits(std::string file)
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 
-    long nRows=table.rows();
+    long nrows=table.rows();
 
-    dbg<<"  nrows = "<<nRows<<std::endl;
-    if (nRows <= 0) {
+    dbg<<"  nrows = "<<nrows<<std::endl;
+    if (nrows <= 0) {
         throw ReadException(
             "ShearCatalog found to have 0 rows.  Must have > 0 rows.");
     }
 
-    std::string idCol=_params.get("multishear_id_col");
-    std::string raCol=_params.get("multishear_ra_col");
-    std::string declCol=_params.get("multishear_dec_col");
-    std::string skyCol=_params.get("multishear_sky_col");
-    std::string noiseCol=_params.get("multishear_noise_col");
-    std::string flagsCol=_params.get("multishear_flags_col");
-    std::string shear1Col=_params.get("multishear_shear1_col");
-    std::string shear2Col=_params.get("multishear_shear2_col");
-    std::string nuCol=_params.get("multishear_nu_col");
-    std::string cov00Col=_params.get("multishear_cov00_col");
-    std::string cov01Col=_params.get("multishear_cov01_col");
-    std::string cov11Col=_params.get("multishear_cov11_col");
-    std::string orderCol=_params.get("multishear_order_col");
-    std::string sigmaCol=_params.get("multishear_sigma_col");
-    std::string coeffsCol=_params.get("multishear_coeffs_col");
-    std::string nImagesFoundCol=_params.get("multishear_nimages_found_col");
-    std::string nImagesGotPixCol=_params.get("multishear_nimages_gotpix_col");
-    std::string inputFlagsCol=_params.get("multishear_input_flags_col");
+    std::string id_col=_params.get("multishear_id_col");
+    std::string ra_col=_params.get("multishear_ra_col");
+    std::string decl_col=_params.get("multishear_dec_col");
+    std::string sky_col=_params.get("multishear_sky_col");
+    std::string noise_col=_params.get("multishear_noise_col");
+    std::string flags_col=_params.get("multishear_flags_col");
+    std::string shear1_col=_params.get("multishear_shear1_col");
+    std::string shear2_col=_params.get("multishear_shear2_col");
+    std::string nu_col=_params.get("multishear_nu_col");
+    std::string cov00_col=_params.get("multishear_cov00_col");
+    std::string cov01_col=_params.get("multishear_cov01_col");
+    std::string cov11_col=_params.get("multishear_cov11_col");
+    std::string order_col=_params.get("multishear_order_col");
+    std::string sigma_col=_params.get("multishear_sigma_col");
+    std::string coeffs_col=_params.get("multishear_coeffs_col");
+    std::string nimages_found_col=_params.get("multishear_nimages_found_col");
+    std::string nimages_gotpix_col=_params.get("multishear_nimages_gotpix_col");
+    std::string input_flags_col=_params.get("multishear_input_flags_col");
 
     // MJ: This is not really optimal.
     // We should get this value from the fits header file, since it 
@@ -649,78 +649,78 @@ void MultiShearCatalog::readFits(std::string file)
     int fullOrder = _params.get("shear_gal_order");
 
     long start=1;
-    long end=nRows;
+    long end=nrows;
 
     dbg<<"Reading columns"<<std::endl;
-    dbg<<"  "<<idCol<<std::endl;
-    table.column(idCol).read(_id, start, end);
+    dbg<<"  "<<id_col<<std::endl;
+    table.column(id_col).read(_id, start, end);
 
-    dbg<<"  "<<raCol<<"  "<<declCol<<std::endl;
-    _skyPos.resize(nRows);
+    dbg<<"  "<<ra_col<<"  "<<decl_col<<std::endl;
+    _skypos.resize(nrows);
     std::vector<double> ra;
     std::vector<double> decl;
-    table.column(raCol).read(ra, start, end);
-    table.column(declCol).read(decl, start, end);
-    for(long i=0;i<nRows;++i) _skyPos[i] = Position(ra[i],decl[i]);
+    table.column(ra_col).read(ra, start, end);
+    table.column(decl_col).read(decl, start, end);
+    for(long i=0;i<nrows;++i) _skypos[i] = Position(ra[i],decl[i]);
 
-    dbg<<"  "<<flagsCol<<std::endl;
-    table.column(flagsCol).read(_flags, start, end);
+    dbg<<"  "<<flags_col<<std::endl;
+    table.column(flags_col).read(_flags, start, end);
 
-    dbg<<"  "<<shear1Col<<"  "<<shear2Col<<std::endl;
-    _shear.resize(nRows);
+    dbg<<"  "<<shear1_col<<"  "<<shear2_col<<std::endl;
+    _shear.resize(nrows);
     std::vector<double> shear1;
     std::vector<double> shear2;
-    table.column(shear1Col).read(shear1, start, end);
-    table.column(shear2Col).read(shear2, start, end);
-    for(long i=0;i<nRows;++i) {
+    table.column(shear1_col).read(shear1, start, end);
+    table.column(shear2_col).read(shear2, start, end);
+    for(long i=0;i<nrows;++i) {
         _shear[i] = std::complex<double>(shear1[i],shear2[i]);
     }
 
-    dbg<<"  "<<nuCol<<std::endl;
-    table.column(nuCol).read(_nu, start, end);
+    dbg<<"  "<<nu_col<<std::endl;
+    table.column(nu_col).read(_nu, start, end);
 
-    dbg<<"  "<<cov00Col<<"  "<<cov01Col<<"  "<<cov11Col<<std::endl;
-    _cov.resize(nRows);
+    dbg<<"  "<<cov00_col<<"  "<<cov01_col<<"  "<<cov11_col<<std::endl;
+    _cov.resize(nrows);
     std::vector<double> cov00;
     std::vector<double> cov01;
     std::vector<double> cov11;
-    table.column(cov00Col).read(cov00, start, end);
-    table.column(cov01Col).read(cov01, start, end);
-    table.column(cov11Col).read(cov11, start, end);
-    for(long i=0;i<nRows;++i) {
+    table.column(cov00_col).read(cov00, start, end);
+    table.column(cov01_col).read(cov01, start, end);
+    table.column(cov11_col).read(cov11, start, end);
+    for(long i=0;i<nrows;++i) {
         _cov[i] << cov00[i], cov01[i], cov01[i], cov11[i];
     }
 
-    dbg<<"  "<<sigmaCol<<"  "<<orderCol<<std::endl;
-    _measGalOrder.resize(nRows);
+    dbg<<"  "<<sigma_col<<"  "<<order_col<<std::endl;
+    _meas_galorder.resize(nrows);
     std::vector<double> sigma; // temporary
-    table.column(sigmaCol).read(sigma, start, end);
-    table.column(orderCol).read(_measGalOrder, start, end);
+    table.column(sigma_col).read(sigma, start, end);
+    table.column(order_col).read(_meas_galorder, start, end);
 
-    _shape.reserve(nRows);
-    for (int i=0; i<nRows; ++i) {
+    _shape.reserve(nrows);
+    for (int i=0; i<nrows; ++i) {
         int row=i+1;
 
         _shape.push_back(BVec(fullOrder,sigma[i]));
-        int nCoeff=(fullOrder+1)*(fullOrder+2)/2;
+        int ncoeff=(fullOrder+1)*(fullOrder+2)/2;
 
         std::valarray<double> coeffs;
-        table.column(coeffsCol).read(coeffs, row);
+        table.column(coeffs_col).read(coeffs, row);
 
         double* ptri = TMV_ptr(_shape[i].vec());
-        for (int j=0; j<nCoeff; ++j) {
+        for (int j=0; j<ncoeff; ++j) {
             ptri[i] = coeffs[i];
         }
     }
 
-    dbg<<"  "<<nImagesFoundCol<<std::endl;
-    table.column(nImagesFoundCol).read(_nImagesFound, start, end);
+    dbg<<"  "<<nimages_found_col<<std::endl;
+    table.column(nimages_found_col).read(_nimages_found, start, end);
 
-    dbg<<"  "<<nImagesGotPixCol<<std::endl;
-    table.column(nImagesGotPixCol).read(_nImagesGotPix, start, end);
+    dbg<<"  "<<nimages_gotpix_col<<std::endl;
+    table.column(nimages_gotpix_col).read(_nimages_gotpix, start, end);
 
-    dbg<<"  "<<inputFlagsCol<<std::endl;
-    table.column(inputFlagsCol).read(_inputFlags, start, end);
+    dbg<<"  "<<input_flags_col<<std::endl;
+    table.column(input_flags_col).read(_input_flags, start, end);
 }
 
 void MultiShearCatalog::readAscii(std::string file, std::string delim)
@@ -732,10 +732,10 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
 
     int fullOrder = _params.get("shear_gal_order");
 
-    _id.clear(); _skyPos.clear(); _flags.clear();
+    _id.clear(); _skypos.clear(); _flags.clear();
     _shear.clear(); _nu.clear(); _cov.clear();
-    _measGalOrder.clear(); _shape.clear();
-    _nImagesFound.clear(); _nImagesGotPix.clear(); _inputFlags.clear();
+    _meas_galorder.clear(); _shape.clear();
+    _nimages_found.clear(); _nimages_gotpix.clear(); _input_flags.clear();
 
     if (delim == "  ") {
         ConvertibleString flag;
@@ -747,19 +747,19 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
                 nfound >> ngotpix >> inflag >>
                 bOrder >> bSigma) {
             _id.push_back(id1);
-            _skyPos.push_back(Position(ra,decl));
+            _skypos.push_back(Position(ra,decl));
             _flags.push_back(flag);
             _shear.push_back(std::complex<double>(s1,s2));
             _nu.push_back(nu1);
             _cov.push_back(DSmallMatrix22());
             _cov.back() << c00, c01, c01, c11;
-            _nImagesFound.push_back(nfound);
-            _nImagesGotPix.push_back(ngotpix);
-            _inputFlags.push_back(inflag);
-            _measGalOrder.push_back(bOrder);
+            _nimages_found.push_back(nfound);
+            _nimages_gotpix.push_back(ngotpix);
+            _input_flags.push_back(inflag);
+            _meas_galorder.push_back(bOrder);
             _shape.push_back(BVec(fullOrder,bSigma));
-            const int nCoeffs = _shape.back().size();
-            for(int j=0;j<nCoeffs;++j) 
+            const int ncoeffs = _shape.back().size();
+            for(int j=0;j<ncoeffs;++j) 
                 fin >> _shape.back()(j);
         }
     } else {
@@ -779,7 +779,7 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
             _id.push_back(temp);
             getline(fin,temp,d); ra = temp;
             getline(fin,temp,d); decl = temp;
-            _skyPos.push_back(Position(ra,decl));
+            _skypos.push_back(Position(ra,decl));
             getline(fin,temp,d); _flags.push_back(temp);
             getline(fin,temp,d); s1 = temp;
             getline(fin,temp,d); s2 = temp;
@@ -790,19 +790,19 @@ void MultiShearCatalog::readAscii(std::string file, std::string delim)
             getline(fin,temp,d); c11 = temp;
             _cov.push_back(DSmallMatrix22());
             _cov.back() << c00, c01, c01, c11;
-            getline(fin,temp,d); _nImagesFound.push_back(temp);
-            getline(fin,temp,d); _nImagesGotPix.push_back(temp);
-            getline(fin,temp,d); _inputFlags.push_back(temp);
+            getline(fin,temp,d); _nimages_found.push_back(temp);
+            getline(fin,temp,d); _nimages_gotpix.push_back(temp);
+            getline(fin,temp,d); _input_flags.push_back(temp);
             getline(fin,temp,d); bOrder = temp;
             getline(fin,temp,d); bSigma = temp;
-            _measGalOrder.push_back(bOrder);
+            _meas_galorder.push_back(bOrder);
             _shape.push_back(BVec(fullOrder,bSigma));
-            const int nCoeffs = _shape.back().size();
-            for(int j=0;j<nCoeffs-1;++j) {
+            const int ncoeffs = _shape.back().size();
+            for(int j=0;j<ncoeffs-1;++j) {
                 getline(fin,temp,d); _shape.back()(j) = temp;
             }
             // Last one doesn't have a following delimiter
-            getline(fin,temp); _shape.back()(nCoeffs-1) = temp;
+            getline(fin,temp); _shape.back()(ncoeffs-1) = temp;
         }
     }
 }

@@ -11,12 +11,12 @@
 #include "Log.h"
 #include "Scripts.h"
 
-void doFindStars(
+void DoFindStars(
     ConfigFile& params, FindStarsLog& log,
-    const Image<double>& im, const Image<double>* weightIm,
+    const Image<double>& im, const Image<double>* weight_image,
     const Transformation& trans, 
-    const InputCatalog& inCat,
-    std::auto_ptr<StarCatalog>& starCat)
+    const InputCatalog& incat,
+    std::auto_ptr<StarCatalog>& starcat)
 {
     dbg<<"Starting FindStars script\n";
 
@@ -30,7 +30,7 @@ void doFindStars(
     }
 
     // Create StarCatalog from InputCatalog
-    starCat.reset(new StarCatalog(inCat,params));
+    starcat.reset(new StarCatalog(incat,params));
 
     if (isTiming) {
         gettimeofday(&tp,0);
@@ -40,7 +40,7 @@ void doFindStars(
     }
 
     // Update the sizes to more robust values
-    starCat->calculateSizes(im,weightIm,trans);
+    starcat->calculateSizes(im,weight_image,trans);
 
     if (isTiming) {
         gettimeofday(&tp,0);
@@ -50,17 +50,17 @@ void doFindStars(
     }
 
     try {
-        starCat->findStars(log);
+        starcat->findStars(log);
     } catch(StarFinderException& e) {
         // Need to catch this here, so we can write the output file
         // with the sizes, even though we haven't figured out which 
         // objects are stars.
         dbg<<"Caught StarFinderException: "<<e.what()<<std::endl;  
-        starCat->write();
+        starcat->write();
         throw;
     } catch (...) {
         dbg<<"Caught unknown exception\n";
-        starCat->write();
+        starcat->write();
         throw;
     }
     dbg<<"After RunFindStars\n";
@@ -73,7 +73,7 @@ void doFindStars(
     }
 
     // Write star catalog to file
-    starCat->write();
+    starcat->write();
 
     if (isTiming) {
         gettimeofday(&tp,0);
@@ -85,13 +85,13 @@ void doFindStars(
     xdbg<<"FindStars Log: \n"<<log<<std::endl;
 }
 
-void doMeasurePsf(
+void DoMeasurePsf(
     ConfigFile& params, PsfLog& log,
-    const Image<double>& im, const Image<double>* weightIm,
+    const Image<double>& im, const Image<double>* weight_image,
     const Transformation& trans, 
-    const StarCatalog& starCat,
-    std::auto_ptr<PsfCatalog>& psfCat, std::auto_ptr<FittedPsf>& fitPsf,
-    double& sigmaP)
+    const StarCatalog& starcat,
+    std::auto_ptr<PsfCatalog>& psfcat, std::auto_ptr<FittedPsf>& fitpsf,
+    double& sigma_p)
 {
     dbg<<"Starting MeasurePsf script\n";
 
@@ -107,8 +107,8 @@ void doMeasurePsf(
     if (params.read("psf_skip_measurements",false)) {
         // Option to read existing PsfCatalog rather than remeasure.
         // (Useful if you only want to redo the fitting step.)
-        psfCat.reset(new PsfCatalog(params));
-        psfCat->read();
+        psfcat.reset(new PsfCatalog(params));
+        psfcat->read();
 
         if (isTiming) {
             gettimeofday(&tp,0);
@@ -118,7 +118,7 @@ void doMeasurePsf(
         }
     } else {
         // Create PsfCatalog from StarCatalog
-        psfCat.reset(new PsfCatalog(starCat,params));
+        psfcat.reset(new PsfCatalog(starcat,params));
 
         if (isTiming) {
             gettimeofday(&tp,0);
@@ -128,8 +128,8 @@ void doMeasurePsf(
         }
 
         // Estimate the scale size to use for shapelet decompositions
-        if (sigmaP == 0.)
-            sigmaP = psfCat->estimateSigma(im,weightIm,trans);
+        if (sigma_p == 0.)
+            sigma_p = psfcat->estimateSigma(im,weight_image,trans);
 
         if (isTiming) {
             gettimeofday(&tp,0);
@@ -139,7 +139,7 @@ void doMeasurePsf(
         }
 
         // Do the actual PSF measurements
-        int nPsf = psfCat->measurePsf(im,weightIm,trans,sigmaP,log);
+        int npsf = psfcat->measurePsf(im,weight_image,trans,sigma_p,log);
 
         if (isTiming) {
             gettimeofday(&tp,0);
@@ -149,7 +149,7 @@ void doMeasurePsf(
         }
 
         // Write PSF catalog to file
-        psfCat->write();
+        psfcat->write();
 
         if (isTiming) {
             gettimeofday(&tp,0);
@@ -158,7 +158,7 @@ void doMeasurePsf(
             t1 = t2;
         }
 
-        if (nPsf == 0) {
+        if (npsf == 0) {
             throw ProcessingException(
                 "No successful PSF measurements");
         }
@@ -166,7 +166,7 @@ void doMeasurePsf(
 
 
     // Fit the PSF with a polynomial:
-    fitPsf.reset(new FittedPsf(*psfCat,params,log));
+    fitpsf.reset(new FittedPsf(*psfcat,params,log));
 
     if (isTiming) {
         gettimeofday(&tp,0);
@@ -176,13 +176,13 @@ void doMeasurePsf(
     }
 
     // Write fitted psf to file
-    fitPsf->write();
+    fitpsf->write();
 
     // Re-write the PSF catalog, since the interpolation may have changed
     // the flags.
     // TODO: It may be worth having a new routine that just updates the 
     // flags.  More efficient, since don't need to re-write everything.
-    psfCat->write();
+    psfcat->write();
 
     if (isTiming) {
         gettimeofday(&tp,0);
@@ -194,12 +194,12 @@ void doMeasurePsf(
     xdbg<<"PSF Log: \n"<<log<<std::endl;
 }
 
-void doMeasureShear(
+void DoMeasureShear(
     ConfigFile& params, ShearLog& log,
-    const Image<double>& im, const Image<double>* weightIm,
+    const Image<double>& im, const Image<double>* weight_image,
     const Transformation& trans, 
-    const InputCatalog& inCat, const FittedPsf& fitPsf,
-    std::auto_ptr<ShearCatalog>& shearCat)
+    const InputCatalog& incat, const FittedPsf& fitpsf,
+    std::auto_ptr<ShearCatalog>& shearcat)
 {
     dbg<<"Starting MeasureShear script\n";
 
@@ -213,7 +213,7 @@ void doMeasureShear(
     }
 
     // Create shear catalog
-    shearCat.reset(new ShearCatalog(inCat,trans,fitPsf,params));
+    shearcat.reset(new ShearCatalog(incat,trans,fitpsf,params));
 
     if (isTiming) {
         gettimeofday(&tp,0);
@@ -223,18 +223,18 @@ void doMeasureShear(
     }
 
     // Measure shears and shapelet vectors
-    int nShear = shearCat->measureShears(im,weightIm,log);
+    int nShear = shearcat->measureShears(im,weight_image,log);
 
     if (isTiming) {
         gettimeofday(&tp,0);
         t2 = tp.tv_sec + tp.tv_usec/1.e6;
         std::cout<<"Time: Measure Shears = "<<t2-t1<<std::endl;
-        std::cout<<"Rate: "<<(t2-t1)/shearCat->size()<<" s / gal\n";
+        std::cout<<"Rate: "<<(t2-t1)/shearcat->size()<<" s / gal\n";
         t1 = t2;
     }
 
     // Write results to file
-    shearCat->write();
+    shearcat->write();
 
     if (isTiming) {
         gettimeofday(&tp,0);
@@ -251,12 +251,12 @@ void doMeasureShear(
     xdbg<<"Shear Log: \n"<<log<<std::endl;
 }
 
-void doSplitStars(
-    ConfigFile& params, std::string logFile, std::auto_ptr<Log>& log,
-    const Image<double>& im, const Image<double>* weightIm,
+void DoSplitStars(
+    ConfigFile& params, std::string log_file, std::auto_ptr<Log>& log,
+    const Image<double>& im, const Image<double>* weight_image,
     const Transformation& trans, 
-    const InputCatalog& inCat, const StarCatalog& starCat,
-    double sigmaP)
+    const InputCatalog& incat, const StarCatalog& starcat,
+    double sigma_p)
 {
     dbg<<"Starting SplitStars script\n";
 
@@ -264,61 +264,61 @@ void doSplitStars(
     // separately.  We work in fits only to avoid dealing with all the
     // different naming cases.
 
-    std::string stars_file = makeFitsName(params, "stars");
-    std::string psf_file = makeFitsName(params, "psf");
-    std::string fitpsf_file = makeFitsName(params, "fitpsf");
-    std::string shear_file = makeFitsName(params, "shear");
+    std::string stars_file = MakeFitsName(params, "stars");
+    std::string psf_file = MakeFitsName(params, "psf");
+    std::string fitpsf_file = MakeFitsName(params, "fitpsf");
+    std::string shear_file = MakeFitsName(params, "shear");
 
-    std::string stars_file1 = addExtraToName(stars_file, "1");
-    std::string stars_file2 = addExtraToName(stars_file, "2");
-    starCat.splitInTwo(stars_file1, stars_file2);
+    std::string stars_file1 = AddExtraToName(stars_file, "1");
+    std::string stars_file2 = AddExtraToName(stars_file, "2");
+    starcat.splitInTwo(stars_file1, stars_file2);
 
     // set 1
     dbg<<"\nDoing PSF/Shear for Set1\n";
     ConfigFile params1 = params;
-    params1["psf_file"] = addExtraToName(psf_file, "1");
-    params1["fitpsf_file"] = addExtraToName(fitpsf_file, "1");
-    params1["shear_file"] = addExtraToName(shear_file, "1");
-    StarCatalog starCat1(params);
-    starCat1.readFits(stars_file1);
-    std::auto_ptr<PsfCatalog> psfCat1;
-    std::auto_ptr<FittedPsf> fitPsf1;
-    std::auto_ptr<ShearCatalog> shearCat1;
-    log.reset(new PsfLog(params1,logFile,params1["psf_file"]));
+    params1["psf_file"] = AddExtraToName(psf_file, "1");
+    params1["fitpsf_file"] = AddExtraToName(fitpsf_file, "1");
+    params1["shear_file"] = AddExtraToName(shear_file, "1");
+    StarCatalog starcat1(params);
+    starcat1.readFits(stars_file1);
+    std::auto_ptr<PsfCatalog> psfcat1;
+    std::auto_ptr<FittedPsf> fitpsf1;
+    std::auto_ptr<ShearCatalog> shearcat1;
+    log.reset(new PsfLog(params1,log_file,params1["psf_file"]));
 
-    doMeasurePsf(
+    DoMeasurePsf(
         params1, static_cast<PsfLog&>(*log),
-        im, weightIm, trans, starCat1,
-        psfCat1, fitPsf1, sigmaP);
+        im, weight_image, trans, starcat1,
+        psfcat1, fitpsf1, sigma_p);
 
-    log.reset(new ShearLog(params,logFile,params1["shear_file"]));
+    log.reset(new ShearLog(params,log_file,params1["shear_file"]));
 
-    doMeasureShear(
+    DoMeasureShear(
         params1, static_cast<ShearLog&>(*log),
-        im, weightIm, trans, inCat, *fitPsf1, shearCat1);
+        im, weight_image, trans, incat, *fitpsf1, shearcat1);
 
     // set 2
     dbg<<"\nDoing PSF/Shear for Set2\n";
     ConfigFile params2 = params;
-    params2["psf_file"] = addExtraToName(psf_file, "2");
-    params2["fitpsf_file"] = addExtraToName(fitpsf_file, "2");
-    params2["shear_file"] = addExtraToName(shear_file, "2");
-    StarCatalog starCat2(params2);
-    starCat2.readFits(stars_file2);
-    std::auto_ptr<PsfCatalog> psfCat2;
-    std::auto_ptr<FittedPsf> fitPsf2;
-    std::auto_ptr<ShearCatalog> shearCat2;
-    log.reset(new PsfLog(params2,logFile,params2["psf_file"]));
+    params2["psf_file"] = AddExtraToName(psf_file, "2");
+    params2["fitpsf_file"] = AddExtraToName(fitpsf_file, "2");
+    params2["shear_file"] = AddExtraToName(shear_file, "2");
+    StarCatalog starcat2(params2);
+    starcat2.readFits(stars_file2);
+    std::auto_ptr<PsfCatalog> psfcat2;
+    std::auto_ptr<FittedPsf> fitpsf2;
+    std::auto_ptr<ShearCatalog> shearcat2;
+    log.reset(new PsfLog(params2,log_file,params2["psf_file"]));
 
-    doMeasurePsf(
+    DoMeasurePsf(
         params2, static_cast<PsfLog&>(*log),
-        im, weightIm, trans, starCat2,
-        psfCat2, fitPsf2, sigmaP);
+        im, weight_image, trans, starcat2,
+        psfcat2, fitpsf2, sigma_p);
 
-    log.reset(new ShearLog(params,logFile,params2["shear_file"]));
+    log.reset(new ShearLog(params,log_file,params2["shear_file"]));
 
-    doMeasureShear(
+    DoMeasureShear(
         params2, static_cast<ShearLog&>(*log),
-        im, weightIm, trans, inCat, *fitPsf2, shearCat2);
+        im, weight_image, trans, incat, *fitpsf2, shearcat2);
 }
 

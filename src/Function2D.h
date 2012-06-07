@@ -27,18 +27,18 @@ class Function2D
 {
 public:
 
-    Function2D() : _xOrder(0), _yOrder(0), _coeffs(new DMatrix(1,1)) 
+    Function2D() : _xorder(0), _yorder(0), _coeffs(new DMatrix(1,1)) 
     { (*_coeffs)(0,0) = 0.0; }
 
     Function2D(int xo, int yo) : 
-        _xOrder(xo), _yOrder(yo), _coeffs(new DMatrix(xo+1,yo+1)) 
+        _xorder(xo), _yorder(yo), _coeffs(new DMatrix(xo+1,yo+1)) 
     { _coeffs->setZero(); }
 
     Function2D(int xo, int yo, const DMatrix& c) :
-        _xOrder(xo),_yOrder(yo),_coeffs(new DMatrix(c)) {}
+        _xorder(xo),_yorder(yo),_coeffs(new DMatrix(c)) {}
 
     Function2D(const Function2D& rhs) :
-        _xOrder(rhs._xOrder), _yOrder(rhs._yOrder),
+        _xorder(rhs._xorder), _yorder(rhs._yorder),
         _coeffs(new DMatrix(*rhs._coeffs)) {}
 
     virtual ~Function2D() {}
@@ -74,48 +74,48 @@ public:
 
     virtual void setTo(double value) 
     {
-        if (_xOrder || _yOrder) {
-            _xOrder = 0; _yOrder = 0; 
+        if (_xorder || _yorder) {
+            _xorder = 0; _yorder = 0; 
             _coeffs.reset(new DMatrix(1,1));
         }
         (*_coeffs)(0,0) = value;
     }
 
     bool isNonZero() const 
-    { return (*_coeffs)(0,0) != 0.0 || _xOrder!=0 || _yOrder!=0; }
+    { return (*_coeffs)(0,0) != 0.0 || _xorder!=0 || _yorder!=0; }
 
-    int getXOrder() const { return _xOrder; }
+    int getXOrder() const { return _xorder; }
 
-    int getYOrder() const { return _yOrder; }
+    int getYOrder() const { return _yorder; }
 
     const DMatrix& getCoeffs() const { return *_coeffs; }
 
     // Sets function to fit of f(pos_i) = v_i using i only if 
-    // shouldUse[i] = true
+    // use[i] = true
     virtual void simpleFit(
         int order, const std::vector<Position>& pos, 
-        const std::vector<double>& v, const std::vector<bool>& shouldUse,
-        const std::vector<double>* sigList=0,
+        const std::vector<double>& v, const std::vector<bool>& use,
+        const std::vector<double>* sig_list=0,
         double* chisqOut = 0, int* dofOut=0, DMatrix* cov=0);
 
     // Sets function to fit of f(pos_i) = v_i using i if fit is within 
-    // nsig sigma.  *shouldUse is returned as list of good i's.
+    // nsig sigma.  *use is returned as list of good i's.
     virtual void outlierFit(
         int order,double nsig,
         const std::vector<Position>& pos, const std::vector<double>& v,
-        std::vector<bool>* shouldUse,
-        const std::vector<double>* sigList=0, 
+        std::vector<bool>* use,
+        const std::vector<double>* sig_list=0, 
         double* chisqout = 0, int* dofout = 0, DMatrix* cov=0);
 
     // Sets function to fit of f(pos_i) = v_i reducing the order as far
-    // as possible keeping quality of fit the same as for maxOrder
+    // as possible keeping quality of fit the same as for maxorder
     // equivProb = rejection percentile.  eg. 0.9 means a low order fit is
     // rejected if it is statistically rejected at the 90th percentile
     // Higher values of equivProb result in lower order fits.
     virtual void orderFit(
-        int maxOrder, double equivProb,
+        int maxorder, double equivProb,
         const std::vector<Position>& pos, const std::vector<double>& v,
-        const std::vector<bool>& shouldUse, const std::vector<double>* sigList=0, 
+        const std::vector<bool>& use, const std::vector<double>* sig_list=0, 
         double *chisqout = 0, int *dofout = 0, DMatrix* cov=0);
 
     // Sets function to h(x,y) = a + b*f(x,y) + c*g(x,y)
@@ -130,23 +130,23 @@ public:
     virtual void operator+=(const Function2D& rhs) = 0;
 
     virtual void setFunction(
-        int _xOrder, int _yOrder, const DVector& fVect) = 0;
+        int _xorder, int _yorder, const DVector& fVect) = 0;
 
 protected:
 
     virtual DVector definePX(int order, double x) const = 0;
     virtual DVector definePY(int order, double y) const = 0;
 
-    int _xOrder,_yOrder;
+    int _xorder,_yorder;
     std::auto_ptr<DMatrix> _coeffs;
 
 private:
 
     void doSimpleFit(
-        int xOrder, int yOrder, 
+        int xorder, int yorder, 
         const std::vector<Position>& pos, const std::vector<double>& v,
-        const std::vector<bool>& shouldUse, DVector *f, 
-        const std::vector<double>* sigList=0, int *dof=0,
+        const std::vector<bool>& use, DVector *f, 
+        const std::vector<double>* sig_list=0, int *dof=0,
         DVector *diff=0, DMatrix* cov=0);
 };
 
@@ -201,10 +201,10 @@ public:
     virtual void operator+=(const Function2D& rhs);
 
     virtual void setFunction(
-        int /*xOrder*/, int /*yOrder*/, const DVector& fVect)
+        int /*xorder*/, int /*yorder*/, const DVector& fVect)
     { 
-        Assert(_xOrder == 0);
-        Assert(_yOrder == 0);
+        Assert(_xorder == 0);
+        Assert(_yorder == 0);
         Assert(fVect.size()==1);
         (*this->_coeffs)(0,0) = fVect(0); 
     }
@@ -222,8 +222,8 @@ private:
     { return definePX(order,y); }
 
     using Function2D::_coeffs;
-    using Function2D::_xOrder;
-    using Function2D::_yOrder;
+    using Function2D::_xorder;
+    using Function2D::_yorder;
 };
 
 class Polynomial2D : public Function2D 
@@ -265,7 +265,7 @@ public:
     void makeProductOf(const Polynomial2D& f, const Polynomial2D& g);
 
     virtual void setFunction(
-        int xOrder, int yOrder, const DVector& fVect);
+        int xorder, int yorder, const DVector& fVect);
 
 private:
 
@@ -282,8 +282,8 @@ private:
     { return definePX(order,y); }
 
     using Function2D::_coeffs;
-    using Function2D::_xOrder;
-    using Function2D::_yOrder;
+    using Function2D::_xorder;
+    using Function2D::_yorder;
 };
 
 #endif

@@ -9,15 +9,15 @@
 #include "Params.h"
 #include "Image.h"
 
-void InputCatalog::flagStars(const StarCatalog& starCat)
+void InputCatalog::flagStars(const StarCatalog& starcat)
 {
-    const int nGals = _id.size();
-    for (int i=0; i<nGals; ++i) {
+    const int ngals = _id.size();
+    for (int i=0; i<ngals; ++i) {
         xdbg<<"i = "<<i<<", id[i] = "<<_id[i]<<std::endl;
         // It doesn't seem worth making a separate flag for this.
         // If it's considered a star, let's just admit that it's too small 
         // to bother trying to measure a shear for it.
-        if (starCat.isAStar(_id[i])) {
+        if (starcat.isStar(_id[i])) {
             xdbg<<"Flag this one as a star\n";
             _flags[i] |= TOO_SMALL;
             xdbg<<i<<" is a star: flag -> "<<_flags[i]<<std::endl;
@@ -27,30 +27,30 @@ void InputCatalog::flagStars(const StarCatalog& starCat)
 
 static void readGain(const std::string& file, int hdu, ConfigFile& params)
 {
-    if (!doesFileExist(file)) {
+    if (!DoesFileExist(file)) {
         throw FileNotFoundException(file);
     }
     xdbg<<"ReadGain: from fits file "<<file<<std::endl;
     CCfits::FITS fits(file, CCfits::Read);
     if (hdu > 1) fits.read(hdu-1);
 
-    double gain, readNoise;
+    double gain, read_noise;
 
-    std::vector<std::string> gainKey = 
+    std::vector<std::string> gain_key = 
         params.read<std::vector<std::string> >("image_gain_key");
-    std::vector<std::string> readNoiseKey =
+    std::vector<std::string> read_noise_key =
         params.read<std::vector<std::string> >("image_readnoise_key");
 
-    const int nGainKeys = gainKey.size();
-    const int nReadNoiseKeys = readNoiseKey.size();
-    for(int k=0;k<nGainKeys;++k) {
-        xdbg<<"try "<<gainKey[k]<<std::endl;
+    const int ngain_keys = gain_key.size();
+    const int nread_noise_keys = read_noise_key.size();
+    for(int k=0;k<ngain_keys;++k) {
+        xdbg<<"try "<<gain_key[k]<<std::endl;
         try {
-            fits.pHDU().readKey(gainKey[k],gain);
+            fits.pHDU().readKey(gain_key[k],gain);
             break;
         } catch (CCfits::FitsException& e) {
             xdbg<<"Caught FitsException: \n"<<e.message()<<std::endl;
-            if (k == nGainKeys-1) {
+            if (k == ngain_keys-1) {
                 throw ReadException(
                     "Error reading gain from Fits file "+file+
                     "\nCCfits error message: \n"+e.message());
@@ -58,14 +58,14 @@ static void readGain(const std::string& file, int hdu, ConfigFile& params)
         }
     }
 
-    for(int k=0;k<nReadNoiseKeys;++k) {
-        xdbg<<"try "<<readNoiseKey[k]<<std::endl;
+    for(int k=0;k<nread_noise_keys;++k) {
+        xdbg<<"try "<<read_noise_key[k]<<std::endl;
         try {
-            fits.pHDU().readKey(readNoiseKey[k], readNoise);
+            fits.pHDU().readKey(read_noise_key[k], read_noise);
             break;
         } catch (CCfits::FitsException& e) { 
             xdbg<<"Caught FitsException: \n"<<e.message()<<std::endl;
-            if (k == nReadNoiseKeys-1) {
+            if (k == nread_noise_keys-1) {
                 throw ReadException(
                     "Error reading read_noise from Fits file "+file+
                     "\nCCfits error message: \n"+e.message());
@@ -74,21 +74,21 @@ static void readGain(const std::string& file, int hdu, ConfigFile& params)
     }
 
     params["image_gain"] = gain;
-    params["image_readnoise"] = readNoise;
+    params["image_readnoise"] = read_noise;
 }
 
 InputCatalog::InputCatalog(ConfigFile& params, const Image<double>* im) : 
     _params(params), _im(im),
-    _noiseValue(0), _gain(0), _readNoise(0)
+    _noise_value(0), _gain(0), _read_noise(0)
 {
     this->determineNoiseMethod();
 }
 
 void InputCatalog::init(ConfigFile& params, const Image<double>* im)
 {
-    _noiseValue=0;
+    _noise_value=0;
     _gain=0;
-    _readNoise=0;
+    _read_noise=0;
     _im=im;
     this->loadParams(params);
     this->determineNoiseMethod();
@@ -99,7 +99,7 @@ void InputCatalog::determineNoiseMethod() {
     std::string noiseMethod = _params.get("noise_method");
     if (noiseMethod == "VALUE") {
         _nm = VALUE;
-        _noiseValue = _params.read<double>("noise");
+        _noise_value = _params.read<double>("noise");
     } else if (noiseMethod == "CATALOG") {
         _nm = CATALOG;
         Assert(_params.keyExists("cat_noise_col"));
@@ -109,18 +109,18 @@ void InputCatalog::determineNoiseMethod() {
     } else if (noiseMethod == "GAIN_VALUE") {
         _nm = GAIN_VALUE;
         _gain = _params.read<double>("image_gain");
-        _readNoise = _params.read<double>("image_readnoise");
-        dbg<<"gain, readnoise = "<<_gain<<"  "<<_readNoise<<std::endl;
+        _read_noise = _params.read<double>("image_readnoise");
+        dbg<<"gain, readnoise = "<<_gain<<"  "<<_read_noise<<std::endl;
     } else if (noiseMethod == "GAIN_FITS") {
-        std::string imageName = makeName(_params,"image",true,true);
-        int hdu = getHdu(_params,"image",imageName,1);
+        std::string imageName = MakeName(_params,"image",true,true);
+        int hdu = GetHdu(_params,"image",imageName,1);
         readGain(imageName,hdu,_params);
         xdbg<<"Read gain = "<<_params["image_gain"]<<
             ", rdn = "<<_params["image_readnoise"]<<std::endl;
         _gain = _params.read<double>("image_gain");
-        _readNoise = _params.read<double>("image_readnoise");
+        _read_noise = _params.read<double>("image_readnoise");
         _nm = GAIN_VALUE;
-        dbg<<"gain, readnoise = "<<_gain<<"  "<<_readNoise<<std::endl;
+        dbg<<"gain, readnoise = "<<_gain<<"  "<<_read_noise<<std::endl;
     } else if (noiseMethod == "WEIGHT_IMAGE") {
         dbg<<"using WEIGHT_IMAGE as noise method"<<std::endl;
         _nm = WEIGHT_IMAGE;
@@ -133,21 +133,21 @@ void InputCatalog::determineNoiseMethod() {
 
 void InputCatalog::read()
 {
-    std::string file = makeName(_params,"cat",true,true);
+    std::string file = MakeName(_params,"cat",true,true);
     dbg<< "Reading input cat from file: " << file << std::endl;
 
-    bool isFitsIo = false;
+    bool is_fitsio = false;
     if (_params.keyExists("cat_io")) 
-        isFitsIo = (_params["cat_io"] == "FITS");
+        is_fitsio = (_params["cat_io"] == "FITS");
     else if (file.find("fits") != std::string::npos) 
-        isFitsIo = true;
+        is_fitsio = true;
 
-    if (!doesFileExist(file)) {
+    if (!DoesFileExist(file)) {
         throw FileNotFoundException(file);
     }
 
     try {
-        if (isFitsIo) {
+        if (is_fitsio) {
             readFits(file);
         } else {
             std::string delim = "  ";
@@ -171,43 +171,43 @@ void InputCatalog::read()
 
     // These are the only two fields guaranteed to be set at this point.
     Assert(_id.size() == _pos.size());
-    int nRows = _id.size();
+    int nrows = _id.size();
 
     // Fix sky if necessary
-    double badSkyVal = _params.read("cat_bad_sky",-999.);
-    if (_sky.size() == 0) _sky.resize(_id.size(),badSkyVal);
-    if (std::find(_sky.begin(), _sky.end(), badSkyVal) != _sky.end()) {
-        double globSky = 0.;
+    double bad_sky_val = _params.read("cat_bad_sky",-999.);
+    if (_sky.size() == 0) _sky.resize(_id.size(),bad_sky_val);
+    if (std::find(_sky.begin(), _sky.end(), bad_sky_val) != _sky.end()) {
+        double glob_sky = 0.;
         if (_params.keyExists("cat_global_sky")) {
-            globSky = _params["cat_global_sky"];
+            glob_sky = _params["cat_global_sky"];
         } else {
             if (_im) {
-                globSky = _im->median();
+                glob_sky = _im->median();
             } else {
                 Image<double> im1(_params);
-                globSky = im1.median();
+                glob_sky = im1.median();
             }
             dbg<<"Found global sky from image median value.\n";
         }
-        dbg<<"Set global value of sky to "<<globSky<<std::endl;
-        for(int i=0;i<nRows;++i) {
-            if (_sky[i] == badSkyVal) _sky[i] = globSky;
+        dbg<<"Set global value of sky to "<<glob_sky<<std::endl;
+        for(int i=0;i<nrows;++i) {
+            if (_sky[i] == bad_sky_val) _sky[i] = glob_sky;
         }
     }
     Assert(_sky.size() == _pos.size());
 
     // MJ: <100 have basically no chance to find the stars
     if (_params.read("des_qa",false)) {
-        int minRows = _params.read("cat_nrows",0);
-        if (nRows <= minRows) {
+        int minrows = _params.read("cat_nrows",0);
+        if (nrows <= minrows) {
             try {
-                std::string name = makeName(_params,"cat",true,false);
+                std::string name = MakeName(_params,"cat",true,false);
                 std::cout<<"STATUS3BEG Warning: Input catalog only has "
-                    <<nRows<<" rows for Name="<<name
+                    <<nrows<<" rows for Name="<<name
                     <<". STATUS3END"<<std::endl;
             } catch (AssertFailureException& ) {
                 std::cout<<"STATUS3BEG Warning: Input catalog only has "
-                    <<nRows<<" rows. STATUS3END"<<std::endl;
+                    <<nrows<<" rows. STATUS3END"<<std::endl;
             }
         }
     }
@@ -216,30 +216,30 @@ void InputCatalog::read()
     Assert(_nm == VALUE || _nm == CATALOG || _nm == CATALOG_SIGMA ||
            _nm == GAIN_VALUE || _nm == WEIGHT_IMAGE);
     if (_nm == VALUE) {
-        _noise.resize(nRows,0);
-        for(int i=0;i<nRows;++i) {
-            _noise[i] = _noiseValue;
+        _noise.resize(nrows,0);
+        for(int i=0;i<nrows;++i) {
+            _noise[i] = _noise_value;
         }
-        xdbg<<"Set all noise to "<<_noiseValue<<std::endl;
+        xdbg<<"Set all noise to "<<_noise_value<<std::endl;
     } else if (_nm == CATALOG) {
         Assert(_noise.size() == _id.size());
     } else if (_nm == CATALOG_SIGMA) {
         Assert(_noise.size() == _id.size());
-        for(int i=0;i<nRows;++i) {
+        for(int i=0;i<nrows;++i) {
             _noise[i] = _noise[i]*_noise[i];
         }
         xdbg<<"Squared noise values from catalog\n";
     } else if (_nm == GAIN_VALUE) {
-        _noise.resize(nRows,0);
-        double extraSky=_params.read("image_extra_sky",0.);
+        _noise.resize(nrows,0);
+        double extra_sky=_params.read("image_extra_sky",0.);
         xdbg<<"Calculate noise from sky, gain, readnoise\n";
-        for(int i=0;i<nRows;++i) {
-            _noise[i] = (_sky[i]+extraSky)/_gain + _readNoise;
+        for(int i=0;i<nrows;++i) {
+            _noise[i] = (_sky[i]+extra_sky)/_gain + _read_noise;
         }
     } else if (_nm == WEIGHT_IMAGE) {
         // Then we don't need the noise vector, but it is easier
         // to just fill it with 0's.
-        _noise.resize(nRows,0);
+        _noise.resize(nrows,0);
         xdbg<<"Set noise values to 0, since using weight_im, not noise vector.\n";
     }
 
@@ -264,7 +264,7 @@ void InputCatalog::read()
         }
         Assert(_flags.size() == _id.size());
         dbg<<"INPUT_FLAG: "<<INPUT_FLAG<<"\n";
-        for(int i=0;i<nRows;++i) {
+        for(int i=0;i<nrows;++i) {
             if (_flags[i]) {
                 dbg<<std::dec<<std::noshowbase;
                 dbg<<"Object "<<i;
@@ -299,17 +299,17 @@ void InputCatalog::read()
     // Update the bounds with valid input positions.
     for(int i=0;i<nPos;++i) if (!_flags[i]) _bounds += _pos[i];
 
-    // Calculate the skyBounds using only the good objects:
-    if (_skyPos.size() == _id.size()) {
-        Bounds skyBounds2; // In degrees, rather than arcsec
-        for(int i=0;i<nRows;++i) if (!_flags[i]) {
-            _skyBounds += _skyPos[i];
-            Position temp = _skyPos[i];
+    // Calculate the skybounds using only the good objects:
+    if (_skypos.size() == _id.size()) {
+        Bounds skybounds2; // In degrees, rather than arcsec
+        for(int i=0;i<nrows;++i) if (!_flags[i]) {
+            _skybounds += _skypos[i];
+            Position temp = _skypos[i];
             temp /= 3600.;
-            skyBounds2 += temp;
+            skybounds2 += temp;
         }
-        dbg<<"skyBounds = "<<_skyBounds<<std::endl;
-        dbg<<"in degrees: "<<skyBounds2<<std::endl;
+        dbg<<"skybounds = "<<_skybounds<<std::endl;
+        dbg<<"in degrees: "<<skybounds2<<std::endl;
     }
 
     // At this point the vectors that are guaranteed to be filled are:
@@ -323,7 +323,7 @@ void InputCatalog::read()
 }
 
 void InputCatalog::readFits(std::string file) {
-    int hdu = getHdu(_params,"cat",file,1);
+    int hdu = GetHdu(_params,"cat",file,1);
     readFits(file, hdu);
 }
 
@@ -337,10 +337,10 @@ void InputCatalog::readFits(std::string file, int hdu)
 
     CCfits::ExtHDU& table=fits.extension(hdu-1);
 
-    long nRows=table.rows();
+    long nrows=table.rows();
 
-    dbg<<"  nrows = "<<nRows<<std::endl;
-    if (nRows <= 0) {
+    dbg<<"  nrows = "<<nrows<<std::endl;
+    if (nrows <= 0) {
         throw ReadException(
             "InputCatalog found to have 0 rows.  Must have > 0 rows.");
     }
@@ -348,85 +348,85 @@ void InputCatalog::readFits(std::string file, int hdu)
     // Read each column in turn:
     //
     long start=1;
-    long end=nRows;
+    long end=nrows;
 
     dbg<<"Reading columns"<<std::endl;
 
 
     if (_params.keyExists("cat_id_col")) {
-        std::string idCol = _params["cat_id_col"];
-        dbg<<"  "<<idCol<<std::endl;
-        table.column(idCol).read(_id, start, end);
+        std::string id_col = _params["cat_id_col"];
+        dbg<<"  "<<id_col<<std::endl;
+        table.column(id_col).read(_id, start, end);
     } else {
-        _id.resize(nRows);
-        for (int i=0;i<nRows;++i) _id[i] = i+1;
+        _id.resize(nrows);
+        for (int i=0;i<nrows;++i) _id[i] = i+1;
     }
-    Assert(int(_id.size()) == nRows);
+    Assert(int(_id.size()) == nrows);
 
     // Position (on chip)
     std::vector<double> posX;
     std::vector<double> posY;
-    _pos.resize(nRows);
-    std::string xCol=_params.get("cat_x_col");
-    std::string yCol=_params.get("cat_y_col");
-    dbg<<"  "<<xCol<<std::endl;
-    table.column(xCol).read(posX, start, end);
-    dbg<<"  "<<yCol<<std::endl;
-    table.column(yCol).read(posY, start, end);
+    _pos.resize(nrows);
+    std::string x_col=_params.get("cat_x_col");
+    std::string y_col=_params.get("cat_y_col");
+    dbg<<"  "<<x_col<<std::endl;
+    table.column(x_col).read(posX, start, end);
+    dbg<<"  "<<y_col<<std::endl;
+    table.column(y_col).read(posY, start, end);
 
-    for (long i=0; i< nRows; ++i) {
+    for (long i=0; i< nrows; ++i) {
         _pos[i] = Position(posX[i], posY[i]);
     }
 
     // Local sky
     if (_params.keyExists("cat_sky_col")) {
-        std::string skyCol=_params["cat_sky_col"];
-        dbg<<"  "<<skyCol<<std::endl;
-        table.column(skyCol).read(_sky, start, end);
+        std::string sky_col=_params["cat_sky_col"];
+        dbg<<"  "<<sky_col<<std::endl;
+        table.column(sky_col).read(_sky, start, end);
     }
 
     // Magnitude
     if (_params.keyExists("cat_mag_col")) {
-        std::string magCol=_params["cat_mag_col"];
-        dbg<<"  "<<magCol<<std::endl;
-        table.column(magCol).read(_mag, start, end);
+        std::string mag_col=_params["cat_mag_col"];
+        dbg<<"  "<<mag_col<<std::endl;
+        table.column(mag_col).read(_mag, start, end);
     }
 
     // Magnitude Error
     if (_params.keyExists("cat_mag_err_col")) {
-        std::string magErrCol=_params["cat_mag_err_col"];
-        dbg<<"  "<<magErrCol<<std::endl;
-        table.column(magErrCol).read(_magErr, start, end);
+        std::string mag_err_col=_params["cat_mag_err_col"];
+        dbg<<"  "<<mag_err_col<<std::endl;
+        table.column(mag_err_col).read(_mag_err, start, end);
     }
 
     // Star Galaxy separation
     if (_params.keyExists("cat_sg_col")) {
-        std::string sgCol=_params["cat_sg_col"];
-        dbg<<"  "<<sgCol<<std::endl;
-        table.column(sgCol).read(_sg, start, end);
+        std::string sg_col=_params["cat_sg_col"];
+        dbg<<"  "<<sg_col<<std::endl;
+        table.column(sg_col).read(_sg, start, end);
     } 
 
     // Size
     if (_params.keyExists("cat_size_col")) {
-        std::string sizeCol=_params["cat_size_col"];
-        dbg<<"  "<<sizeCol<<std::endl;
-        table.column(sizeCol).read(_objSize, start, end);
+        std::string size_col=_params["cat_size_col"];
+        dbg<<"  "<<size_col<<std::endl;
+        table.column(size_col).read(_obj_size, start, end);
         if (_params.keyExists("cat_size2_col")) {
-            std::string size2Col=_params["cat_size2_col"];
-            dbg<<"  "<<size2Col<<std::endl;
-            std::vector<double> objSize2(_objSize.size());
-            table.column(size2Col).read(objSize2, start, end);
-            Assert(_objSize.size() == _id.size());
-            Assert(objSize2.size() == _id.size());
-            for(int i=0;i<nRows;++i) _objSize[i] += objSize2[i];
+            std::string size2_col=_params["cat_size2_col"];
+            dbg<<"  "<<size2_col<<std::endl;
+            std::vector<double> obj_size2(_obj_size.size());
+            table.column(size2_col).read(obj_size2, start, end);
+            Assert(_obj_size.size() == _id.size());
+            Assert(obj_size2.size() == _id.size());
+            for(int i=0;i<nrows;++i) _obj_size[i] += obj_size2[i];
         }
     }
 
     // Error flags
     if (_params.keyExists("cat_flag_col")) {
-        std::string flagCol=_params["cat_flag_col"];
-        dbg<<"  "<<flagCol<<std::endl;
-        table.column(flagCol).read(_flags, start, end);
+        std::string flag_col=_params["cat_flag_col"];
+        dbg<<"  "<<flag_col<<std::endl;
+        table.column(flag_col).read(_flags, start, end);
     }
 
 
@@ -435,23 +435,23 @@ void InputCatalog::readFits(std::string file, int hdu)
         if (!_params.keyExists("cat_dec_col"))
             throw ParameterException("cat_ra_col, but no cat_dec_col");
 
-        std::string raCol=_params["cat_ra_col"];
-        std::string declCol=_params["cat_dec_col"];
+        std::string ra_col=_params["cat_ra_col"];
+        std::string decl_col=_params["cat_dec_col"];
 
         std::vector<double> ra;
         std::vector<double> decl;
-        dbg<<"  "<<raCol<<std::endl;
-        table.column(raCol).read(ra, start, end);
-        dbg<<"  "<<declCol<<std::endl;
-        table.column(declCol).read(decl, start, end);
+        dbg<<"  "<<ra_col<<std::endl;
+        table.column(ra_col).read(ra, start, end);
+        dbg<<"  "<<decl_col<<std::endl;
+        table.column(decl_col).read(decl, start, end);
 
-        _skyPos.resize(nRows);
-        for(long i=0;i<nRows;++i) {
-            _skyPos[i] = Position(ra[i],decl[i]);
+        _skypos.resize(nrows);
+        for(long i=0;i<nrows;++i) {
+            _skypos[i] = Position(ra[i],decl[i]);
 
             // The convention for Position is to use arcsec for everything.
             // ra and dec come in as degrees.  So wee need to convert to arcsec.
-            _skyPos[i] *= 3600.;  // deg -> arcsec
+            _skypos[i] *= 3600.;  // deg -> arcsec
         }
     } else if (_params.keyExists("cat_dec_col")) {
         throw ParameterException("cat_dec_col, but no cat_ra_col");
@@ -459,9 +459,9 @@ void InputCatalog::readFits(std::string file, int hdu)
 
     // Noise
     if (_params.keyExists("cat_noise_col")) {
-        std::string noiseCol=_params["cat_noise_col"];
-        dbg<<"  "<<noiseCol<<std::endl;
-        table.column(noiseCol).read(_noise, start, end);
+        std::string noise_col=_params["cat_noise_col"];
+        dbg<<"  "<<noise_col<<std::endl;
+        table.column(noise_col).read(_noise, start, end);
     }
 }
 
@@ -501,149 +501,149 @@ void InputCatalog::readAscii(std::string file, std::string delim)
 
     // x,y is required
     std::string line;
-    int xCol = _params.read<int>("cat_x_col");
-    int yCol = _params.read<int>("cat_y_col");
+    int x_col = _params.read<int>("cat_x_col");
+    int y_col = _params.read<int>("cat_y_col");
 
     // Set column numbers for optional columns
-    int idCol = _params.read("cat_id_col",0);
+    int id_col = _params.read("cat_id_col",0);
 
-    int magCol = _params.read("cat_mag_col",0);
-    int magErrCol = _params.read("cat_mag_err_col",0);
+    int mag_col = _params.read("cat_mag_col",0);
+    int mag_err_col = _params.read("cat_mag_err_col",0);
 
-    int sgCol = _params.read("cat_sg_col",0);
+    int sg_col = _params.read("cat_sg_col",0);
 
-    int sizeCol = _params.read("cat_size_col",0);
-    int size2Col = _params.read("cat_size2_col",0);
+    int size_col = _params.read("cat_size_col",0);
+    int size2_col = _params.read("cat_size2_col",0);
 
-    int flagCol = _params.read("cat_flag_col",0);
+    int flag_col = _params.read("cat_flag_col",0);
 
-    int skyCol = _params.read("cat_sky_col",0);
+    int sky_col = _params.read("cat_sky_col",0);
 
-    int raCol = _params.read("cat_ra_col",0);
-    int declCol = _params.read("cat_dec_col",0);
+    int ra_col = _params.read("cat_ra_col",0);
+    int decl_col = _params.read("cat_dec_col",0);
 
-    int noiseCol = _params.read("cat_noise_col",0);
+    int noise_col = _params.read("cat_noise_col",0);
 
     // Set up allowed comment markers
     std::vector<std::string> commentMarker = 
         _params.read("cat_comment_marker",std::vector<std::string>(1,"#"));
 
-    // Keep running id value when idCol = 0
-    int idVal = 0;
+    // Keep running id value when id_col = 0
+    int id_val = 0;
 
     // Read each line from catalog file
     while (getline(catIn,line)) {
 
         // Skip if this is a comment.
-        bool shouldSkip = false;
+        bool skip = false;
         const int nCommentMarkers = commentMarker.size();
         for(int k=0;k<nCommentMarkers;++k) {
             if (std::string(line,0,commentMarker[k].size()) == 
                 commentMarker[k]) {
-                shouldSkip = true;
+                skip = true;
             }
         }
-        if (shouldSkip) continue;
+        if (skip) continue;
 
         // Convert line into vector of tokens
         std::vector<ConvertibleString> tokens;
         getTokens(delim,line,tokens);
 
         // ID
-        if (idCol) {
-            Assert(idCol <= int(tokens.size()));
-            idVal = tokens[idCol-1];
+        if (id_col) {
+            Assert(id_col <= int(tokens.size()));
+            id_val = tokens[id_col-1];
         } else {
             // if not reading id, then just increment to get sequential values
-            ++idVal;
+            ++id_val;
         }
-        _id.push_back(idVal);
+        _id.push_back(id_val);
 
         // Position
-        Assert(xCol <= int(tokens.size()));
-        Assert(yCol <= int(tokens.size()));
-        double x = tokens[xCol-1];
-        double y = tokens[yCol-1];
+        Assert(x_col <= int(tokens.size()));
+        Assert(y_col <= int(tokens.size()));
+        double x = tokens[x_col-1];
+        double y = tokens[y_col-1];
         _pos.push_back(Position(x,y));
 
         // Sky
-        if (skyCol) {
+        if (sky_col) {
             // Note: if sky not read in, then sky.size() is still 0
             // This is indicator to update with global given or median 
             // value later.
-            double skyVal = 0.;
-            Assert(skyCol <= int(tokens.size()));
-            skyVal = tokens[skyCol-1];
-            _sky.push_back(skyVal);
+            double sky_val = 0.;
+            Assert(sky_col <= int(tokens.size()));
+            sky_val = tokens[sky_col-1];
+            _sky.push_back(sky_val);
         } 
 
         // Magnitude
-        if (magCol) {
-            double magVal = 0.;
-            Assert(magCol <= int(tokens.size()));
-            magVal = tokens[magCol-1];
-            _mag.push_back(magVal);
+        if (mag_col) {
+            double mag_val = 0.;
+            Assert(mag_col <= int(tokens.size()));
+            mag_val = tokens[mag_col-1];
+            _mag.push_back(mag_val);
         } 
 
         // Magnitude error
-        if (magErrCol) {
-            double magErrVal = 0.;
-            Assert(magErrCol <= int(tokens.size()));
-            magErrVal = tokens[magErrCol-1];
-            _magErr.push_back(magErrVal);
+        if (mag_err_col) {
+            double mag_err_val = 0.;
+            Assert(mag_err_col <= int(tokens.size()));
+            mag_err_val = tokens[mag_err_col-1];
+            _mag_err.push_back(mag_err_val);
         } 
 
         // Star-galaxy
-        if (sgCol) {
-            double sgVal = 0.;
-            Assert(sgCol <= int(tokens.size()));
-            sgVal = tokens[sgCol-1];
-            _sg.push_back(sgVal);
+        if (sg_col) {
+            double sg_val = 0.;
+            Assert(sg_col <= int(tokens.size()));
+            sg_val = tokens[sg_col-1];
+            _sg.push_back(sg_val);
         } 
 
         // Size
-        if (sizeCol) {
-            double sizeVal = 0.;
-            Assert(sizeCol <= int(tokens.size()));
-            sizeVal = tokens[sizeCol-1];
-            if (size2Col) {
-                Assert(size2Col <= int(tokens.size()));
-                sizeVal += double(tokens[size2Col-1]);
+        if (size_col) {
+            double size_val = 0.;
+            Assert(size_col <= int(tokens.size()));
+            size_val = tokens[size_col-1];
+            if (size2_col) {
+                Assert(size2_col <= int(tokens.size()));
+                size_val += double(tokens[size2_col-1]);
             } 
-            _objSize.push_back(sizeVal);
+            _obj_size.push_back(size_val);
         } 
 
         // Flags
-        if (flagCol) {
-            long flagVal = 0;
-            Assert(flagCol <= int(tokens.size()));
-            flagVal = tokens[flagCol-1];
-            _flags.push_back(flagVal);
+        if (flag_col) {
+            long flag_val = 0;
+            Assert(flag_col <= int(tokens.size()));
+            flag_val = tokens[flag_col-1];
+            _flags.push_back(flag_val);
         } 
 
         // RA
-        if (raCol) {
-            if (!declCol) 
+        if (ra_col) {
+            if (!decl_col) 
                 throw ParameterException("cat_ra_col, but no cat_dec_col");
-            double raVal = 0.;
-            double declVal = 0.;
-            Assert(raCol <= int(tokens.size()));
-            Assert(declCol <= int(tokens.size()));
-            raVal = tokens[raCol-1];
-            declVal = tokens[declCol-1];
-            Position skyPosVal(raVal,declVal);
-            skyPosVal *= 3600.; // deg -> arcsec
-            _skyPos.push_back(skyPosVal);
-        } else if (declCol) {
+            double ra_val = 0.;
+            double decl_val = 0.;
+            Assert(ra_col <= int(tokens.size()));
+            Assert(decl_col <= int(tokens.size()));
+            ra_val = tokens[ra_col-1];
+            decl_val = tokens[decl_col-1];
+            Position skypos_val(ra_val,decl_val);
+            skypos_val *= 3600.; // deg -> arcsec
+            _skypos.push_back(skypos_val);
+        } else if (decl_col) {
             throw ParameterException("cat_dec_col, but no cat_ra_col");
         }
 
         // Noise
-        if (noiseCol) {
-            double noiseVal = 0.;
-            Assert(noiseCol <= int(tokens.size()));
-            noiseVal = tokens[noiseCol-1];
-            _noise.push_back(noiseVal);
+        if (noise_col) {
+            double noise_val = 0.;
+            Assert(noise_col <= int(tokens.size()));
+            noise_val = tokens[noise_col-1];
+            _noise.push_back(noise_val);
         }
     }
 }
@@ -673,10 +673,10 @@ void InputCatalog::printall(int i) {
         std::cout<<"  InputCatalog::printall index "<<i<<" is larger than mag.size\n";
     }
 
-    if (int(_magErr.size()) > i) {
-        std::cout<<"  InputCatalog::printall magErr["<<i<<"]: "<<_magErr[i]<<"\n";
+    if (int(_mag_err.size()) > i) {
+        std::cout<<"  InputCatalog::printall mag_err["<<i<<"]: "<<_mag_err[i]<<"\n";
     } else {
-        std::cout<<"  InputCatalog::printall index "<<i<<" is larger than magErr.size\n";
+        std::cout<<"  InputCatalog::printall index "<<i<<" is larger than mag_err.size\n";
     }
 
     if (int(_sg.size()) > i) {
@@ -685,10 +685,10 @@ void InputCatalog::printall(int i) {
         std::cout<<"  InputCatalog::printall index "<<i<<" is larger than sg.size\n";
     }
 
-    if (int(_objSize.size()) > i) {
-        std::cout<<"  InputCatalog::printall objSize["<<i<<"]: "<<_objSize[i]<<"\n";
+    if (int(_obj_size.size()) > i) {
+        std::cout<<"  InputCatalog::printall obj_size["<<i<<"]: "<<_obj_size[i]<<"\n";
     } else {
-        std::cout<<"  InputCatalog::printall index "<<i<<" is larger than objSize.size\n";
+        std::cout<<"  InputCatalog::printall index "<<i<<" is larger than obj_size.size\n";
     }
 
     if (int(_flags.size()) > i) {

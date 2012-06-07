@@ -2,20 +2,20 @@
 #include "Pixel.h"
 
 PixelList::PixelList() :
-    _shouldUsePool(false), _v1(new std::vector<Pixel>()) 
+    _use_pool(false), _v1(new std::vector<Pixel>()) 
 {}
 
 PixelList::PixelList(const int n) :
-    _shouldUsePool(false), _v1(new std::vector<Pixel>(n)) 
+    _use_pool(false), _v1(new std::vector<Pixel>(n)) 
 {}
 
 PixelList::PixelList(const PixelList& rhs) :
-    _shouldUsePool(rhs._shouldUsePool), _v1(rhs._v1), _v2(rhs._v2) 
+    _use_pool(rhs._use_pool), _v1(rhs._v1), _v2(rhs._v2) 
 {}
 
 PixelList& PixelList::operator=(const PixelList& rhs)
 {
-    _shouldUsePool = rhs._shouldUsePool;
+    _use_pool = rhs._use_pool;
     _v1 = rhs._v1;
 #ifdef _OPENMP
 #pragma omp critical (PixelList)
@@ -49,7 +49,7 @@ void PixelList::usePool()
     {
         _v2.reset(new std::vector<Pixel,PoolAllocPixel>());
     }
-    _shouldUsePool = true; 
+    _use_pool = true; 
 #endif
 }
 
@@ -73,13 +73,13 @@ void PixelList::reclaimMemory()
 
 int PixelList::size() const
 {
-    if (_shouldUsePool) return _v2->size();
+    if (_use_pool) return _v2->size();
     else return _v1->size();
 }
 
 void PixelList::reserve(const int n)
 {
-    if (_shouldUsePool) {
+    if (_use_pool) {
 #ifdef _OPENMP
 #pragma omp critical (PixelList)
 #endif
@@ -92,11 +92,11 @@ void PixelList::reserve(const int n)
 }
 
 int PixelList::capacity() const
-{ return _shouldUsePool ? _v2->capacity() : _v1->capacity(); }
+{ return _use_pool ? _v2->capacity() : _v1->capacity(); }
 
 void PixelList::resize(const int n)
 {
-    if (_shouldUsePool) {
+    if (_use_pool) {
 #ifdef _OPENMP
 #pragma omp critical (PixelList)
 #endif
@@ -110,7 +110,7 @@ void PixelList::resize(const int n)
 
 void PixelList::clear()
 {
-    if (_shouldUsePool) {
+    if (_use_pool) {
 #ifdef _OPENMP
 #pragma omp critical (PixelList)
 #endif
@@ -124,7 +124,7 @@ void PixelList::clear()
 
 void PixelList::push_back(const Pixel& p)
 {
-    if (_shouldUsePool) {
+    if (_use_pool) {
 #ifdef _OPENMP
 #pragma omp critical (PixelList)
 #endif
@@ -138,13 +138,13 @@ void PixelList::push_back(const Pixel& p)
 
 Pixel& PixelList::operator[](const int i)
 {
-    if (_shouldUsePool) return (*_v2)[i];
+    if (_use_pool) return (*_v2)[i];
     else return (*_v1)[i];
 }
 
 const Pixel& PixelList::operator[](const int i) const
 {
-    if (_shouldUsePool) return (*_v2)[i];
+    if (_use_pool) return (*_v2)[i];
     else return (*_v1)[i];
 }
 
@@ -159,6 +159,6 @@ struct PixelListSorter
 void PixelList::sort(const Position& cen) 
 {
     PixelListSorter sorter(cen);
-    if (_shouldUsePool) std::sort(_v2->begin(),_v2->end(),sorter);
+    if (_use_pool) std::sort(_v2->begin(),_v2->end(),sorter);
     else std::sort(_v1->begin(),_v1->end(),sorter);
 }

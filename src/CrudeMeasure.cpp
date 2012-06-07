@@ -286,28 +286,28 @@ void Ellipse::crudeMeasure(const PixelList& pix, double sigma)
     s.solve(x,f);
     xdbg<<"After 2nd CrudeSolver: x = "<<EIGEN_Transpose(x)<<std::endl;
 
-    std::complex<double> cenNew(x[0],x[1]);
-    double muNew = x[2];
+    std::complex<double> cen_new(x[0],x[1]);
+    double mu_new = x[2];
 
-    if (std::abs(cenNew-_cen) > 2.) {
+    if (std::abs(cen_new-_cen) > 2.) {
         dbg<<"Warning: large centroid shift in CrudeMeasure\n";
-        dbg<<"Old centroid = "<<_cen<<", new centroid = "<<cenNew<<std::endl;
-        cenNew = _cen + 2.*(cenNew - _cen)/std::abs(cenNew-_cen);
-        dbg<<"Scaling back to "<<cenNew<<std::endl;
+        dbg<<"Old centroid = "<<_cen<<", new centroid = "<<cen_new<<std::endl;
+        cen_new = _cen + 2.*(cen_new - _cen)/std::abs(cen_new-_cen);
+        dbg<<"Scaling back to "<<cen_new<<std::endl;
     }
 
-    if (std::abs(muNew-real(_mu)) > 2.) {
+    if (std::abs(mu_new-real(_mu)) > 2.) {
         dbg<<"Warning: large scale change in CrudeMeasure\n";
-        dbg<<"Old mu = "<<_mu<<", new mu = "<<muNew<<std::endl;
-        muNew = real(_mu) + 2.*(muNew - real(_mu))/std::abs(muNew-real(_mu));
-        dbg<<"Scaling back to "<<muNew<<std::endl;
+        dbg<<"Old mu = "<<_mu<<", new mu = "<<mu_new<<std::endl;
+        mu_new = real(_mu) + 2.*(mu_new - real(_mu))/std::abs(mu_new-real(_mu));
+        dbg<<"Scaling back to "<<mu_new<<std::endl;
     }
 
-    xdbg<<"Crude cen = "<<cenNew<<std::endl;
-    xdbg<<"Crude mu = "<<muNew<<std::endl;
+    xdbg<<"Crude cen = "<<cen_new<<std::endl;
+    xdbg<<"Crude mu = "<<mu_new<<std::endl;
 
-    if (!_isFixedCen) _cen = cenNew;
-    if (!_isFixedMu) _mu = muNew;
+    if (!_fixcen) _cen = cen_new;
+    if (!_fixmu) _mu = mu_new;
 }
 
 void Ellipse::crudeMeasure(

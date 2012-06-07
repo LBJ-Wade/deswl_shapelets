@@ -25,11 +25,11 @@ public :
     // Should be followed by either read or calculate.
     FittedPsf(const ConfigFile& params);
 
-    int getPsfOrder() const { return _psfOrder; }
-    int getPsfSize() const { return (_psfOrder+1)*(_psfOrder+2)/2; }
-    int getFitOrder() const { return _fitOrder; }
-    int getFitSize() const { return _fitSize; }
-    int getNpca() const { return _nPca; }
+    int getPsfOrder() const { return _psforder; }
+    int getPsfSize() const { return (_psforder+1)*(_psforder+2)/2; }
+    int getFitOrder() const { return _fitorder; }
+    int getFitSize() const { return _fitsize; }
+    int getNpca() const { return _npca; }
     double getSigma() const { return _sigma; }
     void setSigma(double sigma) { _sigma = sigma; }
 
@@ -57,10 +57,10 @@ public :
 
     void interpolate(Position pos, BVec& b) const
     {
-        Assert(_avePsf.get());
+        Assert(_avepsf.get());
         //Assert(_mV.get());
-        Assert(b.getOrder() == _psfOrder);
-        Assert(b.size() == int(_avePsf->size()));
+        Assert(b.getOrder() == _psforder);
+        Assert(b.size() == int(_avepsf->size()));
         b.setSigma(_sigma);
         interpolateVector(pos,TMV_vview(b.vec()));
     }
@@ -83,13 +83,13 @@ private :
 
     const ConfigFile& _params;
 
-    int _psfOrder;
+    int _psforder;
     double _sigma;
-    int _fitOrder;
-    int _fitSize;
-    int _nPca;
+    int _fitorder;
+    int _fitsize;
+    int _npca;
     Bounds _bounds;
-    std::auto_ptr<DVector> _avePsf;
+    std::auto_ptr<DVector> _avepsf;
 #if USE_TMV
     std::auto_ptr<tmv::Matrix<double,tmv::RowMajor> > _mV;
 #else
@@ -107,7 +107,7 @@ public :
         _psf(psf), _pos(pos) 
     {}
 
-    int size() const { return _psf._avePsf->size(); }
+    int size() const { return _psf._avepsf->size(); }
     int getOrder() const { return _psf.getPsfOrder(); }
     double getSigma() const { return _psf.getSigma(); }
 

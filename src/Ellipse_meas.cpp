@@ -11,38 +11,38 @@ const double MAX_GAMMA_PRIOR = 0.7;
 bool Ellipse::doMeasure(
     const std::vector<PixelList>& pix,
     const std::vector<BVec>* psf,
-    int galOrder, int galOrder2, int maxm,
+    int galorder, int galorder2, int maxm,
     double sigma, long& flag, double thresh, DSmallMatrix22* cov, 
     const Ellipse* ell_meas)
 {
     if (!(ell_meas)) ell_meas = this;
 
-    dbg<<"Start doMeasure: galOrder = "<<galOrder<<", psf = "<<bool(psf)<<std::endl;
-    dbg<<"fix = "<<_isFixedCen<<"  "<<_isFixedGamma<<"  "<<_isFixedMu<<std::endl;
+    dbg<<"Start doMeasure: galorder = "<<galorder<<", psf = "<<bool(psf)<<std::endl;
+    dbg<<"fix = "<<_fixcen<<"  "<<_fixgamma<<"  "<<_fixmu<<std::endl;
     dbg<<"Thresh = "<<thresh<<std::endl;
     dbg<<"ell_meas = "<<*ell_meas<<std::endl;
-    int nPixList = pix.size();
-    int nPix = 0;
-    for(int i=0;i<nPixList;++i) {
-        xdbg<<"nPix["<<i<<"] = "<<pix[i].size()<<std::endl;
-        nPix += pix[i].size();
+    int npixList = pix.size();
+    int npix = 0;
+    for(int i=0;i<npixList;++i) {
+        xdbg<<"npix["<<i<<"] = "<<pix[i].size()<<std::endl;
+        npix += pix[i].size();
     }
 
-    int galSize = (galOrder+1)*(galOrder+2)/2;
-    if (nPix <= galSize) {
-        dbg<<"Too few pixels ("<<nPix<<") for given gal_order. \n";
+    int galsize = (galorder+1)*(galorder+2)/2;
+    if (npix <= galsize) {
+        dbg<<"Too few pixels ("<<npix<<") for given gal_order. \n";
         return false;
     }
 
-    BVec b(galOrder,sigma);
-    std::auto_ptr<DMatrix> bCov;
-    bool doMeanLikelihood = false;
-    //bool doMeanLikelihood = psf && !_isFixedGamma;
-    if (cov || doMeanLikelihood) 
-        bCov.reset(new DMatrix(int(b.size()),int(b.size())));
+    BVec b(galorder,sigma);
+    std::auto_ptr<DMatrix> bcov;
+    bool do_mean_likelihood = false;
+    //bool do_mean_likelihood = psf && !_fixgamma;
+    if (cov || do_mean_likelihood) 
+        bcov.reset(new DMatrix(int(b.size()),int(b.size())));
 
     if (!ell_meas->doMeasureShapelet(
-            pix,psf,b,galOrder,galOrder2,maxm,bCov.get())) {
+            pix,psf,b,galorder,galorder2,maxm,bcov.get())) {
         xdbg<<"Could not measure a shapelet vector.\n";
         return false;
     }
@@ -52,12 +52,12 @@ bool Ellipse::doMeasure(
     }
     dbg<<"b = "<<b<<std::endl;
 
-    return findRoundFrame(b,psf,*ell_meas,galOrder2,thresh,flag,bCov.get(),cov);
+    return findRoundFrame(b,psf,*ell_meas,galorder2,thresh,flag,bcov.get(),cov);
 }
 
-static double calculateLikelihood(
+static double CalculateLikelihood(
     const std::complex<double>& gamma,
-    const Ellipse& ell_meas, const BVec& b, const DMatrix& bCov)
+    const Ellipse& ell_meas, const BVec& b, const DMatrix& bcov)
 {
     static std::auto_ptr<DMatrix> Gg1;
     static std::auto_ptr<DMatrix> Gg2;
@@ -67,9 +67,9 @@ static double calculateLikelihood(
         Gg1.reset(new DMatrix(b.size(),b.size()));
         Gg2.reset(new DMatrix(b.size(),b.size()));
         Gth.reset(new DMatrix(b.size(),b.size()));
-        setupGg1(*Gg1,b.getOrder(),b.getOrder());
-        setupGg2(*Gg2,b.getOrder(),b.getOrder());
-        setupGth(*Gth,b.getOrder(),b.getOrder());
+        SetupGg1(*Gg1,b.getOrder(),b.getOrder());
+        SetupGg2(*Gg2,b.getOrder(),b.getOrder());
+        SetupGth(*Gth,b.getOrder(),b.getOrder());
     }
 
     Ellipse e1;
@@ -81,11 +81,11 @@ static double calculateLikelihood(
     xdbg<<"gamma = "<<gamma<<std::endl;
     xdbg<<"dg = "<<dg<<std::endl;
     DMatrix S(6,b.size());
-    calculateGTransform(dg,2,b.getOrder(),S);
+    CalculateGTransform(dg,2,b.getOrder(),S);
     xdbg<<"S = "<<S<<std::endl;
     DVector bx = TMV_rowRange(S,3,5) * b.vec();
     xdbg<<"db = "<<bx<<std::endl;
-    DMatrix cx = TMV_rowRange(S,3,5) * bCov * TMV_rowRange(S,3,5).transpose();
+    DMatrix cx = TMV_rowRange(S,3,5) * bcov * TMV_rowRange(S,3,5).transpose();
     xdbg<<"c = "<<cx<<std::endl;
     double chisq = EIGEN_ToScalar(bx * (cx.inverse() * bx));
     xdbg<<"chisq("<<gamma<<") = "<<chisq<<std::endl;
@@ -121,16 +121,16 @@ static double calculateLikelihood(
 
 bool Ellipse::findRoundFrame(
     const BVec& b, bool psf, const Ellipse& ell_meas,
-    int galOrder2, double thresh,
-    long& flag, const DMatrix* bCov, DSmallMatrix22* cov)
+    int galorder2, double thresh,
+    long& flag, const DMatrix* bcov, DSmallMatrix22* cov)
 {
     double trCov = cov ? cov->trace() : 0.;
-    bool doMeanLikelihood = false;
-    bool doMaxLikelihood = true;
-    //bool doMeanLikelihood = psf && !_isFixedGamma;
-    //bool doMaxLikelihood = !doMeanLikelihood || trCov == 0.0;
+    bool do_mean_likelihood = false;
+    bool do_max_likelihood = true;
+    //bool do_mean_likelihood = psf && !_fixgamma;
+    //bool do_max_likelihood = !do_mean_likelihood || trCov == 0.0;
 
-    if (doMaxLikelihood) {
+    if (do_max_likelihood) {
         dbg<<"Start Maximum Likelihood estimate\n";
         dbg<<"current value = "<<*this<<std::endl;
         dbg<<"ell_meas = "<<ell_meas<<std::endl;
@@ -152,7 +152,7 @@ bool Ellipse::findRoundFrame(
         dbg<<"x = "<<x<<std::endl;
         DVector xinit = x;
 
-        EllipseSolver solver(b,galOrder2,_isFixedCen,_isFixedGamma,_isFixedMu);
+        EllipseSolver solver(b,galorder2,_fixcen,_fixgamma,_fixmu);
 
 #ifdef NOTHROW
         solver.noUseCholesky();
@@ -166,7 +166,7 @@ bool Ellipse::findRoundFrame(
         solver.setMinStep(1.e-6*gtol);
         solver.setDelta0(0.01);
         solver.setMaxIter(200);
-        if (psf && !_isFixedMu) {
+        if (psf && !_fixmu) {
             solver.setDelta0(0.01);
             solver.useDogleg();
             solver.dontZeroB11();
@@ -178,9 +178,9 @@ bool Ellipse::findRoundFrame(
             dbg<<"Found good round frame:\n";
             dbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
             dbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
-            if (!doMeanLikelihood) {
+            if (!do_mean_likelihood) {
                 double f_normInf = f.TMV_normInf();
-                if (psf && !_isFixedMu && !(f_normInf < solver.getFTol())) {
+                if (psf && !_fixmu && !(f_normInf < solver.getFTol())) {
                     xdbg<<"Oops, Local minimum, not real solution.\n";
                     xdbg<<"f.norm = "<<f.norm()<<std::endl;
                     xdbg<<"f.normInf = "<<f_normInf<<std::endl;
@@ -194,7 +194,7 @@ bool Ellipse::findRoundFrame(
             dbg<<"findRoundFrame solver failed:\n";
             dbg<<"x = "<<EIGEN_Transpose(x)<<std::endl;
             dbg<<"f = "<<EIGEN_Transpose(f)<<std::endl;
-            if (!doMeanLikelihood) {
+            if (!do_mean_likelihood) {
                 //if (XDEBUG) if (!solver.testJ(x,f,dbgout,1.e-5)) exit(1);
                 dbg<<"FLAG SHEAR_DIDNT_CONVERGE\n";
                 flag |= SHEAR_DIDNT_CONVERGE;
@@ -213,12 +213,12 @@ bool Ellipse::findRoundFrame(
         dbg<<"ell => "<<*this<<std::endl;
 
         if (cov) {
-            Assert(bCov);
+            Assert(bcov);
             solver.useSVD();
             DMatrix cov5(5,5);
             DMatrix j(5,5);
             solver.callJ(x,f,j); // Make sure jj is calculated.
-            solver.getCovariance(*bCov,cov5);
+            solver.getCovariance(*bcov,cov5);
             dbg<<"cov5 = "<<cov5<<std::endl;
             *cov = cov5.TMV_subMatrix(2,4,2,4);
             if (!(cov->TMV_det() > 0.)) {
@@ -232,25 +232,25 @@ bool Ellipse::findRoundFrame(
             }
             // update trCov for next section
             trCov = cov ? cov->trace() : 0.;
-        } else if (doMeanLikelihood) {
+        } else if (do_mean_likelihood) {
             // Then need good estimate of trCov for step size.
-            Assert(bCov);
+            Assert(bcov);
             solver.useSVD();
             DMatrix cov5(5,5);
             DMatrix j(5,5);
             solver.callJ(x,f,j);
-            solver.getCovariance(*bCov,cov5);
+            solver.getCovariance(*bcov,cov5);
             xdbg<<"cov5 = "<<cov5<<std::endl;
             trCov = cov5.TMV_subMatrix(2,4,2,4).trace();
         }
     }
 
-    if (doMeanLikelihood) {
-        Assert(bCov);
+    if (do_mean_likelihood) {
+        Assert(bcov);
         Assert(cov);
         dbg<<"Starting likelihood-weighted mean calculation.\n";
         //dbg<<"b = "<<b<<std::endl;
-        //dbg<<"bCov = "<<*bCov<<std::endl;
+        //dbg<<"bcov = "<<*bcov<<std::endl;
         std::complex<double> gamma = getGamma();
         dbg<<"gamma = "<<gamma<<std::endl;
 
@@ -264,11 +264,11 @@ bool Ellipse::findRoundFrame(
             std::complex<double> dg = e1.getGamma();
             dbg<<"dg = "<<dg<<std::endl;
             DMatrix S(6,b.size());
-            calculateGTransform(dg,2,b.getOrder(),S);
+            CalculateGTransform(dg,2,b.getOrder(),S);
             dbg<<"S = "<<S<<std::endl;
             DVector b1 = S * b.vec();
             dbg<<"Sheared b = "<<b1<<std::endl;
-            DMatrix c1 = S * (*bCov) * S.transpose();
+            DMatrix c1 = S * (*bcov) * S.transpose();
             dbg<<"c1 = "<<c1<<std::endl;
             DVector b2 = b1.TMV_subVector(3,5);
             DMatrix c2 = c1.TMV_subMatrix(3,5,3,5);
@@ -301,7 +301,7 @@ bool Ellipse::findRoundFrame(
                 xdbg<<"|g| >= "<<MAX_GAMMA_PRIOR<<"\n";
                 continue;
             }
-            double l = calculateLikelihood(gtry,ell_meas,b,*bCov);
+            double l = CalculateLikelihood(gtry,ell_meas,b,*bcov);
             // This gives us P(data | gamma)
             // To get P(gamma | data), we need to multiply by a 
             // prior, P(gamma).
@@ -387,21 +387,21 @@ bool Ellipse::findRoundFrame(
 void Ellipse::correctForBias(
     const std::vector<PixelList>& pix,
     const std::vector<BVec>& psf,
-    int galOrder, int galOrder2, int maxm,
+    int galorder, int galorder2, int maxm,
     double sigma, const Ellipse* ell_meas)
 {
     if (!(ell_meas)) ell_meas = this;
 
-    dbg<<"Start correctForBias: galOrder = "<<galOrder<<std::endl;
-    dbg<<"fix = "<<_isFixedCen<<"  "<<_isFixedGamma<<"  "<<_isFixedMu<<std::endl;
+    dbg<<"Start correctForBias: galorder = "<<galorder<<std::endl;
+    dbg<<"fix = "<<_fixcen<<"  "<<_fixgamma<<"  "<<_fixmu<<std::endl;
     dbg<<"ell_meas = "<<*ell_meas<<std::endl;
-    int galSize = (galOrder+1)*(galOrder+2)/2;
+    int galsize = (galorder+1)*(galorder+2)/2;
 
-    BVec b(galOrder,sigma);
-    DMatrix bCov(b.size(),b.size());
+    BVec b(galorder,sigma);
+    DMatrix bcov(b.size(),b.size());
 
     if (!ell_meas->measureShapelet(
-            pix,psf,b,galOrder,galOrder2,maxm,&bCov)) {
+            pix,psf,b,galorder,galorder2,maxm,&bcov)) {
         dbg<<"Could not measure a shapelet vector.\n";
         return;
     }
@@ -410,9 +410,9 @@ void Ellipse::correctForBias(
         return;
     }
     dbg<<"b = "<<b<<std::endl;
-    xdbg<<"bCov = "<<bCov<<std::endl;
+    xdbg<<"bcov = "<<bcov<<std::endl;
 
-    int galSize2 = (galOrder2+1)*(galOrder2+2)/2;
+    int galsize2 = (galorder2+1)*(galorder2+2)/2;
 
     Ellipse ell_diff = *this;
     ell_diff.postShiftBy(-ell_meas->getCen()*sigma,
@@ -420,12 +420,12 @@ void Ellipse::correctForBias(
                          -ell_meas->getMu());
     ell_diff.removeRotation();
 
-    DMatrix T(6,galSize2);
-    calculateZTransform(ell_diff.getCen(),2,galOrder2,T);
-    DMatrix S(galSize2,galSize2);
-    calculateGTransform(ell_diff.getGamma(),galOrder2,S);
-    DMatrix D(galSize2,b.size());
-    calculateMuTransform(ell_diff.getMu(),galOrder2,galOrder,D);
+    DMatrix T(6,galsize2);
+    CalculateZTransform(ell_diff.getCen(),2,galorder2,T);
+    DMatrix S(galsize2,galsize2);
+    CalculateGTransform(ell_diff.getGamma(),galorder2,S);
+    DMatrix D(galsize2,b.size());
+    CalculateMuTransform(ell_diff.getMu(),galorder2,galorder,D);
 
     DMatrix M = TMV_rowRange(T,1,5) * S * D;
     xdbg<<"M = "<<M<<std::endl;
@@ -436,45 +436,45 @@ void Ellipse::correctForBias(
     const double delta = 1.e-4;
     typedef std::complex<double> CT;
 
-    DMatrix T1(6,galSize2);
-    calculateZTransform(ell_diff.getCen()+delta*CT(1,0),2,galOrder2,T1);
-    DMatrix T2(6,galSize2);
-    calculateZTransform(ell_diff.getCen()+delta*CT(-1,0),2,galOrder2,T2);
-    DMatrix T3(6,galSize2);
-    calculateZTransform(ell_diff.getCen()+delta*CT(0,1),2,galOrder2,T3);
-    DMatrix T4(6,galSize2);
-    calculateZTransform(ell_diff.getCen()+delta*CT(0,-1),2,galOrder2,T4);
-    DMatrix T5(6,galSize2);
-    calculateZTransform(ell_diff.getCen()+delta*CT(1,1),2,galOrder2,T5);
-    DMatrix T6(6,galSize2);
-    calculateZTransform(ell_diff.getCen()+delta*CT(1,-1),2,galOrder2,T6);
-    DMatrix T7(6,galSize2);
-    calculateZTransform(ell_diff.getCen()+delta*CT(-1,1),2,galOrder2,T7);
-    DMatrix T8(6,galSize2);
-    calculateZTransform(ell_diff.getCen()+delta*CT(-1,-1),2,galOrder2,T8);
+    DMatrix T1(6,galsize2);
+    CalculateZTransform(ell_diff.getCen()+delta*CT(1,0),2,galorder2,T1);
+    DMatrix T2(6,galsize2);
+    CalculateZTransform(ell_diff.getCen()+delta*CT(-1,0),2,galorder2,T2);
+    DMatrix T3(6,galsize2);
+    CalculateZTransform(ell_diff.getCen()+delta*CT(0,1),2,galorder2,T3);
+    DMatrix T4(6,galsize2);
+    CalculateZTransform(ell_diff.getCen()+delta*CT(0,-1),2,galorder2,T4);
+    DMatrix T5(6,galsize2);
+    CalculateZTransform(ell_diff.getCen()+delta*CT(1,1),2,galorder2,T5);
+    DMatrix T6(6,galsize2);
+    CalculateZTransform(ell_diff.getCen()+delta*CT(1,-1),2,galorder2,T6);
+    DMatrix T7(6,galsize2);
+    CalculateZTransform(ell_diff.getCen()+delta*CT(-1,1),2,galorder2,T7);
+    DMatrix T8(6,galsize2);
+    CalculateZTransform(ell_diff.getCen()+delta*CT(-1,-1),2,galorder2,T8);
 
-    DMatrix S1(galSize2,galSize2);
-    calculateGTransform(ell_diff.getGamma()+delta*CT(1,0),galOrder2,S1);
-    DMatrix S2(galSize2,galSize2);
-    calculateGTransform(ell_diff.getGamma()+delta*CT(-1,0),galOrder2,S2);
-    DMatrix S3(galSize2,galSize2);
-    calculateGTransform(ell_diff.getGamma()+delta*CT(0,1),galOrder2,S3);
-    DMatrix S4(galSize2,galSize2);
-    calculateGTransform(ell_diff.getGamma()+delta*CT(0,-1),galOrder2,S4);
-    DMatrix S5(galSize2,galSize2);
-    calculateGTransform(ell_diff.getGamma()+delta*CT(1,1),galOrder2,S5);
-    DMatrix S6(galSize2,galSize2);
-    calculateGTransform(ell_diff.getGamma()+delta*CT(1,-1),galOrder2,S6);
-    DMatrix S7(galSize2,galSize2);
-    calculateGTransform(ell_diff.getGamma()+delta*CT(-1,1),galOrder2,S7);
-    DMatrix S8(galSize2,galSize2);
-    calculateGTransform(ell_diff.getGamma()+delta*CT(-1,-1),galOrder2,S8);
+    DMatrix S1(galsize2,galsize2);
+    CalculateGTransform(ell_diff.getGamma()+delta*CT(1,0),galorder2,S1);
+    DMatrix S2(galsize2,galsize2);
+    CalculateGTransform(ell_diff.getGamma()+delta*CT(-1,0),galorder2,S2);
+    DMatrix S3(galsize2,galsize2);
+    CalculateGTransform(ell_diff.getGamma()+delta*CT(0,1),galorder2,S3);
+    DMatrix S4(galsize2,galsize2);
+    CalculateGTransform(ell_diff.getGamma()+delta*CT(0,-1),galorder2,S4);
+    DMatrix S5(galsize2,galsize2);
+    CalculateGTransform(ell_diff.getGamma()+delta*CT(1,1),galorder2,S5);
+    DMatrix S6(galsize2,galsize2);
+    CalculateGTransform(ell_diff.getGamma()+delta*CT(1,-1),galorder2,S6);
+    DMatrix S7(galsize2,galsize2);
+    CalculateGTransform(ell_diff.getGamma()+delta*CT(-1,1),galorder2,S7);
+    DMatrix S8(galsize2,galsize2);
+    CalculateGTransform(ell_diff.getGamma()+delta*CT(-1,-1),galorder2,S8);
 
 #if 0
-    DMatrix D1(galSize2,b.size());
-    calculateMuTransform(ell_diff.getMu()+delta,galOrder2,galOrder,D1);
-    DMatrix D2(galSize2,b.size());
-    calculateMuTransform(ell_diff.getMu()-delta,galOrder2,galOrder,D2);
+    DMatrix D1(galsize2,b.size());
+    CalculateMuTransform(ell_diff.getMu()+delta,galorder2,galorder,D1);
+    DMatrix D2(galsize2,b.size());
+    CalculateMuTransform(ell_diff.getMu()-delta,galorder2,galorder,D2);
 #endif
 
     DVector dMdxb = (T1-T2)*(S*(D*b.vec())) / (2.*delta);
@@ -621,21 +621,21 @@ void Ellipse::correctForBias(
     xdbg<<"H3 = "<<H3<<std::endl;
     //dbg<<"H4 = "<<H4<<std::endl;
 
-    DMatrix xCov = J.inverse() * M * bCov * M.transpose() * J.transpose().inverse();
-    xdbg<<"bCov = "<<bCov<<std::endl;
+    DMatrix xcov = J.inverse() * M * bcov * M.transpose() * J.transpose().inverse();
+    xdbg<<"bcov = "<<bcov<<std::endl;
     xdbg<<"ell = "<<*this<<std::endl;
     xdbg<<"M = "<<M<<std::endl;
-    xdbg<<"fCov = "<<M*bCov*M.transpose()<<std::endl;
+    xdbg<<"fCov = "<<M*bcov*M.transpose()<<std::endl;
     xdbg<<"J = "<<J<<std::endl;
     xdbg<<"J.inv = "<<J.inverse()<<std::endl;
-    xdbg<<"xCov = "<<xCov<<std::endl;
+    xdbg<<"xcov = "<<xcov<<std::endl;
 
     DVector y(4);
-    y(0) = (H0 * xCov).trace();
-    y(1) = (H1 * xCov).trace();
-    y(2) = (H2 * xCov).trace();
-    y(3) = (H3 * xCov).trace();
-    //y(4) = (H4 * xCov).trace();
+    y(0) = (H0 * xcov).trace();
+    y(1) = (H1 * xcov).trace();
+    y(2) = (H2 * xcov).trace();
+    y(3) = (H3 * xcov).trace();
+    //y(4) = (H4 * xcov).trace();
     xdbg<<"y = "<<y<<std::endl;
 
     DVector bias = -0.5 * y / J;

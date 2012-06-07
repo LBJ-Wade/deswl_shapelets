@@ -12,80 +12,72 @@
 
 double PsfCatalog::estimateSigma(
     const Image<double>& im,
-    const Image<double>* weightIm, const Transformation& trans)
+    const Image<double>* weight_image, const Transformation& trans)
 {
     if (_params.keyExists("psf_force_sigma_p")) {
-        double sigmaP = _params["psf_force_sigma_p"];
-        dbg<<"Using forced value for sigmaP = "<<sigmaP<<std::endl;
-        return sigmaP;
+        double sigma_p = _params["psf_force_sigma_p"];
+        dbg<<"Using forced value for sigma_p = "<<sigma_p<<std::endl;
+        return sigma_p;
     }
 
-    // Initial sigmaP for shapelet measurements
-    double sigmaP = 1.;
+    // Initial sigma_p for shapelet measurements
+    double sigma_p = 1.;
     if (_params.keyExists("psf_seeing_est")) {
         double seeing = _params["psf_seeing_est"];
         // seeing is given as FWHM
         // for a gaussian 0.5 = exp(-((FWHM/2)/sigma)^2/2)
         // FWHM/sigma = 2.*sqrt(2 ln(2)) = 2.35
-        sigmaP = seeing / 2.35;
+        sigma_p = seeing / 2.35;
     }
 
     // Calculate a good value of sigma to use:
-    double gain = _params.read("gain",0.);
-    double psfAp = _params.read<double>("psf_aperture");
-    dbg<<"psfap = "<<psfAp<<std::endl;
-    double xOffset = _params.read("cat_x_offset",0.);
-    double yOffset = _params.read("cat_y_offset",0.);
+    const bool use_shapelet_sigma = true;
 
-    const bool shouldUseShapeletSigma = true;
-
-    int nStars = _pos.size();
-    double meanMu = 0.;
+    int nstars = _pos.size();
+    double meanmu = 0.;
     int count = 0;
 #ifdef _OPENMP
-#pragma omp parallel for schedule(guided) reduction(+ : meanMu) reduction(+ : count)
+#pragma omp parallel for schedule(guided) reduction(+ : meanmu) reduction(+ : count)
 #endif
-    for (int i=0; i<nStars; ++i) if (!_flags[i]) {
+    for (int i=0; i<nstars; ++i) if (!_flags[i]) {
         dbg<<"use i = "<<i<<std::endl;
 
-        double sigma = sigmaP;
+        double sigma = sigma_p;
         long flag1 = 0; // Ignore flags set by CalcSigma
-        calculateSigma(
+        CalculateSigma(
             sigma,
-            im, _pos[i], _sky[i], _noise[i], gain, weightIm, 
-            trans, psfAp, xOffset, yOffset, flag1, shouldUseShapeletSigma);
-        // Ignore errors -- just don't add to meanMu
+            im, _pos[i], _sky[i], _noise[i], weight_image, 
+            trans, _params, flag1, use_shapelet_sigma);
+        // Ignore errors -- just don't add to meanmu
         if (flag1) continue;
-        meanMu += log(sigma);
+        meanmu += log(sigma);
         ++count;
     } // End omp parallel for
 
-    if (count < nStars/3) {
-        std::ostringstream msgOut;
-        msgOut<<"Too many objects were rejected. \n";
-        msgOut<<"nstars = "<<nStars<<", but only "<<
+    if (count < nstars/3) {
+        std::ostringstream msgout;
+        msgout<<"Too many objects were rejected. \n";
+        msgout<<"nstars = "<<nstars<<", but only "<<
             count<<" successful measurements.\n";
-        std::string msg = msgOut.str();
+        std::string msg = msgout.str();
         dbg<<msg<<std::endl;
         throw ProcessingException(msg);
     }
-    meanMu /= count;
-    xdbg<<"meanmu = "<<meanMu<<std::endl;
-    xdbg<<"input sigma_p = "<<sigmaP<<std::endl;
-    sigmaP = exp(meanMu);
-    dbg<<"sigma_p = "<<sigmaP<<std::endl;
-    return sigmaP;
+    meanmu /= count;
+    xdbg<<"meanmu = "<<meanmu<<std::endl;
+    xdbg<<"input sigma_p = "<<sigma_p<<std::endl;
+    sigma_p = exp(meanmu);
+    dbg<<"sigma_p = "<<sigma_p<<std::endl;
+    return sigma_p;
 }
 
 int PsfCatalog::measurePsf(
     const Image<double>& im,
-    const Image<double>* weightIm,
-    const Transformation& trans, double sigmaP, PsfLog& log)
+    const Image<double>* weight_image,
+    const Transformation& trans, double sigma_p, PsfLog& log)
 {
     // Read some needed parameters
-    int psfOrder = _params.read<int>("psf_order");
-    int maxm = _params.read("psf_maxm",psfOrder);
-    bool shouldOutputDots = _params.read("output_dots",false);
+    bool output_dots = _params.read("output_dots",false);
     double gain = _params.read("image_gain",0.);
     double psfAp = _params.read<double>("psf_aperture");
     bool psfFixCen = _params.read("psf_fix_centroid",false);
@@ -93,29 +85,29 @@ int PsfCatalog::measurePsf(
     double yOffset = _params.read("cat_y_offset",0.);
     dbg<<"psfap = "<<psfAp<<std::endl;
 
-    int nStars = size();
-    dbg<<"nstars = "<<nStars<<std::endl;
+    int nstars = size();
+    dbg<<"nstars = "<<nstars<<std::endl;
 
 #ifdef ENDAT
-    nStars = ENDAT;
+    nstars = ENDAT;
 #endif
 
-    log._nStars = nStars;
+    log._nstars = nstars;
 #ifdef STARTAT
-    log._nStars -= STARTAT;
+    log._nstars -= STARTAT;
 #endif
 #ifdef SINGLESTAR
-    log._nStars = 1;
+    log._nstars = 1;
 #endif
-    log._nGoodIn = std::count(_flags.begin(),_flags.end(),0);
-    dbg<<log._nGoodIn<<"/"<<log._nStars<<" stars with no input flags\n";
+    log._ngoodin = std::count(_flags.begin(),_flags.end(),0);
+    dbg<<log._ngoodin<<"/"<<log._nstars<<" stars with no input flags\n";
 
-    Assert(nStars<=int(_pos.size()));
-    Assert(nStars<=int(_sky.size()));
-    Assert(nStars<=int(_noise.size()));
-    Assert(nStars<=int(_psf.size()));
-    Assert(nStars<=int(_nu.size()));
-    Assert(nStars<=int(_flags.size()));
+    Assert(nstars<=int(_pos.size()));
+    Assert(nstars<=int(_sky.size()));
+    Assert(nstars<=int(_noise.size()));
+    Assert(nstars<=int(_psf.size()));
+    Assert(nstars<=int(_nu.size()));
+    Assert(nstars<=int(_flags.size()));
     // Main loop to measure psf shapelets:
 #ifdef _OPENMP
 #pragma omp parallel 
@@ -127,7 +119,7 @@ int PsfCatalog::measurePsf(
 #ifdef _OPENMP
 #pragma omp for schedule(guided)
 #endif
-            for(int i=0;i<nStars;++i) if (!_flags[i]) {
+            for(int i=0;i<nstars;++i) if (!_flags[i]) {
 #ifdef STARTAT
                 if (i < STARTAT) continue;
 #endif
@@ -136,7 +128,7 @@ int PsfCatalog::measurePsf(
                 if (i > SINGLESTAR) break;
                 XDEBUG = true;
 #endif
-                if (shouldOutputDots) {
+                if (output_dots) {
 #ifdef _OPENMP
 #pragma omp critical (output)
 #endif
@@ -148,14 +140,13 @@ int PsfCatalog::measurePsf(
                 dbg<<"pos["<<i<<"] = "<<_pos[i]<<std::endl;
 
                 dbg<<"Before MeasureSinglePSF1"<<std::endl;
-                measureSinglePsf(
+                MeasureSinglePsf(
                     // Input data:
                     _pos[i], im, _sky[i], trans, 
                     // Noise values:
-                    _noise[i], gain, weightIm,
+                    _noise[i], weight_image,
                     // Parameters:
-                    sigmaP, psfAp, psfOrder, maxm,
-                    psfFixCen, xOffset, yOffset,
+                    sigma_p, _params,
                     // Log information
                     log1,
                     // Ouput value:
@@ -188,23 +179,23 @@ int PsfCatalog::measurePsf(
     }
 #endif
 
-    dbg<<log._nsPsf<<" successful star measurements, ";
-    dbg<<nStars-log._nsPsf<<" unsuccessful\n";
-    log._nGood = std::count(_flags.begin(),_flags.end(),0);
-    dbg<<log._nGood<<" with no flags\n";
+    dbg<<log._ns_psf<<" successful star measurements, ";
+    dbg<<nstars-log._ns_psf<<" unsuccessful\n";
+    log._ngood = std::count(_flags.begin(),_flags.end(),0);
+    dbg<<log._ngood<<" with no flags\n";
     dbg<<"Breakdown of flags:\n";
     if (dbgout) PrintFlags(_flags,*dbgout);
 
-    if (shouldOutputDots) {
+    if (output_dots) {
         std::cerr
             <<std::endl
-            <<"Success rate: "<<log._nsPsf<<"/"<<log._nGoodIn
-            <<"  # with no flags: "<<log._nGood
+            <<"Success rate: "<<log._ns_psf<<"/"<<log._ngoodin
+            <<"  # with no flags: "<<log._ngood
             <<std::endl;
         std::cerr<<"Breakdown of flags:\n";
         PrintFlags(_flags,std::cerr);
     }
 
-    return log._nsPsf;
+    return log._ns_psf;
 }
 

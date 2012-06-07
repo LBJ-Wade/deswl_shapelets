@@ -29,13 +29,13 @@ class Pixel
 { 
 public :
 
-    Pixel() : _pos(0.), _flux(0.), _inverseSigma(0.) {}
+    Pixel() : _pos(0.), _flux(0.), _inverse_sigma(0.) {}
 
-    Pixel(double u, double v, double flux, double inverseSigma) :
-        _pos(u,v), _flux(flux), _inverseSigma(inverseSigma) {}
+    Pixel(double u, double v, double flux, double inverse_sigma) :
+        _pos(u,v), _flux(flux), _inverse_sigma(inverse_sigma) {}
 
-    Pixel(std::complex<double> z, double flux, double inverseSigma) :
-        _pos(z), _flux(flux), _inverseSigma(inverseSigma) {}
+    Pixel(std::complex<double> z, double flux, double inverse_sigma) :
+        _pos(z), _flux(flux), _inverse_sigma(inverse_sigma) {}
 
     ~Pixel() {}
 
@@ -43,20 +43,20 @@ public :
 
     double getFlux() const { return _flux; }
 
-    double getInverseSigma() const { return _inverseSigma; }
+    double getInverseSigma() const { return _inverse_sigma; }
 
     void setPos(const std::complex<double>& pos) { _pos = pos; }
 
     void setFlux(const double flux) { _flux = flux; }
 
-    void setInverseSigma(const double inverseSigma) 
-    { _inverseSigma = inverseSigma; }
+    void setInverseSigma(const double inverse_sigma) 
+    { _inverse_sigma = inverse_sigma; }
 
 private :
 
     std::complex<double> _pos;
     double _flux;
-    double _inverseSigma;
+    double _inverse_sigma;
 };
 
 // Most of these methods are not (intrinsically) thread-safe, 
@@ -96,7 +96,7 @@ public :
 
 private :
 
-    bool _shouldUsePool;
+    bool _use_pool;
     boost::shared_ptr<std::vector<Pixel> > _v1;
 #ifdef PIXELLIST_USE_POOL
     typedef PoolAllocator<Pixel,PIXELLIST_BLOCK> PoolAllocPixel;
@@ -107,31 +107,21 @@ private :
 
 };
 
-void getPixList(
+void GetPixList(
     const Image<double>& im, PixelList& pix,
-    const Position cen, double sky, double noise, double gain,
-    const Image<double>* weightImage, const Transformation& trans,
-    double aperture, double xOffset, double yOffset, long& flag);
+    const Position cen, double sky, double noise,
+    const Image<double>* weight_image, const Transformation& trans,
+    double aperture, const ConfigFile& params, long& flag);
 
-double getLocalSky(
+double GetLocalSky(
     const Image<double>& bkg, 
-    const Position cen, const Transformation& trans,
-    double aperture, double xOffset, double yOffset, long& flag);
+    const Position cen, const Transformation& trans, double aperture,
+    const ConfigFile& params, long& flag);
 
-void getSubPixList(
-    PixelList& pix, const PixelList& allPix,
+void GetSubPixList(
+    PixelList& pix, const PixelList& allpix,
     std::complex<double> cen_offset, std::complex<double> shear,
-    double aperture, long& flag);
-
-inline void getSubPixList(
-    PixelList& pix, const PixelList& allPix,
-    std::complex<double> cen_offset, double aperture, long& flag)
-{ getSubPixList(pix,allPix,cen_offset,0.,aperture,flag); }
-
-inline void getSubPixList(
-    PixelList& pix, const PixelList& allPix,
-    double aperture, long& flag)
-{ getSubPixList(pix,allPix,0.,0.,aperture,flag); }
-
+    double aperture, double inner_fake_ap, double outer_fake_ap,
+    const ConfigFile& params, long& flag);
 
 #endif

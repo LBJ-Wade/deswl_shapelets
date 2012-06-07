@@ -108,7 +108,7 @@ void BVec::makeImage(
 
     // Now calculate the pixel fluxes at each point.
     DMatrix A(nPix,size());
-    makePsi(A,TMV_vview(Z),_order);
+    MakePsi(A,TMV_vview(Z),_order);
 
     DVector I = A * vec();
 
@@ -121,7 +121,7 @@ void BVec::makeImage(
     }
 }
 
-void calculateZTransform(
+void CalculateZTransform(
     std::complex<double> z, int order1, int order2, DMatrix& T)
 {
     const int size1 = (order1+1)*(order1+2)/2;
@@ -192,7 +192,7 @@ void calculateZTransform(
     }
 }
 
-void augmentZTransformCols(
+void AugmentZTransformCols(
     std::complex<double> z, int order1, int order2, DMatrix& T)
 {
     const int order2x = order2+2;
@@ -253,7 +253,7 @@ void augmentZTransformCols(
     }
 }
 
-void applyZ(std::complex<double> z, BVec& b)
+void ApplyZ(std::complex<double> z, BVec& b)
 {
     if (z != 0.0) {
 #ifdef USE_TMV
@@ -262,12 +262,12 @@ void applyZ(std::complex<double> z, BVec& b)
         DMatrix T(int(b.size()),int(b.size()));
         T.setZero();
 #endif
-        calculateZTransform(z/b.getSigma(),b.getOrder(),T);
+        CalculateZTransform(z/b.getSigma(),b.getOrder(),T);
         b.vec() = T * b.vec();
     }
 }
 
-void calculateMuTransform(double mu, int order1, int order2, DMatrix& D)
+void CalculateMuTransform(double mu, int order1, int order2, DMatrix& D)
 {
     const int size1 = (order1+1)*(order1+2)/2;
     const int size2 = (order2+1)*(order2+2)/2;
@@ -356,7 +356,7 @@ void calculateMuTransform(double mu, int order1, int order2, DMatrix& D)
     }
 }
 
-void augmentMuTransformCols(double mu, int order1, int order2, DMatrix& D)
+void AugmentMuTransformCols(double mu, int order1, int order2, DMatrix& D)
 {
     const int order2x = order2+2;
     Assert(int(D.TMV_colsize()) >= (order1+1)*(order1+2)/2);
@@ -405,7 +405,7 @@ void augmentMuTransformCols(double mu, int order1, int order2, DMatrix& D)
     }
 }
 
-void augmentMuTransformRows(double mu, int order1, int order2, DMatrix& D)
+void AugmentMuTransformRows(double mu, int order1, int order2, DMatrix& D)
 {
     const int order1x = order1+2;
     Assert(int(D.TMV_rowsize()) == (order1x+1)*(order1x+2)/2);
@@ -447,16 +447,16 @@ void augmentMuTransformRows(double mu, int order1, int order2, DMatrix& D)
     }
 }
 
-void applyMu(double mu, BVec& b)
+void ApplyMu(double mu, BVec& b)
 {
     if (mu != 0.0) {
         DMatrix D(int(b.size()),int(b.size()));
-        calculateMuTransform(mu,b.getOrder(),D);
+        CalculateMuTransform(mu,b.getOrder(),D);
         b.vec() = D * b.vec();
     }
 }
 
-void calculateThetaTransform(
+void CalculateThetaTransform(
     double theta, int order1, int order2, DBandMatrix& R)
 {
     const int size1 = (order1+1)*(order1+2)/2;
@@ -492,7 +492,7 @@ void calculateThetaTransform(
     }
 }
 
-void applyTheta(double theta, BVec& b)
+void ApplyTheta(double theta, BVec& b)
 {
     if (theta != 0.0) {
 #ifdef USE_TMV
@@ -500,12 +500,12 @@ void applyTheta(double theta, BVec& b)
 #else
         DBandMatrix R(int(b.size()),int(b.size()));
 #endif
-        calculateThetaTransform(theta,b.getOrder(),R);
+        CalculateThetaTransform(theta,b.getOrder(),R);
         b.vec() = R * b.vec();
     }
 }
 
-void calculateGTransform(
+void CalculateGTransform(
     std::complex<double> g, int order1, int order2, DMatrix& S)
 {
     const int size1 = (order1+1)*(order1+2)/2;
@@ -520,7 +520,7 @@ void calculateGTransform(
     // tanh(|eta|/2) = |g|
     // sech(|eta|/2) = sqrt(1-|g|^2)
     //
-    // Note: Like with the matrix in applyMu, this one is also fairly
+    // Note: Like with the matrix in ApplyMu, this one is also fairly
     // sparse.  Could get a speedup by expoiting that, but currently don't.
     // I'll wait until the speedup is found to be necessary.
 
@@ -614,7 +614,7 @@ void calculateGTransform(
     }
 }
 
-void augmentGTransformCols(
+void AugmentGTransformCols(
     std::complex<double> g, int order1, int order2, DMatrix& S)
 {
     const int order2x = order2+2;
@@ -702,19 +702,19 @@ void augmentGTransformCols(
     }
 }
 
-void applyG(std::complex<double> g, BVec& b)
+void ApplyG(std::complex<double> g, BVec& b)
 {
     if (g != 0.0) {
         DMatrix S(int(b.size()),int(b.size()));
-        calculateGTransform(g,b.getOrder(),S);
+        CalculateGTransform(g,b.getOrder(),S);
         b.vec() = S * b.vec();
     }
 }
 
-void calculatePsfConvolve(
+void CalculatePsfConvolve(
     const BVec& bpsf, int order1, int order2, double sigma, DMatrix& C)
 {
-    //xdbg<<"Start calculatePsfConvolve\n";
+    //xdbg<<"Start CalculatePsfConvolve\n";
     //xdbg<<"bpsf = "<<bpsf<<std::endl;
     //xdbg<<"order = "<<order<<std::endl;
     //xdbg<<"sigma = "<<sigma<<std::endl;
@@ -931,10 +931,10 @@ void calculatePsfConvolve(
     C /= sqrtpi;
 }
 
-void applyPsf(const BVec& bpsf, BVec& b)
+void ApplyPsf(const BVec& bpsf, BVec& b)
 {
     DMatrix C(int(b.size()),int(b.size()));
-    calculatePsfConvolve(bpsf,b.getOrder(),b.getSigma(),C);
+    CalculatePsfConvolve(bpsf,b.getOrder(),b.getSigma(),C);
     b.vec() = C * b.vec();
 }
 

@@ -3,14 +3,19 @@
 #include "Pixel.h"
 #include "Params.h"
 
-void getPixList(
+void GetPixList(
     const Image<double>& im, PixelList& pix,
-    const Position cen, double sky, double noise, double gain,
-    const Image<double>* weightImage, const Transformation& trans,
-    double aperture, double xOffset, double yOffset, long& flag)
+    const Position cen, double sky, double noise,
+    const Image<double>* weight_image, const Transformation& trans,
+    double aperture, const ConfigFile& params, long& flag)
 {
+    double gain = params.read("image_gain",0.);
+    double x_offset = params.read("cat_x_offset",0.);
+    double yOffset = params.read("cat_y_offset",0.);
+    bool ignore_edges = params.read("ignore_edges",false);
+
     xdbg<<"Start GetPixList\n";
-    if (weightImage) {
+    if (weight_image) {
         xdbg<<"Using weight image for pixel noise.\n";
     } else {
         xdbg<<"noise = "<<noise<<std::endl;
@@ -24,38 +29,38 @@ void getPixList(
     // ( v )     ( y )
     xdbg<<"D = "<<D<<std::endl;
     double det = std::abs(D.TMV_det());
-    double pixScale = sqrt(det); // arsec/pixel
-    xdbg<<"pixscale = "<<pixScale<<std::endl;
+    double pixscale = sqrt(det); // arsec/pixel
+    xdbg<<"pixscale = "<<pixscale<<std::endl;
 
-    // xAp,yAp are the maximum deviation from the center in x,y
+    // xap,yap are the maximum deviation from the center in x,y
     // such that u'^2+v'^2 = aperture^2
-    double xAp = aperture * sqrt(D(1,0)*D(1,0) + D(1,1)*D(1,1))/det;
-    double yAp = aperture * sqrt(D(0,0)*D(0,0) + D(0,1)*D(0,1))/det;
+    double xap = aperture * sqrt(D(1,0)*D(1,0) + D(1,1)*D(1,1))/det;
+    double yap = aperture * sqrt(D(0,0)*D(0,0) + D(0,1)*D(0,1))/det;
     xdbg<<"aperture = "<<aperture<<std::endl;
-    xdbg<<"xap = "<<xAp<<", yap = "<<yAp<<std::endl;
+    xdbg<<"xap = "<<xap<<", yap = "<<yap<<std::endl;
 
-    int xMin = im.getXMin();
-    int yMin = im.getYMin();
-    int xMax = im.getXMax();
-    int yMax = im.getYMax();
+    int xmin = im.getXMin();
+    int ymin = im.getYMin();
+    int xmax = im.getXMax();
+    int ymax = im.getYMax();
 
-    double xCen = cen.getX();
-    double yCen = cen.getY();
-    xdbg<<"cen = "<<xCen<<"  "<<yCen<<std::endl;
-    xdbg<<"xmin, ymin = "<<xMin<<"  "<<yMin<<std::endl;
-    // xCen,yCen are given on a 1-based grid.
+    double xcen = cen.getX();
+    double ycen = cen.getY();
+    xdbg<<"cen = "<<xcen<<"  "<<ycen<<std::endl;
+    xdbg<<"xmin, ymin = "<<xmin<<"  "<<ymin<<std::endl;
+    // xcen,ycen are given on a 1-based grid.
     // ie. where the lower left corner pixel is (1,1), rather than (0,0).
-    // The easiest way to do this is to just decrease xCen,yCen by 1 each:
-    //--xCen; --yCen;
-    // This is now handled by parameters xOffset and yOffset, which are
+    // The easiest way to do this is to just decrease xcen,ycen by 1 each:
+    //--xcen; --ycen;
+    // This is now handled by parameters x_offset and yOffset, which are
     // set from the parameters: cat_x_offset and cat_y_offset
-    xCen -= xOffset;
-    yCen -= yOffset;
+    xcen -= x_offset;
+    ycen -= yOffset;
 
-    if (xCen < xMin || xCen > xMax || yCen < yMin || yCen > yMax) {
-        dbg<<"Position "<<xCen<<" , "<<yCen<<
+    if (xcen < xmin || xcen > xmax || ycen < ymin || ycen > ymax) {
+        dbg<<"Position "<<xcen<<" , "<<ycen<<
             " does not fall within bounds of image:\n";
-        dbg<<xMin<<"  "<<xMax<<"  "<<yMin<<"  "<<yMax<<std::endl;
+        dbg<<xmin<<"  "<<xmax<<"  "<<ymin<<"  "<<ymax<<std::endl;
         dbg<<"returning with no pixels\n";
         pix.resize(0);
         flag |= EDGE;
@@ -64,10 +69,10 @@ void getPixList(
     }
 
 
-    int i1 = int(floor(xCen-xAp-xMin));
-    int i2 = int(ceil(xCen+xAp-xMin));
-    int j1 = int(floor(yCen-yAp-yMin));
-    int j2 = int(ceil(yCen+yAp-yMin));
+    int i1 = int(floor(xcen-xap-xmin));
+    int i2 = int(ceil(xcen+xap-xmin));
+    int j1 = int(floor(ycen-yap-ymin));
+    int j2 = int(ceil(ycen+yap-ymin));
     xdbg<<"i1,i2,j1,j2 = "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
 
     if (i1 < 0) { i1 = 0; flag |= EDGE; }
@@ -87,46 +92,46 @@ void getPixList(
     xdbg<<"ny = "<<j2-j1+1<<std::endl;
     Assert(i2-i1+1 >= 0);
     Assert(j2-j1+1 >= 0);
-    std::vector<std::vector<bool> > shouldUsePix(
+    std::vector<std::vector<bool> > use(
         i2-i1+1,std::vector<bool>(j2-j1+1,false));
-    int nPix = 0;
+    int npix = 0;
 
-    double chipX = xMin+i1-xCen;
+    double chipx = xmin+i1-xcen;
     double peak = 0.;
-    for(int i=i1;i<=i2;++i,chipX+=1.) {
-        double chipY = yMin+j1-yCen;
-        double u = D(0,0)*chipX+D(0,1)*chipY;
-        double v = D(1,0)*chipX+D(1,1)*chipY;
+    for(int i=i1;i<=i2;++i,chipx+=1.) {
+        double chipy = ymin+j1-ycen;
+        double u = D(0,0)*chipx+D(0,1)*chipy;
+        double v = D(1,0)*chipx+D(1,1)*chipy;
         for(int j=j1;j<=j2;++j,u+=D(0,1),v+=D(1,1)) {
             double rsq = u*u+v*v;
             if (rsq <= apsq) {
-                shouldUsePix[i-i1][j-j1] = true;
-                ++nPix;
+                use[i-i1][j-j1] = true;
+                ++npix;
                 if (im(i,j) > peak) peak = im(i,j);
             }
         }
     }
 
-    xdbg<<"npix = "<<nPix<<std::endl;
-    pix.resize(nPix);
+    xdbg<<"npix = "<<npix<<std::endl;
+    pix.resize(npix);
 
-    xdbg<<"pixlist size = "<<nPix<<" = "<<nPix*sizeof(Pixel)<<
-        " bytes = "<<nPix*sizeof(Pixel)/1024.<<" KB\n";
+    xdbg<<"pixlist size = "<<npix<<" = "<<npix*sizeof(Pixel)<<
+        " bytes = "<<npix*sizeof(Pixel)/1024.<<" KB\n";
 
     int k=0;
-    chipX = xMin+i1-xCen;
+    chipx = xmin+i1-xcen;
     xdbg<<"Bright pixels are:\n";
     peak -= sky;
-    for(int i=i1;i<=i2;++i,chipX+=1.) {
-        double chipY = yMin+j1-yCen;
-        double u = D(0,0)*chipX+D(0,1)*chipY;
-        double v = D(1,0)*chipX+D(1,1)*chipY;
+    for(int i=i1;i<=i2;++i,chipx+=1.) {
+        double chipy = ymin+j1-ycen;
+        double u = D(0,0)*chipx+D(0,1)*chipy;
+        double v = D(1,0)*chipx+D(1,1)*chipy;
         for(int j=j1;j<=j2;++j,u+=D(0,1),v+=D(1,1)) {
-            if (shouldUsePix[i-i1][j-j1]) {
+            if (use[i-i1][j-j1]) {
                 double flux = im(i,j)-sky;
                 double inverseVariance;
-                if (weightImage) {
-                    inverseVariance = (*weightImage)(i,j);
+                if (weight_image) {
+                    inverseVariance = (*weight_image)(i,j);
                 } else {
                     double var = noise;
                     if (gain != 0.) var += im(i,j)/gain;
@@ -148,17 +153,20 @@ void getPixList(
     // Not necessarily == because we skip pixels with 0.0 variance
     pix.resize(k);
     Assert(k == int(pix.size()));
-    nPix = pix.size(); // may have changed.
-    xdbg<<"npix => "<<nPix<<std::endl;
-    if (nPix < 10) flag |= LT10PIX;
+    npix = pix.size(); // may have changed.
+    xdbg<<"npix => "<<npix<<std::endl;
+    if (npix < 10) flag |= LT10PIX;
 }
 
-double getLocalSky(
+double GetLocalSky(
     const Image<double>& bkg, 
     const Position cen, const Transformation& trans, double aperture,
-    double xOffset, double yOffset, long& flag)
+    const ConfigFile& params, long& flag)
 {
-    // This function is very similar in structure to the above getPixList
+    double x_offset = params.read("cat_x_offset",0.);
+    double yOffset = params.read("cat_y_offset",0.);
+
+    // This function is very similar in structure to the above GetPixList
     // function.  It does the same thing with the distortion and the 
     // aperture and such.  
     // The return value is the mean sky value within the aperture.
@@ -169,32 +177,32 @@ double getLocalSky(
     trans.getDistortion(cen,D);
 
     double det = std::abs(D.TMV_det());
-    double pixScale = sqrt(det); // arcsec/pixel
-    xdbg<<"pixscale = "<<pixScale<<std::endl;
+    double pixscale = sqrt(det); // arcsec/pixel
+    xdbg<<"pixscale = "<<pixscale<<std::endl;
 
-    // xAp,yAp are the maximum deviation from the center in x,y
+    // xap,yap are the maximum deviation from the center in x,y
     // such that u^2+v^2 = aperture^2
-    double xAp = aperture / det * 
+    double xap = aperture / det * 
         sqrt(D(0,0)*D(0,0) + D(0,1)*D(0,1));
-    double yAp = aperture / det * 
+    double yap = aperture / det * 
         sqrt(D(1,0)*D(1,0) + D(1,1)*D(1,1));
     xdbg<<"aperture = "<<aperture<<std::endl;
-    xdbg<<"xap = "<<xAp<<", yap = "<<yAp<<std::endl;
+    xdbg<<"xap = "<<xap<<", yap = "<<yap<<std::endl;
 
-    int xMin = bkg.getXMin();
-    int yMin = bkg.getYMin();
+    int xmin = bkg.getXMin();
+    int ymin = bkg.getYMin();
 
-    double xCen = cen.getX();
-    double yCen = cen.getY();
-    xdbg<<"cen = "<<xCen<<"  "<<yCen<<std::endl;
-    xdbg<<"xmin, ymin = "<<xMin<<"  "<<yMin<<std::endl;
-    xCen -= xOffset;
-    yCen -= yOffset;
+    double xcen = cen.getX();
+    double ycen = cen.getY();
+    xdbg<<"cen = "<<xcen<<"  "<<ycen<<std::endl;
+    xdbg<<"xmin, ymin = "<<xmin<<"  "<<ymin<<std::endl;
+    xcen -= x_offset;
+    ycen -= yOffset;
 
-    int i1 = int(floor(xCen-xAp-xMin));
-    int i2 = int(ceil(xCen+xAp-xMin));
-    int j1 = int(floor(yCen-yAp-yMin));
-    int j2 = int(ceil(yCen+yAp-yMin));
+    int i1 = int(floor(xcen-xap-xmin));
+    int i2 = int(ceil(xcen+xap-xmin));
+    int j1 = int(floor(ycen-yap-ymin));
+    int j2 = int(ceil(ycen+yap-ymin));
     xdbg<<"i1,i2,j1,j2 = "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
     if (i1 < 0) { i1 = 0; }
     if (i2 > int(bkg.getMaxI())) { i2 = bkg.getMaxI(); }
@@ -209,61 +217,70 @@ double getLocalSky(
     Assert(i2-i1+1 >= 0);
     Assert(j2-j1+1 >= 0);
 
-    double meanSky = 0.;
-    int nPix = 0;
+    double mean_sky = 0.;
+    int npix = 0;
 
-    double chipX = xMin+i1-xCen;
-    for(int i=i1;i<=i2;++i,chipX+=1.) {
-        double chipY = yMin+j1-yCen;
-        double u = D(0,0)*chipX+D(0,1)*chipY;
-        double v = D(1,0)*chipX+D(1,1)*chipY;
+    double chipx = xmin+i1-xcen;
+    for(int i=i1;i<=i2;++i,chipx+=1.) {
+        double chipy = ymin+j1-ycen;
+        double u = D(0,0)*chipx+D(0,1)*chipy;
+        double v = D(1,0)*chipx+D(1,1)*chipy;
         for(int j=j1;j<=j2;++j,u+=D(0,1),v+=D(1,1)) {
             // u,v are in arcsec
             double rsq = u*u + v*v;
             if (rsq <= apsq) {
-                meanSky += bkg(i,j);
-                ++nPix;
+                mean_sky += bkg(i,j);
+                ++npix;
             }
         }
     }
 
-    xdbg<<"nPix = "<<nPix<<std::endl;
-    if (nPix == 0) { flag |= BKG_NOPIX; return 0.; }
+    xdbg<<"npix = "<<npix<<std::endl;
+    if (npix == 0) { flag |= BKG_NOPIX; return 0.; }
 
-    meanSky /= nPix;
-    xdbg<<"meansky = "<<meanSky<<std::endl;
-    return meanSky;
+    mean_sky /= npix;
+    xdbg<<"meansky = "<<mean_sky<<std::endl;
+    return mean_sky;
 }
 
-void getSubPixList(
-    PixelList& pix, const PixelList& allPix,
+void GetSubPixList(
+    PixelList& pix, const PixelList& allpix,
     std::complex<double> cen_offset, std::complex<double> shear,
-    double aperture, long& flag)
+    double aperture, double inner_fake_ap, double outer_fake_ap,
+    const ConfigFile& params, long& flag)
 {
-    // Select a subset of allPix that are within the given aperture
-    const int nTot = allPix.size();
+    bool use_fake = outer_fake_ap > aperture;
+
+    // Select a subset of allpix that are within the given aperture
+    const int ntot = allpix.size();
     xdbg<<"Start GetSubPixList\n";
-    xdbg<<"allPix has "<<nTot<<" objects\n";
+    xdbg<<"allpix has "<<ntot<<" objects\n";
     xdbg<<"new aperture = "<<aperture<<std::endl;
     xdbg<<"cen_offset = "<<cen_offset<<std::endl;
     xdbg<<"shear = "<<shear<<std::endl;
+    xdbg<<"use_fake = "<<use_fake<<std::endl;
+    xdbg<<"inner_fake_ap = "<<inner_fake_ap<<std::endl;
+    xdbg<<"outer_fake_ap = "<<outer_fake_ap<<std::endl;
 
     double normg = norm(shear);
     double g1 = real(shear);
     double g2 = imag(shear);
     double apsq = aperture*aperture;
+    double inner_fake_apsq = inner_fake_ap*inner_fake_ap;
+    double outer_fake_apsq = outer_fake_ap*outer_fake_ap;
 
     // Do this next loop in two passes.  First figure out which 
     // pixels we want to use.  Then we can resize pix to the full size
     // we will need, and go back through and enter the pixels.
     // This saves us a lot of resizing calls in vector, which are
     // both slow and can fragment the memory.
-    std::vector<bool> shouldUsePix(nTot,false);
-    int nPix = 0;
+    std::vector<bool> use(ntot,false);
+    std::vector<bool> fake(ntot,false);
+    int npix = 0;
 
     double peak = 0.;
-    for(int i=0;i<nTot;++i) {
-        std::complex<double> z = allPix[i].getPos() - cen_offset;
+    for(int i=0;i<ntot;++i) {
+        std::complex<double> z = allpix[i].getPos() - cen_offset;
         double u = real(z);
         double v = imag(z);
         // (1 + |g|^2) (u^2+v^2) - 2g1 (u^2-v^2) - 2g2 (2uv)
@@ -274,30 +291,45 @@ void getSubPixList(
         rsq /= (1.-normg);
         if (rsq <= apsq) {
             //xdbg<<"u,v = "<<u<<','<<v<<"  rsq = "<<rsq<<std::endl;
-            shouldUsePix[i] = true;
-            ++nPix;
-            if (allPix[i].getFlux() > peak) peak = allPix[i].getFlux();
+            use[i] = true;
+            ++npix;
+            if (allpix[i].getFlux() > peak) peak = allpix[i].getFlux();
+        } else if (use_fake && 
+                   rsq >= inner_fake_apsq &&
+                   rsq <= outer_fake_apsq) {
+            fake[i] = true;
+            ++npix;
         }
     }
 
-    xdbg<<"npix = "<<nPix<<std::endl;
-    pix.resize(nPix);
+    xdbg<<"npix = "<<npix<<std::endl;
+    xdbg<<"regular pixels = "<<std::count(use.begin(),use.end(),true)<<std::endl;
+    xdbg<<"fake pixels = "<<std::count(fake.begin(),fake.end(),true)<<std::endl;
+    pix.resize(npix);
 
-    xdbg<<"pixlist size = "<<nPix<<" = "<<nPix*sizeof(Pixel)<<
-        " bytes = "<<nPix*sizeof(Pixel)/1024.<<" KB\n";
+    xdbg<<"pixlist size = "<<npix<<" = "<<npix*sizeof(Pixel)<<
+        " bytes = "<<npix*sizeof(Pixel)/1024.<<" KB\n";
 
     int k=0;
     xdbg<<"Bright pixels are:\n";
-    for(int i=0;i<nTot;++i) if(shouldUsePix[i]) {
-        Pixel p = allPix[i];
-        p.setPos(p.getPos() - cen_offset);
-        pix[k++] = p;
-        if (p.getFlux() > peak / 10.) {
-            xdbg<<p.getPos()<<"  "<<p.getFlux()<<std::endl;
+    for(int i=0;i<ntot;++i) {
+        if(use[i]) {
+            Pixel p = allpix[i];
+            p.setPos(p.getPos() - cen_offset);
+            pix[k++] = p;
+            if (p.getFlux() > peak / 10.) {
+                xdbg<<p.getPos()<<"  "<<p.getFlux()<<std::endl;
+            }
+        } else if (fake[i]) {
+            Pixel p = allpix[i];
+            p.setPos(p.getPos() - cen_offset);
+            p.setFlux(0.);
+            // Keep same noise for fake pixels
+            pix[k++] = p;
         }
     }
     Assert(k == int(pix.size()));
 
-    if (nPix < 10) flag |= LT10PIX;
+    if (npix < 10) flag |= LT10PIX;
 }
 

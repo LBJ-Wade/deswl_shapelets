@@ -105,9 +105,9 @@ struct ShearCatalogTree::Node
 
 ShearCatalogTree::ShearCatalogTree(const ShearCatalog& cat) : _cat(cat)
 {
-    const int nGal = _cat.size();
-    std::vector<PosWithIndex> data(nGal);
-    for(int i=0;i<nGal;++i) { 
+    const int ngal = _cat.size();
+    std::vector<PosWithIndex> data(ngal);
+    for(int i=0;i<ngal;++i) { 
         data[i].pos = _cat.getPos(i);
         data[i].index = i;
     }

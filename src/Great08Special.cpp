@@ -13,30 +13,30 @@ int main(int argc, char **argv) try
     const double PI = 3.141592653589793;
 
     ConfigFile params;
-    if (basicSetup(argc,argv,params,"g08special")) return EXIT_FAILURE;
+    if (BasicSetup(argc,argv,params,"g08special")) return EXIT_FAILURE;
 
     // Setup Log
-    std::string logFile = ""; // Default is to stdout
+    std::string log_file = ""; // Default is to stdout
     if (params.keyExists("log_file") || params.keyExists("log_ext")) 
-        logFile = makeName(params,"log",false,false);
-    std::string shearFile = makeName(params,"shear",false,false);
-    std::auto_ptr<ShearLog> log(new ShearLog(params,logFile,shearFile)); 
+        log_file = MakeName(params,"log",false,false);
+    std::string shear_file = MakeName(params,"shear",false,false);
+    std::auto_ptr<ShearLog> log(new ShearLog(params,log_file,shear_file)); 
 
     try {
-        bool isTiming = params.read("timing",false);
+        bool timing = params.read("timing",false);
         timeval tp;
         double t1=0.,t2=0.;
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t1 = tp.tv_sec + tp.tv_usec/1.e6;
         }
 
         // Load image:
-        std::auto_ptr<Image<double> > weightIm;
-        Image<double> im(params,weightIm);
+        std::auto_ptr<Image<double> > weight_image;
+        Image<double> im(params,weight_image);
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
             std::cout<<"Time: Open imgae = "<<t2-t1<<std::endl;
@@ -46,7 +46,7 @@ int main(int argc, char **argv) try
         // Read distortion function
         Transformation trans(params);
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
             std::cout<<"Time: Read Transformation = "<<t2-t1<<std::endl;
@@ -54,10 +54,10 @@ int main(int argc, char **argv) try
         }
 
         // Read input catalog
-        InputCatalog inCat(params,&im);
-        inCat.read();
+        InputCatalog incat(params,&im);
+        incat.read();
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
             std::cout<<"Time: Read InputCatalog = "<<t2-t1<<std::endl;
@@ -67,10 +67,10 @@ int main(int argc, char **argv) try
         bool nostars = params.read("cat_no_stars",false);
         if (!nostars) {
             // Read star catalog info
-            StarCatalog starCat(params);
-            starCat.read();
+            StarCatalog starcat(params);
+            starcat.read();
 
-            if (isTiming) {
+            if (timing) {
                 gettimeofday(&tp,0);
                 t2 = tp.tv_sec + tp.tv_usec/1.e6;
                 std::cout<<"Time: Read StarCatalog = "<<t2-t1<<std::endl;
@@ -79,9 +79,9 @@ int main(int argc, char **argv) try
 
             // Flag known stars as too small to bother trying to measure 
             // the shear.
-            inCat.flagStars(starCat);
+            incat.flagStars(starcat);
 
-            if (isTiming) {
+            if (timing) {
                 gettimeofday(&tp,0);
                 t2 = tp.tv_sec + tp.tv_usec/1.e6;
                 std::cout<<"Time: Flag stars = "<<t2-t1<<std::endl;
@@ -90,10 +90,10 @@ int main(int argc, char **argv) try
         }
 
         // Read the fitted psf file
-        FittedPsf fitPsf(params);
-        fitPsf.read();
+        FittedPsf fitpsf(params);
+        fitpsf.read();
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
             std::cout<<"Time: Read FittedPSF = "<<t2-t1<<std::endl;
@@ -102,9 +102,9 @@ int main(int argc, char **argv) try
 
         // Create shear catalog
         params["shear_native_only"] = true;
-        ShearCatalog shearCat(inCat,trans,fitPsf,params);
+        ShearCatalog shearcat(incat,trans,fitpsf,params);
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
             std::cout<<"Time: Create ShearCatalog = "<<t2-t1<<std::endl;
@@ -112,15 +112,15 @@ int main(int argc, char **argv) try
         }
 
         // Measure shears and shapelet vectors
-        int nShear = shearCat.measureShears(im,weightIm.get(),*log);
+        int nShear = shearcat.measureShears(im,weight_image.get(),*log);
         dbg<<"nShear = "<<nShear<<std::endl;
 
-        int nGal = shearCat.size();
+        int ngal = shearcat.size();
         double maxg = 0.;
         std::vector<double> absgamma;
-        absgamma.reserve(nGal);
-        for(int i=0; i<nGal; ++i) if (shearCat.getFlags(i) == 0) { 
-            double absg = std::abs(shearCat.getShear(i));
+        absgamma.reserve(ngal);
+        for(int i=0; i<ngal; ++i) if (shearcat.getFlags(i) == 0) { 
+            double absg = std::abs(shearcat.getShear(i));
             if (absg > maxg) maxg = absg;
             absgamma.push_back(absg);
         }
@@ -148,9 +148,9 @@ int main(int argc, char **argv) try
         double g2 = absgamma[int(absgamma.size()*0.5)];
         double g3 = absgamma[int(absgamma.size()*0.75)];
         std::vector<std::vector<long> > idLists(48);
-        for(int i=0; i<nGal; ++i) if (shearCat.getFlags(i) == 0) {
-            double absg = std::abs(shearCat.getShear(i));
-            double argg = std::arg(shearCat.getShear(i)) * 180./PI;
+        for(int i=0; i<ngal; ++i) if (shearcat.getFlags(i) == 0) {
+            double absg = std::abs(shearcat.getShear(i));
+            double argg = std::arg(shearcat.getShear(i)) * 180./PI;
             int k1 = 
                 absg < g1 ? 0 : 
                 absg < g2 ? 1 :
@@ -180,18 +180,18 @@ int main(int argc, char **argv) try
             std::cout<<"idLists["<<k<<"].size = "<<idLists[k].size()<<std::endl;
         }
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
             std::cout<<"Time: Measure Shears = "<<t2-t1<<std::endl;
-            std::cout<<"Rate: "<<(t2-t1)/shearCat.size()<<" s / gal\n";
+            std::cout<<"Rate: "<<(t2-t1)/shearcat.size()<<" s / gal\n";
             t1 = t2;
         }
 
         // Write results to file
-        //shearCat.write();
+        //shearcat.write();
 
-        if (isTiming) {
+        if (timing) {
             gettimeofday(&tp,0);
             t2 = tp.tv_sec + tp.tv_usec/1.e6;
             std::cout<<"Time: Write ShearCatalog = "<<t2-t1<<std::endl;

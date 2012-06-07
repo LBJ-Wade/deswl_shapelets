@@ -15,48 +15,47 @@ Image<T>::~Image()
 {}
 
 template <typename T>
-Image<T>::Image(
-    const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm)
+Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_image)
 {
-    _fileName = makeName(params,"image",true,true);
-    _hdu = getHdu(params,"image",_fileName,1);
+    _filename = MakeName(params,"image",true,true);
+    _hdu = GetHdu(params,"image",_filename,1);
     readFits();
-    xdbg<<"Opened image "<<_fileName<<" at hdu "<<_hdu<<std::endl;
+    xdbg<<"Opened image "<<_filename<<" at hdu "<<_hdu<<std::endl;
 
     // Load weight image (if necessary)
     if (params["noise_method"] == "WEIGHT_IMAGE") {
-        std::string weightName = makeName(params,"weight",true,true);
-        int weightHdu = getHdu(params,"weight",weightName,1);
+        std::string weightName = MakeName(params,"weight",true,true);
+        int weight_hdu = GetHdu(params,"weight",weightName,1);
         try {
-            weightIm.reset(new Image<T>(weightName,weightHdu));
+            weight_image.reset(new Image<T>(weightName,weight_hdu));
         } catch (ReadException& e) {
             xdbg<<"Caught ReadException: \n"<<e.what()<<std::endl;
             throw ReadException(
-                "Error reading weight image for " + _fileName + "\n" +
+                "Error reading weight image for " + _filename + "\n" +
                 e.what());
         }
         dbg<<"Opened weight image.\n";
 
         // Make sure any bad pixels are marked with 0 variance.
         if (params.keyExists("badpix_file") || params.keyExists("badpix_ext")) {
-            std::string badpixName = makeName(params,"badpix",true,true);
-            int badpixHdu = getHdu(params,"badpix",badpixName,1);
+            std::string badpixName = MakeName(params,"badpix",true,true);
+            int badpix_hdu = GetHdu(params,"badpix",badpixName,1);
             dbg<<"badpix name = "<<badpixName<<std::endl;
-            dbg<<"hdu = "<<badpixHdu<<std::endl;
+            dbg<<"hdu = "<<badpix_hdu<<std::endl;
             try {
-                weightIm.reset(new Image<T>(weightName,weightHdu));
-                Image<double> badpixIm(badpixName,badpixHdu);
+                weight_image.reset(new Image<T>(weightName,weight_hdu));
+                Image<double> badpixIm(badpixName,badpix_hdu);
                 dbg<<"Opened badpix image.\n";
 
-                for(int i=0;i<=weightIm->getMaxI();++i) {
-                    for(int j=0;j<=weightIm->getMaxJ();++j) {
-                        if (badpixIm(i,j) > 0.0) (*weightIm)(i,j) = 0.0;
+                for(int i=0;i<=weight_image->getMaxI();++i) {
+                    for(int j=0;j<=weight_image->getMaxJ();++j) {
+                        if (badpixIm(i,j) > 0.0) (*weight_image)(i,j) = 0.0;
                     }
                 }
             } catch (ReadException& e) {
                 xdbg<<"Caught ReadException: \n"<<e.what()<<std::endl;
                 throw ReadException(
-                    "Error reading badpix image for " + _fileName + "\n" +
+                    "Error reading badpix image for " + _filename + "\n" +
                     e.what());
             }
         }
@@ -67,25 +66,25 @@ Image<T>::Image(
 template <typename T>
 Image<T>::Image(const ConfigFile& params)
 {
-    _fileName = makeName(params,"image",true,true);
-    _hdu = getHdu(params,"image",_fileName,1);
+    _filename = MakeName(params,"image",true,true);
+    _hdu = GetHdu(params,"image",_filename,1);
     readFits();
-    xdbg<<"Opened image "<<_fileName<<" at hdu "<<_hdu<<std::endl;
+    xdbg<<"Opened image "<<_filename<<" at hdu "<<_hdu<<std::endl;
     _loaded=true;
 }
 
 template <typename T> 
-Image<T>::Image(std::string fileName, int hdu) :
-    _fileName(fileName), _hdu(hdu)
+Image<T>::Image(std::string filename, int hdu) :
+    _filename(filename), _hdu(hdu)
 {
     readFits();
     _loaded=true;
 }
 
 template <typename T> 
-void Image<T>::load(std::string fileName, int hdu) 
+void Image<T>::load(std::string filename, int hdu) 
 {
-    _fileName = fileName;
+    _filename = filename;
     _hdu = hdu;
     readFits();
     _loaded=true;
@@ -115,11 +114,11 @@ void Image<T>::readFits()
     std::stringstream err_msg;
 
     xdbg<<"Start Image::readFits"<<std::endl;
-    xdbg<<"filename = "<<_fileName<<std::endl;
+    xdbg<<"filename = "<<_filename<<std::endl;
     xdbg<<"hdu = "<<_hdu<<std::endl;
 
-    if (!doesFileExist(_fileName)) {
-        throw FileNotFoundException(_fileName);
+    if (!DoesFileExist(_filename)) {
+        throw FileNotFoundException(_filename);
     }
 
 #if 0
@@ -131,7 +130,7 @@ void Image<T>::readFits()
     // me figure out the right way to do this.
     // But for now, stick with cfitsio commands.
     try {
-        CCfits::FITS fits(_fileName, CCfits::Read);
+        CCfits::FITS fits(_filename, CCfits::Read);
         xdbg<<"Made fits object\n";
         if (XDEBUG) {
             typedef std::multimap<std::string, CCfits::ExtHDU*> extmap_type;
@@ -153,8 +152,8 @@ void Image<T>::readFits()
                 throw std::runtime_error("Number of axes != 2");
             image.read(data);
             xdbg<<"read data into valarray\n";
-            _xMax = image.axis(0);
-            _yMax = image.axis(1);
+            _xmax = image.axis(0);
+            _ymax = image.axis(1);
         } else {
             fits.read(_hdu-1);
             xdbg<<"read extension"<<std::endl;
@@ -168,16 +167,16 @@ void Image<T>::readFits()
                 throw std::runtime_error("Number of axes != 2");
             image.read(data);
             xdbg<<"read data into valarray\n";
-            _xMax = image.axis(0);
-            _yMax = image.axis(1);
+            _xmax = image.axis(0);
+            _ymax = image.axis(1);
         }
-        _xMin = 0;
-        _yMin = 0;
-        xdbg<<"size = "<<_xMax<<" , "<<_yMax<<std::endl;
-        _source.reset(new TMatrix(T)(_xMax,_yMax));
+        _xmin = 0;
+        _ymin = 0;
+        xdbg<<"size = "<<_xmax<<" , "<<_ymax<<std::endl;
+        _source.reset(new TMatrix(T)(_xmax,_ymax));
         xdbg<<"done make matrix of image"<<std::endl;
-        xdbg<<"data.size = "<<data.size()<<" =? "<<_xMax*_yMax<<std::endl;
-        Assert(int(data.size()) == _xMax*_yMax);
+        xdbg<<"data.size = "<<data.size()<<" =? "<<_xmax*_ymax<<std::endl;
+        Assert(int(data.size()) == _xmax*_ymax);
         std::copy(&data[0],&data[data.size()-1],TMV_ptr(*_source));
         xdbg<<"done copy data to _source\n";
         _m.reset(new TMatrixView(T)(TMV_view(*_source)));
@@ -185,19 +184,19 @@ void Image<T>::readFits()
     } catch (CCfits::FitsException& e) {
         xdbg<<"Caught FitsException: "<<e.message()<<std::endl;
         throw ReadException(
-            "Error reading from " + _fileName + 
+            "Error reading from " + _filename + 
             " hdu " + ConvertibleString(_hdu) +
             " -- caught error\n" + e.message());
     } catch (std::exception& e) {
         xdbg<<"Caught std::exception: "<<e.what()<<std::endl;
         throw ReadException(
-            "Error reading from " + _fileName + 
+            "Error reading from " + _filename + 
             " hdu " + ConvertibleString(_hdu) +
             " -- caught error\n" + e.what());
     } catch (...) {
         xdbg<<"Caught other exception: "<<std::endl;
         throw ReadException(
-            "Error reading from " + _fileName + 
+            "Error reading from " + _filename + 
             " hdu " + ConvertibleString(_hdu) +
             " -- caught unknown error\n");
     }
@@ -207,12 +206,12 @@ void Image<T>::readFits()
     fitsfile *fPtr;
     int fitsErr=0;
 
-    fits_open_file(&fPtr,_fileName.c_str(),READONLY,&fitsErr);
+    fits_open_file(&fPtr,_filename.c_str(),READONLY,&fitsErr);
     xdbg<<"Done open"<<std::endl;
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw ReadException(
-            "Error opening fits file " + _fileName);
+            "Error opening fits file " + _filename);
     }
 
     fits_movabs_hdu(fPtr,_hdu,0,&fitsErr);
@@ -220,7 +219,7 @@ void Image<T>::readFits()
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw ReadException(
-            "Error reading from " + _fileName + 
+            "Error reading from " + _filename + 
             " moving to hdu " + ConvertibleString(_hdu));
     }
 
@@ -234,37 +233,37 @@ void Image<T>::readFits()
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw ReadException(
-            "Error reading from " + _fileName + 
+            "Error reading from " + _filename + 
             " hdu " + ConvertibleString(_hdu) +
             " reading image parameters");
     }
     if (nAxes != 2) {
         throw ReadException(
-            "Error reading from " + _fileName + 
+            "Error reading from " + _filename + 
             " hdu " + ConvertibleString(_hdu) +
             " Number of axes != 2");
     }
     xdbg<<"sizes = "<<sizes[0]<<"  "<<sizes[1]<<std::endl;
 
-    _xMin = 0;
-    _xMax = sizes[0];
-    _yMin = 0;
-    _yMax = sizes[1];
-    _source.reset(new TMatrix(T)(_xMax,_yMax));
+    _xmin = 0;
+    _xmax = sizes[0];
+    _ymin = 0;
+    _ymax = sizes[1];
+    _source.reset(new TMatrix(T)(_xmax,_ymax));
     xdbg<<"done make matrix of image"<<std::endl;
 
     long fPixel[2] = {1,1};
     int anynul;
     xdbg<<"Before read_pix\n";
     Assert(getDataType<T>());
-    fits_read_pix(fPtr,getDataType<T>(),fPixel,long(_xMax*_yMax),0,
+    fits_read_pix(fPtr,getDataType<T>(),fPixel,long(_xmax*_ymax),0,
                   TMV_ptr(*_source),&anynul,&fitsErr);
     xdbg<<"done readpix\n";
     xdbg<<"anynul = "<<anynul<<std::endl;
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw ReadException(
-            "Error reading from " + _fileName + 
+            "Error reading from " + _filename + 
             " hdu " + ConvertibleString(_hdu) +
             " reading pixel data");
     }
@@ -276,7 +275,7 @@ void Image<T>::readFits()
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw ReadException(
-            "Error closing fits file " + _fileName);
+            "Error closing fits file " + _filename);
     }
 #endif
 
@@ -291,33 +290,33 @@ void Image<T>::readFits()
 // repetition here.
 template <typename T>
 Image<T>::Image(
-    const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm,
+    const ConfigFile& params, std::auto_ptr<Image<T> >& weight_image,
     int x1, int x2, int y1, int y2)
 {
-    _fileName = makeName(params,"image",true,true);
-    _hdu = getHdu(params,"image",_fileName,1);
+    _filename = MakeName(params,"image",true,true);
+    _hdu = GetHdu(params,"image",_filename,1);
     readFits(x1,x2,y1,y2);
-    xdbg<<"Opened image "<<_fileName<<std::endl;
+    xdbg<<"Opened image "<<_filename<<std::endl;
 
     // Load weight image (if necessary)
     if (params["noise_method"] == "WEIGHT_IMAGE") {
-        std::string weightName = makeName(params,"weight",true,true);
-        int weightHdu = getHdu(params,"weight",weightName,1);
-        weightIm.reset(new Image<T>(weightName,weightHdu,x1,x2,y1,y2));
+        std::string weightName = MakeName(params,"weight",true,true);
+        int weight_hdu = GetHdu(params,"weight",weightName,1);
+        weight_image.reset(new Image<T>(weightName,weight_hdu,x1,x2,y1,y2));
         dbg<<"Opened weight image.\n";
 
         // Make sure any bad pixels are marked with 0 variance.
         if (params.keyExists("badpix_file") || params.keyExists("badpix_ext")) {
-            std::string badpixName = makeName(params,"badpix",true,true);
-            int badpixHdu = getHdu(params,"badpix",badpixName,1);
+            std::string badpixName = MakeName(params,"badpix",true,true);
+            int badpix_hdu = GetHdu(params,"badpix",badpixName,1);
             dbg<<"badpix name = "<<badpixName<<std::endl;
-            dbg<<"hdu = "<<badpixHdu<<std::endl;
-            Image<double> badpixIm(badpixName,badpixHdu,x1,x2,y1,y2);
+            dbg<<"hdu = "<<badpix_hdu<<std::endl;
+            Image<double> badpixIm(badpixName,badpix_hdu,x1,x2,y1,y2);
             dbg<<"Opened badpix image.\n";
 
-            for(int i=0;i<=weightIm->getMaxI();++i) {
-                for(int j=0;j<=weightIm->getMaxJ();++j) {
-                    if (badpixIm(i,j) > 0.0) (*weightIm)(i,j) = 0.0;
+            for(int i=0;i<=weight_image->getMaxI();++i) {
+                for(int j=0;j<=weight_image->getMaxJ();++j) {
+                    if (badpixIm(i,j) > 0.0) (*weight_image)(i,j) = 0.0;
                 }
             }
         }
@@ -325,37 +324,37 @@ Image<T>::Image(
 }
 
 template <typename T>
-Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm,
+Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_image,
                 const Bounds& bounds)
 {
     int x1 = int(floor(bounds.getXMin()));
     int x2 = int(ceil(bounds.getXMax()));
     int y1 = int(floor(bounds.getYMin()));
     int y2 = int(ceil(bounds.getYMax()));
-    _fileName = makeName(params,"image",true,true);
-    _hdu = getHdu(params,"image",_fileName,1);
+    _filename = MakeName(params,"image",true,true);
+    _hdu = GetHdu(params,"image",_filename,1);
     readFits(x1,x2,y1,y2);
-    xdbg<<"Opened image "<<_fileName<<std::endl;
+    xdbg<<"Opened image "<<_filename<<std::endl;
 
     // Load weight image (if necessary)
     if (params["noise_method"] == "WEIGHT_IMAGE") {
-        std::string weightName = makeName(params,"weight",true,true);
-        int weightHdu = getHdu(params,"weight",weightName,1);
-        weightIm.reset(new Image<T>(weightName,weightHdu,bounds));
+        std::string weightName = MakeName(params,"weight",true,true);
+        int weight_hdu = GetHdu(params,"weight",weightName,1);
+        weight_image.reset(new Image<T>(weightName,weight_hdu,bounds));
         dbg<<"Opened weight image.\n";
 
         // Make sure any bad pixels are marked with 0 variance.
         if (params.keyExists("badpix_file") || params.keyExists("badpix_ext")) {
-            std::string badpixName = makeName(params,"badpix",true,true);
-            int badpixHdu = getHdu(params,"badpix",badpixName,1);
+            std::string badpixName = MakeName(params,"badpix",true,true);
+            int badpix_hdu = GetHdu(params,"badpix",badpixName,1);
             dbg<<"badpix name = "<<badpixName<<std::endl;
-            dbg<<"hdu = "<<badpixHdu<<std::endl;
-            Image<double> badpixIm(badpixName,badpixHdu,bounds);
+            dbg<<"hdu = "<<badpix_hdu<<std::endl;
+            Image<double> badpixIm(badpixName,badpix_hdu,bounds);
             dbg<<"Opened badpix image.\n";
 
-            for(int i=0;i<=weightIm->getMaxI();++i) {
-                for(int j=0;j<=weightIm->getMaxJ();++j) {
-                    if (badpixIm(i,j) > 0.0) (*weightIm)(i,j) = 0.0;
+            for(int i=0;i<=weight_image->getMaxI();++i) {
+                for(int j=0;j<=weight_image->getMaxJ();++j) {
+                    if (badpixIm(i,j) > 0.0) (*weight_image)(i,j) = 0.0;
                 }
             }
         }
@@ -365,10 +364,10 @@ Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weightIm,
 template <typename T>
 Image<T>::Image(const ConfigFile& params, int x1, int x2, int y1, int y2)
 {
-    _fileName = makeName(params,"image",true,true);
-    _hdu = getHdu(params,"image",_fileName,1);
+    _filename = MakeName(params,"image",true,true);
+    _hdu = GetHdu(params,"image",_filename,1);
     readFits(x1,x2,y1,y2);
-    xdbg<<"Opened image "<<_fileName<<std::endl;
+    xdbg<<"Opened image "<<_filename<<std::endl;
 }
 
 template <typename T>
@@ -378,24 +377,24 @@ Image<T>::Image(const ConfigFile& params, const Bounds& bounds)
     int x2 = int(ceil(bounds.getXMax()));
     int y1 = int(floor(bounds.getYMin()));
     int y2 = int(ceil(bounds.getYMax()));
-    _fileName = makeName(params,"image",true,true);
-    _hdu = getHdu(params,"image",_fileName,1);
+    _filename = MakeName(params,"image",true,true);
+    _hdu = GetHdu(params,"image",_filename,1);
     readFits(x1,x2,y1,y2);
-    xdbg<<"Opened image "<<_fileName<<std::endl;
+    xdbg<<"Opened image "<<_filename<<std::endl;
 }
 
 template <typename T> 
 Image<T>::Image(
-    std::string fileName, int hdu,
+    std::string filename, int hdu,
     int x1, int x2, int y1, int y2) :
-    _fileName(fileName), _hdu(hdu)
+    _filename(filename), _hdu(hdu)
 {
     readFits(x1,x2,y1,y2);
 }
 
 template <typename T> 
-Image<T>::Image(std::string fileName, int hdu, const Bounds& bounds) :
-    _fileName(fileName), _hdu(hdu)
+Image<T>::Image(std::string filename, int hdu, const Bounds& bounds) :
+    _filename(filename), _hdu(hdu)
 {
     int x1 = int(floor(bounds.getXMin()));
     int x2 = int(ceil(bounds.getXMax()));
@@ -408,18 +407,18 @@ template <typename T>
 void Image<T>::readFits(int x1, int x2, int y1, int y2) 
 {
     xdbg<<"Start read fitsimage"<<std::endl;
-    xdbg<<"filename = "<<_fileName<<std::endl;
+    xdbg<<"filename = "<<_filename<<std::endl;
     xdbg<<"hdu = "<<_hdu<<std::endl;
     // TODO: Use CCFits
     fitsfile *fPtr;
     int fitsErr=0;
 
-    fits_open_file(&fPtr,_fileName.c_str(),READONLY,&fitsErr);
+    fits_open_file(&fPtr,_filename.c_str(),READONLY,&fitsErr);
     xdbg<<"Done open"<<std::endl;
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw ReadException(
-            "Error opening fits file " + _fileName);
+            "Error opening fits file " + _filename);
     }
 
 
@@ -428,7 +427,7 @@ void Image<T>::readFits(int x1, int x2, int y1, int y2)
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw ReadException(
-            "Error reading from " + _fileName + 
+            "Error reading from " + _filename + 
             " moving to hdu " + ConvertibleString(_hdu));
     }
 
@@ -442,32 +441,32 @@ void Image<T>::readFits(int x1, int x2, int y1, int y2)
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw ReadException(
-            "Error reading from " + _fileName + 
+            "Error reading from " + _filename + 
             " hdu " + ConvertibleString(_hdu) +
             " getting image parameters");
     }
     if (nAxes != 2) {
         throw ReadException(
-            "Error reading from " + _fileName + 
+            "Error reading from " + _filename + 
             " hdu " + ConvertibleString(_hdu) +
             " number of axes != 2");
     }
     xdbg<<"sizes = "<<sizes[0]<<"  "<<sizes[1]<<std::endl;
 
-    _xMin = 0;
-    _xMax = sizes[0];
-    _yMin = 0;
-    _yMax = sizes[1];
+    _xmin = 0;
+    _xmax = sizes[0];
+    _ymin = 0;
+    _ymax = sizes[1];
 
-    if (_xMin < x1) _xMin = x1;
-    if (_xMax > x2) _xMax = x2; if (_xMax < _xMin+1) _xMax = _xMin+1;
-    if (_yMin < y1) _yMin = y1;
-    if (_yMax > y2) _yMax = y2; if (_yMax < _yMin+1) _yMax = _yMin+1;
-    _source.reset(new TMatrix(T)(_xMax-_xMin,_yMax-_yMin));
+    if (_xmin < x1) _xmin = x1;
+    if (_xmax > x2) _xmax = x2; if (_xmax < _xmin+1) _xmax = _xmin+1;
+    if (_ymin < y1) _ymin = y1;
+    if (_ymax > y2) _ymax = y2; if (_ymax < _ymin+1) _ymax = _ymin+1;
+    _source.reset(new TMatrix(T)(_xmax-_xmin,_ymax-_ymin));
     xdbg<<"done make matrix of image"<<std::endl;
 
-    long fPixel[2] = {_xMin+1,_yMin+1};
-    long lPixel[2] = {_xMax,_yMax};
+    long fPixel[2] = {_xmin+1,_ymin+1};
+    long lPixel[2] = {_xmax,_ymax};
     long inc[2] = {1,1};
     int anynul;
     xdbg<<"Before read_subset\n";
@@ -479,7 +478,7 @@ void Image<T>::readFits(int x1, int x2, int y1, int y2)
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw ReadException(
-            "Error reading from " + _fileName + 
+            "Error reading from " + _filename + 
             " hdu " + ConvertibleString(_hdu) +
             " reading pixel data");
     }
@@ -491,15 +490,15 @@ void Image<T>::readFits(int x1, int x2, int y1, int y2)
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw ReadException(
-            "Error closing fits file " + _fileName);
+            "Error closing fits file " + _filename);
     }
     xdbg<<"Leaving Image ReadFits"<<std::endl;
 }
 
 template <typename T> 
-void Image<T>::flush(std::string fileName, int hdu) const
+void Image<T>::flush(std::string filename, int hdu) const
 {
-    _fileName = fileName;
+    _filename = filename;
     _hdu = hdu;
     flush();
 }
@@ -507,15 +506,15 @@ void Image<T>::flush(std::string fileName, int hdu) const
 template <typename T> 
 void Image<T>::flush() const
 {
-    Assert(_fileName != "");
+    Assert(_filename != "");
 
     fitsfile *fPtr;
     int fitsErr=0;
-    fits_open_file(&fPtr,_fileName.c_str(),READWRITE,&fitsErr);
+    fits_open_file(&fPtr,_filename.c_str(),READWRITE,&fitsErr);
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw WriteException(
-            "Error opening fits file " + _fileName);
+            "Error opening fits file " + _filename);
     }
 
     if (_hdu != 1) {
@@ -524,19 +523,19 @@ void Image<T>::flush() const
         if (fitsErr != 0) {
             fits_report_error(stderr,fitsErr);
             throw WriteException(
-                "Error reading from " + _fileName + 
+                "Error reading from " + _filename + 
                 " moving to hdu " + ConvertibleString(_hdu));
         }
     }
 
     long fPixel[2] = {1,1};
     Assert(getDataType<T>());
-    fits_write_pix(fPtr,getDataType<T>(),fPixel,long(_xMax*_yMax),
+    fits_write_pix(fPtr,getDataType<T>(),fPixel,long(_xmax*_ymax),
                    TMV_ptr(*_m),&fitsErr);
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw WriteException(
-            "Error reading from " + _fileName + 
+            "Error reading from " + _filename + 
             " hdu " + ConvertibleString(_hdu) +
             " writing pixel data");
     }
@@ -545,23 +544,23 @@ void Image<T>::flush() const
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw WriteException(
-            "Error closing fits file " + _fileName);
+            "Error closing fits file " + _filename);
     }
 }
 
 template <typename T> 
-void Image<T>::write(std::string fileName) const
+void Image<T>::write(std::string filename) const
 {
-    _fileName = fileName;
+    _filename = filename;
     _hdu = 1;
 
     fitsfile *fPtr;
     int fitsErr=0;
-    fits_create_file(&fPtr,("!"+_fileName).c_str(),&fitsErr);
+    fits_create_file(&fPtr,("!"+_filename).c_str(),&fitsErr);
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw WriteException(
-            "Error creating fits file " + _fileName);
+            "Error creating fits file " + _filename);
     }
 
     Assert(getBitPix<T>());
@@ -572,18 +571,18 @@ void Image<T>::write(std::string fileName) const
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw WriteException(
-            "Error writing " + _fileName + 
+            "Error writing " + _filename + 
             " creating image");
     }
 
     long fPixel[2] = {1,1};
     Assert(getDataType<T>());
-    fits_write_pix(fPtr,getDataType<T>(),fPixel,long(_xMax*_yMax),
+    fits_write_pix(fPtr,getDataType<T>(),fPixel,long(_xmax*_ymax),
                    TMV_ptr(*_m),&fitsErr);
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw WriteException(
-            "Error reading from " + _fileName + 
+            "Error reading from " + _filename + 
             " writing pixel data");
     }
 
@@ -591,7 +590,7 @@ void Image<T>::write(std::string fileName) const
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
         throw WriteException(
-            "Error closing fits file " + _fileName);
+            "Error closing fits file " + _filename);
     }
 }
 
@@ -600,10 +599,10 @@ std::vector<Image<T>*> Image<T>::divide(int nX, int nY) const
 {
     std::vector<int> x(nX+1);
     std::vector<int> y(nY+1);
-    x[0] = _xMin;  x[nX] = _xMax;
-    y[0] = _yMin;  y[nY] = _yMax;
-    int xstep = (_xMax-_xMin)/nX;
-    int ystep = (_yMax-_yMin)/nY;
+    x[0] = _xmin;  x[nX] = _xmax;
+    y[0] = _ymin;  y[nY] = _ymax;
+    int xstep = (_xmax-_xmin)/nX;
+    int ystep = (_ymax-_ymin)/nY;
     for(int i=1;i<nX;++i) x[i] = x[i-1]+xstep;
     for(int j=1;j<nY;++j) y[j] = y[j-1]+ystep;
     std::vector<Image*> blockImages;
@@ -626,8 +625,8 @@ std::vector<Image<T>*> Image<T>::divide(int nX, int nY) const
 template <typename T> 
 T Image<T>::interpolate(double x, double y) const
 {
-    Assert(x>=double(_xMin) && x<double(_xMax));
-    Assert(y>=double(_yMin) && y<double(_yMax));
+    Assert(x>=double(_xmin) && x<double(_xmax));
+    Assert(y>=double(_ymin) && y<double(_ymax));
     int i = int(floor(x-0.5));
     double dx = x - (i+0.5);
     int j = int(floor(y-0.5));
@@ -646,8 +645,8 @@ T Image<T>::interpolate(double x, double y) const
        In this case, the function does an extrapolation given the nearest
        square of pixels.
        */
-    if (i==int(_xMax-1)) {--i; dx += 1.;}
-    if (j==int(_yMax-1)) {--j; dy += 1.;}
+    if (i==int(_xmax-1)) {--i; dx += 1.;}
+    if (j==int(_ymax-1)) {--j; dy += 1.;}
     if (i==-1) {++i; dx -= 1.;}
     if (j==-1) {++j; dy -= 1.;}
     Assert(i>=0 && j>=0 && i+1<int(_m->TMV_colsize()) && 
@@ -666,8 +665,8 @@ T Image<T>::interpolate(double x, double y) const
 template <typename T> 
 T Image<T>::quadInterpolate(double x, double y) const
 {
-    Assert(x>=_xMin && x< _xMax);
-    Assert(y>=_yMin && y< _yMax);
+    Assert(x>=_xmin && x< _xmax);
+    Assert(y>=_ymin && y< _ymax);
     int i = int (floor(x));
     double dx = x - (i+0.5);
     int j = int (floor(y));
