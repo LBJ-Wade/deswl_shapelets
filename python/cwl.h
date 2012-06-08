@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include "../src/ConfigFile.h"
 #include "../src/Image.h"
 #include "../src/InputCatalog.h"
@@ -14,13 +15,9 @@
 #include <Python.h>
 #include "numpy/arrayobject.h" 
 
-// a wrapper class for the wl classes and functions.  This is designed to
-// be simple to call from python and supports less general functionality.
-// Another principle is encapsulation to simplify calls
-
-// Also, python will abort if an exception is thrown and not caught.  for now
-// I'm converting all exceptions to const char* since these are easy to work
-// with in SWIG, but I plan to configure the SWIG wrapper to catch other types
+// Python will abort if an exception is thrown and not caught.  for now I'm
+// converting all exceptions to const char* since these are easy to work with
+// in SWIG, but I plan to configure the SWIG wrapper to catch other types
 // later.
 
 using std::string;
@@ -62,6 +59,7 @@ class WLObject {
             // also sets flags
             this->get_pixel_list();
 
+            this->sigma0=-9999;
             if (this->flags==0) {
                 this->calculate_sigma0();
             }
@@ -78,6 +76,11 @@ class WLObject {
         long get_flags() {
             return this->flags;
         }
+        /*
+        double get_max_aperture() {
+            return this->max_aperture;
+        }
+        */
 
         friend class WLShear;
 
@@ -103,11 +106,26 @@ class WLObject {
         void get_pixel_list() {
             this->vpix.resize(1);
             try {
+                ConfigFile params;
+                // in Pixel.cpp
+                GetPixList(*this->image, 
+                           this->vpix[0], 
+                           this->cen, 
+                           this->sky, 
+                           this->skyvar, 
+                           this->weight_image, 
+                           this->trans, 
+                           this->max_aperture, 
+                           params,
+                           this->flags);
+
+                /*
                 getPixList(*this->image, 
                            this->vpix[0], this->cen, 
                            this->sky, this->skyvar, 
                            this->gain, this->weight_image, this->trans, 
                            this->max_aperture, 0.0, 0.0, this->flags);
+                */
             } catch (RangeException& e) {
                 throw "distortion range error: \n";
                 xdbg<<"center = "<<this->cen<<", b = "<<e.getBounds()<<std::endl;
@@ -120,6 +138,7 @@ class WLObject {
             Ellipse ell;
             ell.fixGam();
             ell.peakCentroid(this->vpix[0],this->max_aperture/3.);
+            // implementation in CrudeMeasure.cpp
             ell.crudeMeasure(this->vpix[0],this->sigma0_guess);
 
             double mu = ell.getMu();
@@ -157,13 +176,15 @@ class WLObject {
 class WLShear {
     public:
 
+        /*
         WLShear(const WLObject &obj, const WLObject &psfobj,
                 int order_psf, int order_gal) 
                     : psf_order(order_psf), psf_maxm(order_psf), 
-                      gal_order(order_gal), gal_order2(20), 
+                      gal_order(order_gal), gal_maxm(order_gal),
+                      gal_order2(20), 
                       min_gal_order(4),
                       min_gal_size(0.5),  // in multiple of psf size
-                      shear_aperture(4.0), // in sigma
+                      shear_aperture(5.0), // in sigma
                       shear_fix_centroid(false),
                       minfpsf(2), maxfpsf(2), 
                       base_order_on_nu(false),
@@ -175,8 +196,25 @@ class WLShear {
                       gal_shapelets(order_gal,1.0),
                       shear_nu(0),
                       flags(0), fix_psf_cen(false) {
+                      */
+        WLShear(std::string config_fname,
+                const WLObject &obj, 
+                const WLObject &psfobj,
+                int order_psf, 
+                int order_gal, 
+                double shear_ap_nsig) throw (const char*) // in number of sigma
+                    : psf_order(order_psf), 
+                      gal_order(order_gal), 
+                      shear_aperture_nsig(shear_ap_nsig),
+                      psf_shapelets(order_psf,1.0),
+                      gal_shapelets(order_gal,1.0),
+                      shear(-9999,-9999),
+                      shear_nu(0),
+                      flags(0) {
 
             import_array();
+            this->load_config(config_fname);
+            this->set_extra_config_pars(obj);
 
             shear_cov(0,0)=9999;
             shear_cov(1,1)=9999;
@@ -185,6 +223,7 @@ class WLShear {
                 this->measure_shear(obj);
             }
         }
+
 
         long get_flags() {
             return this->flags;
@@ -212,22 +251,24 @@ class WLShear {
         }
 
     private:
+        ConfigFile params;
+
         int psf_order;
-        int psf_maxm;  // will equal psf_order
+        //int psf_maxm;  // will equal psf_order
         int gal_order;
-        int gal_order2;
-        int gal_maxm;  // will equal gal_order
-        int min_gal_order;
-        double min_gal_size;// in multiple of psf size
-        bool shear_fix_centroid;
-        double shear_aperture;
-        bool shear_force_sigma;
-        double shear_force_sigma_val;
-        double minfpsf;
-        double maxfpsf;
-        bool base_order_on_nu;
-        bool native_only;
-        bool fix_psf_cen;
+        //int gal_order2;
+        //int gal_maxm;  // will equal gal_order
+        //int min_gal_order;
+        //double min_gal_size;// in multiple of psf size
+        //bool shear_fix_centroid;
+        double shear_aperture_nsig; // in sigma
+        //bool shear_force_sigma;
+        //double shear_force_sigma_val;
+        //double minfpsf;
+        //double maxfpsf;
+        //bool base_order_on_nu;
+        //bool native_only;
+        //bool fix_psf_cen;
         BVec psf_shapelets; // must be initialized on construction
         Position psf_cen;   // we will allow cen to change from input
         BVec gal_shapelets; // must be initialized on construction
@@ -238,27 +279,118 @@ class WLShear {
         double shear_nu;
         long flags;
 
+
+        void load_config(std::string cf) throw (const char*) {
+            try {
+                this->params.load(cf);
+            } catch (FileNotFoundException& e) {
+                std::string err;
+                err = "file not found: " + cf + "\n";
+                throw err.c_str();
+            }
+        }
+        void set_extra_config_pars(const WLObject &obj) {
+            params["ignore_edges"] = true;
+            params["shear_aperture"] = this->shear_aperture_nsig; 
+            params["shear_max_aperture"] = obj.max_aperture;
+            params["shear_gal_order"] = this->gal_order;
+            params["shear_gal_order2"] = 20;
+            params["shear_maxm"] = this->gal_order;
+            params["psf_maxm"] = this->psf_order;
+            params["shear_min_gal_order"] = 4;
+            params["shear_f_psf"] = 2; // min f psf
+            params["shear_max_f_psf"] = 2;
+            params["shear_min_gal_size"] = 0.5;
+
+
+            /*
+            this->params["psf_order"] = 
+                    : psf_order(order_psf), psf_maxm(order_psf), 
+                      gal_order(order_gal), gal_maxm(order_gal),
+                      gal_order2(20), 
+                      min_gal_order(4),
+                      min_gal_size(0.5),  // in multiple of psf size
+                      shear_aperture(5.0), // in sigma
+                      shear_fix_centroid(false),
+                      minfpsf(2), maxfpsf(2), 
+                      base_order_on_nu(false),
+                      native_only(false),
+                      shear_force_sigma(false),
+                      shear_force_sigma_val(0),
+                      shear(-9999,-9999),
+                      psf_shapelets(order_psf,1.0),
+                      gal_shapelets(order_gal,1.0),
+                      shear_nu(0),
+                      flags(0), fix_psf_cen(false) {
+
+                      */
+        }
+
+
         void measure_shear(const WLObject &obj) {
             // we are forced to make a copy of our psf shapelets
             // because the function takes a vector
             std::vector<BVec> vpsf(1, this->psf_shapelets);
             ShearLog log;
+            // in MeasureShearAlgo.cpp
+            /*
+            ConfigFile params;
+            params["shear_aperture"] = this->shear_aperture;
+            params["shear_max_aperture"] = obj.max_aperture;
+            params["shear_gal_order"] = this->gal_order;
+            params["shear_gal_order2"] = this->gal_order2;
+            params["shear_maxm"] = this->gal_maxm;
+            params["shear_min_gal_order"] = this->min_gal_order;
+            params["shear_f_psf"] = this->minfpsf;
+            params["shear_max_f_psf"] = this->maxfpsf;
+            params["shear_min_gal_size"] = this->min_gal_size;
+            params["shear_fix_centroid"] = this->shear_fix_centroid;
+
+            params["shear_use_fake_pixels"] = true;
+            if (this->shear_force_sigma)
+                params["shear_force_sigma"] = this->shear_force_sigma_val;
+            */
+            int galorder_final=0; // returned
+            MeasureSingleShear(
+                    obj.vpix,       // const ref
+                    vpsf,           // const ref
+                    galorder_final, // input ref, value not used, modified
+                    this->params,         // const ref
+                    log,            // input ref, value not used, modified
+                    this->gal_shapelets, // input ref, value not used, modified
+                    this->shear,         // input ref, value not used, modified
+                    this->shear_cov, // input ref, value not used, modified
+                    this->shear_nu, // input ref, value not used, modified
+                    this->flags); // input ref, value not used, modified
+
+            /*
             measureSingleShear(
                     // Input data:
                     obj.vpix, vpsf,
                     // Parameters:
-                    this->shear_aperture, obj.max_aperture,
-                    this->gal_order, this->gal_order2, this->gal_maxm,
-                    this->min_gal_order, this->base_order_on_nu,
-                    this->minfpsf, this->maxfpsf, 
-                    this->min_gal_size, this->shear_fix_centroid,
-                    this->shear_force_sigma,this->shear_force_sigma_val, 
+                    this->shear_aperture, 
+                    obj.max_aperture,
+                    this->gal_order, 
+                    this->gal_order2, 
+                    this->gal_maxm,
+                    this->min_gal_order, 
+                    this->base_order_on_nu,
+                    this->minfpsf, 
+                    this->maxfpsf, 
+                    this->min_gal_size, 
+                    this->shear_fix_centroid,
+                    this->shear_force_sigma,
+                    this->shear_force_sigma_val, 
                     this->native_only,
                     // Log information
                     log,
                     // Ouput values:
                     this->gal_shapelets, 
-                    this->shear, this->shear_cov, this->shear_nu, this->flags);
+                    this->shear, 
+                    this->shear_cov, 
+                    this->shear_nu, 
+                    this->flags);
+            */
             return;
         }
         void measure_psf(const WLObject &psfobj) {
@@ -268,15 +400,17 @@ class WLShear {
             Ellipse ell;
             ell.fixGam();
             ell.fixMu();
-            if (this->fix_psf_cen) ell.fixCen();
+            bool fix_psf_cen = this->params.read("psf_fix_centroid",false);
+            if (fix_psf_cen) ell.fixCen();
             else {
                 ell.peakCentroid(psfobj.vpix[0],psfobj.max_aperture/3.);
                 ell.crudeMeasure(psfobj.vpix[0],psfobj.sigma0);
             }
 
             // First make sure it is centered.
+            int psf_maxm = this->params["psf_maxm"];
             if (!(ell.measure(psfobj.vpix,this->psf_order,this->psf_order+4,
-                              this->psf_maxm,psfobj.sigma0,
+                              psf_maxm,psfobj.sigma0,
                               this->flags,1.e-4))) {
                 dbg<<"initial measure fail FLAG MEASURE_PSF_FAILED\n";
                 this->flags |= MEASURE_PSF_FAILED;
@@ -290,7 +424,7 @@ class WLShear {
             if (!ell.measureShapelet(psfobj.vpix,
                                      this->psf_shapelets,
                                      this->psf_order,this->psf_order+4,
-                                     this->psf_maxm,&cov)) {
+                                     psf_maxm,&cov)) {
                 dbg<<"psf shapelet meas fail: FLAG MEASURE_PSF_FAILED\n";
                 this->flags |= MEASURE_PSF_FAILED;
                 return;
@@ -301,7 +435,7 @@ class WLShear {
                 return;
 
             this->psf_shapelets.normalize();  // Divide by (0,0) element
-            if (!this->fix_psf_cen) this->psf_cen += ell.getCen();
+            if (!fix_psf_cen) this->psf_cen += ell.getCen();
 
         }
         int check_psf(const WLObject &psfobj, Ellipse &ell) {
