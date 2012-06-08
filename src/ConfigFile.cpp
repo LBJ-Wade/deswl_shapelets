@@ -29,6 +29,22 @@ ConfigFile::ConfigFile(
     in >> (*this);
 }
 
+
+void ConfigFile::load( const std::string file_name )
+{ 
+    std::ifstream fs(file_name.c_str()); 
+
+    if( !fs) {
+#ifdef NOTHROW
+        std::cerr<<"File not found: "<<file_name<<std::endl; 
+        exit(1); 
+#else
+        throw FileNotFoundException(file_name);
+#endif
+    }
+
+    read(fs); 
+}
 void ConfigFile::load( 
     const std::string fileName, const std::string delimiter,
     const std::string comment, const std::string inc, const std::string sentry )
