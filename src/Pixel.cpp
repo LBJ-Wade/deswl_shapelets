@@ -63,7 +63,7 @@ void GetPixList(
         dbg<<xmin<<"  "<<xmax<<"  "<<ymin<<"  "<<ymax<<std::endl;
         dbg<<"returning with no pixels\n";
         pix.resize(0);
-        flag |= EDGE;
+        if (!ignore_edges) flag |= EDGE;
         flag |= LT10PIX;
         return;
     }
@@ -75,10 +75,10 @@ void GetPixList(
     int j2 = int(ceil(ycen+yap-ymin));
     xdbg<<"i1,i2,j1,j2 = "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
 
-    if (i1 < 0) { i1 = 0; flag |= EDGE; }
-    if (i2 > int(im.getMaxI())) { i2 = im.getMaxI(); flag |= EDGE; }
-    if (j1 < 0) { j1 = 0; flag |= EDGE; }
-    if (j2 > int(im.getMaxJ())) { j2 = im.getMaxJ(); flag |= EDGE; }
+    if (i1 < 0) { i1 = 0; if (!ignore_edges) flag |= EDGE; }
+    if (i2 > int(im.getMaxI())) { i2 = im.getMaxI(); if (!ignore_edges) flag |= EDGE; }
+    if (j1 < 0) { j1 = 0; if (!ignore_edges) flag |= EDGE; }
+    if (j2 > int(im.getMaxJ())) { j2 = im.getMaxJ(); if (!ignore_edges) flag |= EDGE; }
     xdbg<<"i1,i2,j1,j2 => "<<i1<<','<<i2<<','<<j1<<','<<j2<<std::endl;
 
     double apsq = aperture*aperture;
