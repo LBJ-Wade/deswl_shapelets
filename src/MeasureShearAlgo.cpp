@@ -1,6 +1,6 @@
 
-#include "dbg.h"
 #include "Params.h"
+#include "MeasureShearAlgo.h"
 #include "BVec.h"
 #include "Ellipse.h"
 #include "Pixel.h"
@@ -8,7 +8,6 @@
 #include "FittedPsf.h"
 #include "Log.h"
 #include "Params.h"
-#include "MeasureShearAlgo.h"
 
 #define MAX_ITER 4
 #define MAX_DELTA_MU 0.2

@@ -2,12 +2,12 @@
 #define ShearCatalog_H
 
 #include <vector>
+#include "MyMatrix.h"
 #include "dbg.h"
 #include "BVec.h"
 #include "Bounds.h"
 #include "ConfigFile.h"
 #include "Name.h"
-#include "MyMatrix.h"
 #include "Transformation.h"
 #include "InputCatalog.h"
 #include "Image.h"

@@ -2,8 +2,8 @@
 #define ImageH
 
 #include <memory>
-#include "dbg.h"
 #include "MyMatrix.h"
+#include "dbg.h"
 #include "Bounds.h"
 #include "ConfigFile.h"
 

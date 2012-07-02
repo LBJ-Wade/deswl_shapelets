@@ -1,7 +1,6 @@
 
 #include <sstream>
 
-#include "dbg.h"
 #include "PsfCatalog.h"
 #include "Params.h"
 

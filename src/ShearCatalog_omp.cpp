@@ -1,7 +1,6 @@
 
 #include <iostream>
 
-#include "dbg.h"
 #include "ShearCatalog.h"
 #include "ConfigFile.h"
 #include "Params.h"

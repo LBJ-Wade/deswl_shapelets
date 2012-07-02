@@ -1,5 +1,4 @@
 
-#include "dbg.h"
 #include "Pixel.h"
 #include "Params.h"
 
@@ -11,7 +10,7 @@ void GetPixList(
 {
     double gain = params.read("image_gain",0.);
     double x_offset = params.read("cat_x_offset",0.);
-    double yOffset = params.read("cat_y_offset",0.);
+    double y_offset = params.read("cat_y_offset",0.);
     bool ignore_edges = params.read("ignore_edges",false);
 
     xdbg<<"Start GetPixList\n";
@@ -52,10 +51,10 @@ void GetPixList(
     // ie. where the lower left corner pixel is (1,1), rather than (0,0).
     // The easiest way to do this is to just decrease xcen,ycen by 1 each:
     //--xcen; --ycen;
-    // This is now handled by parameters x_offset and yOffset, which are
+    // This is now handled by parameters x_offset and y_offset, which are
     // set from the parameters: cat_x_offset and cat_y_offset
     xcen -= x_offset;
-    ycen -= yOffset;
+    ycen -= y_offset;
 
     if (xcen < xmin || xcen > xmax || ycen < ymin || ycen > ymax) {
         dbg<<"Position "<<xcen<<" , "<<ycen<<
@@ -164,7 +163,7 @@ double GetLocalSky(
     const ConfigFile& params, long& flag)
 {
     double x_offset = params.read("cat_x_offset",0.);
-    double yOffset = params.read("cat_y_offset",0.);
+    double y_offset = params.read("cat_y_offset",0.);
 
     // This function is very similar in structure to the above GetPixList
     // function.  It does the same thing with the distortion and the 
@@ -197,7 +196,7 @@ double GetLocalSky(
     xdbg<<"cen = "<<xcen<<"  "<<ycen<<std::endl;
     xdbg<<"xmin, ymin = "<<xmin<<"  "<<ymin<<std::endl;
     xcen -= x_offset;
-    ycen -= yOffset;
+    ycen -= y_offset;
 
     int i1 = int(floor(xcen-xap-xmin));
     int i2 = int(ceil(xcen+xap-xmin));

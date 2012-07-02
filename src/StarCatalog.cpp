@@ -341,6 +341,9 @@ int StarCatalog::findStars(FindStarsLog& log)
         }
     }
 
+
+    for (int i=0; i<maybestars.size(); ++i) delete maybestars[i];
+
     return count;
 }
 

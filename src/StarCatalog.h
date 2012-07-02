@@ -3,12 +3,11 @@
 
 #include <vector>
 #include <string>
-#include "dbg.h"
-#include "Bounds.h"
+#include "Transformation.h"
 #include "ConfigFile.h"
+#include "Bounds.h"
 #include "InputCatalog.h"
 #include "Image.h"
-#include "Transformation.h"
 #include "Log.h"
 
 // This function is also used by PSFCatalog.

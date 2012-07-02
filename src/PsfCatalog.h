@@ -3,14 +3,13 @@
 
 #include <sstream>
 #include <vector>
-#include "dbg.h"
+#include "Transformation.h"
 #include "BVec.h"
 #include "Bounds.h"
 #include "ConfigFile.h"
 #include "StarCatalog.h"
 #include "Log.h"
 #include "Image.h"
-#include "Transformation.h"
 
 class PsfCatalog 
 {

@@ -5,8 +5,8 @@
 #include <omp.h>
 #endif
 
-#include "dbg.h"
 #include "MyMatrix.h"
+#include "dbg.h"
 #include "ConfigFile.h"
 #include "Name.h"
 #include "fp.h" // Generated with xxd -i fitsparams.config fp.h

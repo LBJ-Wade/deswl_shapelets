@@ -3,8 +3,8 @@
 
 #include <complex>
 #include <vector>
-#include "dbg.h"
 #include "MyMatrix.h"
+#include "dbg.h"
 #include "Bounds.h"
 
 // Just do declarations for Image, Transformation:

@@ -1,8 +1,8 @@
 
 #include <vector>
+#include "NLSolver.h"
 #include "dbg.h"
 #include "Ellipse.h"
-#include "NLSolver.h"
 
 class CrudeSolver : public NLSolver 
 {

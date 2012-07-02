@@ -3,10 +3,20 @@
 
 #ifdef USE_TMV
 
+#ifdef MEM_TEST
+#define SAVE_MEM_TEST
+#undef MEM_TEST
+#endif
+
 #include "TMV.h"
 #include "TMV_Sym.h"
 #include "TMV_Band.h"
 #include "TMV_Small.h"
+
+#ifdef SAVE_MEM_TEST
+#define MEM_TEST
+#endif
+
 
 typedef tmv::Vector<double> DVector;
 typedef tmv::VectorView<double> DVectorView;

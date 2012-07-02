@@ -3,7 +3,6 @@
 #include <vector>
 #include <string>
 
-#include "dbg.h"
 #include "PsfCatalog.h"
 #include "FittedPsf.h"
 #include "ConfigFile.h"

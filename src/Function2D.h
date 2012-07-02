@@ -4,9 +4,9 @@
 #include <iostream>
 #include <functional>
 #include <memory>
+#include "MyMatrix.h"
 #include "dbg.h"
 #include "Bounds.h"
-#include "MyMatrix.h"
 
 struct RangeException : public std::runtime_error
 {

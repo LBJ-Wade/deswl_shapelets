@@ -14,9 +14,8 @@
 #pragma warning (default : 1418)
 #endif
 
-#include "dbg.h"
-#include "Image.h"
 #include "Transformation.h"
+#include "Image.h"
 #include "ConfigFile.h"
 #include "Bounds.h"
 

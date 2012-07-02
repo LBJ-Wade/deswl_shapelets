@@ -3,8 +3,8 @@
 
 #include <string>
 #include <vector>
-#include "dbg.h"
 #include "ConfigFile.h"
+#include "dbg.h"
 #include "Params.h"
 
 void SetRoot(ConfigFile& params);

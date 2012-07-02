@@ -1,7 +1,6 @@
 
 #include <cmath>
 #include <fstream>
-#include "dbg.h"
 #include "Ellipse.h"
 #include "PsiHelper.h"
 #include "Params.h"

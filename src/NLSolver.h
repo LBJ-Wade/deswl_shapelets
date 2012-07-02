@@ -189,8 +189,17 @@
 
 #ifdef USE_TMV
 
+#ifdef MEM_TEST
+#define SAVE_MEM_TEST
+#undef MEM_TEST
+#endif
+
 #include "TMV.h"
 #include "TMV_Sym.h"
+
+#ifdef SAVE_MEM_TEST
+#define MEM_TEST
+#endif
 
 class NLSolver 
 {

@@ -4,10 +4,10 @@
 #include <complex>
 #include <vector>
 #include <ostream>
+#include "MyMatrix.h"
 #include "dbg.h"
 #include "Pixel.h"
 #include "BVec.h"
-#include "MyMatrix.h"
 
 class Ellipse 
 {

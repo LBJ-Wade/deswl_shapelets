@@ -1,8 +1,8 @@
 
 #include <sys/time.h>
 #include "fitsio.h"
-#include "InputCatalog.h"
 #include "BVec.h"
+#include "InputCatalog.h"
 #include "FittedPsf.h"
 #include "Image.h"
 #include "BasicSetup.h"

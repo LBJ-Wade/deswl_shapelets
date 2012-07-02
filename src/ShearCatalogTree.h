@@ -2,7 +2,6 @@
 #define ShearCatalogTree_H
 
 #include <vector>
-#include "dbg.h"
 #include "ShearCatalog.h"
 #include "Bounds.h"
 

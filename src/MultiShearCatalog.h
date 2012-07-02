@@ -3,9 +3,9 @@
 
 #include <vector>
 #include <string>
-#include "dbg.h"
 #include "MyMatrix.h"
 
+#include "dbg.h"
 #include "CoaddCatalog.h"
 #include "Bounds.h"
 #include "ConfigFile.h"

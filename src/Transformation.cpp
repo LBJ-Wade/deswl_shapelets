@@ -2,8 +2,8 @@
 #include <valarray>
 #include <fitsio.h>
 
-#include "dbg.h"
 #include "Transformation.h"
+#include "dbg.h"
 #include "Legendre2D.h"
 #include "NLSolver.h"
 #include "Name.h"

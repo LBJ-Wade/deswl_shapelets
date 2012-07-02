@@ -59,7 +59,6 @@
 #endif
 
 #include "dbg.h"
-#include "TMV.h"
 
 template <class T>
 struct ConvertibleStringTraits
@@ -123,7 +122,6 @@ struct ConvertibleStringOpT<1,T> // Normal case
 {
     static T call(const std::string& s) 
     {
-        //std::cout<<"Convert s = \""<<s<<"\" to type "<<tmv::TMV_Text(T())<<std::endl;
 #ifdef Use_Zero_Default
         if (s == "") return T();
 #endif
@@ -165,7 +163,6 @@ struct ConvertibleStringOpT<2,std::vector<T> > // T is a vector
 {
     static std::vector<T> call(const std::string& s) 
     {
-        //std::cout<<"Convert s = \""<<s<<"\" to type std::vector<"<<tmv::TMV_Text(T())<<">"<<std::endl;
 #ifdef Use_Zero_Default
         if (s == "") return std::vector<T>();
 #endif

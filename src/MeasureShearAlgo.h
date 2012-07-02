@@ -2,9 +2,9 @@
 #define MeasureShearAlgo_H
 
 #include <vector>
+#include "MyMatrix.h"
 #include "dbg.h"
 #include "BVec.h"
-#include "MyMatrix.h"
 #include "Log.h"
 #include "Pixel.h"
 

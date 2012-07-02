@@ -5,7 +5,6 @@
 #include <vector>
 #include <ostream>
 #include <cmath>
-#include "dbg.h"
 
 // Default value for various measured quantities
 #define DEFVALPOS 9999

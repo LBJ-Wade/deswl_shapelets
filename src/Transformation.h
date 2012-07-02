@@ -2,10 +2,10 @@
 #define Transformation_H
 
 #include <stdexcept>
+#include "MyMatrix.h"
 #include "dbg.h"
 #include "Function2D.h"
 #include "Bounds.h"
-#include "MyMatrix.h"
 #include "ConfigFile.h"
 
 class Transformation 

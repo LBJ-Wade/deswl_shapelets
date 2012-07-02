@@ -1,6 +1,6 @@
 
-#include "dbg.h"
 #include "EllipseSolver.h"
+#include "dbg.h"
 #include "PsiHelper.h"
 
 //#define JTEST

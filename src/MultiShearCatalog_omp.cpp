@@ -1,9 +1,8 @@
 
-#include "dbg.h"
+#include "MultiShearCatalog.h"
 #include "ConfigFile.h"
 #include "Params.h"
 #include "Log.h"
-#include "MultiShearCatalog.h"
 #include "Ellipse.h"
 #include "ShearCatalog.h"
 #include "ShearCatalogTree.h"

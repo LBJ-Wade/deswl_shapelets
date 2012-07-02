@@ -2,10 +2,10 @@
 #define ELLIPSESOLVER_H
 
 #include <vector>
+#include "NLSolver.h"
 #include "dbg.h"
 #include "Pixel.h"
 #include "BVec.h"
-#include "NLSolver.h"
 
 class EllipseSolver : public NLSolver
 {
