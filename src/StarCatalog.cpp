@@ -21,7 +21,7 @@
 #include "WriteParam.h"
 
 static void CalculateSigma1(
-    double& sigma,
+    double& sigma,double &nu,
     const Image<double>& im, const Position& pos, double sky,
     double noise, const Image<double>* weight_image, 
     const Transformation& trans, const ConfigFile& params, long& flag,
@@ -57,23 +57,43 @@ static void CalculateSigma1(
         if (ell.measure(pix,2,6,2,sigma,flag1,0.01)) {
             xdbg<<"Successful 2nd order measure.\n";
             xdbg<<"mu = "<<ell.getMu()<<std::endl;
+	    
+	    if(nu>0) {
+	      BVec flux(0,sigma);
+	      DMatrix fluxCov(1,1);
+	      if (ell.measureShapelet(pix,flux,0,0,0,&fluxCov)) {
+		nu = flux(0) / std::sqrt(fluxCov(0,0));  
+		xdbg<<", nu = "<<ell.getMu()<<std::endl;
+	      }
+	      else nu = DEFVALNEG;;
+	    }
+	    else nu = DEFVALNEG;;
+
         } else {
             dbg<<"FLAG NATIVE_FAILED\n";
             flag |= NATIVE_FAILED;
             xdbg<<"Ellipse measure returned flag "<<flag1<<std::endl;
             sigma = DEFVALNEG;
+	    nu = DEFVALNEG;
             return;
         }
     }
-
+    else nu = DEFVALNEG;
+   
+    
     double mu = ell.getMu();
     sigma *= exp(mu);
     dbg<<"sigma = "<<sigma<<std::endl;
     Assert(sigma > 0);
+
+   
+    
+
+
 }
 
 void CalculateSigma(
-    double& sigma,
+    double& sigma,double &nu,
     const Image<double>& im, const Position& pos, double sky,
     double noise, const Image<double>* weight_image, 
     const Transformation& trans, const ConfigFile& params,
@@ -81,7 +101,7 @@ void CalculateSigma(
 {
     try {
         CalculateSigma1(
-            sigma,
+	    sigma, nu,
             im, pos, sky, noise, weight_image,
             trans, params, flag, use_shapelet_sigma);
         dbg<<"objsize: "<<sigma<<std::endl;
@@ -145,6 +165,7 @@ StarCatalog::StarCatalog(
 
     _mag.resize(nind);
     _sg.resize(nind);
+    _nu.resize(nind);
     _objsize.resize(nind);
     _is_star.resize(nind);
 
@@ -158,7 +179,7 @@ StarCatalog::StarCatalog(
 
         _mag[i]     = instarcat.getMag(ind);
         _sg[i]      = instarcat.getSg(ind);
-        _objsize[i] = instarcat.getObjSize(ind);
+	_objsize[i] = instarcat.getObjSize(ind);
         _is_star[i] = instarcat.getIsStar(ind);
     }
 }
@@ -170,7 +191,8 @@ StarCatalog::StarCatalog(
     _id(incat.getIdList()), _pos(incat.getPosList()), 
     _sky(incat.getSkyList()), _noise(incat.getNoiseList()),
     _flags(incat.getFlagsList()), _mag(incat.getMagList()), 
-    _sg(incat.getSgList()), _objsize(incat.getObjSizeList()),
+    _sg(incat.getSgList()), _nu(_id.size(),DEFVALNEG), 
+    _objsize(incat.getObjSizeList()),
     _is_star(_id.size(),0), _params(params), _prefix(fs_prefix)
 {
     Assert(int(_id.size()) == size());
@@ -180,6 +202,8 @@ StarCatalog::StarCatalog(
     Assert(int(_flags.size()) == size());
     if (_sg.size() == 0) _sg.resize(size(),DEFVALNEG);
     Assert(int(_sg.size()) == size());
+    if (_nu.size() == 0) _nu.resize(size(),DEFVALNEG);
+    Assert(int(_nu.size()) == size());
     if (_objsize.size() == 0) _objsize.resize(size(),DEFVALNEG);
     Assert(int(_objsize.size()) == size());
     Assert(int(_is_star.size()) == size());
@@ -207,6 +231,7 @@ StarCatalog::StarCatalog(const ConfigFile& params, std::string fs_prefix) :
     Assert(int(_objsize.size()) == size());
     Assert(int(_mag.size()) == size());
     Assert(int(_sg.size()) == size());
+    Assert(int(_nu.size()) == size());
     Assert(int(_is_star.size()) == size());
 }
 
@@ -299,7 +324,8 @@ int StarCatalog::findStars(FindStarsLog& log)
         ++count;
         double logObjSize = finder.convertToLogSize(_objsize[i]);
         maybestars.push_back(
-            new PotentialStar(_pos[i],_mag[i],logObjSize,_sg[i],i,""));
+			     new PotentialStar(_pos[i],_mag[i],_nu[i],
+					       logObjSize,_sg[i],i,""));
     }
     log._nobj = count;
     dbg<<"  Possible Stars: "<<count<<"/"<<size()<<"\n";
@@ -315,12 +341,13 @@ int StarCatalog::findStars(FindStarsLog& log)
 
     for (int k=0; k<nstars;++k) {
         int i=stars[k]->getIndex();
-        if (finder.isOkOutputMag(_mag[i])) {
+        if (finder.isOkOutputMag(_mag[i]) && finder.isOkNu(_nu[i])) {
             _is_star[i] = 1;
             ++count;
         }
     }
-    dbg<<"  Cut to "<<count<<" by maxoutmag cut\n";
+
+    dbg<<"  Cut to "<<count<<" by maxoutmag and minnu cut\n";
 
     log._nstars = count;
 
@@ -393,7 +420,6 @@ void StarCatalog::writeFits(std::string file) const
     col_fmts[9] = "1J"; // star flag
 
 
-
     col_units[0] = "None";     // id
     col_units[1] = "pixels";   // x
     col_units[2] = "pixels";   // y
@@ -404,7 +430,6 @@ void StarCatalog::writeFits(std::string file) const
     col_units[7] = "None";     // star-galaxy
     col_units[8] = "Arcsec";   // sigma0
     col_units[9] = "None";     // star flag
-
 
     CCfits::Table* table;
     table = fits.addTable("findstars",ntot,col_names,col_fmts,col_units);
@@ -469,6 +494,7 @@ void StarCatalog::writeFits(std::string file) const
         WriteParamToTable(_params, table, "stars_maxsg", dbl);
         WriteParamToTable(_params, table, "stars_minsgmag", dbl);
         WriteParamToTable(_params, table, "stars_maxsgmag", dbl);
+	WriteParamToTable(_params, table, "stars_minnu", dbl);
     }
   
 
@@ -493,7 +519,6 @@ void StarCatalog::writeFits(std::string file) const
     table->column(col_names[7]).write(_sg,startrow);
     table->column(col_names[8]).write(_objsize,startrow);
     table->column(col_names[9]).write(_is_star,startrow);
-
 
 }
 
@@ -530,7 +555,8 @@ void StarCatalog::writeAscii(std::string file, std::string delim) const
             << fix3(_mag[i]) << delim
             << fix3(_sg[i]) << delim
             << fix6(_objsize[i]) << delim
-            << _is_star[i] << std::endl;
+            << _is_star[i] << delim 
+	    << std::endl;
     }
 
 }
@@ -664,7 +690,7 @@ void StarCatalog::readAscii(std::string file, std::string delim)
         long id1,star;
         double x,y,sky1,n,s,m,sg;
         while ( fin >> id1 >> x >> y >> sky1 >> n 
-                >> flag >> m >> sg >> s >> star) {
+                >> flag >> m >> sg >> s >> star ) {
             _id.push_back(id1);
             _pos.push_back(Position(x,y));
             _sky.push_back(sky1);

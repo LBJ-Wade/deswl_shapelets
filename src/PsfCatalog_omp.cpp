@@ -43,8 +43,9 @@ double PsfCatalog::estimateSigma(
 
         double sigma = sigma_p;
         long flag1 = 0; // Ignore flags set by CalcSigma
+	double nu=-1; // use negative value so it will not calculate nu
         CalculateSigma(
-            sigma,
+	    sigma, nu,
             im, _pos[i], _sky[i], _noise[i], weight_image, 
             trans, _params, flag1, use_shapelet_sigma);
         // Ignore errors -- just don't add to meanmu

@@ -23,10 +23,11 @@ minsgfrac	0.05	# The min fraction of initial objects
 minmag		12	# The min magnitude to consider
 maxmag		24	# The max magnitude to consider
 maxoutmag	24	# The max magnitude to include in output
+minnu		25      # The minimum nu to include in output
 xcol		2	# Column for x
 ycol		3	# Column for y
 mcol		4	# Column for m
-scol1		7	# Column for size (or first of two to add, eg. ixx)
+scol1		7	# cp Column for size (or first of two to add, eg. ixx)
 scol2		8	# Column for second component of size, eg. iyy
 			# Set scol2 to 0 if you only have one size term
 ecol		0	# Column for error code

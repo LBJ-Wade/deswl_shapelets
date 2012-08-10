@@ -40,9 +40,12 @@ void StarFinder::setParams(
     SFKeyAssign(_min_sg_frac,"minsgfrac");
     SFKeyAssign(_is_size_log,"logsize");
 
+
+
     SFKeyAssign(_min_mag,"minmag");
     SFKeyAssign(_max_mag,"maxmag");
     SFKeyAssign(_max_out_mag,"maxoutmag");
+    SFKeyAssign(_min_nu,"minnu");
     SFKeyAssign(_ndivx,"ndivx");
     SFKeyAssign(_ndivy,"ndivy");
 
@@ -78,8 +81,8 @@ StarFinder::StarFinder(const ConfigFile& params, std::string keyPrefix)
     defaultParams.setDelimiter("\t");
     defaultParams.setComment("#");
     defaultParams.read(is);
-    setParams(defaultParams,"",true);
 
+    setParams(defaultParams,"",true);
     setParams(params,keyPrefix);
 
     _des_qa = params.read("des_qa",false); 

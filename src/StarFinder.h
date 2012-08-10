@@ -56,6 +56,9 @@ public :
     bool isOkMag(const double mag)
     { return mag >= _min_mag && mag <= _max_mag; }
 
+    bool isOkNu(const double nu)
+    { return nu >= _min_nu; }
+
     bool isOkOutputMag(const double mag)
     { return mag >= _min_mag && mag <= _max_out_mag; }
 
@@ -74,6 +77,7 @@ public :
     double getMaxMag() const { return _max_mag; }
     double getMinSg() const { return _min_sg; }
     double getMaxSg() const { return _max_sg; }
+    double getMinNu() const { return _min_nu; }
     double getMinSgFrac() const { return _min_sg_frac; }
 
 private :
@@ -83,6 +87,7 @@ private :
     bool _is_size_log;       // true if sizes are already log(size)
     double _min_mag;        // The min and max magnitude to consider
     double _max_mag;
+    double _min_nu;
     double _max_out_mag;
     double _min_sg;         // The min and max star-galaxy value to consider
     double _max_sg;

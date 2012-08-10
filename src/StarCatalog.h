@@ -13,6 +13,7 @@
 // This function is also used by PSFCatalog.
 void CalculateSigma(
     double& sigma, // Initial value -- use <=0 if no initial guess
+     double &nu, // if less than zero it will not be calculated
     const Image<double>& im, const Position& pos, double sky, 
     double noise, const Image<double>* weight_image,
     const Transformation& trans, const ConfigFile& params,
@@ -109,6 +110,7 @@ private :
     std::vector<double> _sg;
     std::vector<double> _objsize;
     std::vector<bool> _is_star;
+    std::vector<double> _nu;  // these are not currently written to file
 
     //const ConfigFile& _params;
     // We need to be able to alter this if we want to write alternative

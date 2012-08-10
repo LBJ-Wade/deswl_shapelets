@@ -60,8 +60,10 @@ void StarCatalog::calculateSizes(
 
         // Negative value indicates not set yet.  Start with 1 then.
         if (_objsize[i] <= 0.) _objsize[i] = 1.;
+	// set nu to positive so it will calculate it
+	_nu[i]=1;
         CalculateSigma(
-            _objsize[i],
+	    _objsize[i],_nu[i],
             im, _pos[i], _sky[i], _noise[i], weight_image, 
             trans, _params, _flags[i], use_shapelet_sigma);
     }
