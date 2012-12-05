@@ -179,7 +179,7 @@ class Runconfig(dict):
                                run_type, 
                                dataset, 
                                band,
-                               wl_config=None,
+                               config=None,
                                run_name=None,
                                test=False, 
                                dryrun=False, 
@@ -201,13 +201,10 @@ class Runconfig(dict):
             e.g. 'dr012'
         band: string
             'g','r','i','z','Y'
-        wl_config: string path, optional
-            shaplets only - Location of the shapelets config. For se and me
-            this is a requirement.  run. E.g.
-            '$DESFILES_DIR/wl.config/wl05.config' Such environment vars like
-            $DESFILES_DIR will be expanded as needed.
+        config: string path, optional
+            The location of a config file for this run/code.
 
-            should make this more generic?
+            E.g.  '$SHAPELETS_DIR/etc/deswl/wldc6b-v2.config'
 
         run_name: string, optional
             If not sent, will be generated.
@@ -234,8 +231,8 @@ class Runconfig(dict):
             tmp=Runconfig(serun)
 
 
-        if run_type in ['me','se'] and wl_config is None:
-            raise ValueError("Send wl_config for run type '%s'" % run_type)
+        if run_type in ['me','se'] and config is None:
+            raise ValueError("Send config for run type '%s'" % run_type)
 
         if run_name is None:
             run_name=self.generate_new_runconfig_name(run_type, band, test=test,old=old)
@@ -263,7 +260,7 @@ class Runconfig(dict):
                 tmvvers=deswl.get_tmv_version()
             runconfig['wlvers'] = wlvers
             runconfig['tmvvers'] = tmvvers
-            runconfig['wl_config'] = wl_config
+            runconfig['wl_config'] = config
 
         if run_type == 'impyp':
             runconfig['impypvers'] = extra.get('impypvers','trunk')
