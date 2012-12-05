@@ -23,7 +23,7 @@ def des_rootdir(**keys):
     elif fs == 'net':
         return net_rootdir()
     else:
-        raise ValueError("fs should be 'nfs' or 'hdfs'")
+        raise ValueError("fs should be 'hdfs','nfs' or 'net'")
 
 def expand_desdata(val, fs=_default_fs):
     """

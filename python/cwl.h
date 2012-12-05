@@ -107,6 +107,8 @@ class WLObject {
             this->vpix.resize(1);
             try {
                 ConfigFile params;
+                params["ignore_edges"] = true;
+
                 // in Pixel.cpp
                 GetPixList(*this->image, 
                            this->vpix[0], 
@@ -301,6 +303,7 @@ class WLShear {
             params["shear_f_psf"] = 2; // min f psf
             params["shear_max_f_psf"] = 2;
             params["shear_min_gal_size"] = 0.5;
+            params["shear_use_fake_pixels"] = true;
 
 
             /*
