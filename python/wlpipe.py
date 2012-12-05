@@ -1075,7 +1075,6 @@ class ImageProcessorOld(deswl.WL):
             if 'shear' in types:
                 t.process('shear')
 
-'''
 
 class SECondorJobs(dict):
     def __init__(self, serun, band, 
@@ -1255,3 +1254,4 @@ shear-run                     \\
 
 
 
+'''
