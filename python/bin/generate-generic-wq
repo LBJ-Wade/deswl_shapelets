@@ -13,7 +13,6 @@ scripts
 import os,sys
 from sys import stderr
 import deswl
-from deswl.files import ShearFiles,SEWQJob
 import desdb
 
 from optparse import OptionParser

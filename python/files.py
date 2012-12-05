@@ -8,11 +8,13 @@ from esutil.ostools import path_join, getenv_check
 
 import pprint
 import deswl
+import desdb
+from desdb.files import expand_desvars
 
 # for separating file elements
 file_el_sep = '-'
-_wlpipe_tmpdir='/data/wlpipe'
 
+"""
 _default_fs='hdfs'
 def des_rootdir(**keys):
     fs=keys.get('fs',_default_fs)
@@ -24,17 +26,6 @@ def des_rootdir(**keys):
         return net_rootdir()
     else:
         raise ValueError("fs should be 'hdfs','nfs' or 'net'")
-
-def expand_desdata(val, fs=_default_fs):
-    """
-    Expand $DESDATA based on the input file system
-    """
-    if not isinstance(val, basestring):
-        return val
-    else:
-        d=des_rootdir(fs=fs)
-        return val.replace('$DESDATA',d)
-
 def hdfs_rootdir():
     return 'hdfs:///user/esheldon/DES'
 
@@ -44,13 +35,26 @@ def net_rootdir():
     return os.environ['DESREMOTE']
 
 
+"""
+
+'''
+def expand_desdata(val, fs=_default_fs):
+    """
+    Expand $DESDATA based on the input file system
+    """
+    if not isinstance(val, basestring):
+        return val
+    else:
+        d=desdb.files.get_des_rootdir(fs=fs)
+        return val.replace('$DESDATA',d)
+'''
 
 def get_proc_environ():
     e={}
     e['TMV_DIR']=getenv_check('TMV_DIR')
     e['WL_DIR']=getenv_check('WL_DIR')
     e['ESUTIL_DIR']=getenv_check('ESUTIL_DIR')
-    e['DESFILES_DIR']=getenv_check('DESFILES_DIR')
+    e['DES_FILE_LISTS']=getenv_check('DES_FILE_LISTS')
     e['pyvers']=deswl.get_python_version()
     e['esutilvers']=eu.version()
     e['wlvers']=deswl.version()
@@ -63,17 +67,14 @@ class Runconfig(dict):
         self.run=run
 
         self.run_types={}
-        self.run_types['se'] = {'name':'se',
-                                'fileclass': 'wlbnl'}
-        self.run_types['me'] = {'name':'me',
-                                'fileclass': 'wlbnl'}
+        self.run_types['se'] = {'name':'se', 'fileclass': 'wlbnl'}
+        self.run_types['me'] = {'name':'me', 'fileclass': 'wlbnl'}
 
         # these are "external" codes.  The only places we explicitly work with
         # them is in this class, otherwise operations specific to these are are
         # in {type}.py or something similar
         self.run_types['impyp'] = {'name':'impyp', 'fileclass': 'impyp'}
-        self.run_types['am'] = {'name':'am', 'fileclass': 'am'}
-
+        self.run_types['am']    = {'name':'am',    'fileclass': 'am'}
 
         self.se_executables = ['findstars','measurepsf','measureshear']
 
@@ -117,6 +118,7 @@ class Runconfig(dict):
             self.load(run)
 
     def get_basedir(self):
+        raise ValueError("move configs under git")
         basedir=getenv_check('DESFILES_DIR')
         return path_join(basedir, 'runconfig')
 
@@ -145,7 +147,7 @@ class Runconfig(dict):
         if run_type == 'me':
             starti=3
         elif run_type == 'se':
-            starti=13
+            starti=16
         else:
             starti=1
 
@@ -200,9 +202,12 @@ class Runconfig(dict):
         band: string
             'g','r','i','z','Y'
         wl_config: string path, optional
-            Location of the config. For wlbnl this is a requirement.
-            run. E.g. '$DESFILES_DIR/wl.config/wl05.config' Such
-            environment vars like $DESFILES_DIR will be expanded as needed.
+            shaplets only - Location of the shapelets config. For se and me
+            this is a requirement.  run. E.g.
+            '$DESFILES_DIR/wl.config/wl05.config' Such environment vars like
+            $DESFILES_DIR will be expanded as needed.
+
+            should make this more generic?
 
         run_name: string, optional
             If not sent, will be generated.
@@ -349,7 +354,7 @@ def ftype2fext(ftype_input):
 
 
 def run_dir(fileclass, run, **keys):
-    rootdir=des_rootdir(**keys)
+    rootdir=desdb.files.get_des_rootdir(**keys)
     dir=path_join(rootdir, fileclass, run)
     return dir
  
@@ -680,7 +685,7 @@ def collated_read(serun,
 # 
 # This is a coadd info list that also has 'srclist'
 def coadd_info_dir(dataset):
-    desfiles_dir=getenv_check('DESFILES_DIR')
+    desfiles_dir=getenv_check('DES_FILE_LISTS')
     desfiles_dir = path_join(desfiles_dir,dataset)
     return desfiles_dir
 
@@ -883,7 +888,9 @@ class MultishearFiles:
     """
     Generate the input file names, output file names, and condor file names
     """
-    def __init__(self, merun, fs=_default_fs, conn=None):
+    def __init__(self, merun, fs=None, conn=None):
+        if fs is None:
+            fs=desdb.files.get_default_fs()
         self.merun=merun
         self.rc=Runconfig(self.merun)
         self.fs=fs
@@ -968,7 +975,7 @@ class MultishearFiles:
 
 def me_seinputs_dir(merun):
     rc=Runconfig(merun)
-    d=os.path.join('$DESFILES_DIR',
+    d=os.path.join('$DES_FILE_LISTS',
                    rc['dataset'],
                    'multishear-inputs-%s' % merun)
     return d
@@ -985,7 +992,9 @@ class MultishearSEInputs:
     This is the single epoch inputs, use MultishearInputs to just generate
     the input file names for multishear.
     """
-    def __init__(self, merun, conn=None, fs=_default_fs):
+    def __init__(self, merun, conn=None, fs=None):
+        if fs is None:
+            fs=desdb.files.get_default_fs()
         self.merun=merun
         self.rc=Runconfig(self.merun)
         self.fs=fs
@@ -1102,15 +1111,16 @@ class HDFSSrclist:
         self.hdfs_files=[]
 
         bname=os.path.basename(self.orig_url)
-        self.name = tempfile.mktemp(prefix='hdfs-', suffix='-'+bname, dir=_wlpipe_tmpdir)
+        self.scratch_dir=desdb.files.get_scratch_dir()
+        self.name = tempfile.mktemp(prefix='hdfs-', suffix='-'+bname, dir=self.scratch_dir)
 
     def stage(self):
         """
         Stage the files to local disk and write a new file with these filenames
         """
 
-        if not os.path.exists(_wlpipe_tmpdir):
-            os.makedirs(_wlpipe_tmpdir)
+        if not os.path.exists(self.scratch_dir):
+            os.makedirs(self.scratch_dir)
 
         self.hdfs_files=[]
         print >>stderr,'working through original:',self.orig_url
@@ -1324,7 +1334,7 @@ class MultishearWQJob(dict):
                  id=None, 
                  tilename=None, 
                  nthread=None, 
-                 fs=_default_fs,
+                 fs=None,
                  conn=None,
                  groups=None,
                  verbose=False):
@@ -1335,6 +1345,8 @@ class MultishearWQJob(dict):
         Or send files= (get_files from MultishearFiles) for quicker 
         results, no sql calls required.
         """
+        if fs is None:
+            fs=desdb.files.get_default_fs()
         if id is None and tilename is None and files is None:
             raise ValueError("Send id= or tilename= or files=")
 
@@ -1502,8 +1514,9 @@ job_name: {job_name}\n""".format(esutil_load=esutil_load,
 
 
 class ShearFiles(dict):
-    def __init__(self, serun, conn=None, fs=_default_fs):
-        import desdb
+    def __init__(self, serun, conn=None, fs=None):
+        if fs is None:
+            fs=desdb.files.get_default_fs()
         self['run'] = serun
         self['fs'] = fs
 
@@ -1553,7 +1566,7 @@ class ShearFiles(dict):
 
             for k,v in info.iteritems():
                 if isinstance(v,basestring):
-                    info[k] = expand_desdata(v, fs=self['fs'])
+                    info[k] = expand_desvars(v, fs=self['fs'])
             # expand environment variables
             for k,v in info.iteritems():
                 if isinstance(v,basestring):
@@ -1584,7 +1597,7 @@ class ShearFiles(dict):
         """
         Modifies in place
         """
-        nfs_root=des_rootdir()
+        nfs_root=desdb.files.get_des_rootdir()
         hdfs_root=hdfs_rootdir()
         for info in infolist:
             for k,v in info.iteritems():
@@ -1601,7 +1614,6 @@ class ShearFiles(dict):
                 fdict['ccd'] = ccd
                 flist.append(fdict)
         return flist
-
 
 
 
@@ -1870,27 +1882,28 @@ def _make_load_command(modname, vers):
 
 
 
-def pbs_dir(run, subdir=None):
-    outdir=path_join('~','pbs',run)
+def get_pbs_dir(run, subdir=None):
+    rootdir=desdb.files.get_des_rootdir()
+    outdir=path_join(rootdir,'pbs',run)
     if subdir is not None:
         outdir=path_join(outdir, subdir)
     outdir=os.path.expanduser(outdir)
     return outdir
 
 
-def me_pbs_name(tilename, band):
+def get_me_pbs_name(tilename, band):
     pbsfile=[tilename,band]
     pbsfile='-'.join(pbsfile)+'.pbs'
     return pbsfile
     
-def me_pbs_path(merun, tilename, band):
-    pbsdir=pbs_dir(merun)
+def get_me_pbs_path(merun, tilename, band):
+    pbsdir=get_pbs_dir(merun)
     pbsfile=me_pbs_name(tilename,band)
     pbsfile=path_join(pbsdir, pbsfile)
     return pbsfile
 
 
-def se_pbs_name(expname, typ='fullpipe', ccd=None):
+def get_se_pbs_name(expname, typ='fullpipe', ccd=None):
     pbsfile=[expname]
 
     if typ != 'fullpipe':
@@ -1901,13 +1914,13 @@ def se_pbs_name(expname, typ='fullpipe', ccd=None):
     pbsfile='-'.join(pbsfile)+'.pbs'
     return pbsfile
     
-def se_pbs_path(serun, expname, typ='fullpipe', ccd=None):
+def get_se_pbs_path(serun, expname, typ='fullpipe', ccd=None):
     if ccd is not None:
         subdir='byccd'
     else:
         subdir=None
 
-    pbsdir=pbs_dir(serun, subdir=subdir)
+    pbsdir=get_pbs_dir(serun, subdir=subdir)
     pbsfile=se_pbs_name(expname, typ=typ, ccd=ccd)
     pbsfile=path_join(pbsdir, pbsfile)
     return pbsfile

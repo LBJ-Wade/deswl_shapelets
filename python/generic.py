@@ -163,7 +163,7 @@ class GenericConfig(dict):
         raise RuntimeError("you must over-ride get_config_data")
 
     def get_command(self, fdict):
-        raise RuntimeError("you must over-ride get_config_data")
+        raise RuntimeError("you must over-ride get_command")
 
 
 class GenericProcessor(dict):
@@ -467,6 +467,91 @@ job_name: %(job_name)s\n""" % {'esutil_load':esutil_load,
                                'groups':groups,
                                'priority':self['priority'],
                                'job_name':job_name}
+
+
+        with open(job_file,'w') as fobj:
+            fobj.write(text)
+
+class GenericSEPBSJob(dict):
+    """
+    Generic job files to process all ccds in an exposure.
+
+    You should also create the config files for each exposure/ccd using. config
+    files go to deswl.files.se_config_path(run,expname,ccd=ccd)
+
+    Send check=True to generate the check file instead of the processing file
+    """
+    def __init__(self, run, expname, **keys):
+        self['run'] = run
+        self['expname'] = expname
+        self['queue'] = keys.get('queue','serial')
+        self['job_file']= deswl.files.get_se_pbs_path(self['run'], self['expname'])
+
+    def write(self, check=False):
+
+        expname=self['expname']
+        groups = self['groups']
+
+        if check:
+            groups=None # can run anywhere for sure
+            job_file=self['job_file'].replace('.pbs','-check.pbs')
+            job_name=expname+'-chk'
+        else:
+            job_file=self['job_file']
+            job_name=expname
+
+        job_file_base=os.path.basename(job_file).replace('.pbs','')
+
+        if groups is None:
+            groups=''
+        else:
+            groups='group: ['+groups+']'
+
+        rc=deswl.files.Runconfig(self['run'])
+        wl_load = deswl.files._make_load_command('wl',rc['wlvers'])
+        esutil_load = deswl.files._make_load_command('esutil', rc['esutilvers'])
+
+        # naming scheme for this generic type figured out from run
+        config_file1=deswl.files.se_config_path(self['run'], 
+                                                self['expname'], 
+                                                ccd=1)
+        config_file1=os.path.join('byccd',os.path.basename(config_file1))
+        conf=config_file1.replace('01-config.yaml','$i-config.yaml')
+        if check:
+            chk=config_file1.replace('01-config.yaml','$i-check.json')
+            err=config_file1.replace('01-config.yaml','$i-check.err')
+
+            cmd="wl-check-generic {conf} 1> {chk}"
+            cmd=cmd.format(conf=conf, chk=chk, err=err)
+        else:
+            # log is now automatically created by GenericProcessor
+            # and written into hdfs
+            cmd="wl-run-generic {conf}".format(conf=conf)
+
+        text = """#!/bin/bash -l
+#PBS -q %(queue)s
+#PBS -l nodes=1:ppn=1
+#PBS -l walltime=00:30:00
+#PBS -N %(job_name)s
+#PBS -e %(job_file_base)s.err
+#PBS -o %(job_file_base)s.out
+#PBS -V
+
+cd $PBS_O_WORKDIR
+
+%(esutil_load)s
+%(wl_load)s
+
+for i in `seq -w 1 62`; do
+    echo "ccd: $i"
+    %(cmd)s
+done
+        \n""" % {'esutil_load':esutil_load,
+                 'wl_load':wl_load,
+                 'cmd':cmd,
+                 'groups':groups,
+                 'queue':queue,
+                 'job_name':job_name,'job_file_base':job_file_base}
 
 
         with open(job_file,'w') as fobj:

@@ -23,14 +23,18 @@ if env['WITH_PYTHON']:
     run_generic_file=env.File('bin/wl-run-generic')
     check_generic_file=env.File('bin/wl-check-generic')
 
+    gen_generic_pbs_file=env.File('bin/generate-generic-pbs')
+
     se_wq_file=env.File('bin/generate-se-wq')
     me_wq_file=env.File('bin/generate-me-wq')
+
 
     bin_install_subdir = 'bin'
     bin_targets = [me_run_file, 
                    me_check_file,
                    se_run_file,
                    gen_generic_file,
+                   gen_generic_pbs_file,
                    run_generic_file,
                    check_generic_file,
                    se_check_file,

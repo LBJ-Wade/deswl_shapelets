@@ -5,7 +5,7 @@
         I now use the database to figure out what SE files are available
         for a given *release*.  The release dr012 corresponds to DC6b.
 
-        Use ~/python/desdb/bin/get-release-runs.py to get a list of runs
+        Use ~/python/desdb/bin/get-release-runs to get a list of runs
         and then use wget-des/wget-des-parallel to download them.
 
         Generate md5sums using ~/shell_scripts/checksum-files.  Then verify against 
@@ -25,7 +25,7 @@
 
         Note I've started setting wl_config here, instead of using what is
         under etc. This allows us to use the same version of code but run with
-        a different configuration.  I keep these in $DESFILES_DIR/wl.config,
+        a different configuration.  TODO: Move these into GIT!
         e.g. wl01.config
         
         You can send test=True and dryrun=True also
@@ -91,6 +91,7 @@ import shutil
 import pprint
 import logging
 
+import desdb
 import deswl
 
 import esutil
@@ -103,8 +104,6 @@ if deswl.get_python_version(numerical=True) >= 3:
     inputfunc = input
 else:
     inputfunc = raw_input
-
-from deswl.files import _wlpipe_tmpdir
 
 
 class ImageProcessor(dict):
@@ -274,6 +273,8 @@ class CoaddTileProcessor(dict):
 
         self.setup_files()
 
+        self.scratch_dir=desdb.files.get_scratch_dir()
+
     def run(self):
         try:
             print >>stderr,os.uname()[1]
@@ -369,8 +370,8 @@ class CoaddTileProcessor(dict):
 
         in_types=['image','cat']
         out_types = ['qa','stat','multishear','debug']
-        if not os.path.exists(_wlpipe_tmpdir):
-            os.makedirs(_wlpipe_tmpdir)
+        if not os.path.exists(self.scratch_dir):
+            os.makedirs(self.scratch_dir)
 
         if self.use_hdfs:
             hdfs_srclist=deswl.files.HDFSSrclist(self['srclist'])

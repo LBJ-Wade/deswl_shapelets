@@ -68,7 +68,7 @@ def get_python_version(numerical=False):
 try:
     import cwl
 except:
-    stderr.write('Could not import cwl\n')
+    #stderr.write('Could not import cwl\n')
     pass
 
 import wlpipe
