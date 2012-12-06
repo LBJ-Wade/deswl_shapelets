@@ -20,12 +20,3 @@ for fname in ['wl.config','wl_dc4.config','wl_desdm.config']:
 
     if 'uninstall' in COMMAND_LINE_TARGETS:
         RunUninstall(env, targets, install_subdir)
-
-
-production_subdir = 'etc/production'
-production_configs=glob.glob('production/*.config')
-production_targets=[env.File(f) for f in production_configs]
-if 'install' in COMMAND_LINE_TARGETS:
-    RunInstall(env, production_targets, production_subdir)
-if 'uninstall' in COMMAND_LINE_TARGETS:
-    RunUninstall(env, production_targets, production_subdir)
