@@ -31,7 +31,7 @@ if env['WITH_PYTHON']:
 
 
     bin_install_subdir = 'bin'
-    etc_install_subdir = 'etc/deswl'
+    #etc_install_subdir = 'etc/deswl'
     bin_targets = [me_run_file, 
                    me_check_file,
                    se_run_file,
@@ -44,8 +44,8 @@ if env['WITH_PYTHON']:
                    se_wq_file,
                    me_wq_file,
                    me_seinputs_file]
-    etc_targets=glob.glob('config/*.config')
-    etc_targets=[env.File(f) for f in etc_targets]
+    #etc_targets=glob.glob('config/*.config')
+    #etc_targets=[env.File(f) for f in etc_targets]
 
 
     # for the /lib/pythonX/site-packages directory
@@ -111,7 +111,7 @@ if env['WITH_PYTHON']:
     if 'install' in COMMAND_LINE_TARGETS:
         RunInstall = env['_InstallProgram']
         RunInstall(env, bin_targets, bin_install_subdir)
-        RunInstall(env, etc_targets, etc_install_subdir)
+        #RunInstall(env, etc_targets, etc_install_subdir)
         RunInstall(env, pylib_targets, pylib_install_subdir)
 
     if 'uninstall' in COMMAND_LINE_TARGETS:

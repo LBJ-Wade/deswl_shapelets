@@ -1,6 +1,7 @@
 # vim: set filetype=python :
 
 import os
+import glob
 Import('env')
 
 RunInstall = env['_InstallProgram']
@@ -11,6 +12,7 @@ for fname in ['wl.config','wl_dc4.config','wl_desdm.config']:
     #cfile=env.File('wl.config')
     cfile=env.File(fname)
     install_subdir = 'etc'
+
     targets = [cfile]
 
     if 'install' in COMMAND_LINE_TARGETS:
@@ -20,3 +22,10 @@ for fname in ['wl.config','wl_dc4.config','wl_desdm.config']:
         RunUninstall(env, targets, install_subdir)
 
 
+production_subdir = 'etc/production'
+production_configs=glob.glob('production/*.config')
+production_targets=[env.File(f) for f in production_configs]
+if 'install' in COMMAND_LINE_TARGETS:
+    RunInstall(env, production_targets, production_subdir)
+if 'uninstall' in COMMAND_LINE_TARGETS:
+    RunUninstall(env, production_targets, production_subdir)
