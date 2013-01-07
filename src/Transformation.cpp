@@ -337,7 +337,7 @@ static void readWCSFits(
 
     if (fits_read_key(fitsptr,TSTRING,(char*)"CTYPE1",temp,NULL,&status))
         dbg<<"fits read ctype1: "<<status<<std::endl;
-    if (std::string(temp) == "RA---TAN") {
+    if (std::string(temp) == "RA---TAN" || std::string(temp) == "RA---TPV") {
         wcstype = TAN;
     } else if (std::string(temp) == "RA---TNX") {
         wcstype = TNX;
@@ -349,13 +349,16 @@ static void readWCSFits(
 
     if (fits_read_key(fitsptr,TSTRING,(char*)"CTYPE2",temp,NULL,&status))
         dbg<<"fits read ctype2: "<<status<<std::endl;
-    if ((wcstype == TAN && std::string(temp) != "DEC--TAN") ||
-        (wcstype == TNX && std::string(temp) != "DEC--TNX")) {
-        dbg << "ctype = "<<temp<<std::endl;
-        throw ReadException(
-            std::string("Error ctype2 (")+temp+") is not as expected");
+    if ((wcstype == TAN && (
+			    std::string(temp) != "DEC--TAN" &&
+			    std::string(temp) != "DEC--TPV" 
+			    )) ||
+	(wcstype == TNX && std::string(temp) != "DEC--TNX")) {
+      dbg << "ctype = "<<temp<<std::endl;
+      throw ReadException(
+			  std::string("Error ctype2 (")+temp+") is not as expected");
     }
-
+    
     if (fits_read_key(fitsptr,TDOUBLE,(char*)"CRVAL1",&crval[0],NULL,&status))
         dbg<<"fits read crval1: "<<status<<std::endl;
     if (fits_read_key(fitsptr,TDOUBLE,(char*)"CRVAL2",&crval[1],NULL,&status))
