@@ -36,6 +36,13 @@ inline int BasicSetup(int argc, char **argv, ConfigFile& params, std::string exe
     params.setDelimiter("=");
     params.setInclude("+");
     params.setComment("#");
+
+
+    // Read fits params first so that they can be modified in config file
+    std::string fp((const char*)fitsparams_config,fitsparams_config_len);
+    std::istringstream is(fp);
+    params.read(is);
+
     params.load(argv[1]);
     for(int k=2;k<argc;k++) params.append(argv[k]);
 
@@ -104,10 +111,8 @@ inline int BasicSetup(int argc, char **argv, ConfigFile& params, std::string exe
     tmv::WriteWarningsTo(dbgout);
 #endif
 
-    // Read fits params
-    std::string fp((const char*)fitsparams_config,fitsparams_config_len);
-    std::istringstream is(fp);
-    params.read(is);
+   
+   
     dbg<<"Config params = \n"<<params<<std::endl;
 
     return 0;
