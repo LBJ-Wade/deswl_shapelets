@@ -148,6 +148,21 @@ std::vector<PotentialStar*> StarFinder::findStars(
                 probstars.insert(probstars.end(),allobj[k]);
             }
         }
+
+	// dummy fit to pass to rejection function
+	Legendre2D fit(total_bounds);
+	
+	rejectOutliersIter(probstars,_reject1,0.1,fit,true,1e-4,8);
+	dbg<<"rejected outliers, now have "<<probstars.size()<<" stars\n";
+	std::sort(probstars.begin(),probstars.end(),
+		  std::mem_fun(&PotentialStar::isBrighterThan));
+
+	dbg<<"Current stars mag/size:"<<std::endl;	
+	for(int k=0;k<probstars.size();++k) {
+	  dbg<<probstars[k]->getMag()<<" "<<probstars[k]->getSize()<<std::endl;
+	}
+	
+
     } else {
 
         for(int i=0;i<nsection;++i) {
@@ -251,12 +266,12 @@ std::vector<PotentialStar*> StarFinder::findStars(
     nstars = probstars.size();
     dbg<<"probstars has "<<nstars<<" stars\n";
 
-    // Remove outliers using a median,percentile rejection scheme.
-    rejectOutliers(probstars,_reject2,sigma,f);
+    // Remove outliers using a iterative median,percentile rejection scheme.
+    rejectOutliersIter(probstars,_reject2,0.1,f,false);
     dbg<<"rejected outliers, now have "<<probstars.size()<<" stars\n";
-    // Worth doing twice, since first pass usually throws out a lot of junk.
-    rejectOutliers(probstars,_reject2,sigma,f);  
-    dbg<<"rejected outliers, now have "<<probstars.size()<<" stars\n";
+    std::sort(probstars.begin(),probstars.end(),
+              std::mem_fun(&PotentialStar::isBrighterThan));
+    
 
     // If you get a bad fit the first time through, it can take a 
     // few passes to fix it.
@@ -286,6 +301,13 @@ std::vector<PotentialStar*> StarFinder::findStars(
                     fit_list.insert(fit_list.end(),allobj[k]);
                 }
             }
+	    rejectOutliersIter(fit_list,_reject1,0.1,f,false);
+	    dbg<<"rejected outliers, now have "<<fit_list.size()<<" stars\n";
+	    std::sort(fit_list.begin(),fit_list.end(),
+		      std::mem_fun(&PotentialStar::isBrighterThan));
+	    
+
+
         } else {
 
             dbg<<"  Fraction of objects in star-galaxy range too small "<<std::endl;
@@ -327,8 +349,7 @@ std::vector<PotentialStar*> StarFinder::findStars(
             int(_nstart2*allobj.size()),_min_iter2,_mag_step2,
             _purity_ratio,false,f);
         dbg<<"probstars has "<<probstars.size()<<" stars\n";
-        rejectOutliers(probstars,_reject2,sigma,f);
-        rejectOutliers(probstars,_reject2,sigma,f);
+	rejectOutliersIter(probstars,_reject2,0.1,f,false);
         dbg<<"rejected outliers, now have "<<probstars.size()<<" stars\n";
         if (int(probstars.size()) < nstars) {
             refit = true;
@@ -408,6 +429,106 @@ void StarFinder::rejectOutliers(
     for(int k=0;k<nstars;++k) delete modif_list[k];
 }
 
+
+
+
+void StarFinder::rejectOutliersIter(
+    std::vector<PotentialStar*>& list,
+    double nSigma, double minSigma, const Function2D& f,
+    bool use_size,double tol,int max_iter)
+{
+    // This rejects outliers by finding the median and the quartile
+    // values, and calls sigma the average of the two quartile deviations.
+    // "nSigma" is then how many of these "sigma" away from the median
+    //  to consider something an outlier.
+
+
+  if (list.size() <= 4) return;
+
+  double old_sigma=1e30,old_median=1e30;
+  double sigma=0,median=0;
+  int iter=0,nremoved;
+  bool pass;
+  do {
+
+    pass=true;
+    const int nStars = list.size();
+    if(iter>=1) {
+      old_sigma=sigma;
+      old_median=median;
+    }
+
+    std::vector<double> sizes;
+    std::map<int,double> msizes;
+    for(int k=0;k<nStars;++k) {
+      double newsize;
+       if(!use_size) {
+         newsize = list[k]->getSize() - f(list[k]->getPos());
+       } else {
+         newsize = list[k]->getSize();
+       }
+       msizes[list[k]->getIndex()]=newsize;
+       sizes.push_back(newsize);
+    }
+
+    // Find median, 1st and 3rd quartile stars;
+    std::sort(sizes.begin(),sizes.end());
+
+    median = sizes[sizes.size()/2];
+    double q1 = sizes[sizes.size()/4];
+    double q3 = sizes[sizes.size()*3/4];
+
+    sigma = std::max(q3-median,median-q1);
+
+    if(sigma > minSigma) {
+      dbg<<"Sigma too small reducing by a factor of 2"<<std::endl;
+      sigma/=2;
+
+      // Don't allow loop to stop if sigma is too large
+      // set previous values very high
+      old_sigma=1e30;
+      old_median=1e30;
+      pass=false;
+
+      // if we had to reduce two times in a row further reduce the sigma
+      // to avoid infinite loop
+      if(nremoved==10000) sigma/=2;
+    }
+
+    dbg<<"q1,m,q3 = "<<q1<<" , "<<median<<" , "<<q3<<std::endl;
+    dbg<<"sigma = "<<sigma<<", nsig * sigma = "<<nSigma*sigma<<std::endl;
+
+    int j=0;
+    // Remove elements which std::abs(x->getSize()-median) > nSigma*sigma
+    for(int k=0; k<nStars;++k) {
+      if (std::abs(msizes[list[k]->getIndex()]-median)>nSigma*sigma) {
+	xdbg<<"k = "<<k<<",index= "<<list[k]->getIndex()
+	    <<"  size = "<<msizes[list[k]->getIndex()];
+	xdbg<<" rejecting (median = "<<median<<")\n";
+      } else {
+	xdbg<<"k = "<<k<<",index= "<<list[k]->getIndex()
+	    <<", size = "<<msizes[list[k]->getIndex()]
+	    <<", mag = "<<list[k]->getMag()<<" keeping\n";
+	list[j++]=list[k];
+      }
+    }
+    if (j<nStars) list.erase(list.begin()+j,list.end());
+    nremoved=nStars-j;
+    
+    // modify nremoved if sigma was too small so we continue looping
+    if(!pass) nremoved=10000;
+    dbg<<"Remove Iteration: "<<iter+1<<"  Sigma "<<old_sigma<<" "<<sigma
+       <<"  Median "<<old_median<<" "<<median
+       <<" removed "<<nremoved<<" stars"
+       <<" max_iter "<<max_iter<<std::endl;
+    ++iter;
+  }   while( (fabs(old_sigma-sigma)>tol &&
+	      fabs(old_median-median)>tol &&
+	      (iter-1)<max_iter && nremoved>0));
+  
+}
+
+  
 std::vector<PotentialStar*> StarFinder::getPeakList(
     const std::vector<PotentialStar*>& obj_list,
     double bin_size, double min_size, double max_size,

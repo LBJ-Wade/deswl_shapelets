@@ -32,6 +32,12 @@ public :
         std::vector<PotentialStar*>& list, 
         double nsigma, double min_sigma, const Function2D& f);
 
+    void rejectOutliersIter(
+        std::vector<PotentialStar*>& list,
+        double nSigma, double minSigma, const Function2D& f,
+        bool use_size=false,double tol=1e-4,int max_iter=8);
+
+
     std::vector<PotentialStar*> getPeakList(
         const std::vector<PotentialStar*>& obj_list,
         double binSize, double min_size, double max_size,
