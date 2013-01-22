@@ -514,10 +514,16 @@ static void readTANFits(
                     pvstr[6] = '\0'; 
                 }
                 double temp;
-                if (fits_read_key(fitsptr,TDOUBLE,pvstr,&temp,NULL,&status))
-                    dbg<<"Problem reading key: "<<pvstr<<" for n,i,j,k = "<<
-                        n<<','<<i<<','<<j<<','<<k<<std::endl;
-                if (status) break;
+		if (fits_read_key(fitsptr,TDOUBLE,pvstr,&temp,NULL,&status)) {
+		  dbg<<"Problem reading key: "<<pvstr<<" for n,i,j,k = "<<
+		    n<<','<<i<<','<<j<<','<<k<<std::endl;
+		  
+		  // Set default values if not here
+		  if (k==1) temp=1;
+		  else temp=0;
+		  dbg<<"Setting to default: "<<temp<<std::endl;
+		  status=0;
+		}
                 pv[pvnum](i,j) = temp;
             }
             if (status) break;
