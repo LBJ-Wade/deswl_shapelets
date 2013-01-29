@@ -3,20 +3,18 @@
 #root=decam--24--27-i-2_61   # dc4
 #root=decam--24--37-i-14_06  # dc4
 root=decam--23--42-i-5_01   # dc5
-config=../example_config/wl.config
+config='../example_config/wl.config +../example_config/wl_desdm.config'
 #input=/home/mjarvis/des/wl/testdata/data
 #output=/home/mjarvis/des/wl/testdata/output2
 input=../../testdata/data
 output=../../testdata/output
 #input=/u/ac/jarvis/wl/testdata/data
 #output=/u/ac/jarvis/wl/testdata/output
-#extra_config=
-#extra_config='shear_dc4_input_format=true'
 #extra_config='+dc4.config shear_output_psf=true'
 BINDIR=.
 #BINDIR=/home/mjarvis/bin
 #BINDIR=/Users/Mike/bin
-vl=1
+vl=2
 
 #extra_config='omp_num_threads=1'
 

@@ -165,12 +165,13 @@ void Transformation::getDistortion(
 
         if (_is_ra_dec) {
             // Then u is RA, v is Dec.
-            // Need to scale du (RA) by cos(Dec).
+            // Need to scale du (RA) by -cos(Dec).
+            // The minus sign is because RA increases to the left.
             double dec = (*_v)(pos); // this is in arcsec.
             dec /= ARCSEC_PER_RAD; // now it is in radians.
             double cosdec = cos(dec);
-            dudx *= cosdec;
-            dudy *= cosdec;
+            dudx *= -cosdec;
+            dudy *= -cosdec;
         }
     } else {
         dudx = 1.;
