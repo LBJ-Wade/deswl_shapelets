@@ -1,6 +1,7 @@
 
 #include <sstream>
 #include <valarray>
+
 //#include <CCfits/CCfits>
 //#include <fitsio.h>
 
@@ -14,7 +15,8 @@ Image<T>::~Image()
 {}
 
 template <typename T>
-Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_image)
+Image<T>::Image(const ConfigFile& params, std::auto_ptr<Image<T> >& weight_image) :
+    _compression(NOCOMPRESS)
 {
     _filename = MakeName(params,"image",true,true);
     _hdu = GetHdu(params,"image",_filename,1);
@@ -548,11 +550,33 @@ void Image<T>::flush() const
 }
 
 template <typename T> 
+void Image<T>::set_compression(int comp)
+{
+    if (comp!=GZIP_1
+            && comp != RICE_1
+            && comp != HCOMPRESS_1 
+            && comp != PLIO_1) {
+        std::stringstream ss;
+        ss<<"bad compression type: "<<comp;
+        throw std::runtime_error(ss.str());
+    }
+    this->_compression=comp;
+}
+
+template <typename T> 
 void Image<T>::write(fitsfile *fPtr) const
 {
     _hdu = 1;
 
     int fitsErr=0;
+
+    if (_compression != NOCOMPRESS) {
+        fits_set_compression_type(fPtr, _compression, &fitsErr);
+        if (fitsErr != 0) {
+            fits_report_error(stderr,fitsErr);
+            throw WriteException("Error setting compression "+_filename);
+        }
+    }
 
     Assert(getBitPix<T>());
     int bitPix = getBitPix<T>();

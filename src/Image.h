@@ -86,6 +86,7 @@ public:
     // Write to existing fits object.  *much* faster than re-opening
     // each time
     void write(fitsfile *fits) const; 
+    void write_rice_compressed(fitsfile *fPtr) const;
 
     TConstMatrixView(T) getM() const { return *_m; }
     TMV_const TMatrixView(T)& getM() { return *_m; }
@@ -138,6 +139,8 @@ public:
     T median() const;
 
     bool loaded() { return _loaded; };
+
+    void set_compression(int comp);
 private:
 
     mutable std::string _filename;
@@ -156,6 +159,8 @@ private:
     void readFits(int x1, int x2, int y1, int y2);
 
     bool _loaded;
+
+    int _compression;
 };
 
 extern template class Image<double>;
