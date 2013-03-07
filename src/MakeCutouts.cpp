@@ -1,9 +1,25 @@
 /*
    Author: Erin Sheldon, BNL.  This began as a hack on the multishear code.
 
+   notes
+
+       - memory usage is moderate, ~1G on the coadd I've tested.  When adding
+       the weight images and seg images this will increase to <~3G.  Maybe the
+       max for any tile would be 10G.  
+       
+       Could probably remove all the memory management machinery for typical
+       coadds, which would simplify the code. On the other hand, we may want to
+       run this on the supernova fields and eventually lsst.  Also, this code
+       is reasonably fast as is...
+
    TODO
-       - add the coadd image in the first entry of the mosaic
-       - add wcs info to the second extension
+       - add the coadd image in the first entry of the mosaic?  If so,
+           will need to have a file name for the coadd listed in the 
+           filenames list, etc.
+       - add wcs info to the second extension along with the filenames.
+       - create matching output file names
+       - add weight images
+       - when seg images are available, add them
 */
 #include <valarray>
 #include <sys/time.h>
@@ -337,7 +353,7 @@ void CutoutMaker::write_catalog_filenames(CCfits::FITS *fits)
     col_names[0] = "filename";
     col_fmts[0] = ss.str();
 
-    CCfits::Table* table = fits->addTable("se_images",nfiles,
+    CCfits::Table* table = fits->addTable("images_info",nfiles,
                                           col_names,col_fmts,col_units);
 
     int start_row=1;
