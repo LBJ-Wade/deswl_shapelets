@@ -843,8 +843,7 @@ bool CutoutMaker::make_section_cutouts(const Bounds *bounds)
         dbg<<"getting cutouts for b = "<<bounds<<std::endl;
         memory_usage(dbgout);
 
-        //const int nfiles = this->image_file_list.size();
-        const int nfiles = 10;
+        const int nfiles = this->image_file_list.size();
 
         for (int ifile=0; ifile<nfiles; ++ifile) {
             if (!this->load_file_cutouts(ifile,bounds)) {
