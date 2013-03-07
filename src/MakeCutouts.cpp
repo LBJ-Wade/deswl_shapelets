@@ -3,7 +3,7 @@
 
    TODO
        - add the coadd image in the first entry of the mosaic
-       - variable length column holding ids for the SE images
+       - add wcs info to the second extension
 */
 #include <valarray>
 #include <sys/time.h>
@@ -12,9 +12,8 @@
 #include <CCfits/CCfits>
 
 #include "Image.h"
-#include "FittedPsf.h"
+#include "Transformation.h"
 #include "CoaddCatalog.h"
-#include "MultiShearCatalog.h"
 #include "BasicSetup.h"
 
 const double ARCSEC_PER_RAD = 206264.806247;
@@ -335,14 +334,14 @@ void CutoutMaker::write_catalog_filenames(CCfits::FITS *fits)
 
     std::stringstream ss;
     ss<<this->max_image_filename_len<<"A";
-    col_names[0] = "se_filename";
+    col_names[0] = "filename";
     col_fmts[0] = ss.str();
 
-    CCfits::Table* table = fits->addTable("se_filenames",nfiles,
+    CCfits::Table* table = fits->addTable("se_images",nfiles,
                                           col_names,col_fmts,col_units);
 
     int start_row=1;
-    table->column("se_filename").write(this->image_file_list,start_row);
+    table->column("filename").write(this->image_file_list,start_row);
 }
 void CutoutMaker::write_catalog()
 {
@@ -651,7 +650,7 @@ void CutoutMaker::bombout_memory()
     if (des_qa) std::cerr<<"STATUS5BEG ";
     std::cerr
         << "Memory exhausted in MultShearCatalog.\n"
-        << "Memory Usage in MultiShearCatalog = "
+        << "Memory Usage in MakeCutouts = "
         << this->calc_memory_footprint()<<" MB \n"
         << "Actual Virtual Memory Usage = "
         << mem<<" MB \n"
