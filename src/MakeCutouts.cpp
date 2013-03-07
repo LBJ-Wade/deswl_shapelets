@@ -5,6 +5,7 @@
 #include <sys/time.h>
 #include <iostream>
 #include <fstream>
+#include <CCfits/CCfits>
 
 #include "Image.h"
 #include "FittedPsf.h"
@@ -13,9 +14,9 @@
 #include "BasicSetup.h"
 
 const double ARCSEC_PER_RAD = 206264.806247;
+const int MAX_HDU=999;
 
-// If desired stop after this many sections.
-//#define ENDAT 2
+//using namespace CCfits;
 
 class CutoutMaker
 {
@@ -26,10 +27,16 @@ class CutoutMaker
 
         ~CutoutMaker() {}
 
+        std::string get_cutout_filename(int filenum);
+        void start_new_fits();
+
+        template <typename T> void write_mosaic(const Image<T> *mosaic);
+
+        void write_mosaics();
 
         void get_cutouts_bound(const Bounds& bounds);
-        void clear_cutout_list(void);
-        void load_image_list(void);
+        void clear_cutout_list();
+        void load_image_list();
 
         std::vector<Bounds> split_bounds();
 
@@ -39,18 +46,22 @@ class CutoutMaker
         bool load_file_cutouts(std::string filename, 
                                const Bounds *bounds);
         bool make_section_cutouts(const Bounds *bounds);
-        void make_cutouts(void);
+        void make_cutouts();
 
-        int get_ngals_with_pixels() const;
+        int get_nobj_with_pixels() const;
 
-        void print_stats(void);
+        void print_area_stats();
 
-        double calc_memory_footprint(void);
+        double calc_memory_footprint();
 
-        void bombout_memory(void);
-        void set_memory_usage(void);
+        void bombout_memory();
+        void set_memory_usage();
 
         int get_box_size(int index);
+
+        int count_noflags();
+
+        void close_files();
 
     private:
         std::vector<long> id;
@@ -65,6 +76,12 @@ class CutoutMaker
         std::vector<std::string> image_file_list;
 
         ConfigFile params;
+
+        fitsfile *fits;
+        
+        std::string current_filename;
+        int current_filenum; // the file number
+        int current_hdu; // where we are in the current file
 };
 
 template <typename T>
@@ -157,7 +174,10 @@ CutoutMaker::CutoutMaker(const CoaddCatalog *coaddCat,
         flags(coaddCat->getFlagsList()), 
         skybounds(coaddCat->getSkyBounds()),
         imlist_path(imlist),
-        params(*input_params)
+        params(*input_params),
+        current_filenum(-1),
+        current_hdu(99999),
+        fits(NULL)
 {
 
     const int n = coaddCat->size();
@@ -167,8 +187,128 @@ CutoutMaker::CutoutMaker(const CoaddCatalog *coaddCat,
 
 }
 
+CutoutMaker::~CutoutMaker()
+{
+    this->close_files();
+}
 
-double CutoutMaker::calc_memory_footprint(void)
+void CutoutMaker::close_files()
+{
+    if (this->fits) {
+        this->fits=close_fits(this->fits);
+    }
+}
+
+// Image has no resize method, so let's create one and send it
+// back
+//
+// assume all are the same shape
+template <typename T>
+Image<T> *make_mosaic(const std::vector<Image<T> > *vec)
+{
+    int nx=vec->at(0).getXMax();
+    int ny=vec->at(0).getYMax();
+
+    int nim=vec->size();
+    int nxtot = nx*nim;
+
+    Image<T> *mosaic=new Image<T>(nxtot, ny);
+
+    for (int i=0; i<nim; i++) {
+        // sub-image extraction is [min,max)
+        const Image<T> *cutout = &vec->at(i);
+
+        int startx= i*nx;
+        int endx  = (i+1)*nx;
+        Image<T> subim=mosaic->subImage(startx,endx,0,ny); // shared storage
+        subim = (*cutout);
+    }
+    return mosaic;
+}
+
+
+// need to base this on the input coadd image
+std::string CutoutMaker::get_cutout_filename(int filenum)
+{
+    std::stringstream ss;
+    char numstr[10];
+
+    std::sprintf(numstr,"%04d", filenum);
+
+    ss << "cutouts-" << numstr << ".fits";
+    return ss.str();
+}
+
+static fitsfile *close_fits(fitsfile *fits)
+{
+    int fitsErr=0;
+    fits_close_file(fits, &fitsErr);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw WriteException("Error closing fits file");
+    }
+    return NULL;
+}
+static fitsfile *open_new_fits(std::string filename)
+{
+
+    fitsfile *fits=NULL;
+    int fitsErr=0;
+
+    fits_create_file(&fits,("!"+filename).c_str(),&fitsErr);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw WriteException(
+                "Error creating fits file " + filename);
+    }
+
+    return fits;
+}
+
+void CutoutMaker::start_new_fits()
+{
+    std::stringstream ss;
+    this->current_filenum++;
+
+    this->current_filename = this->get_cutout_filename(this->current_filenum);
+
+    std::cerr<<"starting new cutout file: "<<this->current_filename<<"\n";
+
+    if (this->fits) {
+        this->fits=close_fits(this->fits);
+    }
+    this->fits = open_new_fits(this->current_filename);
+}
+
+template <typename T>
+void CutoutMaker::write_mosaic(const Image<T> *mosaic)
+{
+
+    if (this->current_hdu > MAX_HDU) {
+        this->start_new_fits();
+        this->current_hdu=1;
+    }
+
+    mosaic->write(this->fits);
+    this->current_hdu++;
+}
+
+// append a new extension for each object that has images
+void CutoutMaker::write_mosaics()
+{
+    int nobj=this->cutout_list.size();
+    for (int i=0; i<nobj; i++) {
+        if (this->cutout_list[i].size() > 0) {
+            //std::cerr<<"object ncutout: "<<this->cutout_list[i].size()<<"\n";
+            Image<double> *mosaic=make_mosaic(&this->cutout_list[i]);
+
+            this->write_mosaic(mosaic);
+            delete mosaic;
+        }
+    }
+}
+
+double CutoutMaker::calc_memory_footprint()
 {
     double mem=0;
     
@@ -182,7 +322,7 @@ double CutoutMaker::calc_memory_footprint(void)
     return mem;
 }
 
-void CutoutMaker::print_stats(void)
+void CutoutMaker::print_area_stats()
 {
     std::cerr<<"Total bounds are "<<this->skybounds<<std::endl;
 
@@ -200,7 +340,7 @@ void CutoutMaker::print_stats(void)
 }
 
 
-void CutoutMaker::load_image_list(void)
+void CutoutMaker::load_image_list()
 {
     if (!DoesFileExist(this->imlist_path)) {
         std::cerr<<"file not found: "<<this->imlist_path<<"\n";
@@ -225,7 +365,7 @@ void CutoutMaker::load_image_list(void)
         <<this->image_file_list.size()
         <<" se images"<<std::endl;
 }
-void CutoutMaker::clear_cutout_list(void)
+void CutoutMaker::clear_cutout_list()
 {
     dbg<<"Start getPixels: memory_usage = "<<memory_usage()<<std::endl;
     const int n = this->cutout_list.size();
@@ -235,35 +375,31 @@ void CutoutMaker::clear_cutout_list(void)
     dbg<<"After clear: memory_usage = "<<memory_usage()<<std::endl;
 }
 
-int CutoutMaker::get_ngals_with_pixels() const
+int CutoutMaker::get_nobj_with_pixels() const
 {
-    const int ngals = this->cutout_list.size();
-    int ngals_withpix=0;
-    for (int i=0; i<ngals; ++i) {
+    const int nobj = this->cutout_list.size();
+    int nobj_withpix=0;
+    for (int i=0; i<nobj; ++i) {
         if (this->cutout_list[i].size() > 0) {
-            ngals_withpix++;
+            nobj_withpix++;
         }
     }
-    return ngals_withpix;
+    return nobj_withpix;
 }
 
 
 
-/*
-static int get_ngood(const MultiShearCatalog *shearcat)
+int CutoutMaker::count_noflags()
 {
     int ngood = 0;
-    int nflags = shearcat->getFlagsList().size();
-
-    for(int i=0;i<nflags;++i) {
-        if (shearcat->getFlagsList()[i] == 0) {
+    int nobj=this->flags.size();
+    for(int i=0;i<nobj;++i) {
+        if (this->flags[i]== 0) {
             ++ngood;
         }
     }
-
     return ngood;
 }
-*/
 
 
 
@@ -289,7 +425,7 @@ std::vector<Bounds> CutoutMaker::split_bounds()
 }
 
 
-void CutoutMaker::bombout_memory(void)
+void CutoutMaker::bombout_memory()
 {
     bool des_qa = this->params.read("des_qa",false); 
 
@@ -315,7 +451,7 @@ void CutoutMaker::bombout_memory(void)
     exit(1);
 }
 
-void CutoutMaker::set_memory_usage(void)
+void CutoutMaker::set_memory_usage()
 {
     dbg << "Memory Usage in getting cutouts = "
         << this->calc_memory_footprint()<<" MB \n";
@@ -326,7 +462,6 @@ void CutoutMaker::set_memory_usage(void)
     dbg<<"Actual memory usage = "<<mem<<" MB\n";
     dbg<<"Peak memory usage = "<<peak_mem<<" MB\n";
     dbg<<"Max allowed memory usage = "<<max_mem<<" MB\n";
-
 }
 
 
@@ -432,13 +567,13 @@ bool CutoutMaker::load_file_cutouts(std::string filename, const Bounds *bounds)
     }
 
     double max_mem = this->params.read("max_vmem",64)*1024.;
-    long ngals=this->cutout_list.size();
+    long nobj=this->cutout_list.size();
     long nkeep=0;
     long ngood=0, ntry=0;
 
     Position pos(0,0);
 
-    for (int i=0; i<ngals; ++i) {
+    for (int i=0; i<nobj; ++i) {
         if (this->flags[i]) continue;
         if (!bounds->includes(this->skypos[i])) continue;
         if (!inv_bounds.includes(this->skypos[i])) continue;
@@ -459,10 +594,11 @@ bool CutoutMaker::load_file_cutouts(std::string filename, const Bounds *bounds)
     }
 
     long long cutmem=getMemoryFootprint(this->cutout_list);
-    std::cerr<<"        kept "<<nkeep<<"/"<<ngals
+    std::cerr<<"        kept "<<nkeep<<"/"<<nobj
         <<"  memory_usage: "<<memory_usage()/1024.<<" Gb\n";;
     return true;
 }
+
 bool CutoutMaker::make_section_cutouts(const Bounds *bounds)
 {
 
@@ -473,6 +609,7 @@ bool CutoutMaker::make_section_cutouts(const Bounds *bounds)
         memory_usage(dbgout);
 
         const int nfiles = this->image_file_list.size();
+        //const int nfiles = 10;
 
         for (int ifile=0; ifile<nfiles; ++ifile) {
             std::string image_file = this->image_file_list[ifile];
@@ -507,7 +644,7 @@ bool CutoutMaker::make_section_cutouts(const Bounds *bounds)
 //   of work, the extra I/O time won't be much of an issue. 
 
 
-void CutoutMaker::make_cutouts(void)
+void CutoutMaker::make_cutouts()
 {
 
     std::vector<Bounds> section_bounds = this->split_bounds();
@@ -515,10 +652,6 @@ void CutoutMaker::make_cutouts(void)
     int nresplit = this->params.read("multishear_max_resplits",1);
 
     for(int i=0;i<nsec;++i) {
-
-#ifdef ENDAT
-        if (i == ENDAT) break;
-#endif
 
         std::cerr<<"Starting section ";
         std::cerr<<(i+1)<<"/"<<nsec<<std::endl;
@@ -539,9 +672,11 @@ void CutoutMaker::make_cutouts(void)
                 bombout_resplit(&this->params);
             }
         }
-        std::cerr<<this->get_ngals_with_pixels()<<
+        std::cerr<<this->get_nobj_with_pixels()<<
                 " galaxies in this section.\n";
 
+        std::cerr<<"writing mosaics\n";
+        this->write_mosaics();
     }
 
 
@@ -556,8 +691,9 @@ static void make_cutouts(ConfigFile *params)
 
     std::string imlist_file=(*params)["coadd_srclist"];
     CutoutMaker maker(&coaddcat, imlist_file, params);
+    std::cerr<<"number without flags: "<<maker.count_noflags();
 
-    maker.print_stats();
+    maker.print_area_stats();
     maker.make_cutouts();
 
 }
