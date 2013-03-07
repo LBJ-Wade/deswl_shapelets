@@ -1,9 +1,8 @@
 
 #include <sstream>
 #include <valarray>
-#include <CCfits/CCfits>
-
-#include <fitsio.h>
+//#include <CCfits/CCfits>
+//#include <fitsio.h>
 
 #include "Image.h"
 #include "Function2D.h"
@@ -549,19 +548,11 @@ void Image<T>::flush() const
 }
 
 template <typename T> 
-void Image<T>::write(std::string filename) const
+void Image<T>::write(fitsfile *fPtr) const
 {
-    _filename = filename;
     _hdu = 1;
 
-    fitsfile *fPtr;
     int fitsErr=0;
-    fits_create_file(&fPtr,("!"+_filename).c_str(),&fitsErr);
-    if (fitsErr != 0) {
-        fits_report_error(stderr,fitsErr);
-        throw WriteException(
-            "Error creating fits file " + _filename);
-    }
 
     Assert(getBitPix<T>());
     int bitPix = getBitPix<T>();
@@ -570,9 +561,7 @@ void Image<T>::write(std::string filename) const
     fits_create_img(fPtr, bitPix, nAxes, sizes, &fitsErr);
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
-        throw WriteException(
-            "Error writing " + _filename + 
-            " creating image");
+        throw WriteException("Error creating image in "+_filename);
     }
 
     long fPixel[2] = {1,1};
@@ -581,10 +570,37 @@ void Image<T>::write(std::string filename) const
                    TMV_ptr(*_m),&fitsErr);
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
-        throw WriteException(
-            "Error reading from " + _filename + 
-            " writing pixel data");
+        throw WriteException("Error writing pixel data in "+_filename);
     }
+}
+
+
+template <typename T> 
+void Image<T>::write(std::string filename, bool create) const
+{
+
+    fitsfile *fPtr;
+    int fitsErr=0;
+
+    _filename=filename;
+
+    if (create) {
+        fits_create_file(&fPtr,("!"+_filename).c_str(),&fitsErr);
+        if (fitsErr != 0) {
+            fits_report_error(stderr,fitsErr);
+            throw WriteException(
+                "Error creating fits file " + _filename);
+        }
+    } else {
+        fits_open_file(&fPtr,_filename.c_str(),READWRITE,&fitsErr);
+        if (fitsErr != 0) {
+            fits_report_error(stderr,fitsErr);
+            throw WriteException(
+                    "Error opening fits file " + _filename);
+        }
+    }
+
+    write(fPtr);
 
     fits_close_file(fPtr, &fitsErr);
     if (fitsErr != 0) {

@@ -7,6 +7,10 @@
 #include "Bounds.h"
 #include "ConfigFile.h"
 
+#include <CCfits/CCfits>
+#include <fitsio.h>
+
+
 template <typename T> 
 class Image 
 {
@@ -77,8 +81,11 @@ public:
     void flush() const;
     void flush(std::string fits_file, int hdu=1) const; 
 
-    // Write to new file
-    void write(std::string fits_file) const; 
+    // Write to new file.  Append if create is false
+    void write(std::string fits_file, bool create=true) const; 
+    // Write to existing fits object.  *much* faster than re-opening
+    // each time
+    void write(fitsfile *fits) const; 
 
     TConstMatrixView(T) getM() const { return *_m; }
     TMV_const TMatrixView(T)& getM() { return *_m; }
