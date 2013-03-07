@@ -1,5 +1,9 @@
 /*
    Author: Erin Sheldon, BNL.  This began as a hack on the multishear code.
+
+   TODO
+       - add the coadd image in the first entry of the mosaic
+       - variable length column holding ids for the SE images
 */
 #include <valarray>
 #include <sys/time.h>
@@ -15,8 +19,6 @@
 
 const double ARCSEC_PER_RAD = 206264.806247;
 const int MAX_HDU=999;
-
-//using namespace CCfits;
 
 class CutoutMaker
 {
@@ -40,13 +42,18 @@ class CutoutMaker
 
         std::vector<Bounds> split_bounds();
 
-        void append_image_cutout(const Image<double> *image,
-                                 int index,
-                                  const Position *pos);
-        bool load_file_cutouts(std::string filename, 
+        void append_cutout_and_pos(const Image<double> *image,
+                                   int index,
+                                   const Position *pos);
+
+        std::string setup_se_file(int ifile);
+        bool load_file_cutouts(int ifile,
                                const Bounds *bounds);
+
         bool make_section_cutouts(const Bounds *bounds);
         void make_cutouts();
+        void write_catalog_filenames(CCfits::FITS *fits);
+        void write_catalog();
 
         int get_nobj_with_pixels() const;
 
@@ -60,6 +67,7 @@ class CutoutMaker
         int get_box_size(int index);
 
         int count_noflags();
+        int get_max_cutouts();
 
         void close_files();
 
@@ -73,14 +81,20 @@ class CutoutMaker
         // these tell us how to find the cutout
         // for an object
         std::vector<int> cutout_file_id;
-        std::vector<int> cutout_file_ext; // 0 offset
+        std::vector<int> cutout_ext; // 0 offset
+        std::vector<int> cutout_count;
+
+        std::vector<std::vector<int> > se_file_id; // id of SE file
+        std::vector<std::vector<Position> > se_pos; // position in SE image
+        std::vector<std::vector<Position> > cutout_pos; // positions in the cutout
+        std::vector<std::vector<Image<double> > > cutout_list;
 
         Bounds skybounds; 
         std::string imlist_path;
 
-        std::vector<std::vector<Image<double> > > cutout_list;
 
         std::vector<std::string> image_file_list;
+        int max_image_filename_len;
 
         ConfigFile params;
 
@@ -89,6 +103,9 @@ class CutoutMaker
         std::string current_filename;
         int current_file_id; // the file number
         int current_hdu; // where we are in the current file
+
+        double max_mem;
+        int nobj;
 };
 
 template <typename T>
@@ -187,14 +204,19 @@ CutoutMaker::CutoutMaker(const CoaddCatalog *coaddCat,
         fits(NULL)
 
 {
-    const int n = coaddCat->size();
-    this->cutout_list.resize(n);
+    this->nobj = coaddCat->size();
+    this->cutout_list.resize(this->nobj);
+    this->cutout_file_id.resize(this->nobj,-9999);
+    this->cutout_ext.resize(this->nobj,-9999);
+    this->cutout_count.resize(this->nobj,0);
+
+    this->se_file_id.resize(this->nobj);
+    this->se_pos.resize(this->nobj);
+    this->cutout_pos.resize(this->nobj);
+
+    this->max_mem = this->params.read("max_vmem",64)*1024.;
 
     this->load_image_list();
-
-    int nobj=this->id.size();
-    this->cutout_file_id.resize(nobj);
-    this->cutout_file_ext.resize(nobj);
 }
 
 CutoutMaker::~CutoutMaker()
@@ -238,6 +260,166 @@ void CutoutMaker::close_files()
         this->fits=close_fits(this->fits);
     }
 }
+
+// at least size 2 because CCfits requires
+// length 2 for array columns
+int CutoutMaker::get_max_cutouts()
+{
+    int max_cutouts=2;
+    for (int i=0; i<this->nobj; i++) {
+        int count=this->se_file_id[i].size();
+        if (count > max_cutouts) {
+            max_cutouts=count;
+        }
+    }
+    return max_cutouts;
+}
+template <typename T>
+void to_valarray_vec(const std::vector<std::vector<T> > *vvec,
+                     std::vector<std::valarray<T> > *vval,
+                     int arrsize)
+{
+    int n=vvec->size();
+    vval->resize(n);
+    for (int i=0; i<n; i++) {
+        int s=vvec->at(i).size();
+        if (s > arrsize) {
+            std::stringstream ss;
+            ss<<"number of cutouts "<<s<<" exceeded maximum "<<arrsize;
+            throw std::runtime_error(ss.str());
+        }
+
+        vval->at(i).resize(arrsize,-9999);
+        for (int j=0; j<s; j++) {
+            vval->at(i)[j] = vvec->at(i)[j];
+        }
+    }
+}
+
+
+static void vposition_to_xy(const std::vector<std::vector<Position> > *pvec,
+                            std::vector<std::valarray<double> > *xvec,
+                            std::vector<std::valarray<double> > *yvec,
+                            int arrsize)
+{
+    int n=pvec->size();
+    xvec->resize(n);
+    yvec->resize(n);
+
+    for (int i=0; i<n; i++) {
+        int s=pvec->at(i).size();
+        if (s > arrsize) {
+            std::stringstream ss;
+            ss<<"number of cutouts "<<s<<" exceeded maximum "<<arrsize;
+            throw std::runtime_error(ss.str());
+        }
+
+        xvec->at(i).resize(arrsize,-9999);
+        yvec->at(i).resize(arrsize,-9999);
+        for (int j=0; j<s; j++) {
+            xvec->at(i)[j] = pvec->at(i)[j].getX();
+            yvec->at(i)[j] = pvec->at(i)[j].getY();
+        }
+    }
+
+}
+                                 
+
+void CutoutMaker::write_catalog_filenames(CCfits::FITS *fits)
+{
+    int nfiles=this->image_file_list.size();
+
+    std::vector<string> col_names(1);
+    std::vector<string> col_fmts(1);
+    std::vector<string> col_units(1);
+
+    std::stringstream ss;
+    ss<<this->max_image_filename_len<<"A";
+    col_names[0] = "se_filename";
+    col_fmts[0] = ss.str();
+
+    CCfits::Table* table = fits->addTable("se_filenames",nfiles,
+                                          col_names,col_fmts,col_units);
+
+    int start_row=1;
+    table->column("se_filename").write(this->image_file_list,start_row);
+}
+void CutoutMaker::write_catalog()
+{
+
+    std::string catname="cutouts-cat.fits";
+    std::cerr<<"writing catalog: "<<catname<<"\n";
+    CCfits::FITS fits("!"+catname, CCfits::Write);
+
+    int max_cutouts=this->get_max_cutouts();
+
+    std::stringstream ss;
+    ss<<max_cutouts<<"J";
+    std::string jfmt = ss.str();
+    ss.str("");
+    ss<<max_cutouts<<"D";
+    std::string dfmt = ss.str();
+
+
+    std::vector<string> col_names;
+    std::vector<string> col_fmts;
+
+    col_names.push_back("id");
+    col_fmts.push_back("1J");
+
+    col_names.push_back("file_id");
+    col_fmts.push_back("1J");
+
+    col_names.push_back("ext");
+    col_fmts.push_back("1J");
+
+    col_names.push_back("ncutout");
+    col_fmts.push_back("1J");
+
+    col_names.push_back("file_id_se");
+    col_fmts.push_back(jfmt);
+    col_names.push_back("x_se");
+    col_fmts.push_back(dfmt);
+    col_names.push_back("y_se");
+    col_fmts.push_back(dfmt);
+
+    col_names.push_back("x_cutout");
+    col_fmts.push_back(dfmt);
+    col_names.push_back("y_cutout");
+    col_fmts.push_back(dfmt);
+
+    // dummy
+    std::vector<string> col_units(col_fmts.size());
+
+    CCfits::Table* table = fits.addTable("cutouts",this->id.size(),
+                                         col_names,col_fmts,col_units);
+
+    int start_row=1;
+    table->column("id").write(this->id,start_row);
+    table->column("file_id").write(this->cutout_file_id,start_row);
+    table->column("ext").write(this->cutout_ext,start_row);
+    table->column("ncutout").write(this->cutout_count,start_row);
+
+    std::vector<std::valarray<int> > se_file_id;
+    to_valarray_vec(&this->se_file_id, &se_file_id, max_cutouts);
+    table->column("file_id_se").writeArrays(se_file_id,start_row);
+
+    std::vector<std::valarray<double> > x;
+    std::vector<std::valarray<double> > y;
+
+    vposition_to_xy(&this->se_pos, &x, &y, max_cutouts);
+    table->column("x_se").writeArrays(x,start_row);
+    table->column("y_se").writeArrays(y,start_row);
+
+    vposition_to_xy(&this->cutout_pos, &x, &y, max_cutouts);
+    table->column("x_cutout").writeArrays(x,start_row);
+    table->column("y_cutout").writeArrays(y,start_row);
+
+    this->write_catalog_filenames(&fits);
+
+    // RAII will write and flush the data
+}
+
 
 // Image has no resize method, so we create a new image and send it
 // back
@@ -315,19 +497,24 @@ void CutoutMaker::write_mosaic(const Image<T> *mosaic)
 }
 
 // append a new extension for each object that has images
+// if working on a particular section, many will not 
+// have cutouts
 void CutoutMaker::write_mosaics()
 {
-    int nobj=this->cutout_list.size();
-    for (int i=0; i<nobj; i++) {
-        if (this->cutout_list[i].size() > 0) {
-            Image<double> *mosaic=make_mosaic(&this->cutout_list[i]);
+    for (int i=0; i<this->nobj; i++) {
+        int ncutout=this->cutout_list[i].size();
+        if (ncutout > 0) {
+            const std::vector<Image<double> > *cutouts=
+                &this->cutout_list[i];
+            Image<double> *mosaic=make_mosaic(cutouts);
 
             mosaic->set_compression(RICE_1);
             this->write_mosaic(mosaic);
             delete mosaic;
 
             this->cutout_file_id[i] = this->current_file_id;
-            this->cutout_file_ext[i] = this->current_hdu-1;
+            this->cutout_ext[i] = this->current_hdu-1;
+            this->cutout_count[i] = ncutout;
         }
     }
 }
@@ -380,9 +567,14 @@ void CutoutMaker::load_image_list()
     }
 
     std::string fname;
+    this->max_image_filename_len=0;
     while (flist >> fname) {
         dbg<<"  "<<fname<<std::endl;
         this->image_file_list.push_back(fname);
+
+        if (fname.size() > this->max_image_filename_len) {
+            this->max_image_filename_len=fname.size();
+        }
     }
 
     std::cerr<<"read "
@@ -401,9 +593,8 @@ void CutoutMaker::clear_cutout_list()
 
 int CutoutMaker::get_nobj_with_pixels() const
 {
-    const int nobj = this->cutout_list.size();
     int nobj_withpix=0;
-    for (int i=0; i<nobj; ++i) {
+    for (int i=0; i<this->nobj; ++i) {
         if (this->cutout_list[i].size() > 0) {
             nobj_withpix++;
         }
@@ -416,8 +607,7 @@ int CutoutMaker::get_nobj_with_pixels() const
 int CutoutMaker::count_noflags()
 {
     int ngood = 0;
-    int nobj=this->flags.size();
-    for(int i=0;i<nobj;++i) {
+    for(int i=0;i<this->nobj;++i) {
         if (this->flags[i]== 0) {
             ++ngood;
         }
@@ -500,7 +690,8 @@ static double get_pixscale(const Transformation *trans)
 }
 
 
-/* use the rough transform as input to the nonlinear finder
+/* 
+   use the rough transform as input to the nonlinear finder
    If it doesn't work, use the rough one
 */
 static int get_image_pos(const Transformation *trans,
@@ -538,10 +729,14 @@ int CutoutMaker::get_box_size(int index)
 
 // append a new image for this object, data copied from the SE image.  Zeros
 // are used outside the bounds of the SE image
+//
+// also append the position within the SE and cutout images
+//
+// Return the position in the cutout
 
-void CutoutMaker::append_image_cutout(const Image<double> *image,
-                                      int index,
-                                      const Position *pos)
+void CutoutMaker::append_cutout_and_pos(const Image<double> *image,
+                                        int index,
+                                        const Position *pos)
 {
     int box_size = this->get_box_size(index);
 
@@ -567,12 +762,32 @@ void CutoutMaker::append_image_cutout(const Image<double> *image,
         }
     }
 
+    Position cpos=(*pos);
+    cpos -= Position(startx,starty);
+
     this->cutout_list[index].push_back(tim);
+    this->se_pos[index].push_back((*pos));
+    this->cutout_pos[index].push_back(cpos);
+}
+
+std::string CutoutMaker::setup_se_file(int ifile)
+{
+    std::string image_file = this->image_file_list[ifile];
+    std::cerr<<"    file: "<<image_file<<" "
+        <<(ifile+1)<<"/"<<this->image_file_list.size()<<"\n";
+
+    // for image reading and transform reading
+    this->params["image_file"] = image_file;
+    SetRoot(this->params,image_file);
+
+    return image_file;
 }
 
 // the input bounds are on the sky
-bool CutoutMaker::load_file_cutouts(std::string filename, const Bounds *bounds)
+bool CutoutMaker::load_file_cutouts(int ifile, const Bounds *bounds)
 {
+
+    std::string filename=this->setup_se_file(ifile);
 
     std::auto_ptr<Image<double> > weight_image;
     Image<double> image(this->params,weight_image);
@@ -590,27 +805,23 @@ bool CutoutMaker::load_file_cutouts(std::string filename, const Bounds *bounds)
         return true;
     }
 
-    double max_mem = this->params.read("max_vmem",64)*1024.;
-    long nobj=this->cutout_list.size();
     long nkeep=0;
-    long ngood=0, ntry=0;
-
     Position pos(0,0);
 
-    for (int i=0; i<nobj; ++i) {
+    for (int i=0; i<this->nobj; ++i) {
         if (this->flags[i]) continue;
         if (!bounds->includes(this->skypos[i])) continue;
         if (!inv_bounds.includes(this->skypos[i])) continue;
 
-        ntry++;
-        ngood+=get_image_pos(&trans, &inv_trans, &this->skypos[i], &pos);
+        get_image_pos(&trans, &inv_trans, &this->skypos[i], &pos);
 
         if (!se_bounds.includes(pos)) continue;
 
-        this->append_image_cutout(&image, i, &pos);
+        this->append_cutout_and_pos(&image, i, &pos);
+        this->se_file_id[i].push_back(ifile);
 
         double mem = memory_usage();
-        if (mem > max_mem) {
+        if (mem > this->max_mem) {
             dbg<<"VmSize = "<<mem<<" > max_vmem = "<<max_mem<<std::endl;
             return false;
         }
@@ -618,7 +829,7 @@ bool CutoutMaker::load_file_cutouts(std::string filename, const Bounds *bounds)
     }
 
     long long cutmem=getMemoryFootprint(this->cutout_list);
-    std::cerr<<"        kept "<<nkeep<<"/"<<nobj
+    std::cerr<<"        kept "<<nkeep<<"/"<<this->nobj
         <<"  memory_usage: "<<memory_usage()/1024.<<" Gb\n";;
     return true;
 }
@@ -632,23 +843,14 @@ bool CutoutMaker::make_section_cutouts(const Bounds *bounds)
         dbg<<"getting cutouts for b = "<<bounds<<std::endl;
         memory_usage(dbgout);
 
-        const int nfiles = this->image_file_list.size();
-        //const int nfiles = 10;
+        //const int nfiles = this->image_file_list.size();
+        const int nfiles = 10;
 
         for (int ifile=0; ifile<nfiles; ++ifile) {
-            std::string image_file = this->image_file_list[ifile];
-            std::cerr<<"    file: "<<image_file<<" "
-                <<(ifile+1)<<"/"<<nfiles<<"\n";
-            
-            // for image reading and transform reading
-            this->params["image_file"] = image_file;
-            SetRoot(this->params,image_file);
-
-            if (!this->load_file_cutouts(image_file,bounds)) {
+            if (!this->load_file_cutouts(ifile,bounds)) {
                 this->clear_cutout_list();
                 return false;
             }
-
         }
     } catch (std::bad_alloc) {
         this->bombout_memory();
@@ -719,7 +921,7 @@ static void make_cutouts(ConfigFile *params)
 
     maker.print_area_stats();
     maker.make_cutouts();
-
+    maker.write_catalog();
 }
 
 int main(int argc, char **argv)
