@@ -25,7 +25,7 @@ class CutoutMaker
                     std::string imlist,
                     const ConfigFile *input_params);
 
-        ~CutoutMaker() {}
+        ~CutoutMaker();
 
         std::string get_cutout_filename(int filenum);
         void start_new_fits();
@@ -64,10 +64,17 @@ class CutoutMaker
         void close_files();
 
     private:
+        // for input
         std::vector<long> id;
         std::vector<Position> chippos;
         std::vector<Position> skypos;
         std::vector<long> flags;
+
+        // these tell us how to find the cutout
+        // for an object
+        std::vector<int> cutout_file_id;
+        std::vector<int> cutout_file_ext; // 0 offset
+
         Bounds skybounds; 
         std::string imlist_path;
 
@@ -80,7 +87,7 @@ class CutoutMaker
         fitsfile *fits;
         
         std::string current_filename;
-        int current_filenum; // the file number
+        int current_file_id; // the file number
         int current_hdu; // where we are in the current file
 };
 
@@ -175,22 +182,55 @@ CutoutMaker::CutoutMaker(const CoaddCatalog *coaddCat,
         skybounds(coaddCat->getSkyBounds()),
         imlist_path(imlist),
         params(*input_params),
-        current_filenum(-1),
+        current_file_id(-1),
         current_hdu(99999),
         fits(NULL)
-{
 
+{
     const int n = coaddCat->size();
     this->cutout_list.resize(n);
 
     this->load_image_list();
 
+    int nobj=this->id.size();
+    this->cutout_file_id.resize(nobj);
+    this->cutout_file_ext.resize(nobj);
 }
 
 CutoutMaker::~CutoutMaker()
 {
     this->close_files();
 }
+
+
+
+static fitsfile *close_fits(fitsfile *fits)
+{
+    int fitsErr=0;
+    fits_close_file(fits, &fitsErr);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw WriteException("Error closing fits file");
+    }
+    return NULL;
+}
+static fitsfile *open_new_fits(std::string filename)
+{
+
+    fitsfile *fits=NULL;
+    int fitsErr=0;
+
+    fits_create_file(&fits,("!"+filename).c_str(),&fitsErr);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw WriteException(
+                "Error creating fits file " + filename);
+    }
+
+    return fits;
+}
+
+
 
 void CutoutMaker::close_files()
 {
@@ -199,7 +239,7 @@ void CutoutMaker::close_files()
     }
 }
 
-// Image has no resize method, so let's create one and send it
+// Image has no resize method, so we create a new image and send it
 // back
 //
 // assume all are the same shape
@@ -239,38 +279,13 @@ std::string CutoutMaker::get_cutout_filename(int filenum)
     return ss.str();
 }
 
-static fitsfile *close_fits(fitsfile *fits)
-{
-    int fitsErr=0;
-    fits_close_file(fits, &fitsErr);
-    if (fitsErr != 0) {
-        fits_report_error(stderr,fitsErr);
-        throw WriteException("Error closing fits file");
-    }
-    return NULL;
-}
-static fitsfile *open_new_fits(std::string filename)
-{
-
-    fitsfile *fits=NULL;
-    int fitsErr=0;
-
-    fits_create_file(&fits,("!"+filename).c_str(),&fitsErr);
-    if (fitsErr != 0) {
-        fits_report_error(stderr,fitsErr);
-        throw WriteException(
-                "Error creating fits file " + filename);
-    }
-
-    return fits;
-}
-
+// upon entry, current_file_id should be for the last write, or -1
 void CutoutMaker::start_new_fits()
 {
     std::stringstream ss;
-    this->current_filenum++;
+    this->current_file_id++;
 
-    this->current_filename = this->get_cutout_filename(this->current_filenum);
+    this->current_filename = this->get_cutout_filename(this->current_file_id);
 
     std::cerr<<"starting new cutout file: "<<this->current_filename<<"\n";
 
@@ -280,17 +295,23 @@ void CutoutMaker::start_new_fits()
     this->fits = open_new_fits(this->current_filename);
 }
 
+// upon entry, curren_hdu and current_file_id should be that of the last write
+//
+// upon exit, current_hdu and current_file_id are updated to the file and hdu
+// just written (current_file_id is modified by start_new_fits)
+
 template <typename T>
 void CutoutMaker::write_mosaic(const Image<T> *mosaic)
 {
 
+    // up on entry, current hdu and fileid are from the last write
+    this->current_hdu++;
     if (this->current_hdu > MAX_HDU) {
         this->start_new_fits();
         this->current_hdu=1;
     }
 
     mosaic->write(this->fits);
-    this->current_hdu++;
 }
 
 // append a new extension for each object that has images
@@ -299,11 +320,14 @@ void CutoutMaker::write_mosaics()
     int nobj=this->cutout_list.size();
     for (int i=0; i<nobj; i++) {
         if (this->cutout_list[i].size() > 0) {
-            //std::cerr<<"object ncutout: "<<this->cutout_list[i].size()<<"\n";
             Image<double> *mosaic=make_mosaic(&this->cutout_list[i]);
 
+            mosaic->set_compression(RICE_1);
             this->write_mosaic(mosaic);
             delete mosaic;
+
+            this->cutout_file_id[i] = this->current_file_id;
+            this->cutout_file_ext[i] = this->current_hdu-1;
         }
     }
 }
