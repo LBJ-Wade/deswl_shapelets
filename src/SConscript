@@ -89,6 +89,7 @@ measureshear = env2.Program('measureshear', 'MeasureShear.cpp')
 findstars = env2.Program('findstars', 'FindStars.cpp')
 
 multishear = env2.Program('multishear', 'MeasureMultiShear.cpp')
+make_cutouts = env2.Program('make-cutouts', 'MakeCutouts.cpp')
 
 fullpipe = env2.Program('fullpipe', 'FullPipeline.cpp')
 
@@ -111,7 +112,7 @@ g08special = env2.Program('g08special', 'Great08Special.cpp')
 g10star = env2.Program('g10star', 'Great10Star.cpp')
 
 bin_targets = [measurepsf, measureshear, findstars, multishear, fullpipe, 
-               test_psfrec, shearave, calcq ]
+               test_psfrec, shearave, calcq, make_cutouts ]
 
 if 'install' in COMMAND_LINE_TARGETS:
 
