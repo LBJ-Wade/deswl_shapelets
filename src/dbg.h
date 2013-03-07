@@ -76,7 +76,7 @@ inline double get_proc_stat(std::string stat, std::ostream* os=0)
         if (os) *os<<"Could not open /proc/self/status";
         return -1.; // Negative value reports an error.
     }
-    if (os) *os << "Reading informatino from /proc/self/status:\n";
+    if (os) *os << "Reading information from /proc/self/status:\n";
     std::string line;
     double value;
     while(getline(proc, line), !proc.fail()) {
