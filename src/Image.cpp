@@ -634,6 +634,30 @@ void Image<T>::write(std::string filename, bool create) const
     }
 }
 
+
+template <typename T> 
+void Image<T>::write_sub(fitsfile *fPtr, long col, long row) const
+{
+    _hdu = 1;
+
+    int fitsErr=0;
+
+    long fPixel[2] = {col,row};
+    Assert(getDataType<T>());
+    fits_write_pix(fPtr,
+                   getDataType<T>(),
+                   fPixel,
+                   long(_xmax*_ymax),
+                   TMV_ptr(*_m),
+                   &fitsErr);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw WriteException("Error writing subimage in "+_filename);
+    }
+}
+
+
+
 template <typename T> 
 std::vector<Image<T>*> Image<T>::divide(int nX, int nY) const
 {
@@ -781,6 +805,7 @@ T Image<T>::median() const
     sort(pixels.begin(),pixels.end());
     return pixels[pixels.size()/2];
 }
+
 
 template class Image<double>;
 //template class Image<float>;

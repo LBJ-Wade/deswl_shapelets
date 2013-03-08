@@ -86,7 +86,7 @@ public:
     // Write to existing fits object.  *much* faster than re-opening
     // each time
     void write(fitsfile *fits) const; 
-    void write_rice_compressed(fitsfile *fPtr) const;
+    void write_sub(fitsfile *fits, long col, long row) const;
 
     TConstMatrixView(T) getM() const { return *_m; }
     TMV_const TMatrixView(T)& getM() { return *_m; }
@@ -141,6 +141,8 @@ public:
     bool loaded() { return _loaded; };
 
     void set_compression(int comp);
+
+
 private:
 
     mutable std::string _filename;
