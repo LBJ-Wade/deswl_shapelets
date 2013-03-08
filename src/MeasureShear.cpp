@@ -1,4 +1,3 @@
-
 #include <sys/time.h>
 #include "Image.h"
 #include "InputCatalog.h"

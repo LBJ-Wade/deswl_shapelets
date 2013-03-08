@@ -112,7 +112,7 @@ g08special = env2.Program('g08special', 'Great08Special.cpp')
 g10star = env2.Program('g10star', 'Great10Star.cpp')
 
 bin_targets = [measurepsf, measureshear, findstars, multishear, fullpipe, 
-               test_psfrec, shearave, calcq, make_cutouts ]
+               test_psfrec, shearave, calcq, make_cutouts]
 
 if 'install' in COMMAND_LINE_TARGETS:
 
