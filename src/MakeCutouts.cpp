@@ -901,13 +901,11 @@ static void usage_and_exit()
 }
 bool check_params(const ConfigFile *params)
 {
-    if (!params)
-        return false;
 
-    if (params->keyExists("coaddimage_file")
-            || params->keyExists("coaddcat_file")
-            || params->keyExists("coadd_srclist")
-            || params->keyExists("cutouts_file") ) {
+    if (!params->keyExists("coaddimage_file")
+            || !params->keyExists("coaddcat_file")
+            || !params->keyExists("coadd_srclist")
+            || !params->keyExists("cutouts_file") ) {
         return false;
     }
 
