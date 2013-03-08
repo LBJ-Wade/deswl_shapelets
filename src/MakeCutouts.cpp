@@ -13,13 +13,11 @@
        is reasonably fast as is...
 
    TODO
-       - add the coadd image in the first entry of the mosaic?  If so,
-           will need to have a file name for the coadd listed in the 
-           filenames list, etc.
+       - add the coadd image in the first entry of the mosaic
        - add wcs info to the second extension along with the filenames.
-       - create matching output file names
        - add weight images
        - when seg images are available, add them
+       - create matching output file names
 */
 #include <valarray>
 #include <sys/time.h>
@@ -35,16 +33,22 @@
 const double ARCSEC_PER_RAD = 206264.806247;
 const int MAX_HDU=999;
 
+using std::auto_ptr;
+using std::cerr;
+using std::string;
+
 class CutoutMaker
 {
     public:
+        // no need to construct coadd outside, should
+        // do this internally
         CutoutMaker(const CoaddCatalog *coaddCat, 
-                    std::string imlist,
                     const ConfigFile *input_params);
 
         ~CutoutMaker();
 
-        std::string get_cutout_filename(int filenum);
+        void load_coadd_image();
+        string get_cutout_filename(int filenum);
         void start_new_fits();
 
         template <typename T> void write_mosaic(const Image<T> *mosaic);
@@ -53,6 +57,8 @@ class CutoutMaker
 
         void get_cutouts_bound(const Bounds& bounds);
         void clear_cutout_list();
+
+        void push_image_file(string fname);
         void load_image_list();
 
         std::vector<Bounds> split_bounds();
@@ -61,7 +67,7 @@ class CutoutMaker
                                    int index,
                                    const Position *pos);
 
-        std::string setup_se_file(int ifile);
+        string setup_se_file(int ifile);
         bool load_file_cutouts(int ifile,
                                const Bounds *bounds);
 
@@ -79,6 +85,8 @@ class CutoutMaker
         void bombout_memory();
         void set_memory_usage();
 
+        bool vmem_ok();
+
         int get_box_size(int index);
 
         int count_noflags();
@@ -87,9 +95,14 @@ class CutoutMaker
         void close_files();
 
     private:
+
+        Image<double> coadd_image;
+        auto_ptr<Image<double> > coadd_weight_image;
+
         // for input
+
         std::vector<long> id;
-        std::vector<Position> chippos;
+        std::vector<Position> pos;
         std::vector<Position> skypos;
         std::vector<long> flags;
 
@@ -99,23 +112,23 @@ class CutoutMaker
         std::vector<int> cutout_ext; // 0 offset
         std::vector<int> cutout_count;
 
-        std::vector<std::vector<int> > se_file_id; // id of SE file
-        std::vector<std::vector<Position> > se_pos; // position in SE image
+        std::vector<std::vector<int> > file_id_orig; // id of SE file
+        std::vector<std::vector<Position> > orig_pos; // position in SE image
         std::vector<std::vector<Position> > cutout_pos; // positions in the cutout
         std::vector<std::vector<Image<double> > > cutout_list;
 
         Bounds skybounds; 
-        std::string imlist_path;
+        string imlist_path;
 
 
-        std::vector<std::string> image_file_list;
+        std::vector<string> image_file_list;
         int max_image_filename_len;
 
         ConfigFile params;
 
         fitsfile *fits;
         
-        std::string current_filename;
+        string current_filename;
         int current_file_id; // the file number
         int current_hdu; // where we are in the current file
 
@@ -172,10 +185,10 @@ inline long long getMemoryFootprint(
 
 static void bombout_resplit(const ConfigFile *params)
 {
-    std::cerr<<"No more allowed resplits.\n";
-    std::cerr<<"Either reduce multishear_section_size, or\n";
-    std::cerr<<"increase max_vmem or multishear_max_resplits\n";
-    std::cerr<<"Current values = "<<
+    cerr<<"No more allowed resplits.\n";
+    cerr<<"Either reduce multishear_section_size, or\n";
+    cerr<<"increase max_vmem or multishear_max_resplits\n";
+    cerr<<"Current values = "<<
         (*params)["multishear_section_size"]<<" , "<<
         (*params)["max_vmem"]<<" , "<<
         (*params)["multishear_max_resplits"]<<std::endl;
@@ -204,29 +217,32 @@ static void resplit(std::vector<Bounds> *section_bounds, const Bounds* bounds)
 
 
 CutoutMaker::CutoutMaker(const CoaddCatalog *coaddCat,
-                         std::string imlist,
                          const ConfigFile *input_params) :
 
         id(coaddCat->getIdList()), 
-        chippos(coaddCat->getPosList()),
+        pos(coaddCat->getPosList()),
         skypos(coaddCat->getSkyPosList()),
         flags(coaddCat->getFlagsList()), 
         skybounds(coaddCat->getSkyBounds()),
-        imlist_path(imlist),
         params(*input_params),
         current_file_id(-1),
         current_hdu(99999),
         fits(NULL)
 
 {
+
+    this->load_coadd_image();
+
+    this->imlist_path=this->params["coadd_srclist"];
+
     this->nobj = coaddCat->size();
     this->cutout_list.resize(this->nobj);
     this->cutout_file_id.resize(this->nobj,-9999);
     this->cutout_ext.resize(this->nobj,-9999);
     this->cutout_count.resize(this->nobj,0);
 
-    this->se_file_id.resize(this->nobj);
-    this->se_pos.resize(this->nobj);
+    this->file_id_orig.resize(this->nobj);
+    this->orig_pos.resize(this->nobj);
     this->cutout_pos.resize(this->nobj);
 
     this->max_mem = this->params.read("max_vmem",64)*1024.;
@@ -239,6 +255,18 @@ CutoutMaker::~CutoutMaker()
     this->close_files();
 }
 
+void CutoutMaker::load_coadd_image()
+{
+    // I'm testing on DC6b, different structure so
+    // must put in hdu by hand and not use weight image
+    int hdu=2;
+    this->coadd_image.load(this->params["coaddimage_file"],
+                           hdu);
+    cerr<<"  image dims ";
+    cerr<<this->coadd_image.getYMax()<<" "
+        <<this->coadd_image.getXMax()<<"\n";
+
+}
 
 
 static fitsfile *close_fits(fitsfile *fits)
@@ -251,9 +279,8 @@ static fitsfile *close_fits(fitsfile *fits)
     }
     return NULL;
 }
-static fitsfile *open_new_fits(std::string filename)
+static fitsfile *open_new_fits(string filename)
 {
-
     fitsfile *fits=NULL;
     int fitsErr=0;
 
@@ -282,7 +309,7 @@ int CutoutMaker::get_max_cutouts()
 {
     int max_cutouts=2;
     for (int i=0; i<this->nobj; i++) {
-        int count=this->se_file_id[i].size();
+        int count=this->file_id_orig[i].size();
         if (count > max_cutouts) {
             max_cutouts=count;
         }
@@ -362,18 +389,18 @@ void CutoutMaker::write_catalog_filenames(CCfits::FITS *fits)
 void CutoutMaker::write_catalog()
 {
 
-    std::string catname="cutouts-cat.fits";
-    std::cerr<<"writing catalog: "<<catname<<"\n";
+    string catname="cutouts-cat.fits";
+    cerr<<"writing catalog: "<<catname<<"\n";
     CCfits::FITS fits("!"+catname, CCfits::Write);
 
     int max_cutouts=this->get_max_cutouts();
 
     std::stringstream ss;
     ss<<max_cutouts<<"J";
-    std::string jfmt = ss.str();
+    string jfmt = ss.str();
     ss.str("");
     ss<<max_cutouts<<"D";
-    std::string dfmt = ss.str();
+    string dfmt = ss.str();
 
 
     std::vector<string> col_names;
@@ -391,11 +418,11 @@ void CutoutMaker::write_catalog()
     col_names.push_back("ncutout");
     col_fmts.push_back("1J");
 
-    col_names.push_back("file_id_se");
+    col_names.push_back("file_id_orig");
     col_fmts.push_back(jfmt);
-    col_names.push_back("x_se");
+    col_names.push_back("x_orig");
     col_fmts.push_back(dfmt);
-    col_names.push_back("y_se");
+    col_names.push_back("y_orig");
     col_fmts.push_back(dfmt);
 
     col_names.push_back("x_cutout");
@@ -415,16 +442,16 @@ void CutoutMaker::write_catalog()
     table->column("ext").write(this->cutout_ext,start_row);
     table->column("ncutout").write(this->cutout_count,start_row);
 
-    std::vector<std::valarray<int> > se_file_id;
-    to_valarray_vec(&this->se_file_id, &se_file_id, max_cutouts);
-    table->column("file_id_se").writeArrays(se_file_id,start_row);
+    std::vector<std::valarray<int> > file_id_orig;
+    to_valarray_vec(&this->file_id_orig, &file_id_orig, max_cutouts);
+    table->column("file_id_orig").writeArrays(file_id_orig,start_row);
 
     std::vector<std::valarray<double> > x;
     std::vector<std::valarray<double> > y;
 
-    vposition_to_xy(&this->se_pos, &x, &y, max_cutouts);
-    table->column("x_se").writeArrays(x,start_row);
-    table->column("y_se").writeArrays(y,start_row);
+    vposition_to_xy(&this->orig_pos, &x, &y, max_cutouts);
+    table->column("x_orig").writeArrays(x,start_row);
+    table->column("y_orig").writeArrays(y,start_row);
 
     vposition_to_xy(&this->cutout_pos, &x, &y, max_cutouts);
     table->column("x_cutout").writeArrays(x,start_row);
@@ -465,7 +492,7 @@ Image<T> *make_mosaic(const std::vector<Image<T> > *vec)
 
 
 // need to base this on the input coadd image
-std::string CutoutMaker::get_cutout_filename(int filenum)
+string CutoutMaker::get_cutout_filename(int filenum)
 {
     std::stringstream ss;
     char numstr[10];
@@ -484,7 +511,7 @@ void CutoutMaker::start_new_fits()
 
     this->current_filename = this->get_cutout_filename(this->current_file_id);
 
-    std::cerr<<"starting new cutout file: "<<this->current_filename<<"\n";
+    cerr<<"starting new cutout file: "<<this->current_filename<<"\n";
 
     if (this->fits) {
         this->fits=close_fits(this->fits);
@@ -539,7 +566,7 @@ double CutoutMaker::calc_memory_footprint()
     double mem=0;
     
     mem += getMemoryFootprint(this->skypos);
-    mem += getMemoryFootprint(this->chippos);
+    mem += getMemoryFootprint(this->pos);
     mem += getMemoryFootprint(this->flags);
     mem += getMemoryFootprint(this->skybounds);
     mem += getMemoryFootprint(this->cutout_list);
@@ -550,49 +577,56 @@ double CutoutMaker::calc_memory_footprint()
 
 void CutoutMaker::print_area_stats()
 {
-    std::cerr<<"Total bounds are "<<this->skybounds<<std::endl;
+    cerr<<"Total bounds are "<<this->skybounds<<std::endl;
 
     double area = this->skybounds.getArea();
     area /= 3600.;
-    std::cerr<<"Raw area = "<<area<<" square arcmin\n";
+    cerr<<"Raw area = "<<area<<" square arcmin\n";
 
     double dec = this->skybounds.getCenter().getY();
     double cosdec = cos(dec / ARCSEC_PER_RAD);
     area *= cosdec;
-    std::cerr<<"Corrected area = "<<area<<" square arcmin";
+    cerr<<"Corrected area = "<<area<<" square arcmin";
 
     area /= 3600.;
-    std::cerr<<" = "<<area<<" square degrees\n";
+    cerr<<" = "<<area<<" square degrees\n";
 }
 
 
+void CutoutMaker::push_image_file(string fname)
+{
+    this->image_file_list.push_back(fname);
+
+    if (fname.size() > this->max_image_filename_len) {
+        this->max_image_filename_len=fname.size();
+    }
+}
 void CutoutMaker::load_image_list()
 {
     if (!DoesFileExist(this->imlist_path)) {
-        std::cerr<<"file not found: "<<this->imlist_path<<"\n";
+        cerr<<"file not found: "<<this->imlist_path<<"\n";
         throw FileNotFoundException(this->imlist_path);
     }
 
     dbg<<"Opening coadd srclist\n";
     std::ifstream flist(this->imlist_path.c_str(), std::ios::in);
     if (!flist) {
-        std::string err="Unable to open source list file " + this->imlist_path;
-        std::cerr<<err<<std::endl;
+        string err="Unable to open source list file " + this->imlist_path;
+        cerr<<err<<std::endl;
         throw ReadException(err);
     }
 
-    std::string fname;
     this->max_image_filename_len=0;
+
+    // first push the coadd, always first
+    this->push_image_file(this->params["coaddcat_file"]);
+    string fname;
     while (flist >> fname) {
         dbg<<"  "<<fname<<std::endl;
-        this->image_file_list.push_back(fname);
-
-        if (fname.size() > this->max_image_filename_len) {
-            this->max_image_filename_len=fname.size();
-        }
+        this->push_image_file(fname);
     }
 
-    std::cerr<<"read "
+    cerr<<"read "
         <<this->image_file_list.size()
         <<" se images"<<std::endl;
 }
@@ -622,9 +656,9 @@ int CutoutMaker::get_nobj_with_pixels() const
 int CutoutMaker::count_noflags()
 {
     int ngood = 0;
-    for(int i=0;i<this->nobj;++i) {
+    for(int i=0;i<this->nobj;i++) {
         if (this->flags[i]== 0) {
-            ++ngood;
+            ngood++;
         }
     }
     return ngood;
@@ -663,8 +697,8 @@ void CutoutMaker::bombout_memory()
     double peak_mem = peak_memory_usage();
     dbg<<"memory usage = "<<mem<<" MB\n";
     dbg<<"peak memory usage = "<<peak_mem<<" MB\n";
-    if (des_qa) std::cerr<<"STATUS5BEG ";
-    std::cerr
+    if (des_qa) cerr<<"STATUS5BEG ";
+    cerr
         << "Memory exhausted in MultShearCatalog.\n"
         << "Memory Usage in MakeCutouts = "
         << this->calc_memory_footprint()<<" MB \n"
@@ -675,8 +709,8 @@ void CutoutMaker::bombout_memory()
         << "(Current values = "
         << this->params["multishear_section_size"]
         << " , "<< this->params["max_vmem"]<<")";
-    if (des_qa) std::cerr<<" STATUS5END";
-    std::cerr<<std::endl;
+    if (des_qa) cerr<<" STATUS5END";
+    cerr<<std::endl;
     exit(1);
 }
 
@@ -693,6 +727,16 @@ void CutoutMaker::set_memory_usage()
     dbg<<"Max allowed memory usage = "<<max_mem<<" MB\n";
 }
 
+bool CutoutMaker::vmem_ok()
+{
+    bool status=true;
+    double mem = memory_usage();
+    if (mem > this->max_mem) {
+        dbg<<"VmSize = "<<mem<<" > max_vmem = "<<max_mem<<std::endl;
+        status = false;
+    }
+    return status;
+}
 
 static double get_pixscale(const Transformation *trans)
 {
@@ -710,9 +754,9 @@ static double get_pixscale(const Transformation *trans)
    If it doesn't work, use the rough one
 */
 static int get_image_pos(const Transformation *trans,
-                          const Transformation *inv_trans,
-                          const Position *skypos,
-                          Position *pos)
+                         const Transformation *inv_trans,
+                         const Position *skypos,
+                         Position *pos)
 {
     int good=1;
     inv_trans->transform(*skypos,*pos);
@@ -781,14 +825,14 @@ void CutoutMaker::append_cutout_and_pos(const Image<double> *image,
     cpos -= Position(startx,starty);
 
     this->cutout_list[index].push_back(tim);
-    this->se_pos[index].push_back((*pos));
+    this->orig_pos[index].push_back((*pos));
     this->cutout_pos[index].push_back(cpos);
 }
 
-std::string CutoutMaker::setup_se_file(int ifile)
+string CutoutMaker::setup_se_file(int ifile)
 {
-    std::string image_file = this->image_file_list[ifile];
-    std::cerr<<"    file: "<<image_file<<" "
+    string image_file = this->image_file_list[ifile];
+    cerr<<"    file: "<<image_file<<" "
         <<(ifile+1)<<"/"<<this->image_file_list.size()<<"\n";
 
     // for image reading and transform reading
@@ -802,9 +846,9 @@ std::string CutoutMaker::setup_se_file(int ifile)
 bool CutoutMaker::load_file_cutouts(int ifile, const Bounds *bounds)
 {
 
-    std::string filename=this->setup_se_file(ifile);
+    string filename=this->setup_se_file(ifile);
 
-    std::auto_ptr<Image<double> > weight_image;
+    auto_ptr<Image<double> > weight_image;
     Image<double> image(this->params,weight_image);
 
     // Read transformation (x,y) -> (ra,dec)
@@ -816,7 +860,7 @@ bool CutoutMaker::load_file_cutouts(int ifile, const Bounds *bounds)
     Bounds inv_bounds = inv_trans.makeInverseOf(trans,se_bounds,4);
 
     if (!this->skybounds.intersects(inv_bounds)) {
-        std::cerr<<"Skipping "<<filename<<" because inv_bounds doesn't intersect\n";
+        cerr<<"Skipping "<<filename<<" because inv_bounds doesn't intersect\n";
         return true;
     }
 
@@ -832,23 +876,27 @@ bool CutoutMaker::load_file_cutouts(int ifile, const Bounds *bounds)
 
         if (!se_bounds.includes(pos)) continue;
 
-        this->append_cutout_and_pos(&image, i, &pos);
-        this->se_file_id[i].push_back(ifile);
-
-        double mem = memory_usage();
-        if (mem > this->max_mem) {
-            dbg<<"VmSize = "<<mem<<" > max_vmem = "<<max_mem<<std::endl;
-            return false;
+        // always push the coadd image on first
+        if (this->cutout_list[i].size()==0) {
+            this->append_cutout_and_pos(&this->coadd_image,i,&this->pos[i]);
+            this->file_id_orig[i].push_back(0); // coadd is always at zero
         }
+        this->append_cutout_and_pos(&image, i, &pos);
+        this->file_id_orig[i].push_back(ifile);
+
+        if (!this->vmem_ok())
+            return false;
         nkeep++;
     }
 
     long long cutmem=getMemoryFootprint(this->cutout_list);
-    std::cerr<<"        kept "<<nkeep<<"/"<<this->nobj
+    cerr<<"        kept "<<nkeep<<"/"<<this->nobj
         <<"  memory_usage: "<<memory_usage()/1024.<<" Gb\n";;
     return true;
 }
 
+// note ifile loop starts at 1 because the coadd is in
+// position zero
 bool CutoutMaker::make_section_cutouts(const Bounds *bounds)
 {
 
@@ -858,9 +906,10 @@ bool CutoutMaker::make_section_cutouts(const Bounds *bounds)
         dbg<<"getting cutouts for b = "<<bounds<<std::endl;
         memory_usage(dbgout);
 
-        const int nfiles = this->image_file_list.size();
+        //const int nfiles = this->image_file_list.size();
+        const int nfiles = 10;
 
-        for (int ifile=0; ifile<nfiles; ++ifile) {
+        for (int ifile=1; ifile<nfiles; ++ifile) {
             if (!this->load_file_cutouts(ifile,bounds)) {
                 this->clear_cutout_list();
                 return false;
@@ -893,29 +942,28 @@ void CutoutMaker::make_cutouts()
 
     for(int i=0;i<nsec;++i) {
 
-        std::cerr<<"Starting section ";
-        std::cerr<<(i+1)<<"/"<<nsec<<std::endl;
+        cerr<<"Starting section ";
+        cerr<<(i+1)<<"/"<<nsec<<std::endl;
 
         // Load the pixel information for each galaxy in the section.
         if (!this->make_section_cutouts(&section_bounds[i])) {
 
-            std::cerr<<"Section exceeded maximum memory usage.\n";
-            std::cerr<<"Will try splitting it up and continuing.\n";
+            cerr<<"Section exceeded maximum memory usage.\n";
+            cerr<<"Will try splitting it up and continuing.\n";
             if (nresplit > 0) {
                 resplit(&section_bounds, &section_bounds[i]);
 
-                --nresplit;
-                std::cerr<<nresplit<<" more resplits allowed.\n";
+                nresplit--;
+                cerr<<nresplit<<" more resplits allowed.\n";
 
                 continue;
             } else {
                 bombout_resplit(&this->params);
             }
         }
-        std::cerr<<this->get_nobj_with_pixels()<<
-                " galaxies in this section.\n";
+        cerr<<this->get_nobj_with_pixels()<<" obj in section.\n";
 
-        std::cerr<<"writing mosaics\n";
+        cerr<<"writing mosaics\n";
         this->write_mosaics();
     }
 
@@ -924,14 +972,11 @@ void CutoutMaker::make_cutouts()
 
 static void make_cutouts(ConfigFile *params) 
 {
-    // Read the coadd catalog.
     CoaddCatalog coaddcat(*params);
     coaddcat.read();
-    dbg<<"Constructed coaddcat\n";
 
-    std::string imlist_file=(*params)["coadd_srclist"];
-    CutoutMaker maker(&coaddcat, imlist_file, params);
-    std::cerr<<"number without flags: "<<maker.count_noflags();
+    CutoutMaker maker(&coaddcat, params);
+    cerr<<"number without flags: "<<maker.count_noflags();
 
     maker.print_area_stats();
     maker.make_cutouts();
