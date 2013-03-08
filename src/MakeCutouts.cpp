@@ -13,8 +13,7 @@
        is reasonably fast as is...
 
    TODO
-       - decide if using 1 or 0 offset, both in terms of locations in
-         images and row numbers for our cutouts
+       - fix the positions to be zero offset
        - add sky values in table and sky subtract the images
        - add wcs info to the second extension along with the filenames.
        - when seg images are available, add them
@@ -61,6 +60,7 @@ class CutoutMaker
         void get_file_cutout_info(int ifile, const Bounds *bounds);
         void get_cutout_info();
 
+        void offset_positions();
         void load_coadd_image();
         void set_box_size();
 
@@ -92,6 +92,8 @@ class CutoutMaker
         void print_file_progress(int ifile);
 
     private:
+
+        // all positions are zero offset
 
         Image<double> coadd_image;
         //auto_ptr<Image<double> > coadd_weight_image;
@@ -150,11 +152,12 @@ CutoutMaker::CutoutMaker(const CoaddCatalog *coaddCat,
         ncutout(0)
 
 {
+    this->nobj = coaddCat->size();
+    this->offset_positions();
     this->load_coadd_image();
 
     this->imlist_path=this->params["coadd_srclist"];
 
-    this->nobj = coaddCat->size();
 
     this->load_image_list();
     this->set_box_size();
@@ -179,6 +182,13 @@ CutoutMaker::~CutoutMaker()
     this->close_fits();
 }
 
+void CutoutMaker::offset_positions()
+{
+    std::complex<double> off1(1,1);
+    for (int i=0; i<this->nobj; i++) {
+        this->pos[i] -= off1;
+    }
+}
 void CutoutMaker::load_coadd_image()
 {
     // I'm testing on DC6b, different structure so
@@ -359,19 +369,11 @@ void CutoutMaker::write_catalog()
     col_names.push_back("id");
     col_fmts.push_back("1J");
 
-    //col_names.push_back("file_id");
-    //col_fmts.push_back("1J");
-
-    //col_names.push_back("ext");
-    //col_fmts.push_back("1J");
-
     col_names.push_back("ncutout");
     col_fmts.push_back("1J");
 
     col_names.push_back("box_size");
     col_fmts.push_back("1J");
-    //col_names.push_back("start_row");
-    //col_fmts.push_back("1J");
 
     col_names.push_back("start_row");
     col_fmts.push_back(jfmt);
@@ -824,7 +826,8 @@ void CutoutMaker::get_file_cutout_info(int ifile, const Bounds *bounds)
     Transformation inv_trans;
 
     // rough inverse trans, only valid on the bounds of this image
-    Bounds se_bounds(0, ncol, 0, nrow);
+    // wcs uses 1-offset
+    Bounds se_bounds(1, ncol, 1, nrow);
     Bounds inv_bounds = inv_trans.makeInverseOf(trans,se_bounds,4);
 
     if (!this->skybounds.intersects(inv_bounds)) {
@@ -833,6 +836,7 @@ void CutoutMaker::get_file_cutout_info(int ifile, const Bounds *bounds)
     }
 
     long nkeep=0, ngood=0, ntry=0;
+    std::complex<double> off1(1,1);
     Position pos(0,0);
 
     for (int i=0; i<this->nobj; ++i) {
@@ -844,6 +848,8 @@ void CutoutMaker::get_file_cutout_info(int ifile, const Bounds *bounds)
         ngood+=get_image_pos(&trans, &inv_trans, &this->skypos[i], &pos);
 
         if (!se_bounds.includes(pos)) continue;
+
+        pos -= off1; // zero-offset
 
         // always push the coadd image on first
         if (this->orig_file_id[i].size()==0) {
