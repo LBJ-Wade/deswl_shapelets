@@ -64,8 +64,8 @@ class CutoutMaker
         std::vector<Bounds> split_bounds();
 
         void append_cutout_and_pos(const Image<double> *image,
-                                   int index,
-                                   const Position *pos);
+                                   const Position *pos,
+                                   int index);
 
         string setup_se_file(int ifile);
         bool load_file_cutouts(int ifile,
@@ -79,8 +79,6 @@ class CutoutMaker
         int get_nobj_with_pixels() const;
 
         void print_area_stats();
-
-        double calc_memory_footprint();
 
         void bombout_memory();
         void set_memory_usage();
@@ -136,53 +134,6 @@ class CutoutMaker
         int nobj;
 };
 
-template <typename T>
-inline long long getMemoryFootprint(const T& x)
-{
-    return sizeof(x); 
-}
-
-template <typename T, class Alloc>
-inline long long getMemoryFootprint(const std::vector<T,Alloc>& x)
-{
-    long long res=sizeof(x);
-    const int xsize = x.size();
-    for(int i=0;i<xsize;++i) res += getMemoryFootprint(x[i]);
-    return res;
-}
-
-// assume the sub vector contains fixed-size images
-template <typename T>
-inline long long getMemoryFootprint(
-        const std::vector<std::vector<Image<T> > > &x)
-{
-    long long res=sizeof(x);
-    long long xsize=x.size();
-    long long nimage=0;
-    long long nobj_used=0;
-    long long elsize=sizeof(T);
-
-    for(int i=0; i<xsize; ++i) {
-        long long nsub = x[i].size();
-        nimage+= nsub;
-        if (nsub > 0) {
-            nobj_used+=1;
-            long long imsize=x[i][0].getXMax()*x[i][0].getYMax();
-            nsub *= imsize*elsize;
-
-            res += nsub;
-        }
-    }
-    dbg<<"  cutout memory usage "<<res/1024./1024.<<" Mb in "<<nimage<<" cutouts\n";
-    if (nobj_used > 0) {
-        dbg<<"  average cutouts per object: "
-            <<nimage<<"/"<<nobj_used
-            <<"="<<nimage/float(nobj_used)<<"\n";
-    }
-    return res;
-}
-
-
 static void bombout_resplit(const ConfigFile *params)
 {
     cerr<<"No more allowed resplits.\n";
@@ -230,7 +181,6 @@ CutoutMaker::CutoutMaker(const CoaddCatalog *coaddCat,
         fits(NULL)
 
 {
-
     this->load_coadd_image();
 
     this->imlist_path=this->params["coadd_srclist"];
@@ -265,7 +215,6 @@ void CutoutMaker::load_coadd_image()
     cerr<<"  image dims ";
     cerr<<this->coadd_image.getYMax()<<" "
         <<this->coadd_image.getXMax()<<"\n";
-
 }
 
 
@@ -561,20 +510,6 @@ void CutoutMaker::write_mosaics()
     }
 }
 
-double CutoutMaker::calc_memory_footprint()
-{
-    double mem=0;
-    
-    mem += getMemoryFootprint(this->skypos);
-    mem += getMemoryFootprint(this->pos);
-    mem += getMemoryFootprint(this->flags);
-    mem += getMemoryFootprint(this->skybounds);
-    mem += getMemoryFootprint(this->cutout_list);
-
-    mem /= 1024.*1024.;
-    return mem;
-}
-
 void CutoutMaker::print_area_stats()
 {
     cerr<<"Total bounds are "<<this->skybounds<<std::endl;
@@ -700,8 +635,6 @@ void CutoutMaker::bombout_memory()
     if (des_qa) cerr<<"STATUS5BEG ";
     cerr
         << "Memory exhausted in MultShearCatalog.\n"
-        << "Memory Usage in MakeCutouts = "
-        << this->calc_memory_footprint()<<" MB \n"
         << "Actual Virtual Memory Usage = "
         << mem<<" MB \n"
         << "Try reducing multishear_section_size or "
@@ -716,8 +649,6 @@ void CutoutMaker::bombout_memory()
 
 void CutoutMaker::set_memory_usage()
 {
-    dbg << "Memory Usage in getting cutouts = "
-        << this->calc_memory_footprint()<<" MB \n";
     double mem = memory_usage(dbgout);
     double peak_mem = peak_memory_usage();
     double max_mem = double(this->params["max_vmem"])*1024.;
@@ -794,8 +725,8 @@ int CutoutMaker::get_box_size(int index)
 // Return the position in the cutout
 
 void CutoutMaker::append_cutout_and_pos(const Image<double> *image,
-                                        int index,
-                                        const Position *pos)
+                                        const Position *pos,
+                                        int index)
 {
     int box_size = this->get_box_size(index);
 
@@ -878,18 +809,16 @@ bool CutoutMaker::load_file_cutouts(int ifile, const Bounds *bounds)
 
         // always push the coadd image on first
         if (this->cutout_list[i].size()==0) {
-            this->append_cutout_and_pos(&this->coadd_image,i,&this->pos[i]);
+            this->append_cutout_and_pos(&this->coadd_image,&this->pos[i],i);
             this->file_id_orig[i].push_back(0); // coadd is always at zero
         }
-        this->append_cutout_and_pos(&image, i, &pos);
+        this->append_cutout_and_pos(&image, &pos, i);
         this->file_id_orig[i].push_back(ifile);
-
-        if (!this->vmem_ok())
-            return false;
         nkeep++;
+
+        if (!this->vmem_ok()) return false;
     }
 
-    long long cutmem=getMemoryFootprint(this->cutout_list);
     cerr<<"        kept "<<nkeep<<"/"<<this->nobj
         <<"  memory_usage: "<<memory_usage()/1024.<<" Gb\n";;
     return true;
