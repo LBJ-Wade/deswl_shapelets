@@ -1,23 +1,67 @@
 /*
    Author: Erin Sheldon, BNL.  This began as a hack on the multishear code.
 
-   notes
+   usage
+   ---------
+   make-cutouts config_file coaddimage_file= coaddcat_file= coadd_srclist= cutouts_file=
 
-       - memory usage is moderate, ~1G on the coadd I've tested.  When adding
-       the weight images and seg images this will increase to <~3G.  Maybe the
-       max for any tile would be 10G.  
+   You should also set cutout_size= either in the config or on the command line.
+   
+   algorithm
+   ---------
+
+   Make a first pass through the files using only the wcs to determine the
+   cutouts.  Then pass through writing the cutouts one at a time into the
+   pre-made mosaic image.  This limits the memory usage significantly.
+   Memory currenty stays less than about 500Mb on the testbed.
+
+   Currently all the cutouts are the same size, as determined by the
+   cutout_size option; the cutouts are [cutout_size,cutout_size] in dimension.
+   If this parameter is not odd, it is forced to be so.
+
+   Single epoch cutouts are not currently sky subtracted The coadd cutouts are
+   because the coadd itself is already sky subtracted.
        
-       Could probably remove all the memory management machinery for typical
-       coadds, which would simplify the code. On the other hand, we may want to
-       run this on the supernova fields and eventually lsst.  Also, this code
-       is reasonably fast as is...
+   outputs
+   -------
+
+   The output file is determined by the cutouts_file= option.
+
+   In the first extension is a table for each object in the coadd.
+   Currently only objects with flags==0 have cutouts.
+
+     id                 i4   id from coadd catalog
+     ncutout            i4   number of cutouts for this object
+     box_size           i4   box size for each cutout (constant now)
+     start_row          i4[] array for each entry, points to start of each cutout, zero
+                             offset
+     file_id            i4[] id into the file names in the second extension
+     col_orig           f8[] zero-offset position in original image
+     row_orig           f8[] zero-offset position in original image
+     x_cutout           f8[] zero-offset position in cutout image
+     y_cutout           f8[] zero-offset position in cutout imag
+
+   Note in cfitsio you will need to convert start_row to 1-offset.
+
+   The second extension contains info about each image. Currently
+   this is just the file paths.  The file_id columns above point
+   into this structure.
+
+   The third extension contains a mosaic of all the image cutouts.  This mosaic
+   has box_size columns (currently fixed) and box_size*nobj rows.
+
+   The fourth extension is the same format as the third, but contains
+   the cutouts of the weight images.
+
+   In the future we may add other extensions for sky maps and segmentation
+   images.
 
    TODO
-       - fix the positions to be zero offset
-       - add sky values in table and sky subtract the images
-       - add wcs info to the second extension along with the filenames.
-       - when seg images are available, add them
-       - create matching output file names
+       - add sky values from the sky images.
+       - Sky subtract the cutouts
+       - add seg images when available
+       - add wcs info
+       - explore compression
 */
 #include <valarray>
 #include <sys/time.h>
@@ -40,7 +84,7 @@ enum cutout_type {
 };
 
 // define just work on the first few, good for testing
-#define MAXIMAGES 20
+//#define MAXIMAGES 20
 
 using std::auto_ptr;
 using std::cerr;
@@ -61,7 +105,7 @@ class CutoutMaker
         void get_cutout_info();
 
         void offset_positions();
-        void load_coadd_image();
+        //void load_coadd_image();
         void set_box_size();
 
         void set_start_rows();
@@ -95,11 +139,8 @@ class CutoutMaker
 
         // all positions are zero offset
 
-        Image<double> coadd_image;
-        //auto_ptr<Image<double> > coadd_weight_image;
-        Image<double> coadd_weight_image;
-
-        // for input
+        //Image<double> coadd_image;
+        //Image<double> coadd_weight_image;
 
         std::vector<long> id;
         std::vector<Position> pos;
@@ -154,10 +195,10 @@ CutoutMaker::CutoutMaker(const CoaddCatalog *coaddCat,
 {
     this->nobj = coaddCat->size();
     this->offset_positions();
-    this->load_coadd_image();
+    //this->load_coadd_image();
 
     this->imlist_path=this->params["coadd_srclist"];
-
+    this->cutouts_filename=this->params["cutouts_file"];
 
     this->load_image_list();
     this->set_box_size();
@@ -173,7 +214,6 @@ CutoutMaker::CutoutMaker(const CoaddCatalog *coaddCat,
     this->orig_start_col.resize(this->nobj);
     this->orig_start_row.resize(this->nobj);
 
-    this->cutouts_filename=this->params["cutouts_file"];
 
 }
 
@@ -189,6 +229,7 @@ void CutoutMaker::offset_positions()
         this->pos[i] -= off1;
     }
 }
+/*
 void CutoutMaker::load_coadd_image()
 {
     // I'm testing on DC6b, different structure so
@@ -208,6 +249,7 @@ void CutoutMaker::load_coadd_image()
         <<this->coadd_weight_image.getXMax()<<"\n";
 
 }
+*/
 
 
 static fitsfile *_close_fits(fitsfile *fits)
@@ -471,9 +513,27 @@ inline int getDataType<float>() { return TFLOAT; }
 
 // box_size*ncutout rows by box_size columns
 template <typename T>
-void create_mosaic(fitsfile* fits, int box_size, int ncutout)
+void create_mosaic(fitsfile* fits, int box_size, int ncutout, 
+                   string extname, bool use_compression)
 {
     int fitserr=0;
+
+    if (use_compression) {
+        // these must be called before making the image
+        fits_set_compression_type(fits, RICE_1, &fitserr);
+        if (fitserr != 0) {
+            fits_report_error(stderr,fitserr);
+            throw WriteException("Failed to set compression");
+        }
+
+        long tilesize[2] = {box_size, 100*box_size};
+        fits_set_tile_dim(fits, 2, tilesize, &fitserr);
+        if (fitserr != 0) {
+            fits_report_error(stderr,fitserr);
+            throw WriteException("Failed to set tile size");
+        }
+    }
+
     int n_axes = 2;
 
     int ncols=box_size;
@@ -488,6 +548,18 @@ void create_mosaic(fitsfile* fits, int box_size, int ncutout)
         fits_report_error(stderr,fitserr);
         throw WriteException("Error creating mosaic");
     }
+
+
+    fits_write_key_str(fits, 
+                       "extname", 
+                       (char*)extname.c_str(),
+                       NULL,
+                       &fitserr);
+    if (fitserr != 0) {
+        fits_report_error(stderr,fitserr);
+        throw WriteException("Error writing extname");
+    }
+
 
 
 }
@@ -614,7 +686,7 @@ static int get_image_pos(const Transformation *trans,
 // always force odd
 void CutoutMaker::set_box_size()
 {
-    this->box_size = this->params["multishear_cutout_size"];
+    this->box_size = this->params["cutout_size"];
     if ( (this->box_size % 2) == 0) {
         this->box_size += 1;
     }
@@ -751,17 +823,25 @@ void CutoutMaker::print_file_progress(int ifile)
 
 void CutoutMaker::write_mosaics_from_coadd(enum cutout_type cut_type)
 {
+    Image<double> image;
+    int hdu=0;
+    if (cut_type==CUTOUT_WEIGHT) {
+        cerr<<"    loading coadd weightimage";
+        hdu=3;
+    } else {
+        cerr<<"    loading coadd image";
+        hdu=2;
+    }
+
+    image.load(this->params["coaddimage_file"], hdu);
+    cerr<<" [" <<image.getYMax()<<", " <<image.getXMax()<<"]\n";
+
     this->print_file_progress(0);
     for (int i=0; i<this->nobj; ++i) {
         int ncut=this->cutout_pos[i].size();
         for (int j=0; j<ncut; j++) {
             if (this->orig_file_id[i][j] == 0) {
-                if (cut_type==CUTOUT_WEIGHT) {
-                    //this->write_cutout(this->coadd_weight_image.get(), i, j);
-                    this->write_cutout(&this->coadd_weight_image, i, j);
-                } else {
-                    this->write_cutout(&this->coadd_image, i, j);
-                }
+                this->write_cutout(&image, i, j);
             }
         }
     }
@@ -792,14 +872,31 @@ void CutoutMaker::write_mosaics_from_file(int ifile, enum cutout_type cut_type)
 
 }
 
-// write the idividual cutouts into the big mosaic
+// Write the idividual cutouts into the big mosaic. Control the cutout type
+// using cut_type. To save memory, the coadd image is cleaned up after use here
+// typically stays less than 1G
+
 void CutoutMaker::write_mosaic(enum cutout_type cut_type)
 {
     this->open_fits();
+    string extname;
 
-    create_mosaic<double>(this->fits, this->box_size, this->ncutout);
+    if (cut_type==CUTOUT_WEIGHT) {
+        extname="weight_cutouts";
+    } else {
+        extname="image_cutouts";
+    }
+    create_mosaic<double>(this->fits, this->box_size, this->ncutout,
+                          extname, false);
 
     this->write_mosaics_from_coadd(cut_type);
+    /*
+    if (cut_type==CUTOUT_WEIGHT) {
+        this->coadd_weight_image.Image::~Image();
+    } else {
+        this->coadd_image.Image::~Image();
+    }
+    */
 
     const int nfiles = this->image_file_list.size();
     for (int ifile=1; ifile<nfiles; ++ifile) {
@@ -894,15 +991,17 @@ static void make_cutouts(ConfigFile *params)
 
     maker.write_catalog();
     cerr<<"  writing cutout mosaic\n";
-    maker.write_mosaic(CUTOUT_IMAGE);
+    maker.write_mosaic(CUTOUT_IMAGE); // note coadd image is destroyed
     cerr<<"  writing weight mosaic\n";
-    maker.write_mosaic(CUTOUT_WEIGHT);
+    maker.write_mosaic(CUTOUT_WEIGHT); // note coadd weight is destroyed
 }
 
 
 static void usage_and_exit()
 {
     cerr<<"make-cutouts config_file coaddimage_file= coaddcat_file= coadd_srclist= cutouts_file=\n";
+    cerr<<"  also set cutout_size in the config or as an option\n";
+    cerr<<"  all options can be defined on the command line or in a config file\n";
     exit(1);
 }
 bool check_params(const ConfigFile *params)
