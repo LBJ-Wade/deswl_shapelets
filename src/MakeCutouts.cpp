@@ -27,31 +27,36 @@
 
    The output file is determined by the cutouts_file= option.
 
-   In the first extension is a table for each object in the coadd.
-   Currently only objects with flags==0 have cutouts.
+   The first extension, named "object_data", is a table with an entry for each
+   object in the coadd.  Currently only objects with flags==0 have cutouts.
 
-     id                 i4   id from coadd catalog
-     ncutout            i4   number of cutouts for this object
-     box_size           i4   box size for each cutout (constant now)
-     start_row          i4[] array for each entry, points to start of each cutout, zero
-                             offset
-     file_id            i4[] id into the file names in the second extension
-     col_orig           f8[] zero-offset position in original image
-     row_orig           f8[] zero-offset position in original image
-     x_cutout           f8[] zero-offset position in cutout image
-     y_cutout           f8[] zero-offset position in cutout imag
+     id                 i4       id from coadd catalog
+     ncutout            i4       number of cutouts for this object
+     box_size           i4       box size for each cutout (constant now)
+     start_row          i4[NMAX] zero-offset, points to start of each cutout.
+     file_id            i4[NMAX] zero-offset id into the file names in the 
+                                 second extension
+     col_orig           f8[NMAX] zero-offset position in original image
+     row_orig           f8[NMAX] zero-offset position in original image
+     x_cutout           f8[NMAX] zero-offset position in cutout image
+     y_cutout           f8[NMAX] zero-offset position in cutout imag
 
-   Note in cfitsio you will need to convert start_row to 1-offset.
+   The array fields are constant size NMAX, where NMAX is the max number of
+   cutouts of any object in the list.  When a value is not used, it is set to
+   -9999.  Note in cfitsio you will need to convert start_row to 1-offset.
 
-   The second extension contains info about each image. Currently
-   this is just the file paths.  The file_id columns above point
-   into this structure.
+   The second extension, named "image_info", contains info about each image.
+   Currently this is just the file paths.  The file_id column above point into
+   this structure.
 
-   The third extension contains a mosaic of all the image cutouts.  This mosaic
-   has box_size columns (currently fixed) and box_size*nobj rows.
+     filename           SNN      full path to source images
 
-   The fourth extension is the same format as the third, but contains
-   the cutouts of the weight images.
+   The third extension, named "image_cutouts", contains a mosaic of all the
+   image cutouts.  This mosaic has box_size columns (currently fixed) and
+   box_size*nobj rows.
+
+   The fourth extension, named "weight_cutouts", is the same format as the
+   third, but contains the cutouts of the weight images.
 
    In the future we may add other extensions for sky maps and segmentation
    images.
@@ -381,7 +386,7 @@ void CutoutMaker::write_catalog_filenames(CCfits::FITS *fits)
     col_names[0] = "filename";
     col_fmts[0] = ss.str();
 
-    CCfits::Table* table = fits->addTable("images_info",nfiles,
+    CCfits::Table* table = fits->addTable("image_info",nfiles,
                                           col_names,col_fmts,col_units);
 
     int firstrow=1;
