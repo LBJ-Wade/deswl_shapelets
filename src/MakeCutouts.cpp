@@ -344,7 +344,6 @@ static void vposition_to_xy(const std::vector<std::vector<Position> > *pvec,
             yvec->at(i)[j] = pvec->at(i)[j].getY();
         }
     }
-
 }
                                  
 
@@ -525,7 +524,6 @@ void create_mosaic(fitsfile* fits, int box_size, int ncutout,
         fits_report_error(stderr,fitserr);
         throw WriteException("Error writing extname");
     }
-
 }
 
 void CutoutMaker::open_fits()
@@ -594,6 +592,17 @@ void CutoutMaker::load_image_list()
         <<" se images"<<std::endl;
 }
 
+// we may allow this to vary for different galaxies
+// constant for now
+// always force odd
+void CutoutMaker::set_box_size()
+{
+    this->box_size = this->params["cutout_size"];
+    if ( (this->box_size % 2) == 0) {
+        this->box_size += 1;
+    }
+}
+
 
 int CutoutMaker::count_noflags()
 {
@@ -627,17 +636,6 @@ static int get_image_pos(const Transformation *trans,
     }
 
     return good;
-}
-
-// we may allow this to vary for different galaxies
-// constant for now
-// always force odd
-void CutoutMaker::set_box_size()
-{
-    this->box_size = this->params["cutout_size"];
-    if ( (this->box_size % 2) == 0) {
-        this->box_size += 1;
-    }
 }
 
 // position is position in the original image
@@ -710,7 +708,7 @@ static void get_image_shape(string filename, int hdu, long *ncol, long *nrow)
     }
 
     long dims[ndim];
-    fits_get_img_size(fits, ndim,  dims, &fitserr);
+    fits_get_img_size(fits, ndim, dims, &fitserr);
     if (fitserr != 0) {
         fits_report_error(stderr,fitserr);
         throw ReadException("Error getting dims from file "+filename);
@@ -763,7 +761,6 @@ void CutoutMaker::write_cutout(const Image<double> *image, int iobj, int icut)
     long col=1;
     long row=1+this->start_row[iobj][icut];
     tim.write_sub(this->fits, col, row);
-
 }
 
 // here we use the fact that the coadd is always in position ifile==0
@@ -815,7 +812,6 @@ void CutoutMaker::write_cutouts_from_file(int ifile, enum cutout_type cut_type)
             }
         }
     }
-
 }
 
 // Write the idividual cutouts into the big mosaic layed out on disk.

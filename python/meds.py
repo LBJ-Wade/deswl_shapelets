@@ -150,6 +150,9 @@ class MEDS(object):
         """
         Get an image list with all cutouts associated with this coadd object
 
+        Note each individual cutout is actually a view into a larger
+        mosaic of all images.
+
         parameters
         ----------
         iobj:
