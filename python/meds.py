@@ -60,8 +60,6 @@ class MEDS(object):
     # get a list of all the cutout images for object 35
     im=m.get_cutout_list(35)
 
-    # the last two share the same underlying storage for the images
-
     # get the source filename for cutout 3 for object 35
     fname=m.get_source_filename(35,3)
 
@@ -72,9 +70,16 @@ class MEDS(object):
     row = m['row_cutout'][35]
     col = m['col_cutout'][35]
 
+    # source filename
+    fname = m.get_source_filenam(35,3)
 
-    Fields
-    ------
+    # or you can just get the catalog to work with
+    cat=m.get_cat()
+    info=m.get_image_info()
+
+
+    Fields in main catalog
+    -----------------------
 
      id                 i4       id from coadd catalog
      ncutout            i4       number of cutouts for this object
