@@ -234,28 +234,6 @@ void CutoutMaker::offset_positions()
         this->pos[i] -= off1;
     }
 }
-/*
-void CutoutMaker::load_coadd_image()
-{
-    // I'm testing on DC6b, different structure so
-    // must put in hdu by hand and not use weight image
-    int hdu=2;
-    int weight_hdu=3;
-    this->coadd_image.load(this->params["coaddimage_file"],
-                           hdu);
-    this->coadd_weight_image.load(this->params["coaddimage_file"],
-                                  weight_hdu);
-
-    cerr<<"  image dims "
-        <<this->coadd_image.getYMax()<<" "
-        <<this->coadd_image.getXMax()<<"\n";
-    cerr<<"  weight dims "
-        <<this->coadd_weight_image.getYMax()<<" "
-        <<this->coadd_weight_image.getXMax()<<"\n";
-
-}
-*/
-
 
 static fitsfile *_close_fits(fitsfile *fits)
 {
@@ -895,13 +873,6 @@ void CutoutMaker::write_mosaic(enum cutout_type cut_type)
                           extname, false);
 
     this->write_mosaics_from_coadd(cut_type);
-    /*
-    if (cut_type==CUTOUT_WEIGHT) {
-        this->coadd_weight_image.Image::~Image();
-    } else {
-        this->coadd_image.Image::~Image();
-    }
-    */
 
     const int nfiles = this->image_file_list.size();
     for (int ifile=1; ifile<nfiles; ++ifile) {
