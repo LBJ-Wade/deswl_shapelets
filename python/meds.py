@@ -33,10 +33,12 @@ class MEDS(object):
         Get an image list with all cutouts associated with this coadd object
     get_source_filename(iobj, icutout)
         Get the source filename associated with the indicated cutout
+    get_source_info(iobj, icutout)
+        Get all info about the source image
     get_cat()
         Get the catalog; extension 1
-    get_source_info()
-        Get info about the source images; extension 2
+    get_image_info()
+        Get the entire image info structure
 
     examples
     --------
@@ -163,6 +165,19 @@ class MEDS(object):
         box_size=self._cat['box_size'][iobj]
         return self._split_mosaic(mosaic, box_size, ncutout)
 
+    def get_source_info(self, iobj, icutout):
+        """
+        Get the full source file information for the indicated cutout.
+
+        parameters
+        ----------
+        iobj: 
+            Index of the object
+        """
+        self._check_indices(iobj, icutout=icutout)
+        ifile=self._cat['file_id'][iobj,icutout]
+        return self._image_info[ifile]
+
     def get_source_filename(self, iobj, icutout):
         """
         Get the source filename associated with the indicated cutout
@@ -178,20 +193,22 @@ class MEDS(object):
         -------
         The filename
         """
-        self._check_indices(iobj, icutout=icutout)
-        return self._image_info['filename'][iobj]
+
+        info=self.get_source_info(iobj, icutout)
+        return info['filename']
 
     def get_cat(self):
         """
         Get the catalog
         """
         return self._cat
-    
-    def get_source_info(self):
+
+    def get_image_info(self):
         """
-        Get the source file information
+        Get all image information
         """
         return self._image_info
+    
 
     def _split_mosaic(self, mosaic, box_size, ncutout):
         imlist=[]
