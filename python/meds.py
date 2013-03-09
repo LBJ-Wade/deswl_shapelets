@@ -15,26 +15,22 @@ class MEDS(object):
     One can extract cutouts using get_cutout() and get_mosaic() and
     get_cutout_list()
 
-    One can access fields using [field_name] notation. The number of entries is
-    in the .size attribute. Access the .cat catalog for further functionality
-    with regards the recarray
-
-    Fields
-
-     id                 i4       id from coadd catalog
-     ncutout            i4       number of cutouts for this object
-     box_size           i4       box size for each cutout
-     file_id            i4[NMAX] zero-offset id into the file names in the 
-                                 second extension
-     start_row          i4[NMAX] zero-offset, points to start of each cutout.
-     orig_row           f8[NMAX] zero-offset position in original image
-     orig_col           f8[NMAX] zero-offset position in original image
-     orig_start_row     i4[NMAX] zero-offset start corner in original image
-     orig_start_col     i4[NMAX] zero-offset start corner in original image
-     cutout_row         f8[NMAX] zero-offset position in cutout imag
-     cutout_col         f8[NMAX] zero-offset position in cutout image
+    One can access all fields using [field_name] notation. The number of
+    entries is in the .size attribute. Access the .cat catalog for further
+    functionality with regards the recarray
 
     The first cutout for an object is always from the coadd.
+
+    public methods
+    --------------
+    get_cutout(iobj, icutout)
+        Get a single cutout for the indicated entry
+    get_mosaic(iobj)
+        Get a mosaic of all cutouts associated with this coadd object
+    get_cutout_list(iobj)
+        Get an image list with all cutouts associated with this coadd object
+    get_source_filename(iobj, icutout)
+        Get the source filename associated with the indicated cutout
 
     examples
     --------
@@ -58,6 +54,9 @@ class MEDS(object):
 
     # the last two share the same underlying storage for the images
 
+    # get the source filename for cutout 3 for object 35
+    fname=m.get_source_filename(35,3)
+
     # you can access any of the columns in the
     # catalog (stored as a recarray) directly
 
@@ -65,13 +64,31 @@ class MEDS(object):
     row = m['row_cutout'][35]
     col = m['col_cutout'][35]
 
+
+    Fields
+    ------
+
+     id                 i4       id from coadd catalog
+     ncutout            i4       number of cutouts for this object
+     box_size           i4       box size for each cutout
+     file_id            i4[NMAX] zero-offset id into the file names in the 
+                                 second extension
+     start_row          i4[NMAX] zero-offset, points to start of each cutout.
+     orig_row           f8[NMAX] zero-offset position in original image
+     orig_col           f8[NMAX] zero-offset position in original image
+     orig_start_row     i4[NMAX] zero-offset start corner in original image
+     orig_start_col     i4[NMAX] zero-offset start corner in original image
+     cutout_row         f8[NMAX] zero-offset position in cutout imag
+     cutout_col         f8[NMAX] zero-offset position in cutout image
+
     """
     def __init__(self, filename):
         self._filename=filename
         
         self._fits=fitsio.FITS(filename)
 
-        self._cat=self._fits[1][:]
+        self._cat=self._fits["object_data"][:]
+        self._image_info=self._fits["image_info"][:]
 
     def get_cutout(self, iobj, icutout):
         """
@@ -139,6 +156,24 @@ class MEDS(object):
         ncutout=self._cat['ncutout'][iobj]
         box_size=self._cat['box_size'][iobj]
         return self._split_mosaic(mosaic, box_size, ncutout)
+
+    def get_source_filename(self, iobj, icutout):
+        """
+        Get the source filename associated with the indicated cutout
+
+        parameters
+        ----------
+        iobj:
+            Index of the object
+        icutout:
+            Index of the cutout for this object.
+
+        returns
+        -------
+        The filename
+        """
+        self._check_indices(iobj, icutout=icutout)
+        return self._image_info['filename'][iobj]
 
     def _split_mosaic(self, mosaic, box_size, ncutout):
         imlist=[]
