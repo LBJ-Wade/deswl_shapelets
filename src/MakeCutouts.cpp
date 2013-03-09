@@ -25,31 +25,38 @@
    outputs
    -------
 
-   The output file is determined by the cutouts_file= option.
+   The output file name is determined by the cutouts_file= option.
 
    The first extension, named "object_data", is a table with an entry for each
-   object in the coadd.  Currently only objects with flags==0 have cutouts.
+   object in the coadd.  This table lines up row-by-row with the coadd catalog
+   table.  However, currently only objects with flags==0 have cutouts.
 
      id                 i4       id from coadd catalog
      ncutout            i4       number of cutouts for this object
-     box_size           i4       box size for each cutout (constant now)
-     start_row          i4[NMAX] zero-offset, points to start of each cutout.
+     box_size           i4       box size for each cutout
      file_id            i4[NMAX] zero-offset id into the file names in the 
                                  second extension
-     col_orig           f8[NMAX] zero-offset position in original image
-     row_orig           f8[NMAX] zero-offset position in original image
-     x_cutout           f8[NMAX] zero-offset position in cutout image
-     y_cutout           f8[NMAX] zero-offset position in cutout imag
+     start_row          i4[NMAX] zero-offset, points to start of each cutout.
+     orig_row           f8[NMAX] zero-offset position in original image
+     orig_col           f8[NMAX] zero-offset position in original image
+     orig_start_row     i4[NMAX] zero-offset start corner in original image
+     orig_start_col     i4[NMAX] zero-offset start corner in original image
+     cutout_row         f8[NMAX] zero-offset position in cutout imag
+     cutout_col         f8[NMAX] zero-offset position in cutout image
 
    The array fields are constant size NMAX, where NMAX is the max number of
    cutouts of any object in the list.  When a value is not used, it is set to
-   -9999.  Note in cfitsio you will need to convert start_row to 1-offset.
+   -9999.
+
+   The first entry for each object is always the coadd cutout.
+   
+   Note in cfitsio you will need to convert start_row to 1-offset.
 
    The second extension, named "image_info", contains info about each image.
    Currently this is just the file paths.  The file_id column above point into
    this structure.
 
-     filename           SNN      full path to source images
+     filename           SXX      full path to source images
 
    The third extension, named "image_cutouts", contains a mosaic of all the
    image cutouts.  This mosaic has box_size columns (currently fixed) and
@@ -68,6 +75,7 @@
        - add wcs info
        - explore compression
 */
+
 #include <valarray>
 #include <sys/time.h>
 #include <iostream>
@@ -400,19 +408,26 @@ void CutoutMaker::write_catalog()
     col_names.push_back("box_size");
     col_fmts.push_back("1J");
 
+    col_names.push_back("file_id");
+    col_fmts.push_back(jfmt);
+
     col_names.push_back("start_row");
     col_fmts.push_back(jfmt);
 
-    col_names.push_back("file_id");
-    col_fmts.push_back(jfmt);
-    col_names.push_back("col_orig");
+    col_names.push_back("orig_row");
     col_fmts.push_back(dfmt);
-    col_names.push_back("row_orig");
+    col_names.push_back("orig_col");
     col_fmts.push_back(dfmt);
 
-    col_names.push_back("x_cutout");
+
+    col_names.push_back("orig_start_row");
+    col_fmts.push_back(jfmt);
+    col_names.push_back("orig_start_col");
+    col_fmts.push_back(jfmt);
+
+    col_names.push_back("cutout_row");
     col_fmts.push_back(dfmt);
-    col_names.push_back("y_cutout");
+    col_names.push_back("cutout_col");
     col_fmts.push_back(dfmt);
 
     // dummy
@@ -438,12 +453,19 @@ void CutoutMaker::write_catalog()
     std::vector<std::valarray<double> > y;
 
     vposition_to_xy(&this->orig_pos, &x, &y, max_cutouts);
-    table->column("col_orig").writeArrays(x,firstrow);
-    table->column("row_orig").writeArrays(y,firstrow);
+    table->column("orig_row").writeArrays(y,firstrow);
+    table->column("orig_col").writeArrays(x,firstrow);
+
+    // re-using start_row storage
+    to_valarray_vec(&this->orig_start_row, &start_row, max_cutouts);
+    table->column("orig_start_row").writeArrays(start_row,firstrow);
+
+    to_valarray_vec(&this->orig_start_col, &start_row, max_cutouts);
+    table->column("orig_start_col").writeArrays(start_row,firstrow);
 
     vposition_to_xy(&this->cutout_pos, &x, &y, max_cutouts);
-    table->column("x_cutout").writeArrays(x,firstrow);
-    table->column("y_cutout").writeArrays(y,firstrow);
+    table->column("cutout_row").writeArrays(y,firstrow);
+    table->column("cutout_col").writeArrays(x,firstrow);
 
     this->write_catalog_filenames(&fits);
 
@@ -695,6 +717,7 @@ void CutoutMaker::append_cutout_info(const Position *pos, int index)
     this->orig_start_col[index].push_back(startx);
     this->orig_start_row[index].push_back(starty);
 
+    this->cutout_count[index]++;
     this->ncutout++;
 
 }

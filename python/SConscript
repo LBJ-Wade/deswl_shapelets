@@ -1,0 +1,34 @@
+# vim: set filetype=python :
+
+import os
+import sys
+from sys import stdout, stderr
+import glob
+import distutils
+import distutils.sysconfig
+import subprocess
+
+Import('env')
+
+if env['WITH_PYTHON']:
+
+
+    # for the /lib/pythonX/site-packages directory
+    meds_file = env.File('meds.py')
+
+
+    main_libdir=distutils.sysconfig.get_python_lib()
+    pylib_install_subdir = main_libdir.replace(distutils.sysconfig.PREFIX+os.sep,'')
+    pylib_targets = [meds_file]
+
+    if 'install' in COMMAND_LINE_TARGETS:
+        RunInstall = env['_InstallProgram']
+        RunInstall(env, pylib_targets, pylib_install_subdir)
+
+    if 'uninstall' in COMMAND_LINE_TARGETS:
+        RunUninstall = env['_UninstallProgram']
+
+        # remove the directory too
+        RunUninstall(env, pylib_targets, pylib_install_subdir)
+
+
