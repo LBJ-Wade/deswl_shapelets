@@ -118,7 +118,6 @@ class CutoutMaker
         void get_cutout_info();
 
         void offset_positions();
-        //void load_coadd_image();
         void set_box_size();
 
         void set_start_rows();
@@ -150,11 +149,6 @@ class CutoutMaker
 
     private:
 
-        // all positions are zero offset
-
-        //Image<double> coadd_image;
-        //Image<double> coadd_weight_image;
-
         std::vector<long> id;
         std::vector<Position> pos;
         std::vector<Position> skypos;
@@ -163,9 +157,6 @@ class CutoutMaker
         std::vector<int> cutout_count;
         std::vector<int> box_sizes; // constant for now
 
-        // these are zero-offset to be consistent with other
-        // indices in this file.  Need to convert to 1-offset
-        // when using cfitsio
         std::vector<std::vector<int> > start_row;
 
         std::vector<std::vector<Position> > cutout_pos; // positions in the cutout
@@ -208,7 +199,6 @@ CutoutMaker::CutoutMaker(const CoaddCatalog *coaddCat,
 {
     this->nobj = coaddCat->size();
     this->offset_positions();
-    //this->load_coadd_image();
 
     this->imlist_path=this->params["coadd_srclist"];
     this->cutout_filename=this->params["cutout_file"];
@@ -568,8 +558,6 @@ void create_mosaic(fitsfile* fits, int box_size, int ncutout,
 
 
 }
-// we assume the catalog and file metadata have already been written, just
-// reopen and add the new image hdu(s)
 
 void CutoutMaker::open_fits()
 {
@@ -662,10 +650,8 @@ static double get_pixscale(const Transformation *trans)
 }
 
 
-/* 
-   use the rough transform as input to the nonlinear finder
-   If it doesn't work, use the rough one
-*/
+// use the rough transform as input to the nonlinear finder
+// If it doesn't work, use the rough one
 static int get_image_pos(const Transformation *trans,
                          const Transformation *inv_trans,
                          const Position *skypos,
@@ -686,7 +672,7 @@ static int get_image_pos(const Transformation *trans,
     return good;
 }
 
-// we may make this be different for different galaxies
+// we may allow this to vary for different galaxies
 // constant for now
 // always force odd
 void CutoutMaker::set_box_size()
@@ -719,7 +705,6 @@ void CutoutMaker::append_cutout_info(const Position *pos, int index)
 
     this->cutout_count[index]++;
     this->ncutout++;
-
 }
 
 
@@ -740,7 +725,6 @@ string CutoutMaker::setup_se_file(int ifile)
 
 static void get_image_shape(string filename, int hdu, long *ncol, long *nrow)
 {
-
     int fitserr=0;
 
     fitsfile *fits=_open_fits(filename);
@@ -1005,15 +989,30 @@ static void usage_and_exit()
 }
 bool check_params(const ConfigFile *params)
 {
+    bool ok=true;
 
-    if (!params->keyExists("coaddimage_file")
-            || !params->keyExists("coaddcat_file")
-            || !params->keyExists("coadd_srclist")
-            || !params->keyExists("cutout_file") ) {
-        return false;
+    if (!params->keyExists("coaddcat_file")) {
+        cerr<<"send coaddcat_file=\n";
+        ok=false;
+    }
+    if (!params->keyExists("coaddimage_file")) {
+        cerr<<"send coaddimage_file=\n";
+        ok=false;
+    }
+    if (!params->keyExists("coadd_srclist")) {
+        cerr<<"send coadd_srclist=\n";
+        ok=false;
+    }
+    if (!params->keyExists("cutout_file")) {
+        cerr<<"send cutout_file=\n";
+        ok=false;
+    }
+    if (!params->keyExists("cutout_size")) {
+        cerr<<"set cutout_size= in config or as an arg\n";
+        ok=false;
     }
 
-    return true;
+    return ok;
 }
 
 int main(int argc, char **argv)
