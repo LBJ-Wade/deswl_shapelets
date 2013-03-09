@@ -94,6 +94,10 @@ class MEDS(object):
      cutout_row         f8[NMAX] zero-offset position in cutout imag
      cutout_col         f8[NMAX] zero-offset position in cutout image
 
+    requirements
+    ------------
+    numpy
+    fitsio https://github.com/esheldon/fitsio
     """
     def __init__(self, filename):
         self._filename=filename
