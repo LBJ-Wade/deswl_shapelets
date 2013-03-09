@@ -13,7 +13,7 @@
    Make a first pass through the files using only the wcs to determine the
    cutouts.  Then pass through writing the cutouts one at a time into the
    pre-made mosaic image.  This limits the memory usage significantly.
-   Memory currenty stays less than about 500Mb on the testbed.
+   Memory usage on the test bed is <~ 500Mb.
 
    Currently all the cutouts are the same size, as determined by the
    cutout_size option; the cutouts are [cutout_size,cutout_size] in dimension.
