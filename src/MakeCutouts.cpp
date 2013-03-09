@@ -3,7 +3,7 @@
 
    usage
    ---------
-   make-cutouts config_file coaddimage_file= coaddcat_file= coadd_srclist= cutouts_file=
+   make-cutouts config_file coaddimage_file= coaddcat_file= coadd_srclist= cutout_file=
 
    You should also set cutout_size= either in the config or on the command line.
    
@@ -25,7 +25,7 @@
    outputs
    -------
 
-   The output file name is determined by the cutouts_file= option.
+   The output file name is determined by the cutout_file= option.
 
    The first extension, named "object_data", is a table with an entry for each
    object in the coadd.  This table lines up row-by-row with the coadd catalog
@@ -189,7 +189,7 @@ class CutoutMaker
         int box_size;
         int ncutout;
 
-        string cutouts_filename;
+        string cutout_filename;
 };
 
 
@@ -211,7 +211,7 @@ CutoutMaker::CutoutMaker(const CoaddCatalog *coaddCat,
     //this->load_coadd_image();
 
     this->imlist_path=this->params["coadd_srclist"];
-    this->cutouts_filename=this->params["cutouts_file"];
+    this->cutout_filename=this->params["cutout_file"];
 
     this->load_image_list();
     this->set_box_size();
@@ -382,8 +382,8 @@ void CutoutMaker::write_catalog()
 {
 
 
-    cerr<<"opening output file: "<<this->cutouts_filename<<"\n";
-    CCfits::FITS fits("!"+this->cutouts_filename, CCfits::Write);
+    cerr<<"opening output file: "<<this->cutout_filename<<"\n";
+    CCfits::FITS fits("!"+this->cutout_filename, CCfits::Write);
 
     cerr<<"  writing catalog\n";
     int max_cutouts=this->get_max_cutouts();
@@ -573,7 +573,7 @@ void create_mosaic(fitsfile* fits, int box_size, int ncutout,
 
 void CutoutMaker::open_fits()
 {
-    this->fits=_open_fits(this->cutouts_filename);
+    this->fits=_open_fits(this->cutout_filename);
 }
 
 
@@ -998,7 +998,7 @@ static void make_cutouts(ConfigFile *params)
 
 static void usage_and_exit()
 {
-    cerr<<"make-cutouts config_file coaddimage_file= coaddcat_file= coadd_srclist= cutouts_file=\n";
+    cerr<<"make-cutouts config_file coaddimage_file= coaddcat_file= coadd_srclist= cutout_file=\n";
     cerr<<"  also set cutout_size in the config or as an option\n";
     cerr<<"  all options can be defined on the command line or in a config file\n";
     exit(1);
@@ -1009,7 +1009,7 @@ bool check_params(const ConfigFile *params)
     if (!params->keyExists("coaddimage_file")
             || !params->keyExists("coaddcat_file")
             || !params->keyExists("coadd_srclist")
-            || !params->keyExists("cutouts_file") ) {
+            || !params->keyExists("cutout_file") ) {
         return false;
     }
 

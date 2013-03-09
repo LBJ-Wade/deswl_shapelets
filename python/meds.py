@@ -9,6 +9,9 @@ class MEDS(object):
     """
     Class to work with MEDS (Multi Epoch Data Structures)
 
+    For details of the structure, see
+    https://cdcvs.fnal.gov/redmine/projects/deswlwg/wiki/Multi_Epoch_Data_Structure
+
     One can extract cutouts using get_cutout() and get_mosaic() and
     get_cutout_list()
 
