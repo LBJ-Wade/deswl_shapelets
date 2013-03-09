@@ -1,5 +1,5 @@
 /*
-   Author: Erin Sheldon, BNL.  This began as a hack on the multishear code.
+   Author: Erin Sheldon, BNL
 
    usage
    ---------
@@ -96,7 +96,7 @@ enum cutout_type {
     CUTOUT_WEIGHT
 };
 
-// define just work on the first few, good for testing
+// define this to limit to this many images; good for testing
 //#define MAXIMAGES 20
 
 using std::auto_ptr;
@@ -216,7 +216,6 @@ CutoutMaker::CutoutMaker(const CoaddCatalog *coaddCat,
     this->orig_pos.resize(this->nobj);
     this->orig_start_col.resize(this->nobj);
     this->orig_start_row.resize(this->nobj);
-
 
 }
 
@@ -463,34 +462,6 @@ void CutoutMaker::write_catalog()
 }
 
 
-// Image has no resize method, so we create a new image and send it
-// back
-//
-// assume all are the same shape
-template <typename T>
-Image<T> *make_mosaic(const std::vector<Image<T> > *vec)
-{
-    int nx=vec->at(0).getXMax();
-    int ny=vec->at(0).getYMax();
-
-    int nim=vec->size();
-    int nxtot = nx*nim;
-
-    Image<T> *mosaic=new Image<T>(nxtot, ny);
-
-    for (int i=0; i<nim; i++) {
-        // sub-image extraction is [min,max)
-        const Image<T> *cutout = &vec->at(i);
-
-        int startx= i*nx;
-        int endx  = (i+1)*nx;
-        Image<T> subim=mosaic->subImage(startx,endx,0,ny); // shared storage
-        subim = (*cutout);
-    }
-    return mosaic;
-}
-
-
 template <typename T> 
 inline int getBitPix() { return 0; }
 template <> 
@@ -554,8 +525,6 @@ void create_mosaic(fitsfile* fits, int box_size, int ncutout,
         fits_report_error(stderr,fitserr);
         throw WriteException("Error writing extname");
     }
-
-
 
 }
 
@@ -635,18 +604,6 @@ int CutoutMaker::count_noflags()
         }
     }
     return ngood;
-}
-
-
-
-static double get_pixscale(const Transformation *trans)
-{
-    DSmallMatrix22 D;
-    Position pos(1000,1000);
-    trans->getDistortion(pos,D);
-    double det = std::abs(D.TMV_det());
-    double pixel_scale = sqrt(det); // arcsec/pixel
-    return pixel_scale;
 }
 
 
@@ -862,10 +819,7 @@ void CutoutMaker::write_mosaics_from_file(int ifile, enum cutout_type cut_type)
 
 }
 
-// Write the idividual cutouts into the big mosaic. Control the cutout type
-// using cut_type. To save memory, the coadd image is cleaned up after use here
-// typically stays less than 1G
-
+// Write the idividual cutouts into the big mosaic layed out on disk.
 void CutoutMaker::write_mosaic(enum cutout_type cut_type)
 {
     this->open_fits();
@@ -946,8 +900,8 @@ void CutoutMaker::get_file_cutout_info(int ifile, const Bounds *bounds)
 }
 
 
-// loop through and find the cutout boundaries, etc.
-// in each file
+// loop through and find the cutout boundaries, etc.  note ifile=0 would be the
+// coadd, but we deal with that specially
 void CutoutMaker::get_cutout_info()
 {
 
