@@ -2,6 +2,8 @@
 Defines the MEDS class to work with MEDS (Multi Epoch Data Structures)
 
 See docs for the MEDS class for more info
+
+Author: Erin Sheldon, BNL
 """
 import fitsio
 
@@ -31,6 +33,10 @@ class MEDS(object):
         Get an image list with all cutouts associated with this coadd object
     get_source_filename(iobj, icutout)
         Get the source filename associated with the indicated cutout
+    get_cat()
+        Get the catalog; extension 1
+    get_source_info()
+        Get info about the source images; extension 2
 
     examples
     --------
@@ -174,6 +180,18 @@ class MEDS(object):
         """
         self._check_indices(iobj, icutout=icutout)
         return self._image_info['filename'][iobj]
+
+    def get_cat(self):
+        """
+        Get the catalog
+        """
+        return self._cat
+    
+    def get_source_info(self):
+        """
+        Get the source file information
+        """
+        return self._image_info
 
     def _split_mosaic(self, mosaic, box_size, ncutout):
         imlist=[]
