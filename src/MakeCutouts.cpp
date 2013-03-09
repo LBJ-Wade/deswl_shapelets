@@ -122,8 +122,8 @@ class CutoutMaker
 
         void set_start_rows();
         void write_cutout(const Image<double> *image, int iobj, int icut);
-        void write_mosaics_from_coadd(enum cutout_type cut_type);
-        void write_mosaics_from_file(int ifile, enum cutout_type cut_type);
+        void write_cutouts_from_coadd(enum cutout_type cut_type);
+        void write_cutouts_from_file(int ifile, enum cutout_type cut_type);
         void write_mosaic(enum cutout_type cut_type);
 
         void open_fits(); // after catalogs written
@@ -664,7 +664,15 @@ void CutoutMaker::append_cutout_info(const Position *pos, int index)
     this->ncutout++;
 }
 
-
+void CutoutMaker::print_file_progress(int ifile)
+{
+    cerr<<"    "
+        <<(ifile+1)
+        <<"/"
+        <<this->image_file_list.size()
+        <<" "
+        <<this->image_file_list[ifile]<<"\n";
+}
 
 string CutoutMaker::setup_se_file(int ifile)
 {
@@ -758,17 +766,8 @@ void CutoutMaker::write_cutout(const Image<double> *image, int iobj, int icut)
 
 }
 
-void CutoutMaker::print_file_progress(int ifile)
-{
-    cerr<<"    "
-        <<(ifile+1)
-        <<"/"
-        <<this->image_file_list.size()
-        <<" "
-        <<this->image_file_list[ifile]<<"\n";
-}
-
-void CutoutMaker::write_mosaics_from_coadd(enum cutout_type cut_type)
+// here we use the fact that the coadd is always in position ifile==0
+void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
 {
     Image<double> image;
     int hdu=0;
@@ -793,7 +792,7 @@ void CutoutMaker::write_mosaics_from_coadd(enum cutout_type cut_type)
         }
     }
 }
-void CutoutMaker::write_mosaics_from_file(int ifile, enum cutout_type cut_type)
+void CutoutMaker::write_cutouts_from_file(int ifile, enum cutout_type cut_type)
 {
     if (ifile==0) {
         return;
@@ -833,11 +832,11 @@ void CutoutMaker::write_mosaic(enum cutout_type cut_type)
     create_mosaic<double>(this->fits, this->box_size, this->ncutout,
                           extname, false);
 
-    this->write_mosaics_from_coadd(cut_type);
+    this->write_cutouts_from_coadd(cut_type);
 
     const int nfiles = this->image_file_list.size();
-    for (int ifile=1; ifile<nfiles; ++ifile) {
-        this->write_mosaics_from_file(ifile, cut_type);
+    for (int ifile=1; ifile<nfiles; ifile++) {
+        this->write_cutouts_from_file(ifile, cut_type);
     }
 
     this->close_fits();
@@ -906,7 +905,7 @@ void CutoutMaker::get_cutout_info()
 {
 
     const int nfiles = this->image_file_list.size();
-    for (int ifile=1; ifile<nfiles; ++ifile) {
+    for (int ifile=1; ifile<nfiles; ifile++) {
         this->get_file_cutout_info(ifile,&this->skybounds);
     }
     cerr<<"Found "<<this->ncutout<<" cutouts\n";
