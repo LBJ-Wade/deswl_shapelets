@@ -19,7 +19,7 @@
    cutout_size option; the cutouts are [cutout_size,cutout_size] in dimension.
    If this parameter is not odd, it is forced to be so.
 
-   Single epoch cutouts are not currently sky subtracted The coadd cutouts are
+   Single epoch cutouts are not currently sky subtracted. The coadd cutouts are
    because the coadd itself is already sky subtracted.
        
    outputs
@@ -60,10 +60,10 @@
 
    The third extension, named "image_cutouts", contains a mosaic of all the
    image cutouts.  This mosaic has box_size columns (currently fixed) and
-   box_size*nobj rows.
+   box_size*ncutout_tot rows, where ncutout_tot = sum(ncutout) over all objects.
 
    The fourth extension, named "weight_cutouts", is the same format as the
-   third, but contains the cutouts of the weight images.
+   "image_cutouts" extension, but contains the cutouts of the weight images.
 
    In the future we may add other extensions for sky maps and segmentation
    images.
@@ -91,6 +91,9 @@ const double ARCSEC_PER_RAD = 206264.806247;
 const int MAX_HDU=999;
 const int DEFVAL=-9999;
 
+const int COADD_HDU=2;
+const int COADD_WT_HDU=3;
+
 enum cutout_type {
     CUTOUT_IMAGE,
     CUTOUT_WEIGHT
@@ -102,6 +105,7 @@ enum cutout_type {
 using std::auto_ptr;
 using std::cerr;
 using std::string;
+using std::vector;
 
 class CutoutMaker
 {
@@ -113,11 +117,14 @@ class CutoutMaker
 
         ~CutoutMaker();
 
-        void append_cutout_info(const Position *pos, int index);
+        void append_cutout_info(const Position *pos,
+                                const Transformation *trans,
+                                int index);
         void get_file_cutout_info(int ifile, const Bounds *bounds);
         void get_cutout_info();
 
         void offset_positions();
+        void load_coadd_trans();
         void set_box_size();
 
         void set_start_rows();
@@ -149,28 +156,35 @@ class CutoutMaker
 
     private:
 
-        std::vector<long> id;
-        std::vector<Position> pos;
-        std::vector<Position> skypos;
-        std::vector<long> flags;
+        vector<long> id;
+        vector<Position> pos;
+        vector<Position> skypos;
+        vector<long> flags;
 
-        std::vector<int> cutout_count;
-        std::vector<int> box_sizes; // constant for now
+        vector<int> cutout_count;
+        vector<int> box_sizes; // constant for now
 
-        std::vector<std::vector<int> > start_row;
+        vector<vector<int> > start_row;
 
-        std::vector<std::vector<Position> > cutout_pos; // positions in the cutout
+        vector<vector<Position> > cutout_pos; // positions in the cutout
 
-        std::vector<std::vector<int> > orig_file_id; // id of SE file
-        std::vector<std::vector<Position> > orig_pos; // position in SE image
-        std::vector<std::vector<int> > orig_start_col; // box corner
-        std::vector<std::vector<int> > orig_start_row; // box corner
+        vector<vector<int> > orig_file_id; // id of SE file
+        vector<vector<Position> > orig_pos; // position in SE image
+        vector<vector<int> > orig_start_col; // box corner
+        vector<vector<int> > orig_start_row; // box corner
+
+        vector<vector<double> > dudrow;
+        vector<vector<double> > dudcol;
+        vector<vector<double> > dvdrow;
+        vector<vector<double> > dvdcol;
 
         Bounds skybounds; 
         string imlist_path;
 
-        std::vector<string> image_file_list;
+        vector<string> image_file_list;
         int max_image_filename_len;
+
+        Transformation coadd_trans;
 
         ConfigFile params;
 
@@ -199,6 +213,7 @@ CutoutMaker::CutoutMaker(const CoaddCatalog *coaddCat,
 {
     this->nobj = coaddCat->size();
     this->offset_positions();
+    this->load_coadd_trans();
 
     this->imlist_path=this->params["coadd_srclist"];
     this->cutout_filename=this->params["cutout_file"];
@@ -217,6 +232,11 @@ CutoutMaker::CutoutMaker(const CoaddCatalog *coaddCat,
     this->orig_start_col.resize(this->nobj);
     this->orig_start_row.resize(this->nobj);
 
+    this->dudrow.resize(this->nobj);
+    this->dudcol.resize(this->nobj);
+    this->dvdrow.resize(this->nobj);
+    this->dvdcol.resize(this->nobj);
+
 }
 
 CutoutMaker::~CutoutMaker()
@@ -230,6 +250,12 @@ void CutoutMaker::offset_positions()
     for (int i=0; i<this->nobj; i++) {
         this->pos[i] -= off1;
     }
+}
+
+void CutoutMaker::load_coadd_trans()
+{
+    string fname=this->params["coaddimage_file"];
+    this->coadd_trans.readWCS(fname,COADD_HDU);
 }
 
 static fitsfile *_close_fits(fitsfile *fits)
@@ -298,8 +324,8 @@ int CutoutMaker::get_max_cutouts()
     return max_cutouts;
 }
 template <typename T>
-void to_valarray_vec(const std::vector<std::vector<T> > *vvec,
-                     std::vector<std::valarray<T> > *vval,
+void to_valarray_vec(const vector<vector<T> > *vvec,
+                     vector<std::valarray<T> > *vval,
                      int arrsize)
 {
     int n=vvec->size();
@@ -320,9 +346,9 @@ void to_valarray_vec(const std::vector<std::vector<T> > *vvec,
 }
 
 
-static void vposition_to_xy(const std::vector<std::vector<Position> > *pvec,
-                            std::vector<std::valarray<double> > *xvec,
-                            std::vector<std::valarray<double> > *yvec,
+static void vposition_to_xy(const vector<vector<Position> > *pvec,
+                            vector<std::valarray<double> > *xvec,
+                            vector<std::valarray<double> > *yvec,
                             int arrsize)
 {
     int n=pvec->size();
@@ -351,9 +377,9 @@ void CutoutMaker::write_catalog_filenames(CCfits::FITS *fits)
 {
     int nfiles=this->image_file_list.size();
 
-    std::vector<string> col_names(1);
-    std::vector<string> col_fmts(1);
-    std::vector<string> col_units(1);
+    vector<string> col_names(1);
+    vector<string> col_fmts(1);
+    vector<string> col_units(1);
 
     std::stringstream ss;
     ss<<this->max_image_filename_len<<"A";
@@ -384,8 +410,8 @@ void CutoutMaker::write_catalog()
     string dfmt = ss.str();
 
 
-    std::vector<string> col_names;
-    std::vector<string> col_fmts;
+    vector<string> col_names;
+    vector<string> col_fmts;
 
     col_names.push_back("id");
     col_fmts.push_back("1J");
@@ -418,8 +444,19 @@ void CutoutMaker::write_catalog()
     col_names.push_back("cutout_col");
     col_fmts.push_back(dfmt);
 
+    col_names.push_back("dudrow");
+    col_fmts.push_back(dfmt);
+    col_names.push_back("dudcol");
+    col_fmts.push_back(dfmt);
+    col_names.push_back("dvdrow");
+    col_fmts.push_back(dfmt);
+    col_names.push_back("dvdcol");
+    col_fmts.push_back(dfmt);
+
+
+
     // dummy
-    std::vector<string> col_units(col_fmts.size());
+    vector<string> col_units(col_fmts.size());
 
     CCfits::Table* table = fits.addTable("object_data",this->id.size(),
                                          col_names,col_fmts,col_units);
@@ -429,16 +466,16 @@ void CutoutMaker::write_catalog()
     table->column("ncutout").write(this->cutout_count,firstrow);
     table->column("box_size").write(this->box_sizes,firstrow);
 
-    std::vector<std::valarray<int> > orig_file_id;
+    vector<std::valarray<int> > orig_file_id;
     to_valarray_vec(&this->orig_file_id, &orig_file_id, max_cutouts);
     table->column("file_id").writeArrays(orig_file_id,firstrow);
 
-    std::vector<std::valarray<int> > start_row;
+    vector<std::valarray<int> > start_row;
     to_valarray_vec(&this->start_row, &start_row, max_cutouts);
     table->column("start_row").writeArrays(start_row,firstrow);
 
-    std::vector<std::valarray<double> > x;
-    std::vector<std::valarray<double> > y;
+    vector<std::valarray<double> > x;
+    vector<std::valarray<double> > y;
 
     vposition_to_xy(&this->orig_pos, &x, &y, max_cutouts);
     table->column("orig_row").writeArrays(y,firstrow);
@@ -454,6 +491,24 @@ void CutoutMaker::write_catalog()
     vposition_to_xy(&this->cutout_pos, &x, &y, max_cutouts);
     table->column("cutout_row").writeArrays(y,firstrow);
     table->column("cutout_col").writeArrays(x,firstrow);
+
+
+    vector<std::valarray<double> > deriv;
+
+    to_valarray_vec(&this->dudrow, &deriv, max_cutouts);
+    table->column("dudrow").writeArrays(deriv,firstrow);
+
+    to_valarray_vec(&this->dudcol, &deriv, max_cutouts);
+    table->column("dudcol").writeArrays(deriv,firstrow);
+
+    to_valarray_vec(&this->dvdrow, &deriv, max_cutouts);
+    table->column("dvdrow").writeArrays(deriv,firstrow);
+
+    to_valarray_vec(&this->dvdcol, &deriv, max_cutouts);
+    table->column("dvdcol").writeArrays(deriv,firstrow);
+
+
+
 
     this->write_catalog_filenames(&fits);
 
@@ -639,8 +694,13 @@ static int get_image_pos(const Transformation *trans,
 }
 
 // position is position in the original image
-void CutoutMaker::append_cutout_info(const Position *pos, int index)
+void CutoutMaker::append_cutout_info(const Position *pos,
+                                     const Transformation *trans,
+                                     int index)
 {
+    double dudx=0, dudy=0, dvdx=0, dvdy=0;
+    trans->getDistortion(*pos, dudx, dudy, dvdx, dvdy); // by ref
+
     double px=int(pos->getX());
     double py=int(pos->getY());
 
@@ -657,6 +717,11 @@ void CutoutMaker::append_cutout_info(const Position *pos, int index)
 
     this->orig_start_col[index].push_back(startx);
     this->orig_start_row[index].push_back(starty);
+
+    this->dudcol[index].push_back(dudx);
+    this->dudrow[index].push_back(dudy);
+    this->dvdcol[index].push_back(dvdx);
+    this->dvdrow[index].push_back(dvdy);
 
     this->cutout_count[index]++;
     this->ncutout++;
@@ -770,10 +835,10 @@ void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
     int hdu=0;
     if (cut_type==CUTOUT_WEIGHT) {
         cerr<<"    loading coadd weightimage";
-        hdu=3;
+        hdu=COADD_WT_HDU;
     } else {
         cerr<<"    loading coadd image";
-        hdu=2;
+        hdu=COADD_HDU;
     }
 
     image.load(this->params["coaddimage_file"], hdu);
@@ -882,10 +947,10 @@ void CutoutMaker::get_file_cutout_info(int ifile, const Bounds *bounds)
 
         // always push the coadd image on first
         if (this->orig_file_id[i].size()==0) {
-            this->append_cutout_info(&this->pos[i],i);
+            this->append_cutout_info(&this->pos[i],&this->coadd_trans,i);
             this->orig_file_id[i].push_back(0); // coadd is always at zero
         }
-        this->append_cutout_info(&pos, i);
+        this->append_cutout_info(&pos, &trans, i);
         this->orig_file_id[i].push_back(ifile);
         nkeep++;
     }
@@ -916,7 +981,7 @@ static void make_cutouts(ConfigFile *params)
     coaddcat.read();
 
     CutoutMaker maker(&coaddcat, params);
-    cerr<<"number without flags: "<<maker.count_noflags();
+    cerr<<"number without flags: "<<maker.count_noflags()<<"\n";
 
     maker.print_area_stats();
     maker.get_cutout_info();
