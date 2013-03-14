@@ -77,7 +77,6 @@
        - add sky values from the sky images.
        - Sky subtract the cutouts
        - add seg images when available
-       - add wcs info
        - explore compression
 */
 
