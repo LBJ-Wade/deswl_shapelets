@@ -98,7 +98,7 @@ const int DEFVAL=-9999;
 
 // defaults
 const int SE_HDU       = 2;
-const int SE_WT_HDU    = 3;
+const int SE_WT_HDU    = 4;
 const int SKY_HDU      = 2;
 
 
@@ -997,9 +997,6 @@ void CutoutMaker::write_cutouts_from_file(int ifile, enum cutout_type cut_type)
 
     Image<cutout_t> image(filename, hdu);
 
-    //auto_ptr<Image<cutout_t> > weight_image;
-    //Image<cutout_t> image(this->params,weight_image);
-
     for (int i=0; i<this->nobj; ++i) {
         int ncut=this->cutout_pos[i].size();
         for (int j=0; j<ncut; j++) {
@@ -1024,7 +1021,7 @@ void CutoutMaker::write_mosaic(enum cutout_type cut_type)
         extname="image_cutouts";
     }
     create_mosaic<cutout_t>(this->fits, this->box_size, this->ncutout,
-                          extname, false);
+                            extname, false);
 
     this->write_cutouts_from_coadd(cut_type);
 

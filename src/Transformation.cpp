@@ -239,7 +239,7 @@ bool Transformation::inverseTransform(Position puv, Position& pxy) const
     solver.useDogleg();
     //solver.setTol(1.e-8,0.);
     //solver.setTol(1.e-6,0.); // for dc6b
-    solver.setTol(5.e-5,0.); // for real data
+    solver.setTol(5.e-5,0.); // for sv data
     solver.setMinStep(1.e-15);
     bool success = solver.solve(x,f);
     xdbg<<"In inverseTransform, final f = "<<f<<std::endl;
