@@ -257,8 +257,14 @@ void Image<T>::readFits()
     int anynul;
     xdbg<<"Before read_pix\n";
     Assert(getDataType<T>());
-    fits_read_pix(fPtr,getDataType<T>(),fPixel,long(_xmax*_ymax),0,
-                  TMV_ptr(*_source),&anynul,&fitsErr);
+    fits_read_pix(fPtr,
+                  getDataType<T>(),
+                  fPixel,
+                  long(_xmax*_ymax),
+                  NULL,
+                  TMV_ptr(*_source),
+                  &anynul,
+                  &fitsErr);
     xdbg<<"done readpix\n";
     xdbg<<"anynul = "<<anynul<<std::endl;
     if (fitsErr != 0) {
@@ -808,4 +814,4 @@ T Image<T>::median() const
 
 
 template class Image<double>;
-//template class Image<float>;
+template class Image<float>;
