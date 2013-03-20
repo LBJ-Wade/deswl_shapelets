@@ -74,12 +74,9 @@
    The fifth extension, named "sky_cutouts", is the same format as the
    "image_cutouts" extension, but contains the cutouts of the sky images.
 
-   In the future we may add other extensions for sky maps and segmentation
-   images.
+   In the future we may add segmentation images.
 
    TODO
-       - add sky values from the sky images.
-       - Sky subtract the cutouts
        - add seg images when available
        - explore compression
 */
