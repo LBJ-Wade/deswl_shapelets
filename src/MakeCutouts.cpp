@@ -224,11 +224,6 @@ class CutoutMaker
 
 CutoutMaker::CutoutMaker(const ConfigFile *input_params) :
 
-        //id(coaddCat->getIdList()), 
-        //pos(coaddCat->getPosList()),
-        //skypos(coaddCat->getSkyPosList()),
-        //flags(coaddCat->getFlagsList()), 
-        //skybounds(coaddCat->getSkyBounds()),
         params(*input_params),
         fits(NULL),
         ncutout(0)
