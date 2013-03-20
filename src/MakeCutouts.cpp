@@ -121,10 +121,6 @@ using std::vector;
 class CutoutMaker
 {
     public:
-        // no need to construct coadd outside, should
-        // do this internally
-        //CutoutMaker(const CoaddCatalog *coaddCat, 
-        //            const ConfigFile *input_params);
         CutoutMaker(const ConfigFile *input_params);
 
         ~CutoutMaker();
@@ -849,10 +845,6 @@ string CutoutMaker::setup_se_file(int ifile,
     }
     this->print_file_progress(ifile,fname);
 
-    // for image reading and transform reading
-    //this->params["image_file"] = fname;
-    //SetRoot(this->params,fname);
-
     return fname;
 }
 
@@ -1039,11 +1031,8 @@ void CutoutMaker::get_file_cutout_info(int ifile, const Bounds *bounds)
     int hdu=0;
     string filename=this->setup_se_file(ifile, CUTOUT_IMAGE, &hdu);
     long ncol=0, nrow=0;
-    //int hdu=GetHdu(this->params,"image",filename,1);
     get_image_shape(filename, hdu, &ncol, &nrow);
 
-    // Read transformation (x,y) -> (ra,dec)
-    //Transformation trans(this->params);
     Transformation trans;
     hdu = this->params["se_hdu"];
     trans.readWCS(filename, hdu);
@@ -1107,12 +1096,8 @@ void CutoutMaker::get_cutout_info()
 
 static void make_cutouts(ConfigFile *params) 
 {
-    //CoaddCatalog coaddcat(*params);
-    //CoaddCatalog coaddcat(*params);
-    //coaddcat.read();
 
     CutoutMaker maker(params);
-    //cerr<<"number without flags: "<<maker.count_noflags()<<"\n";
 
     maker.print_area_stats();
     maker.get_cutout_info();
