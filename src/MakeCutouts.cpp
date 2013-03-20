@@ -13,7 +13,7 @@
    Make a first pass through the files using only the wcs to determine the
    cutouts.  Then pass through writing the cutouts one at a time into the
    pre-made mosaic image.  This limits the memory usage significantly.
-   Memory usage on the test bed is <~ 500Mb.
+   Memory usage is typically around 1-200Mb.
 
    Currently all the cutouts are the same size, as determined by the
    cutout_size option; the cutouts are [cutout_size,cutout_size] in dimension.
@@ -29,7 +29,7 @@
 
    The first extension, named "object_data", is a table with an entry for each
    object in the coadd.  This table lines up row-by-row with the coadd catalog
-   table.  However, currently only objects with flags==0 have cutouts.
+   table.
 
      id                 i4       id from coadd catalog
      ncutout            i4       number of cutouts for this object
@@ -44,7 +44,7 @@
      cutout_row         f8[NMAX] zero-offset position in cutout imag
      cutout_col         f8[NMAX] zero-offset position in cutout image
      dudrow             f8[NMAX] jacobian of transformation 
-                                 row,col->ra,dec tangent plane
+                                 row,col->ra,dec tangent plane (u,v)
      dudcol             f8[NMAX]
      dvdrow             f8[NMAX]
      dvdcol             f8[NMAX]
@@ -91,20 +91,26 @@
 #include "CoaddCatalog.h"
 #include "BasicSetup.h"
 
+typedef float cutout_t;
+
 const double ARCSEC_PER_RAD = 206264.806247;
-const int MAX_HDU=999;
 const int DEFVAL=-9999;
 
-const int COADD_HDU=2;
-const int COADD_WT_HDU=3;
+// defaults
+const int SE_HDU       = 2;
+const int SE_WT_HDU    = 3;
+const int SKY_HDU      = 2;
+
+
+const int COADD_HDU    = 2;
+const int COADD_WT_HDU = 3;
+const int COADDCAT_HDU = 2;
 
 enum cutout_type {
     CUTOUT_IMAGE,
-    CUTOUT_WEIGHT
+    CUTOUT_WEIGHT,
+    CUTOUT_SKY,
 };
-
-// define this to limit to this many images; good for testing
-//#define MAXIMAGES 20
 
 using std::auto_ptr;
 using std::cerr;
@@ -116,11 +122,18 @@ class CutoutMaker
     public:
         // no need to construct coadd outside, should
         // do this internally
-        CutoutMaker(const CoaddCatalog *coaddCat, 
-                    const ConfigFile *input_params);
+        //CutoutMaker(const CoaddCatalog *coaddCat, 
+        //            const ConfigFile *input_params);
+        CutoutMaker(const ConfigFile *input_params);
 
         ~CutoutMaker();
 
+        void set_skybounds();
+        void set_positions(const vector<double> *ra,
+                           const vector<double> *dec,
+                           const vector<double> *x,
+                           const vector<double> *y);
+        void read_coadd_cat();
         void append_cutout_info(const Position *pos,
                                 const Transformation *trans,
                                 int index);
@@ -132,7 +145,8 @@ class CutoutMaker
         void set_box_size();
 
         void set_start_rows();
-        void write_cutout(const Image<double> *image, int iobj, int icut);
+        void write_cutout(const Image<cutout_t> *image, int iobj, int icut);
+        void write_zero_cutout(int iobj, int icut);
         void write_cutouts_from_coadd(enum cutout_type cut_type);
         void write_cutouts_from_file(int ifile, enum cutout_type cut_type);
         void write_mosaic(enum cutout_type cut_type);
@@ -141,9 +155,12 @@ class CutoutMaker
         void close_fits();
 
         void push_image_file(string fname);
-        void load_image_list();
+        void push_sky_file(string fname);
+        void load_file_lists();
 
-        string setup_se_file(int ifile);
+        string setup_se_file(int ifile,
+                             enum cutout_type cut_type,
+                             int *hdu);
         bool load_file_cutouts(int ifile, const Bounds *bounds);
 
         void write_catalog_filenames(CCfits::FITS *fits);
@@ -153,17 +170,17 @@ class CutoutMaker
 
         int get_box_size(int index);
 
-        int count_noflags();
+        //int count_noflags();
         int get_max_cutouts();
 
-        void print_file_progress(int ifile);
+        void print_file_progress(int ifile, string fname);
 
     private:
 
         vector<long> id;
         vector<Position> pos;
         vector<Position> skypos;
-        vector<long> flags;
+        //vector<long> flags;
 
         vector<int> cutout_count;
         vector<int> box_sizes; // constant for now
@@ -186,7 +203,9 @@ class CutoutMaker
         string imlist_path;
 
         vector<string> image_file_list;
+        vector<string> sky_file_list;
         int max_image_filename_len;
+        int max_sky_filename_len;
 
         Transformation coadd_trans;
 
@@ -202,27 +221,28 @@ class CutoutMaker
 };
 
 
-CutoutMaker::CutoutMaker(const CoaddCatalog *coaddCat,
-                         const ConfigFile *input_params) :
+CutoutMaker::CutoutMaker(const ConfigFile *input_params) :
 
-        id(coaddCat->getIdList()), 
-        pos(coaddCat->getPosList()),
-        skypos(coaddCat->getSkyPosList()),
-        flags(coaddCat->getFlagsList()), 
-        skybounds(coaddCat->getSkyBounds()),
+        //id(coaddCat->getIdList()), 
+        //pos(coaddCat->getPosList()),
+        //skypos(coaddCat->getSkyPosList()),
+        //flags(coaddCat->getFlagsList()), 
+        //skybounds(coaddCat->getSkyBounds()),
         params(*input_params),
         fits(NULL),
         ncutout(0)
 
 {
-    this->nobj = coaddCat->size();
+    this->read_coadd_cat();
+    this->nobj = this->skypos.size();
+
     this->offset_positions();
     this->load_coadd_trans();
 
     this->imlist_path=this->params["coadd_srclist"];
     this->cutout_filename=this->params["cutout_file"];
 
-    this->load_image_list();
+    this->load_file_lists();
     this->set_box_size();
 
     this->cutout_count.resize(this->nobj,0);
@@ -248,6 +268,60 @@ CutoutMaker::~CutoutMaker()
     this->close_fits();
 }
 
+void CutoutMaker::set_skybounds()
+{
+    long nrows=this->skypos.size();
+
+    for(long i=0; i<nrows; ++i) {
+        //if (!this->flags[i]) {
+        //    this->skybounds += this->skypos[i];
+        //}
+        this->skybounds += this->skypos[i];
+    }
+}
+void CutoutMaker::set_positions(const vector<double> *ra,
+                                const vector<double> *dec,
+                                const vector<double> *x,
+                                const vector<double> *y)
+{
+    long nrows=ra->size();
+    this->pos.resize(nrows);
+    this->skypos.resize(nrows);
+
+    for (long i=0; i<nrows; i++) {
+        this->pos[i]    = Position(x->at(i),y->at(i));
+        this->skypos[i] = Position(ra->at(i),dec->at(i));
+        this->skypos[i] *= 3600.;  // deg -> arcsec
+    }
+}
+
+void CutoutMaker::read_coadd_cat()
+{
+    int hdu=this->params["coaddcat_hdu"];
+    CCfits::FITS fits(this->params["coaddcat_file"],
+                      CCfits::Read);
+    fits.read(hdu-1);
+
+    CCfits::ExtHDU& table=fits.extension(hdu-1);
+    long nrows=table.rows();
+
+    long start=1;
+    long end=nrows;
+
+    table.column("NUMBER").read(this->id, start, end);
+    //table.column("FLAGS").read(this->flags, start, end);
+
+    vector<double> ra, dec;
+    table.column("ALPHAMODEL_J2000").read(ra, start, end);
+    table.column("DELTAMODEL_J2000").read(dec, start, end);
+
+    vector<double> x, y;
+    table.column("X_IMAGE").read(x, start, end);
+    table.column("Y_IMAGE").read(y, start, end);
+
+    this->set_positions(&ra, &dec, &x, &y);
+    this->set_skybounds();
+}
 void CutoutMaker::offset_positions()
 {
     std::complex<double> off1(1,1);
@@ -259,7 +333,8 @@ void CutoutMaker::offset_positions()
 void CutoutMaker::load_coadd_trans()
 {
     string fname=this->params["coaddimage_file"];
-    this->coadd_trans.readWCS(fname,COADD_HDU);
+    int hdu = this->params["coadd_hdu"];
+    this->coadd_trans.readWCS(fname,hdu);
 }
 
 static fitsfile *_close_fits(fitsfile *fits)
@@ -381,20 +456,27 @@ void CutoutMaker::write_catalog_filenames(CCfits::FITS *fits)
 {
     int nfiles=this->image_file_list.size();
 
-    vector<string> col_names(1);
-    vector<string> col_fmts(1);
-    vector<string> col_units(1);
+    vector<string> col_names(2);
+    vector<string> col_fmts(2);
+    vector<string> col_units(2);
 
     std::stringstream ss;
     ss<<this->max_image_filename_len<<"A";
-    col_names[0] = "filename";
+    col_names[0] = "image_path";
     col_fmts[0] = ss.str();
+
+    ss.str("");
+    ss<<this->max_sky_filename_len<<"A";
+    col_names[1] = "sky_path";
+    col_fmts[1] = ss.str();
+
 
     CCfits::Table* table = fits->addTable("image_info",nfiles,
                                           col_names,col_fmts,col_units);
 
     int firstrow=1;
-    table->column("filename").write(this->image_file_list,firstrow);
+    table->column("image_path").write(this->image_file_list,firstrow);
+    table->column("sky_path").write(this->sky_file_list,firstrow);
 }
 void CutoutMaker::write_catalog()
 {
@@ -617,7 +699,16 @@ void CutoutMaker::push_image_file(string fname)
         this->max_image_filename_len=fname.size();
     }
 }
-void CutoutMaker::load_image_list()
+void CutoutMaker::push_sky_file(string fname)
+{
+    this->sky_file_list.push_back(fname);
+
+    if (fname.size() > this->max_sky_filename_len) {
+        this->max_sky_filename_len=fname.size();
+    }
+}
+
+void CutoutMaker::load_file_lists()
 {
     if (!DoesFileExist(this->imlist_path)) {
         cerr<<"file not found: "<<this->imlist_path<<"\n";
@@ -633,18 +724,18 @@ void CutoutMaker::load_image_list()
     }
 
     this->max_image_filename_len=0;
+    this->max_sky_filename_len=0;
 
     // first push the coadd, always first
+    // note sky file for coadd is itself
     this->push_image_file(this->params["coaddimage_file"]);
-    string fname;
-    while (flist >> fname) {
-        dbg<<"  "<<fname<<std::endl;
-        this->push_image_file(fname);
-    }
+    this->push_sky_file(this->params["coaddimage_file"]);
 
-#ifdef MAXIMAGES 
-    this->image_file_list.resize(MAXIMAGES);
-#endif
+    string image_path, sky_path;
+    while (flist >> image_path >> sky_path) {
+        this->push_image_file(image_path);
+        this->push_sky_file(sky_path);
+    }
 
     cerr<<"read "
         <<this->image_file_list.size()
@@ -663,6 +754,7 @@ void CutoutMaker::set_box_size()
 }
 
 
+/*
 int CutoutMaker::count_noflags()
 {
     int ngood = 0;
@@ -673,6 +765,7 @@ int CutoutMaker::count_noflags()
     }
     return ngood;
 }
+*/
 
 
 // use the rough transform as input to the nonlinear finder
@@ -731,26 +824,40 @@ void CutoutMaker::append_cutout_info(const Position *pos,
     this->ncutout++;
 }
 
-void CutoutMaker::print_file_progress(int ifile)
+void CutoutMaker::print_file_progress(int ifile, string fname)
 {
     cerr<<"    "
         <<(ifile+1)
         <<"/"
         <<this->image_file_list.size()
         <<" "
-        <<this->image_file_list[ifile]<<"\n";
+        <<fname<<"\n";
 }
 
-string CutoutMaker::setup_se_file(int ifile)
+// using params might not work for sky? 
+string CutoutMaker::setup_se_file(int ifile,
+                                  enum cutout_type cut_type,
+                                  int *hdu)
 {
-    string image_file = this->image_file_list[ifile];
-    this->print_file_progress(ifile);
+    string fname;
+    
+    if (cut_type==CUTOUT_SKY) {
+        fname = this->sky_file_list[ifile];
+        (*hdu) = this->params["sky_hdu"];
+    } else if (cut_type==CUTOUT_WEIGHT) {
+        fname = this->image_file_list[ifile];
+        (*hdu) = this->params["se_wt_hdu"];
+    } else {
+        fname = this->image_file_list[ifile];
+        (*hdu) = this->params["se_hdu"];
+    }
+    this->print_file_progress(ifile,fname);
 
     // for image reading and transform reading
-    this->params["image_file"] = image_file;
-    SetRoot(this->params,image_file);
+    //this->params["image_file"] = fname;
+    //SetRoot(this->params,fname);
 
-    return image_file;
+    return fname;
 }
 
 
@@ -808,7 +915,7 @@ void CutoutMaker::set_start_rows()
     }
 }
 
-void CutoutMaker::write_cutout(const Image<double> *image, int iobj, int icut)
+void CutoutMaker::write_cutout(const Image<cutout_t> *image, int iobj, int icut)
 {
     int xmax=image->getXMax();
     int ymax=image->getYMax();
@@ -816,7 +923,7 @@ void CutoutMaker::write_cutout(const Image<double> *image, int iobj, int icut)
     int startx=this->orig_start_col[iobj][icut];
     int starty=this->orig_start_row[iobj][icut];
 
-    Image<double> tim(this->box_size,this->box_size);
+    Image<cutout_t> tim(this->box_size,this->box_size);
     for (int ix=0, x=startx; ix<this->box_size; ix++, x++) {
         if (x < 0 || x >= xmax ) continue;
 
@@ -831,53 +938,73 @@ void CutoutMaker::write_cutout(const Image<double> *image, int iobj, int icut)
     long row=1+this->start_row[iobj][icut];
     tim.write_sub(this->fits, col, row);
 }
+void CutoutMaker::write_zero_cutout(int iobj, int icut)
+{
+    Image<cutout_t> tim(this->box_size,this->box_size);
+    long col=1;
+    long row=1+this->start_row[iobj][icut];
+    tim.write_sub(this->fits, col, row);
+}
+
 
 // here we use the fact that the coadd is always in position ifile==0
 void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
 {
-    Image<double> image;
+    Image<cutout_t> image;
     int hdu=0;
-    if (cut_type==CUTOUT_WEIGHT) {
-        cerr<<"    loading coadd weightimage";
-        hdu=COADD_WT_HDU;
+    bool is_sky=false;
+
+    if (cut_type==CUTOUT_SKY) {
+        cerr<<"    writing zero coadd sky image\n";
+        is_sky=true;
     } else {
-        cerr<<"    loading coadd image";
-        hdu=COADD_HDU;
+        if (cut_type==CUTOUT_WEIGHT) {
+            cerr<<"    loading coadd weightimage";
+            hdu = this->params["coadd_wt_hdu"];
+        } else {
+            cerr<<"    loading coadd image";
+            hdu = this->params["coadd_hdu"];
+        }
+
+        image.load(this->params["coaddimage_file"], hdu);
+        cerr<<" [" <<image.getYMax()<<", " <<image.getXMax()<<"]\n";
     }
 
-    image.load(this->params["coaddimage_file"], hdu);
-    cerr<<" [" <<image.getYMax()<<", " <<image.getXMax()<<"]\n";
-
-    this->print_file_progress(0);
+    this->print_file_progress(0,this->params["coaddimage_file"]);
     for (int i=0; i<this->nobj; ++i) {
         int ncut=this->cutout_pos[i].size();
         for (int j=0; j<ncut; j++) {
             if (this->orig_file_id[i][j] == 0) {
-                this->write_cutout(&image, i, j);
+                if (is_sky) {
+                    this->write_zero_cutout(i, j);
+                } else {
+                    this->write_cutout(&image, i, j);
+                }
             }
         }
     }
 }
+
 void CutoutMaker::write_cutouts_from_file(int ifile, enum cutout_type cut_type)
 {
+    // ifile==0 means coadd
     if (ifile==0) {
         return;
     }
 
-    string filename=this->setup_se_file(ifile);
+    int hdu=0;
+    string filename=this->setup_se_file(ifile, cut_type, &hdu);
 
-    auto_ptr<Image<double> > weight_image;
-    Image<double> image(this->params,weight_image);
+    Image<cutout_t> image(filename, hdu);
+
+    //auto_ptr<Image<cutout_t> > weight_image;
+    //Image<cutout_t> image(this->params,weight_image);
 
     for (int i=0; i<this->nobj; ++i) {
         int ncut=this->cutout_pos[i].size();
         for (int j=0; j<ncut; j++) {
             if (this->orig_file_id[i][j] == ifile) {
-                if (cut_type==CUTOUT_WEIGHT) {
-                    this->write_cutout(weight_image.get(), i, j);
-                } else {
-                    this->write_cutout(&image, i, j);
-                }
+                this->write_cutout(&image, i, j);
             }
         }
     }
@@ -891,10 +1018,12 @@ void CutoutMaker::write_mosaic(enum cutout_type cut_type)
 
     if (cut_type==CUTOUT_WEIGHT) {
         extname="weight_cutouts";
+    } else if (cut_type==CUTOUT_SKY) {
+        extname="sky_cutouts";
     } else {
         extname="image_cutouts";
     }
-    create_mosaic<double>(this->fits, this->box_size, this->ncutout,
+    create_mosaic<cutout_t>(this->fits, this->box_size, this->ncutout,
                           extname, false);
 
     this->write_cutouts_from_coadd(cut_type);
@@ -914,13 +1043,17 @@ void CutoutMaker::write_mosaic(enum cutout_type cut_type)
 void CutoutMaker::get_file_cutout_info(int ifile, const Bounds *bounds)
 {
 
-    string filename=this->setup_se_file(ifile);
+    int hdu=0;
+    string filename=this->setup_se_file(ifile, CUTOUT_IMAGE, &hdu);
     long ncol=0, nrow=0;
-    int hdu=GetHdu(this->params,"image",filename,1);
+    //int hdu=GetHdu(this->params,"image",filename,1);
     get_image_shape(filename, hdu, &ncol, &nrow);
 
     // Read transformation (x,y) -> (ra,dec)
-    Transformation trans(this->params);
+    //Transformation trans(this->params);
+    Transformation trans;
+    hdu = this->params["se_hdu"];
+    trans.readWCS(filename, hdu);
     Transformation inv_trans;
 
     // rough inverse trans, only valid on the bounds of this image
@@ -938,7 +1071,7 @@ void CutoutMaker::get_file_cutout_info(int ifile, const Bounds *bounds)
     Position pos(0,0);
 
     for (int i=0; i<this->nobj; ++i) {
-        if (this->flags[i]) continue;
+        //if (this->flags[i]) continue;
         if (!bounds->includes(this->skypos[i])) continue;
         if (!inv_bounds.includes(this->skypos[i])) continue;
 
@@ -981,11 +1114,12 @@ void CutoutMaker::get_cutout_info()
 
 static void make_cutouts(ConfigFile *params) 
 {
-    CoaddCatalog coaddcat(*params);
-    coaddcat.read();
+    //CoaddCatalog coaddcat(*params);
+    //CoaddCatalog coaddcat(*params);
+    //coaddcat.read();
 
-    CutoutMaker maker(&coaddcat, params);
-    cerr<<"number without flags: "<<maker.count_noflags()<<"\n";
+    CutoutMaker maker(params);
+    //cerr<<"number without flags: "<<maker.count_noflags()<<"\n";
 
     maker.print_area_stats();
     maker.get_cutout_info();
@@ -995,16 +1129,43 @@ static void make_cutouts(ConfigFile *params)
     maker.write_mosaic(CUTOUT_IMAGE); // note coadd image is destroyed
     cerr<<"  writing weight mosaic\n";
     maker.write_mosaic(CUTOUT_WEIGHT); // note coadd weight is destroyed
+    cerr<<"  writing sky mosaic\n";
+    maker.write_mosaic(CUTOUT_SKY);
+
+    cerr<<"output is in : "<<params->get("cutout_file")<<"\n";
 }
 
 
 static void usage_and_exit()
 {
-    cerr<<"make-cutouts config_file coaddimage_file= coaddcat_file= coadd_srclist= cutout_file=\n";
+    cerr<<"make-cutouts coaddimage_file= coaddcat_file= coadd_srclist= cutout_size= cutout_file=\n";
     cerr<<"  also set cutout_size in the config or as an option\n";
     cerr<<"  all options can be defined on the command line or in a config file\n";
     exit(1);
 }
+
+void set_default_params(ConfigFile *params)
+{
+    if (!params->keyExists("se_hdu")) {
+        params->set("se_hdu", SE_HDU);
+    }
+    if (!params->keyExists("se_wt_hdu")) {
+        params->set("se_wt_hdu", SE_WT_HDU);
+    }
+    if (!params->keyExists("sky_hdu")) {
+        params->set("sky_hdu", SKY_HDU);
+    }
+    if (!params->keyExists("coadd_hdu")) {
+        params->set("coadd_hdu", COADD_HDU);
+    }
+    if (!params->keyExists("coadd_wt_hdu")) {
+        params->set("coadd_wt_hdu", COADD_WT_HDU);
+    }
+    if (!params->keyExists("coaddcat_hdu")) {
+        params->set("coaddcat_hdu", COADDCAT_HDU);
+    }
+}
+// check params.  also set some default params
 bool check_params(const ConfigFile *params)
 {
     bool ok=true;
@@ -1033,16 +1194,22 @@ bool check_params(const ConfigFile *params)
     return ok;
 }
 
+int load_params(int argc, char **argv, ConfigFile *params)
+{
+    for(int k=1;k<argc;k++) {
+        params->append(argv[k]);
+    }
+}
+
 int main(int argc, char **argv)
 {
-    if (argc < 2)
-        usage_and_exit();
-
     ConfigFile params;
-    if (BasicSetup(argc,argv,params,"make_cutouts")) return EXIT_FAILURE;
+    load_params(argc, argv, &params);
+    set_default_params(&params);
 
-    if (!check_params(&params))
+    if (!check_params(&params)) {
         usage_and_exit();
+    }
 
     make_cutouts(&params);
 }
