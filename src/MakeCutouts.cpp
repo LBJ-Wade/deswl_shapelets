@@ -61,7 +61,8 @@
    Currently this is just the file paths.  The file_id column above point into
    this structure.
 
-     filename           SXX      full path to source images
+     image_path           SXX      full path to source images
+     sky_path             SYY      full path to sky images
 
    The third extension, named "image_cutouts", contains a mosaic of all the
    image cutouts.  This mosaic has box_size columns (currently fixed) and
@@ -69,6 +70,9 @@
 
    The fourth extension, named "weight_cutouts", is the same format as the
    "image_cutouts" extension, but contains the cutouts of the weight images.
+
+   The fifth extension, named "sky_cutouts", is the same format as the
+   "image_cutouts" extension, but contains the cutouts of the sky images.
 
    In the future we may add other extensions for sky maps and segmentation
    images.
