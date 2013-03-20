@@ -409,6 +409,10 @@ public:
     ConvertibleString& getNoCheck( const std::string& key );
     ConvertibleString get( const std::string& key ) const;
 
+    template <typename T> inline void set(std::string key, T val) {
+        _contents[key] = val;
+    }
+
     inline ConvertibleString& operator[]( const std::string& key )
     { return getNoCheck(key); }
     inline ConvertibleString operator[]( const std::string& key ) const
