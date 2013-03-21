@@ -87,6 +87,8 @@ public:
     // each time
     void write(fitsfile *fits) const; 
     void write_sub(fitsfile *fits, long col, long row) const;
+    void write_sub_flat(fitsfile *fPtr, long start_row) const;
+
 
     TConstMatrixView(T) getM() const { return *_m; }
     TMV_const TMatrixView(T)& getM() { return *_m; }

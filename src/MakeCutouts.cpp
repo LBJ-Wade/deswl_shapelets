@@ -3,9 +3,8 @@
 
    usage
    ---------
-   make-cutouts config_file coaddimage_file= coaddcat_file= coadd_srclist= cutout_file=
+   make-cutouts config_file coadd_file= cat_file= coadd_srclist= cutout_file=
 
-   You should also set cutout_size= either in the config or on the command line.
    
    algorithm
    ---------
@@ -15,11 +14,7 @@
    pre-made mosaic image.  This limits the memory usage significantly.
    Memory usage is typically around 100-200Mb.
 
-   Currently all the cutouts are the same size, as determined by the
-   cutout_size option; the cutouts are [cutout_size,cutout_size] in dimension.
-   If this parameter is not odd, it is forced to be so.
-
-   The cutouts are sky subtracted.
+   The cutouts are sky subtracted.  The box sizes are forced even.
        
    outputs
    -------
@@ -124,10 +119,6 @@ class CutoutMaker
         ~CutoutMaker();
 
         void set_skybounds();
-        void set_positions(const vector<double> *ra,
-                           const vector<double> *dec,
-                           const vector<double> *x,
-                           const vector<double> *y);
         void read_coadd_cat();
         void append_cutout_info(const Position *pos,
                                 const Transformation *trans,
@@ -137,15 +128,9 @@ class CutoutMaker
 
         void offset_positions();
         void load_coadd_trans();
-        void set_box_size();
 
-        void set_start_rows();
+        void set_start_rows_and_npix();
 
-        //void write_skysub_cutout(const Image<cutout_t> *image,
-        //                         const Image<cutout_t> *sky_image,
-        //                         int iobj, int icut);
-        //void write_cutout(const Image<cutout_t> *image,
-        //                  int iobj, int icut);
         void write_cutout(const Image<cutout_t> *image,
                           const Image<cutout_t> *sky_image,
                           const Image<cutout_t> *badpix_image,
@@ -173,8 +158,6 @@ class CutoutMaker
 
         void print_area_stats();
 
-        int get_box_size(int index);
-
         //int count_noflags();
         int get_max_cutouts();
 
@@ -182,13 +165,15 @@ class CutoutMaker
 
     private:
 
-        vector<long> id;
+        //vector<long> id;
         vector<Position> pos;
         vector<Position> skypos;
         //vector<long> flags;
 
         vector<int> cutout_count;
-        vector<int> box_sizes; // constant for now
+        vector<int> box_size;
+
+        long total_pixels;
 
         vector<vector<int> > start_row;
 
@@ -219,7 +204,6 @@ class CutoutMaker
         fitsfile *fits;
 
         int nobj;
-        int box_size;
         int ncutout;
 
         string cutout_filename;
@@ -234,7 +218,6 @@ CutoutMaker::CutoutMaker(const ConfigFile *input_params) :
 
 {
     this->read_coadd_cat();
-    this->nobj = this->skypos.size();
 
     this->offset_positions();
     this->load_coadd_trans();
@@ -243,13 +226,9 @@ CutoutMaker::CutoutMaker(const ConfigFile *input_params) :
     this->cutout_filename=this->params["cutout_file"];
 
     this->load_file_lists();
-    this->set_box_size();
 
     this->cutout_count.resize(this->nobj,0);
     this->cutout_pos.resize(this->nobj);
-
-    // constant for now
-    this->box_sizes.resize(this->nobj, this->box_size);
 
     this->orig_file_id.resize(this->nobj);
     this->orig_pos.resize(this->nobj);
@@ -260,7 +239,6 @@ CutoutMaker::CutoutMaker(const ConfigFile *input_params) :
     this->dudcol.resize(this->nobj);
     this->dvdrow.resize(this->nobj);
     this->dvdcol.resize(this->nobj);
-
 }
 
 CutoutMaker::~CutoutMaker()
@@ -279,23 +257,8 @@ void CutoutMaker::set_skybounds()
         this->skybounds += this->skypos[i];
     }
 }
-void CutoutMaker::set_positions(const vector<double> *ra,
-                                const vector<double> *dec,
-                                const vector<double> *x,
-                                const vector<double> *y)
-{
-    long nrows=ra->size();
-    this->pos.resize(nrows);
-    this->skypos.resize(nrows);
-
-    for (long i=0; i<nrows; i++) {
-        this->pos[i]    = Position(x->at(i),y->at(i));
-        this->skypos[i] = Position(ra->at(i),dec->at(i));
-        this->skypos[i] *= 3600.;  // deg -> arcsec
-    }
-}
-
-void CutoutMaker::read_coadd_cat()
+/*
+void CutoutMaker::read_coadd_cat_old()
 {
     int hdu=this->params["coaddcat_hdu"];
     CCfits::FITS fits(this->params["coaddcat_file"],
@@ -322,6 +285,48 @@ void CutoutMaker::read_coadd_cat()
     this->set_positions(&ra, &dec, &x, &y);
     this->set_skybounds();
 }
+*/
+
+static int make_box_size_even(int box_size)
+{
+    if ((box_size % 2) != 0) {
+        box_size += 1;
+    }
+    return box_size;
+}
+void CutoutMaker::read_coadd_cat()
+{
+    string fname=this->params["cat_file"];
+    if (!DoesFileExist(fname)) {
+        cerr<<"File does not exist: "<<fname<<"\n";
+        exit(1);
+    }
+
+    std::ifstream cat(fname.c_str(), std::ios::in);
+
+    double ra,dec,row,col;
+    int bsize;
+    this->nobj=0;
+
+    while (cat >> ra >> dec >> row >> col >> bsize) {
+
+        bsize = make_box_size_even(bsize);
+
+        Position sky_pos(ra,dec);
+        Position image_pos(col,row);
+
+        sky_pos *= 3600.; // deg->arcsec
+
+        this->pos.push_back(image_pos);
+        this->skypos.push_back(sky_pos);
+        this->box_size.push_back(bsize);
+
+        this->nobj++;
+    }
+
+    this->set_skybounds();
+}
+
 void CutoutMaker::offset_positions()
 {
     std::complex<double> off1(1,1);
@@ -332,7 +337,7 @@ void CutoutMaker::offset_positions()
 
 void CutoutMaker::load_coadd_trans()
 {
-    string fname=this->params["coaddimage_file"];
+    string fname=this->params["coadd_file"];
     int hdu = this->params["coadd_hdu"];
     this->coadd_trans.readWCS(fname,hdu);
 }
@@ -499,9 +504,6 @@ void CutoutMaker::write_catalog()
     vector<string> col_names;
     vector<string> col_fmts;
 
-    col_names.push_back("id");
-    col_fmts.push_back("1J");
-
     col_names.push_back("ncutout");
     col_fmts.push_back("1J");
 
@@ -544,13 +546,15 @@ void CutoutMaker::write_catalog()
     // dummy
     vector<string> col_units(col_fmts.size());
 
-    CCfits::Table* table = fits.addTable("object_data",this->id.size(),
-                                         col_names,col_fmts,col_units);
+    CCfits::Table* table = fits.addTable("object_data",
+                                         this->nobj,
+                                         col_names,
+                                         col_fmts,
+                                         col_units);
 
     int firstrow=1;
-    table->column("id").write(this->id,firstrow);
     table->column("ncutout").write(this->cutout_count,firstrow);
-    table->column("box_size").write(this->box_sizes,firstrow);
+    table->column("box_size").write(this->box_size,firstrow);
 
     vector<std::valarray<int> > orig_file_id;
     to_valarray_vec(&this->orig_file_id, &orig_file_id, max_cutouts);
@@ -617,13 +621,13 @@ template <>
 inline int getDataType<float>() { return TFLOAT; }
 
 
-// box_size*ncutout rows by box_size columns
 template <typename T>
-void create_mosaic(fitsfile* fits, int box_size, int ncutout, 
+void create_mosaic(fitsfile* fits, long total_pixels,
                    string extname, bool use_compression)
 {
     int fitserr=0;
 
+    /*
     if (use_compression) {
         // these must be called before making the image
         fits_set_compression_type(fits, RICE_1, &fitserr);
@@ -639,13 +643,10 @@ void create_mosaic(fitsfile* fits, int box_size, int ncutout,
             throw WriteException("Failed to set tile size");
         }
     }
+    */
 
-    int n_axes = 2;
-
-    int ncols=box_size;
-    int nrows=box_size*ncutout;
-
-    long dims[2] = { ncols, nrows };
+    int n_axes = 1;
+    long dims[1] = {total_pixels};
 
     Assert(getBitPix<T>());
     int bitpix = getBitPix<T>();
@@ -654,7 +655,6 @@ void create_mosaic(fitsfile* fits, int box_size, int ncutout,
         fits_report_error(stderr,fitserr);
         throw WriteException("Error creating mosaic");
     }
-
 
     fits_write_key_str(fits, 
                        "extname", 
@@ -728,8 +728,8 @@ void CutoutMaker::load_file_lists()
 
     // first push the coadd, always first
     // note sky file for coadd is itself
-    this->push_image_file(this->params["coaddimage_file"]);
-    this->push_sky_file(this->params["coaddimage_file"]);
+    this->push_image_file(this->params["coadd_file"]);
+    this->push_sky_file(this->params["coadd_file"]);
 
     string image_path, sky_path;
     while (flist >> image_path >> sky_path) {
@@ -741,32 +741,6 @@ void CutoutMaker::load_file_lists()
         <<this->image_file_list.size()
         <<" se images"<<std::endl;
 }
-
-// we may allow this to vary for different galaxies
-// constant for now
-// always force odd
-void CutoutMaker::set_box_size()
-{
-    this->box_size = this->params["cutout_size"];
-    if ( (this->box_size % 2) == 0) {
-        this->box_size += 1;
-    }
-}
-
-
-/*
-int CutoutMaker::count_noflags()
-{
-    int ngood = 0;
-    for(int i=0;i<this->nobj;i++) {
-        if (this->flags[i]== 0) {
-            ngood++;
-        }
-    }
-    return ngood;
-}
-*/
-
 
 // use the rough transform as input to the nonlinear finder
 // If it doesn't work, use the rough one
@@ -801,8 +775,8 @@ void CutoutMaker::append_cutout_info(const Position *pos,
     double px=int(pos->getX());
     double py=int(pos->getY());
 
-    // note the box size is always odd
-    int offset = (this->box_size-1)/2;
+    // note the box size is always even
+    int offset = this->box_size[index]/2;
     int startx = px-offset;
     int starty = py-offset;
 
@@ -896,51 +870,34 @@ static void get_image_shape(string filename, int hdu, long *ncol, long *nrow)
 
 
 
-void CutoutMaker::set_start_rows()
+void CutoutMaker::set_start_rows_and_npix()
 {
     long current_row=0;
     this->start_row.resize(this->nobj);
+    this->total_pixels=0;
 
     for (int i=0; i<this->nobj; i++) {
         int ncut=this->cutout_pos[i].size();
         if (ncut > 0) {
+
+            int bsize=this->box_size[i];
+            long npix_per_cutout = bsize*bsize;
+
             this->start_row[i].resize(ncut);
+
             for (int j=0; j<ncut; j++) {
+
                 this->start_row[i][j] = current_row;
-                current_row += this->box_size;
+
+                current_row += npix_per_cutout;
+                this->total_pixels += npix_per_cutout;
             }
         }
     }
 }
 
-/*
-void CutoutMaker::write_skysub_cutout(const Image<cutout_t> *image,
-                                      const Image<cutout_t> *sky_image,
-                                      int iobj, int icut)
-{
-    int xmax=image->getXMax();
-    int ymax=image->getYMax();
 
-    int startx=this->orig_start_col[iobj][icut];
-    int starty=this->orig_start_row[iobj][icut];
 
-    Image<cutout_t> tim(this->box_size,this->box_size);
-
-    for (int ix=0, x=startx; ix<this->box_size; ix++, x++) {
-        if (x < 0 || x >= xmax ) continue;
-
-        for (int iy=0, y=starty; iy<this->box_size; iy++, y++) {
-            if (y < 0 || y >= ymax ) continue;
-
-            tim(ix,iy) = (*image)(x,y) - (*sky_image)(x,y);
-        }
-    }
-
-    long col=1;
-    long row=1+this->start_row[iobj][icut];
-    tim.write_sub(this->fits, col, row);
-}
-*/
 void CutoutMaker::write_cutout(const Image<cutout_t> *image,
                                const Image<cutout_t> *sky_image,
                                const Image<cutout_t> *badpix_image,
@@ -952,11 +909,13 @@ void CutoutMaker::write_cutout(const Image<cutout_t> *image,
     int startx=this->orig_start_col[iobj][icut];
     int starty=this->orig_start_row[iobj][icut];
 
-    Image<cutout_t> tim(this->box_size,this->box_size);
-    for (int ix=0, x=startx; ix<this->box_size; ix++, x++) {
+    int box_size=this->box_size[iobj];
+
+    Image<cutout_t> tim(box_size,box_size);
+    for (int ix=0, x=startx; ix<box_size; ix++, x++) {
         if (x < 0 || x >= xmax ) continue;
 
-        for (int iy=0, y=starty; iy<this->box_size; iy++, y++) {
+        for (int iy=0, y=starty; iy<box_size; iy++, y++) {
             if (y < 0 || y >= ymax ) continue;
 
             tim(ix,iy) = (*image)(x,y);
@@ -972,9 +931,8 @@ void CutoutMaker::write_cutout(const Image<cutout_t> *image,
         }
     }
 
-    long col=1;
-    long row=1+this->start_row[iobj][icut];
-    tim.write_sub(this->fits, col, row);
+    long start_row=1+this->start_row[iobj][icut];
+    tim.write_sub_flat(this->fits, start_row);
 }
 
 
@@ -992,9 +950,9 @@ void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
         hdu = this->params["coadd_hdu"];
     }
 
-    image.load(this->params["coaddimage_file"], hdu);
+    image.load(this->params["coadd_file"], hdu);
 
-    this->print_file_progress(0,this->params["coaddimage_file"]);
+    this->print_file_progress(0,this->params["coadd_file"]);
 
     for (int i=0; i<this->nobj; ++i) {
         int ncut=this->cutout_pos[i].size();
@@ -1073,7 +1031,7 @@ void CutoutMaker::write_mosaic(enum cutout_type cut_type)
     } else {
         extname="image_cutouts";
     }
-    create_mosaic<cutout_t>(this->fits, this->box_size, this->ncutout,
+    create_mosaic<cutout_t>(this->fits, this->total_pixels,
                             extname, false);
 
     this->write_cutouts_from_coadd(cut_type);
@@ -1162,7 +1120,7 @@ void CutoutMaker::get_cutout_info()
     cerr<<"Found "<<this->ncutout<<" cutouts\n";
 
     // determine where the objects will go in the mosaic
-    this->set_start_rows();
+    this->set_start_rows_and_npix();
 }
 
 static void make_cutouts(ConfigFile *params) 
@@ -1185,47 +1143,32 @@ static void make_cutouts(ConfigFile *params)
 
 static void usage_and_exit()
 {
-    cerr<<"make-cutouts coaddimage_file= coaddcat_file= coadd_srclist= cutout_size= cutout_file=\n";
-    cerr<<"  also set cutout_size in the config or as an option\n";
-    cerr<<"  all options can be defined on the command line or in a config file\n";
+    cerr<<"make-cutouts coadd_file= cat_file= coadd_srclist= cutout_file=\n";
     exit(1);
 }
 
+// these can be over-written in load_params
 void set_default_params(ConfigFile *params)
 {
-    if (!params->keyExists("se_hdu")) {
-        params->set("se_hdu", SE_HDU);
-    }
-    if (!params->keyExists("se_wt_hdu")) {
-        params->set("se_wt_hdu", SE_WT_HDU);
-    }
-    if (!params->keyExists("se_badpix_hdu")) {
-        params->set("se_badpix_hdu", SE_BADPIX_HDU);
-    }
-    if (!params->keyExists("sky_hdu")) {
-        params->set("sky_hdu", SKY_HDU);
-    }
-    if (!params->keyExists("coadd_hdu")) {
-        params->set("coadd_hdu", COADD_HDU);
-    }
-    if (!params->keyExists("coadd_wt_hdu")) {
-        params->set("coadd_wt_hdu", COADD_WT_HDU);
-    }
-    if (!params->keyExists("coaddcat_hdu")) {
-        params->set("coaddcat_hdu", COADDCAT_HDU);
-    }
+    params->set("se_hdu", SE_HDU);
+    params->set("se_wt_hdu", SE_WT_HDU);
+    params->set("se_badpix_hdu", SE_BADPIX_HDU);
+    params->set("sky_hdu", SKY_HDU);
+    params->set("coadd_hdu", COADD_HDU);
+    params->set("coadd_wt_hdu", COADD_WT_HDU);
+    params->set("coaddcat_hdu", COADDCAT_HDU);
 }
 // check params.  also set some default params
 bool check_params(const ConfigFile *params)
 {
     bool ok=true;
 
-    if (!params->keyExists("coaddcat_file")) {
-        cerr<<"send coaddcat_file=\n";
+    if (!params->keyExists("cat_file")) {
+        cerr<<"send cat_file=\n";
         ok=false;
     }
-    if (!params->keyExists("coaddimage_file")) {
-        cerr<<"send coaddimage_file=\n";
+    if (!params->keyExists("coadd_file")) {
+        cerr<<"send coadd_file=\n";
         ok=false;
     }
     if (!params->keyExists("coadd_srclist")) {
@@ -1236,14 +1179,11 @@ bool check_params(const ConfigFile *params)
         cerr<<"send cutout_file=\n";
         ok=false;
     }
-    if (!params->keyExists("cutout_size")) {
-        cerr<<"set cutout_size= in config or as an arg\n";
-        ok=false;
-    }
 
     return ok;
 }
 
+// values set in set_default_params can be over-written
 int load_params(int argc, char **argv, ConfigFile *params)
 {
     for(int k=1;k<argc;k++) {
@@ -1254,8 +1194,8 @@ int load_params(int argc, char **argv, ConfigFile *params)
 int main(int argc, char **argv)
 {
     ConfigFile params;
-    load_params(argc, argv, &params);
     set_default_params(&params);
+    load_params(argc, argv, &params);
 
     if (!check_params(&params)) {
         usage_and_exit();

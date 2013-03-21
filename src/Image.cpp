@@ -644,8 +644,6 @@ void Image<T>::write(std::string filename, bool create) const
 template <typename T> 
 void Image<T>::write_sub(fitsfile *fPtr, long col, long row) const
 {
-    _hdu = 1;
-
     int fitsErr=0;
 
     long fPixel[2] = {col,row};
@@ -658,9 +656,30 @@ void Image<T>::write_sub(fitsfile *fPtr, long col, long row) const
                    &fitsErr);
     if (fitsErr != 0) {
         fits_report_error(stderr,fitsErr);
-        throw WriteException("Error writing subimage in "+_filename);
+        throw WriteException("Error writing subimage");
     }
 }
+template <typename T> 
+void Image<T>::write_sub_flat(fitsfile *fPtr, long start_row) const
+{
+    int fitsErr=0;
+
+    long npix=long(_xmax*_ymax);
+    long fPixel[1] = {start_row};
+
+    Assert(getDataType<T>());
+    fits_write_pix(fPtr,
+                   getDataType<T>(),
+                   fPixel,
+                   npix,
+                   TMV_ptr(*_m),
+                   &fitsErr);
+    if (fitsErr != 0) {
+        fits_report_error(stderr,fitsErr);
+        throw WriteException("Error writing subimage");
+    }
+}
+
 
 
 
