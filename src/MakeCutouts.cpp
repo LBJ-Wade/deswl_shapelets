@@ -153,6 +153,7 @@ class CutoutMaker
                              int *hdu);
         bool load_file_cutouts(int ifile, const Bounds *bounds);
 
+        void write_metadata(CCfits::FITS *fits);
         void write_catalog_filenames(CCfits::FITS *fits);
         void write_catalog();
 
@@ -455,7 +456,43 @@ static void vposition_to_xy(const vector<vector<Position> > *pvec,
         }
     }
 }
-                                 
+
+// write all params to an extension                                 
+void CutoutMaker::write_metadata(CCfits::FITS *fits)
+{
+    std::map<std::string,ConvertibleString>::const_iterator iter;
+
+    vector<string> col_names;
+    vector<string> col_fmts;
+
+    std::stringstream ss;
+    for (iter=this->params.begin(); iter!= this->params.end(); iter++) {
+        string key=iter->first;
+        string val=iter->second;
+        ss.str("");
+        ss<<val.size()<<"A";
+        string fmt=ss.str();
+
+        col_names.push_back(key);
+        col_fmts.push_back(fmt);
+    }
+
+    vector<string> col_units(col_fmts.size());
+
+    int nrows=1;
+    CCfits::Table* table = fits->addTable("metadata",nrows,
+                                          col_names,col_fmts,col_units);
+
+    int firstrow=1;
+
+    vector<string> vval(1);  // CCfits really wants you to use a vector
+    for (iter=this->params.begin(); iter!= this->params.end(); iter++) {
+        string key=iter->first;
+        vval[0]=iter->second;
+        table->column(key).write(vval,firstrow);
+    }
+
+}
 
 void CutoutMaker::write_catalog_filenames(CCfits::FITS *fits)
 {
@@ -485,8 +522,6 @@ void CutoutMaker::write_catalog_filenames(CCfits::FITS *fits)
 }
 void CutoutMaker::write_catalog()
 {
-
-
     cerr<<"opening output file: "<<this->cutout_filename<<"\n";
     CCfits::FITS fits("!"+this->cutout_filename, CCfits::Write);
 
@@ -540,7 +575,6 @@ void CutoutMaker::write_catalog()
     col_fmts.push_back(dfmt);
     col_names.push_back("dvdcol");
     col_fmts.push_back(dfmt);
-
 
 
     // dummy
@@ -598,9 +632,8 @@ void CutoutMaker::write_catalog()
     table->column("dvdcol").writeArrays(deriv,firstrow);
 
 
-
-
     this->write_catalog_filenames(&fits);
+    this->write_metadata(&fits);
 
     // RAII will write and flush the data
 }
