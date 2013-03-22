@@ -383,6 +383,11 @@ public:
                 const std::string include = "+",
                 const std::string sentry = "EndConfigFile" );
 
+    std::map<std::string,ConvertibleString>::const_iterator
+    begin() const {return _contents.begin(); }
+    std::map<std::string,ConvertibleString>::const_iterator
+    end() const {return _contents.end(); }
+
     // Load more value from a file.
     void load( const std::string file_name );
     //{ std::ifstream fs(file_name.c_str()); read(fs); }
