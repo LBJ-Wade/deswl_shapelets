@@ -80,7 +80,6 @@
 
 #include "Image.h"
 #include "Transformation.h"
-#include "CoaddCatalog.h"
 #include "BasicSetup.h"
 
 typedef float cutout_t;
@@ -97,7 +96,6 @@ const int SKY_HDU       = 2;
 
 const int COADD_HDU     = 2;
 const int COADD_WT_HDU  = 3;
-const int COADDCAT_HDU  = 2;
 
 enum cutout_type {
     CUTOUT_IMAGE,
@@ -258,35 +256,6 @@ void CutoutMaker::set_skybounds()
         this->skybounds += this->skypos[i];
     }
 }
-/*
-void CutoutMaker::read_coadd_cat_old()
-{
-    int hdu=this->params["coaddcat_hdu"];
-    CCfits::FITS fits(this->params["coaddcat_file"],
-                      CCfits::Read);
-    fits.read(hdu-1);
-
-    CCfits::ExtHDU& table=fits.extension(hdu-1);
-    long nrows=table.rows();
-
-    long start=1;
-    long end=nrows;
-
-    table.column("NUMBER").read(this->id, start, end);
-    //table.column("FLAGS").read(this->flags, start, end);
-
-    vector<double> ra, dec;
-    table.column("ALPHAMODEL_J2000").read(ra, start, end);
-    table.column("DELTAMODEL_J2000").read(dec, start, end);
-
-    vector<double> x, y;
-    table.column("X_IMAGE").read(x, start, end);
-    table.column("Y_IMAGE").read(y, start, end);
-
-    this->set_positions(&ra, &dec, &x, &y);
-    this->set_skybounds();
-}
-*/
 
 static int make_box_size_even(int box_size)
 {
@@ -1189,7 +1158,6 @@ void set_default_params(ConfigFile *params)
     params->set("sky_hdu", SKY_HDU);
     params->set("coadd_hdu", COADD_HDU);
     params->set("coadd_wt_hdu", COADD_WT_HDU);
-    params->set("coaddcat_hdu", COADDCAT_HDU);
 }
 // check params.  also set some default params
 bool check_params(const ConfigFile *params)
