@@ -3,8 +3,32 @@
 
    usage
    ---------
-   make-cutouts config_file coadd_file= cat_file= coadd_srclist= cutout_file=
+   make-cutouts coadd_file= cat_file= coadd_srclist= cutout_file=
 
+   required keywords
+   -----------------
+   coadd_file
+       The coadd image file.  Holds the image and weight image.
+   cat_file
+       The meds input file.  This is an ascii file with the following
+       columns
+           ra dec row col box_size
+   coadd_srclist
+       An ascii file with a list of the coadd input images.  it has
+       the following columns
+
+           image background_image
+
+       The image is the single-epoch "red" image and background is
+       the "bkg" file.
+
+   cutout_file
+       The name of the output file.
+
+   More keywords can be given, some of which are used in the code to over-ride
+   defaults.  These are the se_hdu, se_wt_hdu, se_badpix_hdu, sky_hdu,
+   coadd_hdu, and coadd_wt_hdu.  Any keywords given will be written to the
+   metadata table.
    
    algorithm
    ---------
@@ -14,18 +38,35 @@
    pre-made mosaic image.  This limits the memory usage significantly.
    Memory usage is typically around 100-200Mb.
 
-   The cutouts are sky subtracted.  The box sizes are forced even.
+   The cutouts are sky subtracted.  The box sizes are forced to be even;
+   the motivation being to support codes that want efficient FFTs.
        
    outputs
    -------
 
    The output file name is determined by the cutout_file= option.
 
-   The first extension, named "object_data", is a table with an entry for each
-   object in the coadd.  This table lines up row-by-row with the coadd catalog
-   table.
+   The file has the following extensions.  They are all named as follows;
+   the order in the file may change, so use the names.
+       object_data: 
+           A binary table with one row for each coadd object.  This table
+           aligns exactly row-for-row with the input catalog file.
+       image_info:
+           A binary table holding paths to the images used as well as the
+           background files.
+       metadata: 
+           A binary table holding all parameters used in making the files, as
+           well as the value of all keywords sent to the program, whether used
+           or not.  This is good for adding other information such as code
+           versions.
+       image_cutouts:
+           An image extension holding the image cutouts.
+       weight_cutouts:
+           An image extension holding the weight image cutouts.
 
-     id                 i4       id from coadd catalog
+   The "object_data" extension is a table with an entry for each object in the
+   coadd.  This table lines up row-by-row input catalog.
+
      ncutout            i4       number of cutouts for this object
      box_size           i4       box size for each cutout
      file_id            i4[NMAX] zero-offset id into the file names in the 
@@ -38,32 +79,38 @@
      cutout_row         f8[NMAX] zero-offset position in cutout imag
      cutout_col         f8[NMAX] zero-offset position in cutout image
      dudrow             f8[NMAX] jacobian of transformation 
-                                 row,col->ra,dec tangent plane (u,v)
-     dudcol             f8[NMAX]
-     dvdrow             f8[NMAX]
+     dudcol             f8[NMAX] row,col->ra,dec tangent plane (u,v)
+     dvdrow             f8[NMAX] Note Source Extractor uses y for row
      dvdcol             f8[NMAX]
 
    The array fields are constant size NMAX, where NMAX is the max number of
    cutouts of any object in the list.  When a value is not used, it is set to
-   -9999.
+   -9999 except for box_size, which is always the box_size as input from
+   the cat_file, and ncutout which is the number of cutouts and is zero when
+   there are none.
 
-   The first entry for each object is always the coadd cutout.
+   The first cutout entry for each object is always the coadd cutout.
    
    Note in cfitsio you will need to convert start_row to 1-offset.
 
-   The second extension, named "image_info", contains info about each image.
-   Currently this is just the file paths.  The file_id column above point into
-   this structure.
+   The extension "image_info", contains info about each image.  Currently this
+   is just the file paths.  The file_id column above point into this structure.
 
      image_path           SXX      full path to source images
      sky_path             SYY      full path to sky images
 
-   The third extension, named "image_cutouts", contains a mosaic of all the
-   image cutouts.  This mosaic has box_size columns (currently fixed) and
-   box_size*ncutout_tot rows, where ncutout_tot = sum(ncutout) over all objects.
+   The extension "image_cutouts", contains a mosaic of all the image cutouts.
+   This mosaic is a single-dimensional image rather than two-dimensional in
+   order to support variable cutout sizes.  The zero-offset starting row in
+   this image is given in the start_row field in the object_data table.  There
+   is an entry for each cutout.  The cutouts for a single object are always
+   contiguous, and the cutouts are ordered in the file as objects are ordered
+   in the table, which makes sequential access more efficient. The total number
+   of pixels for all cutouts associated with an object is
+   box_size*box_size*ncutout.
 
-   The fourth extension, named "weight_cutouts", is the same format as the
-   "image_cutouts" extension, but contains the cutouts of the weight images.
+   The extension "weight_cutouts", is the same format as the "image_cutouts"
+   extension, but contains the cutouts of the weight images.
 
    In the future we may add segmentation images.
 
@@ -160,7 +207,7 @@ class CutoutMaker
         //int count_noflags();
         int get_max_cutouts();
 
-        void print_file_progress(int ifile, string fname);
+        void print_file_progress(int ifile, const char *type, string fname);
 
     private:
 
@@ -800,12 +847,14 @@ void CutoutMaker::append_cutout_info(const Position *pos,
     this->ncutout++;
 }
 
-void CutoutMaker::print_file_progress(int ifile, string fname)
+void CutoutMaker::print_file_progress(int ifile, const char *type, string fname)
 {
     cerr<<"    "
         <<(ifile+1)
         <<"/"
         <<this->image_file_list.size()
+        <<" "
+        <<type
         <<" "
         <<fname<<"\n";
 }
@@ -944,17 +993,20 @@ void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
     Image<cutout_t> image;
     int hdu=0;
 
+    const char *type=NULL;
     if (cut_type==CUTOUT_WEIGHT) {
         cerr<<"    loading coadd weightimage\n";
         hdu = this->params["coadd_wt_hdu"];
+        type="weight";
     } else {
         cerr<<"    loading coadd image\n";
         hdu = this->params["coadd_hdu"];
+        type="image";
     }
 
     image.load(this->params["coadd_file"], hdu);
 
-    this->print_file_progress(0,this->params["coadd_file"]);
+    this->print_file_progress(0,type,this->params["coadd_file"]);
 
     for (int i=0; i<this->nobj; ++i) {
         int ncut=this->cutout_pos[i].size();
@@ -978,7 +1030,7 @@ void CutoutMaker::write_cutouts_from_file(int ifile)
     string filename=this->setup_se_file(ifile, CUTOUT_IMAGE, &hdu);
     string sky_filename=this->setup_se_file(ifile, CUTOUT_SKY, &sky_hdu);
 
-    this->print_file_progress(ifile,filename);
+    this->print_file_progress(ifile,"image",filename);
 
     Image<cutout_t> image(filename, hdu);
     Image<cutout_t> sky_image(sky_filename, sky_hdu);
@@ -1005,7 +1057,7 @@ void CutoutMaker::write_weight_cutouts_from_file(int ifile)
     string badpix_filename=this->setup_se_file(ifile, 
             CUTOUT_BADPIX, &badpix_hdu);
 
-    this->print_file_progress(ifile,filename);
+    this->print_file_progress(ifile,"weight",filename);
 
     Image<cutout_t> image(filename, hdu);
     Image<cutout_t> badpix_image(badpix_filename, badpix_hdu);
@@ -1059,7 +1111,7 @@ void CutoutMaker::get_file_cutout_info(int ifile, const Bounds *bounds)
 
     int hdu=0;
     string filename=this->setup_se_file(ifile, CUTOUT_IMAGE, &hdu);
-    this->print_file_progress(ifile,filename);
+    this->print_file_progress(ifile,"info",filename);
 
     long ncol=0, nrow=0;
     get_image_shape(filename, hdu, &ncol, &nrow);
