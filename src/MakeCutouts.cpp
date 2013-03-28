@@ -17,10 +17,11 @@
        An ascii file with a list of the coadd input images.  it has
        the following columns
 
-           image background_image
+           image background_image segmentation_image
 
        The image is the single-epoch "red" image and background is
-       the "bkg" file.
+       the "bkg" file.  The segmentation image holds the sextractor
+       segmentation map
 
    cutout_file
        The name of the output file.
@@ -38,9 +39,8 @@
    pre-made mosaic image.  This limits the memory usage significantly.
    Memory usage is typically around 100-200Mb.
 
-   The cutouts are sky subtracted.  The box sizes are forced to be even;
-   the motivation being to support codes that want efficient FFTs.
-       
+   The cutouts are sky subtracted.  The box sizes are forced to be even.
+
    outputs
    -------
 
@@ -65,7 +65,7 @@
            An image extension holding the weight image cutouts.
 
    The "object_data" extension is a table with an entry for each object in the
-   coadd.  This table lines up row-by-row input catalog.
+   coadd.  This table lines up row-by-row with the input catalog.
 
      ncutout            i4       number of cutouts for this object
      box_size           i4       box size for each cutout
@@ -98,6 +98,7 @@
 
      image_path           SXX      full path to source images
      sky_path             SYY      full path to sky images
+     seg_path             SZZ      full path to segmentation images
 
    The extension "image_cutouts", contains a mosaic of all the image cutouts.
    This mosaic is a single-dimensional image rather than two-dimensional in
@@ -124,12 +125,20 @@
 #include <iostream>
 #include <fstream>
 #include <CCfits/CCfits>
+#include <stdint.h>
 
 #include "Image.h"
 #include "Transformation.h"
 #include "BasicSetup.h"
 
+using std::auto_ptr;
+using std::cerr;
+using std::string;
+using std::vector;
+
 typedef float cutout_t;
+typedef int badpix_t;
+typedef int seg_t;
 
 const double ARCSEC_PER_RAD = 206264.806247;
 const int DEFVAL=-9999;
@@ -140,6 +149,7 @@ const int SE_BADPIX_HDU = 3;
 const int SE_WT_HDU     = 4;
 
 const int SKY_HDU       = 2;
+const int SEG_HDU       = 1;
 
 const int COADD_HDU     = 2;
 const int COADD_WT_HDU  = 3;
@@ -149,12 +159,8 @@ enum cutout_type {
     CUTOUT_WEIGHT,
     CUTOUT_BADPIX,
     CUTOUT_SKY,
+    CUTOUT_SEG
 };
-
-using std::auto_ptr;
-using std::cerr;
-using std::string;
-using std::vector;
 
 class CutoutMaker
 {
@@ -176,14 +182,23 @@ class CutoutMaker
 
         void set_start_rows_and_npix();
 
+        template <typename T>
+            void write_cutout(const Image<T> *image,
+                              const Image<cutout_t> *sky_image,
+                              const Image<badpix_t> *badpix_image,
+                              int iobj, int icut);
+
+        /*
         void write_cutout(const Image<cutout_t> *image,
                           const Image<cutout_t> *sky_image,
                           const Image<cutout_t> *badpix_image,
                           int iobj, int icut);
-
+        */
         void write_cutouts_from_coadd(enum cutout_type cut_type);
+        void write_fake_coadd_seg();
         void write_cutouts_from_file(int ifile);
         void write_weight_cutouts_from_file(int ifile);
+        void write_seg_cutouts_from_file(int ifile);
         void write_mosaic(enum cutout_type cut_type);
 
         void open_fits(); // after catalogs written
@@ -191,6 +206,7 @@ class CutoutMaker
 
         void push_image_file(string fname);
         void push_sky_file(string fname);
+        void push_seg_file(string fname);
         void load_file_lists();
 
         string setup_se_file(int ifile,
@@ -240,8 +256,10 @@ class CutoutMaker
 
         vector<string> image_file_list;
         vector<string> sky_file_list;
+        vector<string> seg_file_list;
         int max_image_filename_len;
         int max_sky_filename_len;
+        int max_seg_filename_len;
 
         Transformation coadd_trans;
 
@@ -514,9 +532,9 @@ void CutoutMaker::write_catalog_filenames(CCfits::FITS *fits)
 {
     int nfiles=this->image_file_list.size();
 
-    vector<string> col_names(2);
-    vector<string> col_fmts(2);
-    vector<string> col_units(2);
+    vector<string> col_names(3);
+    vector<string> col_fmts(3);
+    vector<string> col_units(3);
 
     std::stringstream ss;
     ss<<this->max_image_filename_len<<"A";
@@ -528,6 +546,12 @@ void CutoutMaker::write_catalog_filenames(CCfits::FITS *fits)
     col_names[1] = "sky_path";
     col_fmts[1] = ss.str();
 
+    ss.str("");
+    ss<<this->max_seg_filename_len<<"A";
+    col_names[2] = "seg_path";
+    col_fmts[2] = ss.str();
+
+
 
     CCfits::Table* table = fits->addTable("image_info",nfiles,
                                           col_names,col_fmts,col_units);
@@ -535,6 +559,7 @@ void CutoutMaker::write_catalog_filenames(CCfits::FITS *fits)
     int firstrow=1;
     table->column("image_path").write(this->image_file_list,firstrow);
     table->column("sky_path").write(this->sky_file_list,firstrow);
+    table->column("seg_path").write(this->seg_file_list,firstrow);
 }
 void CutoutMaker::write_catalog()
 {
@@ -661,13 +686,8 @@ template <>
 inline int getBitPix<double>() { return DOUBLE_IMG; }
 template <> 
 inline int getBitPix<float>() { return FLOAT_IMG; }
-
-template <typename T> 
-inline int getDataType() { return 0; }
 template <> 
-inline int getDataType<double>() { return TDOUBLE; }
-template <> 
-inline int getDataType<float>() { return TFLOAT; }
+inline int getBitPix<int>() { return LONG_IMG; }
 
 
 template <typename T>
@@ -756,6 +776,15 @@ void CutoutMaker::push_sky_file(string fname)
         this->max_sky_filename_len=fname.size();
     }
 }
+void CutoutMaker::push_seg_file(string fname)
+{
+    this->seg_file_list.push_back(fname);
+
+    if (fname.size() > this->max_seg_filename_len) {
+        this->max_seg_filename_len=fname.size();
+    }
+}
+
 
 void CutoutMaker::load_file_lists()
 {
@@ -774,16 +803,19 @@ void CutoutMaker::load_file_lists()
 
     this->max_image_filename_len=0;
     this->max_sky_filename_len=0;
+    this->max_seg_filename_len=0;
 
     // first push the coadd, always first
     // note sky file for coadd is itself
     this->push_image_file(this->params["coadd_file"]);
     this->push_sky_file(this->params["coadd_file"]);
+    this->push_seg_file("none");
 
-    string image_path, sky_path;
-    while (flist >> image_path >> sky_path) {
+    string image_path, sky_path, seg_path;
+    while (flist >> image_path >> sky_path >> seg_path) {
         this->push_image_file(image_path);
         this->push_sky_file(sky_path);
+        this->push_seg_file(seg_path);
     }
 
     cerr<<"read "
@@ -859,7 +891,6 @@ void CutoutMaker::print_file_progress(int ifile, const char *type, string fname)
         <<fname<<"\n";
 }
 
-// using params might not work for sky? 
 string CutoutMaker::setup_se_file(int ifile,
                                   enum cutout_type cut_type,
                                   int *hdu)
@@ -869,6 +900,9 @@ string CutoutMaker::setup_se_file(int ifile,
     if (cut_type==CUTOUT_SKY) {
         fname = this->sky_file_list[ifile];
         (*hdu) = this->params["sky_hdu"];
+    } else if (cut_type==CUTOUT_SEG) {
+        fname = this->seg_file_list[ifile];
+        (*hdu) = this->params["seg_hdu"];
     } else if (cut_type==CUTOUT_WEIGHT) {
         fname = this->image_file_list[ifile];
         (*hdu) = this->params["se_wt_hdu"];
@@ -949,9 +983,10 @@ void CutoutMaker::set_start_rows_and_npix()
 
 
 
-void CutoutMaker::write_cutout(const Image<cutout_t> *image,
+template <typename T>
+void CutoutMaker::write_cutout(const Image<T> *image,
                                const Image<cutout_t> *sky_image,
-                               const Image<cutout_t> *badpix_image,
+                               const Image<badpix_t> *badpix_image,
                                int iobj, int icut)
 {
     int xmax=image->getXMax();
@@ -986,12 +1021,49 @@ void CutoutMaker::write_cutout(const Image<cutout_t> *image,
     tim.write_sub_flat(this->fits, start_row);
 }
 
+void CutoutMaker::write_fake_coadd_seg()
+{
+    
+    Image<cutout_t> *sky_null=NULL;
+    Image<badpix_t> *badpix_null=NULL;
+
+    long ncol=0, nrow=0;
+    get_image_shape(this->params["coadd_file"],
+                    this->params["coadd_hdu"],
+                    &ncol,
+                    &nrow);
+
+    Image<seg_t> seg_image(ncol,nrow);
+    for (long i=0; i<ncol; i++) {
+        for (long j=0; j<ncol; j++) {
+            seg_image(i,j) = DEFVAL;
+        }
+    }
+
+    for (int i=0; i<this->nobj; ++i) {
+        int ncut=this->cutout_pos[i].size();
+        for (int j=0; j<ncut; j++) {
+            if (this->orig_file_id[i][j] == 0) {
+                // NULLs for sky and badpix
+                this->write_cutout(&seg_image, sky_null, badpix_null, i, j);
+            }
+        }
+    }
+
+}
 
 // here we use the fact that the coadd is always in position ifile==0
 void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
 {
     Image<cutout_t> image;
+    Image<cutout_t> *sky_null=NULL;
+    Image<badpix_t> *badpix_null=NULL;
     int hdu=0;
+
+    if (cut_type==CUTOUT_SEG) {
+        this->write_fake_coadd_seg();
+        return;
+    }
 
     const char *type=NULL;
     if (cut_type==CUTOUT_WEIGHT) {
@@ -1013,7 +1085,7 @@ void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
         for (int j=0; j<ncut; j++) {
             if (this->orig_file_id[i][j] == 0) {
                 // NULLs for sky and badpix
-                this->write_cutout(&image, NULL, NULL, i, j);
+                this->write_cutout(&image, sky_null, badpix_null, i, j);
             }
         }
     }
@@ -1021,6 +1093,8 @@ void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
 
 void CutoutMaker::write_cutouts_from_file(int ifile)
 {
+    Image<badpix_t> *badpix_null=NULL;
+
     // ifile==0 means coadd
     if (ifile==0) {
         return;
@@ -1040,13 +1114,14 @@ void CutoutMaker::write_cutouts_from_file(int ifile)
         for (int j=0; j<ncut; j++) {
             if (this->orig_file_id[i][j] == ifile) {
                 // null for badpix
-                this->write_cutout(&image, &sky_image, NULL, i, j);
+                this->write_cutout(&image, &sky_image, badpix_null, i, j);
             }
         }
     }
 }
 void CutoutMaker::write_weight_cutouts_from_file(int ifile)
 {
+    Image<cutout_t> *sky_null=NULL;
     // ifile==0 means coadd
     if (ifile==0) {
         return;
@@ -1060,19 +1135,46 @@ void CutoutMaker::write_weight_cutouts_from_file(int ifile)
     this->print_file_progress(ifile,"weight",filename);
 
     Image<cutout_t> image(filename, hdu);
-    Image<cutout_t> badpix_image(badpix_filename, badpix_hdu);
+
+    Image<badpix_t> badpix_image(badpix_filename, badpix_hdu);
 
     for (int i=0; i<this->nobj; ++i) {
         int ncut=this->cutout_pos[i].size();
         for (int j=0; j<ncut; j++) {
             if (this->orig_file_id[i][j] == ifile) {
                 // NULL for sky
-                this->write_cutout(&image, NULL, &badpix_image, i, j);
+                this->write_cutout(&image, sky_null, &badpix_image, i, j);
             }
         }
     }
 }
 
+void CutoutMaker::write_seg_cutouts_from_file(int ifile)
+{
+    // ifile==0 means coadd
+    if (ifile==0) {
+        return;
+    }
+    Image<cutout_t> *sky_null=NULL;
+    Image<badpix_t> *badpix_null=NULL;
+
+    int hdu=0, sky_hdu=0;
+    string filename=this->setup_se_file(ifile, CUTOUT_SEG, &hdu);
+
+    this->print_file_progress(ifile,"seg",filename);
+
+    Image<seg_t> seg_image(filename, hdu);
+
+    for (int i=0; i<this->nobj; ++i) {
+        int ncut=this->cutout_pos[i].size();
+        for (int j=0; j<ncut; j++) {
+            if (this->orig_file_id[i][j] == ifile) {
+                // null for badpix
+                this->write_cutout(&seg_image, sky_null, badpix_null, i, j);
+            }
+        }
+    }
+}
 
 // Write the idividual cutouts into the big mosaic layed out on disk.
 void CutoutMaker::write_mosaic(enum cutout_type cut_type)
@@ -1082,11 +1184,19 @@ void CutoutMaker::write_mosaic(enum cutout_type cut_type)
 
     if (cut_type==CUTOUT_WEIGHT) {
         extname="weight_cutouts";
+    } else if (cut_type==CUTOUT_SEG) {
+        extname="seg_cutouts";
     } else {
         extname="image_cutouts";
     }
-    create_mosaic<cutout_t>(this->fits, this->total_pixels,
-                            extname, false);
+
+    if (cut_type==CUTOUT_SEG) {
+        create_mosaic<seg_t>(this->fits, this->total_pixels,
+                           extname, false);
+    } else {
+        create_mosaic<cutout_t>(this->fits, this->total_pixels,
+                extname, false);
+    }
 
     this->write_cutouts_from_coadd(cut_type);
 
@@ -1094,8 +1204,10 @@ void CutoutMaker::write_mosaic(enum cutout_type cut_type)
     for (int ifile=1; ifile<nfiles; ifile++) {
         if (cut_type==CUTOUT_IMAGE) {
             this->write_cutouts_from_file(ifile);
-        } else {
+        } else if (cut_type==CUTOUT_WEIGHT) {
             this->write_weight_cutouts_from_file(ifile);
+        } else if (cut_type==CUTOUT_SEG) {
+            this->write_seg_cutouts_from_file(ifile);
         }
     }
 
@@ -1190,6 +1302,8 @@ static void make_cutouts(ConfigFile *params)
     maker.write_mosaic(CUTOUT_IMAGE);
     cerr<<"  writing weight mosaic\n";
     maker.write_mosaic(CUTOUT_WEIGHT);
+    cerr<<"  writing seg mosaic\n";
+    maker.write_mosaic(CUTOUT_SEG);
 
     cerr<<"output is in : "<<params->get("cutout_file")<<"\n";
 }
@@ -1208,6 +1322,7 @@ void set_default_params(ConfigFile *params)
     params->set("se_wt_hdu", SE_WT_HDU);
     params->set("se_badpix_hdu", SE_BADPIX_HDU);
     params->set("sky_hdu", SKY_HDU);
+    params->set("seg_hdu", SEG_HDU);
     params->set("coadd_hdu", COADD_HDU);
     params->set("coadd_wt_hdu", COADD_WT_HDU);
 }
