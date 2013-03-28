@@ -1,6 +1,7 @@
 
 #include <sstream>
 #include <valarray>
+#include <stdint.h>
 
 //#include <CCfits/CCfits>
 //#include <fitsio.h>
@@ -94,20 +95,24 @@ void Image<T>::load(std::string filename, int hdu)
 template <typename T> 
 inline int getBitPix() { return 0; }
 
+// note 32-bit integers are refered to as as LONG_IMG
+// 32-bit integer data type is called TINT
 template <> 
 inline int getBitPix<double>() { return DOUBLE_IMG; }
-
 template <> 
 inline int getBitPix<float>() { return FLOAT_IMG; }
+template <> 
+inline int getBitPix<int>() { return LONG_IMG; }
 
 template <typename T> 
 inline int getDataType() { return 0; }
 
 template <> 
 inline int getDataType<double>() { return TDOUBLE; }
-
 template <> 
 inline int getDataType<float>() { return TFLOAT; }
+template <> 
+inline int getDataType<int>() { return TINT; }
 
 template <typename T> 
 void Image<T>::readFits()
@@ -834,3 +839,4 @@ T Image<T>::median() const
 
 template class Image<double>;
 template class Image<float>;
+template class Image<int>;
