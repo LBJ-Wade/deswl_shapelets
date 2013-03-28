@@ -63,6 +63,8 @@
            An image extension holding the image cutouts.
        weight_cutouts:
            An image extension holding the weight image cutouts.
+       seg_cutouts:
+           An image extension holding the segmentation cutouts.
 
    The "object_data" extension is a table with an entry for each object in the
    coadd.  This table lines up row-by-row with the input catalog.
@@ -113,10 +115,10 @@
    The extension "weight_cutouts", is the same format as the "image_cutouts"
    extension, but contains the cutouts of the weight images.
 
-   In the future we may add segmentation images.
+   The extension "seg_cutouts", is a similar format as the "image_cutouts"
+   extension, but contains the cutouts of the seg images.
 
    TODO
-       - add seg images when available
        - explore compression
 */
 
