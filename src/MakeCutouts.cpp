@@ -155,6 +155,7 @@ const int SEG_HDU       = 1;
 
 const int COADD_HDU     = 2;
 const int COADD_WT_HDU  = 3;
+const int COADD_SEG_HDU = 1;
 
 enum cutout_type {
     CUTOUT_IMAGE,
@@ -197,7 +198,7 @@ class CutoutMaker
                           int iobj, int icut);
         */
         void write_cutouts_from_coadd(enum cutout_type cut_type);
-        void write_fake_coadd_seg();
+        //void write_fake_coadd_seg();
         void write_cutouts_from_file(int ifile);
         void write_weight_cutouts_from_file(int ifile);
         void write_seg_cutouts_from_file(int ifile);
@@ -813,7 +814,7 @@ void CutoutMaker::load_file_lists()
     // note sky file for coadd is itself
     this->push_image_file(this->params["coadd_file"]);
     this->push_sky_file(this->params["coadd_file"]);
-    this->push_seg_file("none");
+    this->push_seg_file(this->params["coaddseg_file"]);
 
     string image_path, sky_path, seg_path;
     while (flist >> image_path >> sky_path >> seg_path) {
@@ -1025,6 +1026,7 @@ void CutoutMaker::write_cutout(const Image<T> *image,
     tim.write_sub_flat(this->fits, start_row);
 }
 
+/*
 void CutoutMaker::write_fake_coadd_seg()
 {
     
@@ -1055,41 +1057,57 @@ void CutoutMaker::write_fake_coadd_seg()
     }
 
 }
+*/
 
 // here we use the fact that the coadd is always in position ifile==0
+// note either image or seg_image is written, depending on cut_type
 void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
 {
     Image<cutout_t> image;
+    Image<seg_t> seg_image;
     Image<cutout_t> *sky_null=NULL;
     Image<badpix_t> *badpix_null=NULL;
     int hdu=0;
 
-    if (cut_type==CUTOUT_SEG) {
-        this->write_fake_coadd_seg();
-        return;
-    }
+    //if (cut_type==CUTOUT_SEG) {
+    //    this->write_fake_coadd_seg();
+    //    return;
+    //}
 
     const char *type=NULL;
-    if (cut_type==CUTOUT_WEIGHT) {
+    string fname;
+    if (cut_type==CUTOUT_SEG) {
+        cerr<<"    loading coadd seg image\n";
+        hdu = this->params["coadd_seg_hdu"];
+        type="weight";
+        fname=this->params["coaddseg_file"];
+        seg_image.load(fname, hdu);
+    } else if (cut_type==CUTOUT_WEIGHT) {
         cerr<<"    loading coadd weightimage\n";
         hdu = this->params["coadd_wt_hdu"];
         type="weight";
+        fname=this->params["coadd_file"];
+        image.load(fname, hdu);
     } else {
         cerr<<"    loading coadd image\n";
         hdu = this->params["coadd_hdu"];
         type="image";
+        fname=this->params["coadd_file"];
+        image.load(fname, hdu);
     }
 
-    image.load(this->params["coadd_file"], hdu);
-
-    this->print_file_progress(0,type,this->params["coadd_file"]);
+    this->print_file_progress(0,type,fname);
 
     for (int i=0; i<this->nobj; ++i) {
         int ncut=this->cutout_pos[i].size();
         for (int j=0; j<ncut; j++) {
             if (this->orig_file_id[i][j] == 0) {
                 // NULLs for sky and badpix
-                this->write_cutout(&image, sky_null, badpix_null, i, j);
+                if (cut_type==CUTOUT_SEG) {
+                    this->write_cutout(&seg_image, sky_null, badpix_null, i, j);
+                } else {
+                    this->write_cutout(&image, sky_null, badpix_null, i, j);
+                }
             }
         }
     }
@@ -1330,6 +1348,7 @@ void set_default_params(ConfigFile *params)
     params->set("seg_hdu", SEG_HDU);
     params->set("coadd_hdu", COADD_HDU);
     params->set("coadd_wt_hdu", COADD_WT_HDU);
+    params->set("coadd_seg_hdu", COADD_SEG_HDU);
 }
 // check params.  also set some default params
 bool check_params(const ConfigFile *params)
@@ -1342,6 +1361,10 @@ bool check_params(const ConfigFile *params)
     }
     if (!params->keyExists("coadd_file")) {
         cerr<<"send coadd_file=\n";
+        ok=false;
+    }
+    if (!params->keyExists("coaddseg_file")) {
+        cerr<<"send coaddseg_file=\n";
         ok=false;
     }
     if (!params->keyExists("coadd_srclist")) {
