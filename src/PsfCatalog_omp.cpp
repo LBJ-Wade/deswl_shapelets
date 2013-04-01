@@ -43,9 +43,9 @@ double PsfCatalog::estimateSigma(
 
         double sigma = sigma_p;
         long flag1 = 0; // Ignore flags set by CalcSigma
-	double nu=-1; // use negative value so it will not calculate nu
+        double nu=-1; // use negative value so it will not calculate nu
         CalculateSigma(
-	    sigma, nu,
+            sigma, nu,
             im, _pos[i], _sky[i], _noise[i], weight_image, 
             trans, _params, flag1, use_shapelet_sigma);
         // Ignore errors -- just don't add to meanmu
@@ -78,12 +78,6 @@ int PsfCatalog::measurePsf(
 {
     // Read some needed parameters
     bool output_dots = _params.read("output_dots",false);
-    double gain = _params.read("image_gain",0.);
-    double psfAp = _params.read<double>("psf_aperture");
-    bool psfFixCen = _params.read("psf_fix_centroid",false);
-    double xOffset = _params.read("cat_x_offset",0.);
-    double yOffset = _params.read("cat_y_offset",0.);
-    dbg<<"psfap = "<<psfAp<<std::endl;
 
     int nstars = size();
     dbg<<"nstars = "<<nstars<<std::endl;

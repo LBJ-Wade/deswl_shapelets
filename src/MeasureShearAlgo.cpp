@@ -326,7 +326,7 @@ void MeasureSingleShear(
         //
         galorder = galorder_init;
         if (params.read("shear_base_order_on_nu",true)) {
-            int galsize;
+            int galsize = 0;
             while (galorder > min_galorder) {
                 if (maxm > galorder) maxm = galorder;
                 galsize = (maxm+1)*(maxm+2)/2 + (2*maxm+1)*(galorder-maxm)/2;

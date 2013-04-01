@@ -99,7 +99,6 @@ int ShearCatalog::measureShears(
     // Read some needed parameters
     bool output_dots = _params.read("output_dots",false);
     bool des_qa = _params.read("des_qa",false); 
-    bool nativeOnly = _params.read("shear_native_only",false);
 
     // This need to have been set.
     Assert(_trans);

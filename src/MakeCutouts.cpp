@@ -409,6 +409,7 @@ static fitsfile *_open_fits(string filename)
 }
 
 
+#if 0
 static fitsfile *_open_new_fits(string filename)
 {
     fitsfile *fits=NULL;
@@ -423,6 +424,7 @@ static fitsfile *_open_new_fits(string filename)
 
     return fits;
 }
+#endif
 
 void CutoutMaker::close_fits()
 {
@@ -766,7 +768,7 @@ void CutoutMaker::push_image_file(string fname)
 {
     this->image_file_list.push_back(fname);
 
-    if (fname.size() > this->max_image_filename_len) {
+    if (int(fname.size()) > this->max_image_filename_len) {
         this->max_image_filename_len=fname.size();
     }
 }
@@ -774,7 +776,7 @@ void CutoutMaker::push_sky_file(string fname)
 {
     this->sky_file_list.push_back(fname);
 
-    if (fname.size() > this->max_sky_filename_len) {
+    if (int(fname.size()) > this->max_sky_filename_len) {
         this->max_sky_filename_len=fname.size();
     }
 }
@@ -782,7 +784,7 @@ void CutoutMaker::push_seg_file(string fname)
 {
     this->seg_file_list.push_back(fname);
 
-    if (fname.size() > this->max_seg_filename_len) {
+    if (int(fname.size()) > this->max_seg_filename_len) {
         this->max_seg_filename_len=fname.size();
     }
 }
@@ -1160,7 +1162,8 @@ void CutoutMaker::write_seg_cutouts_from_file(int ifile)
     Image<cutout_t> *sky_null=NULL;
     Image<badpix_t> *badpix_null=NULL;
 
-    int hdu=0, sky_hdu=0;
+    int hdu=0;
+    //int sky_hdu=0;
     string filename=this->setup_se_file(ifile, CUTOUT_SEG, &hdu);
 
     this->print_file_progress(ifile,"seg",filename);
@@ -1354,7 +1357,7 @@ bool check_params(const ConfigFile *params)
 }
 
 // values set in set_default_params can be over-written
-int load_params(int argc, char **argv, ConfigFile *params)
+void load_params(int argc, char **argv, ConfigFile *params)
 {
     for(int k=1;k<argc;k++) {
         params->append(argv[k]);
@@ -1372,4 +1375,5 @@ int main(int argc, char **argv)
     }
 
     make_cutouts(&params);
+    return 0;
 }

@@ -57,39 +57,33 @@ static void CalculateSigma1(
         if (ell.measure(pix,4,8,4,sigma,flag1,0.01)) {
             xdbg<<"Successful 4th order measure.\n";
             xdbg<<"mu = "<<ell.getMu()<<std::endl;
-	    
-	    if(nu>0) {
-	      BVec flux(0,sigma);
-	      DMatrix fluxCov(1,1);
-	      if (ell.measureShapelet(pix,flux,0,0,0,&fluxCov)) {
-		nu = flux(0) / std::sqrt(fluxCov(0,0));  
-		xdbg<<", nu = "<<ell.getMu()<<std::endl;
-	      }
-	      else nu = DEFVALNEG;;
-	    }
-	    else nu = DEFVALNEG;;
+            
+            if(nu>0) {
+                BVec flux(0,sigma);
+                DMatrix fluxCov(1,1);
+                if (ell.measureShapelet(pix,flux,0,0,0,&fluxCov)) {
+                    nu = flux(0) / std::sqrt(fluxCov(0,0));  
+                    xdbg<<", nu = "<<ell.getMu()<<std::endl;
+                }
+                else nu = DEFVALNEG;;
+            }
+            else nu = DEFVALNEG;;
 
         } else {
             dbg<<"FLAG NATIVE_FAILED\n";
             flag |= NATIVE_FAILED;
             xdbg<<"Ellipse measure returned flag "<<flag1<<std::endl;
             sigma = DEFVALNEG;
-	    nu = DEFVALNEG;
+            nu = DEFVALNEG;
             return;
         }
     }
     else nu = DEFVALNEG;
-   
     
     double mu = ell.getMu();
     sigma *= exp(mu);
     dbg<<"sigma = "<<sigma<<std::endl;
     Assert(sigma > 0);
-
-   
-    
-
-
 }
 
 void CalculateSigma(
@@ -101,7 +95,7 @@ void CalculateSigma(
 {
     try {
         CalculateSigma1(
-	    sigma, nu,
+            sigma, nu,
             im, pos, sky, noise, weight_image,
             trans, params, flag, use_shapelet_sigma);
         dbg<<"objsize: "<<sigma<<std::endl;
@@ -147,8 +141,6 @@ StarCatalog::StarCatalog(const StarCatalog& instarcat) :
     Assert(int(_sg.size()) == size());
     Assert(int(_objsize.size()) == size());
     Assert(int(_is_star.size()) == size());
-
-
 }
 
 
@@ -179,7 +171,7 @@ StarCatalog::StarCatalog(
 
         _mag[i]     = instarcat.getMag(ind);
         _sg[i]      = instarcat.getSg(ind);
-	_objsize[i] = instarcat.getObjSize(ind);
+        _objsize[i] = instarcat.getObjSize(ind);
         _is_star[i] = instarcat.getIsStar(ind);
     }
 }
@@ -191,7 +183,7 @@ StarCatalog::StarCatalog(
     _id(incat.getIdList()), _pos(incat.getPosList()), 
     _sky(incat.getSkyList()), _noise(incat.getNoiseList()),
     _flags(incat.getFlagsList()), _mag(incat.getMagList()), 
-    _sg(incat.getSgList()), _nu(_id.size(),DEFVALNEG), 
+    _sg(incat.getSgList()), _nu(_id.size(),DEFVALNEG),
     _objsize(incat.getObjSizeList()),
     _is_star(_id.size(),0), _params(params), _prefix(fs_prefix)
 {
@@ -323,9 +315,8 @@ int StarCatalog::findStars(FindStarsLog& log)
         
         ++count;
         double logObjSize = finder.convertToLogSize(_objsize[i]);
-        maybestars.push_back(
-			     new PotentialStar(_pos[i],_mag[i],_nu[i],
-					       logObjSize,_sg[i],i,""));
+        maybestars.push_back(new PotentialStar(_pos[i],_mag[i],_nu[i],
+                             logObjSize,_sg[i],i,""));
     }
     log._nobj = count;
     dbg<<"  Possible Stars: "<<count<<"/"<<size()<<"\n";
@@ -369,7 +360,7 @@ int StarCatalog::findStars(FindStarsLog& log)
     }
 
 
-    for (int i=0; i<maybestars.size(); ++i) delete maybestars[i];
+    for (size_t i=0; i<maybestars.size(); ++i) delete maybestars[i];
 
     return count;
 }
@@ -494,7 +485,7 @@ void StarCatalog::writeFits(std::string file) const
         WriteParamToTable(_params, table, "stars_maxsg", dbl);
         WriteParamToTable(_params, table, "stars_minsgmag", dbl);
         WriteParamToTable(_params, table, "stars_maxsgmag", dbl);
-	WriteParamToTable(_params, table, "stars_minnu", dbl);
+        WriteParamToTable(_params, table, "stars_minnu", dbl);
     }
   
 
@@ -556,7 +547,7 @@ void StarCatalog::writeAscii(std::string file, std::string delim) const
             << fix3(_sg[i]) << delim
             << fix6(_objsize[i]) << delim
             << _is_star[i] << delim 
-	    << std::endl;
+            << std::endl;
     }
 
 }

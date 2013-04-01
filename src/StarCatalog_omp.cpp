@@ -28,10 +28,6 @@ void StarCatalog::calculateSizes(
 
     const int n = _pos.size();
     dbg<<"n = "<<n<<std::endl;
-    double psfAp = _params.read<double>("psf_aperture"); 
-    double gain = _params.read("image_gain",0.);
-    double xOffset = _params.read("cat_x_offset",0.);
-    double yOffset = _params.read("cat_y_offset",0.);
 
     bool use_shapelet_sigma = _params.read("stars_use_shapelet_sigma",true);
     bool output_dots = _params.read("output_dots",false);
@@ -60,10 +56,10 @@ void StarCatalog::calculateSizes(
 
         // Negative value indicates not set yet.  Start with 1 then.
         if (_objsize[i] <= 0.) _objsize[i] = 1.;
-	// set nu to positive so it will calculate it
-	_nu[i]=1;
+        // set nu to positive so it will calculate it
+        _nu[i]=1;
         CalculateSigma(
-	    _objsize[i],_nu[i],
+            _objsize[i],_nu[i],
             im, _pos[i], _sky[i], _noise[i], weight_image, 
             trans, _params, _flags[i], use_shapelet_sigma);
     }

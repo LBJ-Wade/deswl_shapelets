@@ -19,7 +19,6 @@ int MultiShearCatalog::measureMultiShears(const Bounds& b, ShearLog& log)
 #ifdef _OPENMP
     bool des_qa = _params.read("des_qa",false); 
 #endif
-    bool nativeOnly = _params.read("shear_native_only",false);
 
     int nSuccess = 0;
 
@@ -416,7 +415,7 @@ bool MultiShearCatalog::getImagePixelLists(
     // We are using the weight image so the noise and gain are dummy variables
     Assert(weight_image.get());
     double noise = 0.0;
-    double gain = 0.0;
+    //double gain = 0.0;
 
     dbg<<"Extracting pixel lists\n";
     // loop over the the objects, if the object falls on the image get
@@ -431,7 +430,6 @@ bool MultiShearCatalog::getImagePixelLists(
 
     const int ngals = size();
     double max_mem = _params.read("max_vmem",64)*1024.;
-    bool require_match = _params.read("multishear_require_match",false);
     dbg<<"Before getImagePixList loop: memory_usage = "<<memory_usage()<<std::endl;
     for (int i=0; i<ngals; ++i) {
         if (_flags[i]) continue;

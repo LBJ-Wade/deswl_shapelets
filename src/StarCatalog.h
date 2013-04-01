@@ -108,9 +108,9 @@ private :
 
     std::vector<double> _mag;
     std::vector<double> _sg;
+    std::vector<double> _nu;  // these are not currently written to file
     std::vector<double> _objsize;
     std::vector<bool> _is_star;
-    std::vector<double> _nu;  // these are not currently written to file
 
     //const ConfigFile& _params;
     // We need to be able to alter this if we want to write alternative

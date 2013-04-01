@@ -11,8 +11,8 @@ class PotentialStar {
 
 public:
   PotentialStar(Position pos, double mag, double nu,
-		double size, double sg, long index,
-                  const std::string& line) :
+                double size, double sg, long index,
+                const std::string& line) :
     _pos(pos), _mag(mag), _nu(nu), _size(size), _index(index), _sg(sg), 
     _line(line) 
     {}
@@ -45,10 +45,10 @@ private:
 
     Position _pos;
     double _mag;
+    double _nu;
     double _size;
     long _index;
     double _sg;
-    double _nu;
     std::string _line;
 
 };
