@@ -122,6 +122,20 @@
        - explore compression
 */
 
+// CCfits has some unused variables, so use this to suppress warnings that would otherwise 
+// show up.
+
+// icpc pretends to be GNUC, since it thinks it's compliant, but it's not.
+// It doesn't understand "pragma GCC"
+#ifndef __INTEL_COMPILER
+
+// I think this starts being necessary at version 4.5
+#if defined(__GNUC__) && __GNUC__ >= 4 && (__GNUC__ >= 5 || __GNUC_MINOR__ >= 5)
+#pragma GCC diagnostic ignored "-Wunused-but-set-variable"
+#endif
+
+#endif
+
 #include <valarray>
 #include <sys/time.h>
 #include <iostream>
