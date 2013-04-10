@@ -444,8 +444,6 @@ bool MultiShearCatalog::getImagePixelLists(
             weight_image.get(), noise, mean_sky, skymap.get(),
             gal_aperture, max_aperture, _params);
         double mem = memory_usage();
-        // memory_usage is in KB
-        // max_vmem is in GB
         if (mem > max_mem) {
             dbg<<"VmSize = "<<mem<<" > max_vmem = "<<max_mem<<std::endl;
             return false;

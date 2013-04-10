@@ -67,6 +67,8 @@ opts.Add(BoolVariable('INCLUDE_PREFIX_PATHS',
 opts.Add('TMV_DIR','Explicitly give the tmv prefix','')
 opts.Add('CFITSIO_DIR','Explicitly give the cfitsio prefix','')
 opts.Add('CCFITS_DIR','Explicitly give the ccfits prefix','')
+opts.Add(BoolVariable('WITH_MEDS',"Build measuremeds.  (Requires esheldon's meds library)", False))
+opts.Add('MEDS_DIR','Explicitly give the meds prefix', '')
 
 opts.Add('TMV_LINK','File that contains the linking instructions for TMV','')
 opts.Add('LIBS','Libraries to send to the linker','')
@@ -362,6 +364,7 @@ def GetDepPaths(env):
     """
 
     types = ['TMV','CFITSIO','CCFITS']
+    if env['WITH_MEDS']: types += ['MEDS']
     bin_paths = []
     cpp_paths = []
     lib_paths = []
@@ -636,6 +639,10 @@ def DoLibraryAndHeaderChecks(config):
                                      language='C++'):
         print 'CCfits library or header not found'
         Exit(1)
+
+
+    if config.env['WITH_MEDS'] :
+        config.env.Append(LIBS='meds')
 
     if config.env['WITH_TMV'] :
         # First do a simple check that the library and header are in the path.

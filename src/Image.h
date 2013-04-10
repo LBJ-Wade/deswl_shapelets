@@ -90,8 +90,8 @@ public:
     void write_sub_flat(fitsfile *fPtr, long start_row) const;
 
 
-    TConstMatrixView(T) getM() const { return *_m; }
-    TMV_const TMatrixView(T)& getM() { return *_m; }
+    const TMatrixView(T)& getM() const { return *_m; }
+    TMatrixView(T)& getM() { return *_m; }
     int getXMin() const { return _xmin; }
     int getXMax() const { return _xmax; }
     int getYMin() const { return _ymin; }

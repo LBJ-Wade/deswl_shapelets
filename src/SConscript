@@ -46,7 +46,11 @@ header_install_dir = os.path.join(env['PREFIX'], 'include')
 
 
 libwl_files = ReadFileList('wl_files.txt')
+if env['WITH_MEDS']:
+    libwl_files += ReadFileList('wl_meds_files.txt')
 libwl_omp_files = ReadFileList('wl_omp_files.txt')
+if env['WITH_MEDS']:
+    libwl_files += ReadFileList('wl_omp_meds_files.txt')
 libgary_files = ReadFileList('gary_files.txt')
 
 env1 = env.Clone()
@@ -91,6 +95,9 @@ findstars = env2.Program('findstars', 'FindStars.cpp')
 multishear = env2.Program('multishear', 'MeasureMultiShear.cpp')
 make_cutouts = env2.Program('make-cutouts', 'MakeCutouts.cpp')
 
+if env2['WITH_MEDS']:
+    measuremeds = env2.Program('measuremeds', 'MeasureMEDS.cpp')
+
 fullpipe = env2.Program('fullpipe', 'FullPipeline.cpp')
 
 testwl = env3.Program('testwl', 'TestWL.cpp')
@@ -111,8 +118,10 @@ g08special = env2.Program('g08special', 'Great08Special.cpp')
 
 g10star = env2.Program('g10star', 'Great10Star.cpp')
 
-bin_targets = [measurepsf, measureshear, findstars, multishear, fullpipe, 
+bin_targets = [measurepsf, measureshear, findstars, fullpipe, 
                test_psfrec, shearave, calcq, make_cutouts]
+if env2['WITH_MEDS']:
+    bin_targets += [measuremeds]
 
 if 'install' in COMMAND_LINE_TARGETS:
 

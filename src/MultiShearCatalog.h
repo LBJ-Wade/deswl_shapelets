@@ -13,6 +13,7 @@
 #include "Pixel.h"
 #include "Transformation.h"
 #include "FittedPsf.h"
+#include "MEDSFile.h"
 
 class MultiShearCatalog 
 {
@@ -48,6 +49,7 @@ public :
 
     // Measure the shears
     int measureMultiShears(const Bounds& b, ShearLog& log);
+    int measureMEDS(const MEDSFile& meds, ShearLog& log);
 
     // Write output
     void write() const;
