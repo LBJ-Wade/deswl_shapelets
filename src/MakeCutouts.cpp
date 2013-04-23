@@ -17,7 +17,7 @@
        An ascii file with a list of the coadd input images.  it has
        the following columns
 
-           image background_image segmentation_image
+           image background_image segmentation_image zeropoint
 
        The image is the single-epoch "red" image and background is
        the "bkg" file.  The segmentation image holds the sextractor
@@ -53,16 +53,21 @@
            aligns exactly row-for-row with the input catalog file.
        image_info:
            A binary table holding paths to the images used as well as the
-           background files.
+           background files, as well as the zeropoints and applied scale
+           factors.
        metadata: 
            A binary table holding all parameters used in making the files, as
            well as the value of all keywords sent to the program, whether used
            or not.  This is good for adding other information such as code
            versions.
        image_cutouts:
-           An image extension holding the image cutouts.
+           An image extension holding the image cutouts.  The images are sky
+           subtracted. All SE images are put on the same zeropoint relative to
+           the first listed single-epoch image.  The coadd is not rescaled.
        weight_cutouts:
-           An image extension holding the weight image cutouts.
+           An image extension holding the weight image cutouts.  Note the
+           same scaling for single-epoch images is applied as for the cutouts,
+           i.e. the weight is scaled by 1/scale^2
        seg_cutouts:
            An image extension holding the segmentation cutouts.
 
@@ -203,14 +208,9 @@ class CutoutMaker
             void write_cutout(const Image<T> *image,
                               const Image<cutout_t> *sky_image,
                               const Image<badpix_t> *badpix_image,
-                              int iobj, int icut);
+                              int iobj, int icut,
+                              cutout_t scale);
 
-        /*
-        void write_cutout(const Image<cutout_t> *image,
-                          const Image<cutout_t> *sky_image,
-                          const Image<cutout_t> *badpix_image,
-                          int iobj, int icut);
-        */
         void write_cutouts_from_coadd(enum cutout_type cut_type);
         //void write_fake_coadd_seg();
         void write_cutouts_from_file(int ifile);
@@ -224,7 +224,8 @@ class CutoutMaker
         void push_image_file(string fname);
         void push_sky_file(string fname);
         void push_seg_file(string fname);
-        void load_file_lists();
+        void load_se_data();
+        void make_scale_factors();
 
         string setup_se_file(int ifile,
                              enum cutout_type cut_type,
@@ -232,7 +233,7 @@ class CutoutMaker
         bool load_file_cutouts(int ifile, const Bounds *bounds);
 
         void write_metadata(CCfits::FITS *fits);
-        void write_catalog_filenames(CCfits::FITS *fits);
+        void write_image_info(CCfits::FITS *fits);
         void write_catalog();
 
         void print_area_stats();
@@ -274,6 +275,10 @@ class CutoutMaker
         vector<string> image_file_list;
         vector<string> sky_file_list;
         vector<string> seg_file_list;
+        vector<cutout_t> scale_list;
+        vector<cutout_t> magzp_list;
+        cutout_t magzp_ref;
+
         int max_image_filename_len;
         int max_sky_filename_len;
         int max_seg_filename_len;
@@ -306,7 +311,8 @@ CutoutMaker::CutoutMaker(const ConfigFile *input_params) :
     this->imlist_path=this->params["coadd_srclist"];
     this->cutout_filename=this->params["cutout_file"];
 
-    this->load_file_lists();
+    this->load_se_data();
+    this->make_scale_factors();
 
     this->cutout_count.resize(this->nobj,0);
     this->cutout_pos.resize(this->nobj);
@@ -547,13 +553,14 @@ void CutoutMaker::write_metadata(CCfits::FITS *fits)
 
 }
 
-void CutoutMaker::write_catalog_filenames(CCfits::FITS *fits)
+void CutoutMaker::write_image_info(CCfits::FITS *fits)
 {
     int nfiles=this->image_file_list.size();
 
-    vector<string> col_names(3);
-    vector<string> col_fmts(3);
-    vector<string> col_units(3);
+    int ncols=5;
+    vector<string> col_names(ncols);
+    vector<string> col_fmts(ncols);
+    vector<string> col_units(ncols);
 
     std::stringstream ss;
     ss<<this->max_image_filename_len<<"A";
@@ -570,6 +577,11 @@ void CutoutMaker::write_catalog_filenames(CCfits::FITS *fits)
     col_names[2] = "seg_path";
     col_fmts[2] = ss.str();
 
+    col_names[3] = "magzp";
+    col_fmts[3] = "E";
+
+    col_names[4] = "scale";
+    col_fmts[4] = "E";
 
 
     CCfits::Table* table = fits->addTable("image_info",nfiles,
@@ -579,7 +591,10 @@ void CutoutMaker::write_catalog_filenames(CCfits::FITS *fits)
     table->column("image_path").write(this->image_file_list,firstrow);
     table->column("sky_path").write(this->sky_file_list,firstrow);
     table->column("seg_path").write(this->seg_file_list,firstrow);
+    table->column("magzp").write(this->magzp_list,firstrow);
+    table->column("scale").write(this->scale_list,firstrow);
 }
+// write catalog, file table, and metadata table
 void CutoutMaker::write_catalog()
 {
     cerr<<"opening output file: "<<this->cutout_filename<<"\n";
@@ -692,7 +707,7 @@ void CutoutMaker::write_catalog()
     table->column("dvdcol").writeArrays(deriv,firstrow);
 
 
-    this->write_catalog_filenames(&fits);
+    this->write_image_info(&fits);
     this->write_metadata(&fits);
 
     // RAII will write and flush the data
@@ -805,7 +820,22 @@ void CutoutMaker::push_seg_file(string fname)
 }
 
 
-void CutoutMaker::load_file_lists()
+// make scales to put all the images on the same zero point
+void CutoutMaker::make_scale_factors()
+{
+    this->scale_list.push_back(1.0);  // the coadd is not scaled
+    this->scale_list.push_back(1.0);  // the reference image
+
+    // note the reference is at position 1, the first SE image
+    this->magzp_ref = this->magzp_list[1];
+    for (long i=2; i<this->magzp_list.size(); i++) {
+        cutout_t magzp = this->magzp_list[i];
+        cutout_t scale = pow(10.0, 0.4*(this->magzp_ref-magzp) );
+        this->scale_list.push_back(scale);
+    }
+
+}
+void CutoutMaker::load_se_data()
 {
     if (!DoesFileExist(this->imlist_path)) {
         cerr<<"file not found: "<<this->imlist_path<<"\n";
@@ -813,8 +843,8 @@ void CutoutMaker::load_file_lists()
     }
 
     dbg<<"Opening coadd srclist\n";
-    std::ifstream flist(this->imlist_path.c_str(), std::ios::in);
-    if (!flist) {
+    std::ifstream sedatafile(this->imlist_path.c_str(), std::ios::in);
+    if (!sedatafile) {
         string err="Unable to open source list file " + this->imlist_path;
         cerr<<err<<std::endl;
         throw ReadException(err);
@@ -826,15 +856,18 @@ void CutoutMaker::load_file_lists()
 
     // first push the coadd, always first
     // note sky file for coadd is itself
+    this->magzp_list.push_back(-9999.0);
     this->push_image_file(this->params["coadd_file"]);
     this->push_sky_file(this->params["coadd_file"]);
     this->push_seg_file(this->params["coaddseg_file"]);
 
     string image_path, sky_path, seg_path;
-    while (flist >> image_path >> sky_path >> seg_path) {
+    double magzp;
+    while (sedatafile >> image_path >> sky_path >> seg_path >> magzp) {
         this->push_image_file(image_path);
         this->push_sky_file(sky_path);
         this->push_seg_file(seg_path);
+        this->magzp_list.push_back(magzp);
     }
 
     cerr<<"read "
@@ -1002,11 +1035,17 @@ void CutoutMaker::set_start_rows_and_npix()
 
 
 
+/*
+   Scale is only for the cutouts and weight images. Must be applied after sky
+   subtraction.  Send as negative to avoid application.
+*/
+
 template <typename T>
 void CutoutMaker::write_cutout(const Image<T> *image,
                                const Image<cutout_t> *sky_image,
                                const Image<badpix_t> *badpix_image,
-                               int iobj, int icut)
+                               int iobj, int icut,
+                               cutout_t scale)
 {
     int xmax=image->getXMax();
     int ymax=image->getYMax();
@@ -1032,6 +1071,9 @@ void CutoutMaker::write_cutout(const Image<T> *image,
                 if ( (*badpix_image)(x,y) != 0 ) {
                     tim(ix,iy) = 0;
                 }
+            }
+            if (scale > 0) {
+                tim(ix,iy) *= scale;
             }
         }
     }
@@ -1081,6 +1123,7 @@ void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
     Image<seg_t> seg_image;
     Image<cutout_t> *sky_null=NULL;
     Image<badpix_t> *badpix_null=NULL;
+    cutout_t scale=-9999; // negative means don't apply it
     int hdu=0;
 
     //if (cut_type==CUTOUT_SEG) {
@@ -1118,15 +1161,19 @@ void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
             if (this->orig_file_id[i][j] == 0) {
                 // NULLs for sky and badpix
                 if (cut_type==CUTOUT_SEG) {
-                    this->write_cutout(&seg_image, sky_null, badpix_null, i, j);
+                    this->write_cutout(&seg_image, sky_null, badpix_null, i, j,
+                                       scale);
                 } else {
-                    this->write_cutout(&image, sky_null, badpix_null, i, j);
+                    this->write_cutout(&image, sky_null, badpix_null, i, j,
+                                       scale);
                 }
             }
         }
     }
 }
 
+// these are the SE image cutouts, sky subtracted and
+// scaled to the same zeropoint
 void CutoutMaker::write_cutouts_from_file(int ifile)
 {
     Image<badpix_t> *badpix_null=NULL;
@@ -1145,16 +1192,21 @@ void CutoutMaker::write_cutouts_from_file(int ifile)
     Image<cutout_t> image(filename, hdu);
     Image<cutout_t> sky_image(sky_filename, sky_hdu);
 
+    cutout_t scale = this->scale_list[ifile];
+
     for (int i=0; i<this->nobj; ++i) {
         int ncut=this->cutout_pos[i].size();
         for (int j=0; j<ncut; j++) {
             if (this->orig_file_id[i][j] == ifile) {
                 // null for badpix
-                this->write_cutout(&image, &sky_image, badpix_null, i, j);
+                this->write_cutout(&image, &sky_image, badpix_null, i, j,
+                                   scale);
             }
         }
     }
 }
+
+// For weight image we scale by 1/scale^2
 void CutoutMaker::write_weight_cutouts_from_file(int ifile)
 {
     Image<cutout_t> *sky_null=NULL;
@@ -1174,12 +1226,16 @@ void CutoutMaker::write_weight_cutouts_from_file(int ifile)
 
     Image<badpix_t> badpix_image(badpix_filename, badpix_hdu);
 
+    cutout_t scale = this->scale_list[ifile];
+    cutout_t scale_inv2 = 1.0/(scale*scale);
+
     for (int i=0; i<this->nobj; ++i) {
         int ncut=this->cutout_pos[i].size();
         for (int j=0; j<ncut; j++) {
             if (this->orig_file_id[i][j] == ifile) {
                 // NULL for sky
-                this->write_cutout(&image, sky_null, &badpix_image, i, j);
+                this->write_cutout(&image, sky_null, &badpix_image, i, j,
+                                   scale_inv2);
             }
         }
     }
@@ -1193,6 +1249,7 @@ void CutoutMaker::write_seg_cutouts_from_file(int ifile)
     }
     Image<cutout_t> *sky_null=NULL;
     Image<badpix_t> *badpix_null=NULL;
+    cutout_t scale=-9999; // negative means don't apply it
 
     int hdu=0;
     //int sky_hdu=0;
@@ -1207,7 +1264,8 @@ void CutoutMaker::write_seg_cutouts_from_file(int ifile)
         for (int j=0; j<ncut; j++) {
             if (this->orig_file_id[i][j] == ifile) {
                 // null for badpix
-                this->write_cutout(&seg_image, sky_null, badpix_null, i, j);
+                this->write_cutout(&seg_image, sky_null, badpix_null, i, j,
+                                   scale);
             }
         }
     }
