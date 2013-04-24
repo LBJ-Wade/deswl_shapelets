@@ -59,11 +59,14 @@
            A binary table holding all parameters used in making the files, as
            well as the value of all keywords sent to the program, whether used
            or not.  This is good for adding other information such as code
-           versions.
+           versions.  Also stored is the reference magnitude zero point for
+           rescaling the SE images.
        image_cutouts:
            An image extension holding the image cutouts.  The images are sky
            subtracted. All SE images are put on the same zeropoint relative to
-           the first listed single-epoch image.  The coadd is not rescaled.
+           the median zeropoint of single-epoch images.  This reference
+           zeropoint is also stored in the metadata table. The coadd is not
+           rescaled.
        weight_cutouts:
            An image extension holding the weight image cutouts.  Note the
            same scaling for single-epoch images is applied as for the cutouts,
@@ -106,6 +109,8 @@
      image_path           SXX      full path to source images
      sky_path             SYY      full path to sky images
      seg_path             SZZ      full path to segmentation images
+     magzp                f4       magnitude zero point
+     scale                f4       scale factor used to place on common system
 
    The extension "image_cutouts", contains a mosaic of all the image cutouts.
    This mosaic is a single-dimensional image rather than two-dimensional in
@@ -147,6 +152,7 @@
 #include <fstream>
 #include <CCfits/CCfits>
 #include <stdint.h>
+#include <algorithm>
 
 #include "Image.h"
 #include "Transformation.h"
@@ -524,6 +530,9 @@ void CutoutMaker::write_metadata(CCfits::FITS *fits)
     vector<string> col_names;
     vector<string> col_fmts;
 
+    col_names.push_back("magzp_ref");
+    col_fmts.push_back("E");
+
     std::stringstream ss;
     for (iter=this->params.begin(); iter!= this->params.end(); iter++) {
         string key=iter->first;
@@ -543,6 +552,10 @@ void CutoutMaker::write_metadata(CCfits::FITS *fits)
                                           col_names,col_fmts,col_units);
 
     int firstrow=1;
+
+    vector<cutout_t> magzp_ref_vec(1);
+    magzp_ref_vec[0] = this->magzp_ref;
+    table->column("magzp_ref").write(magzp_ref_vec,firstrow);
 
     vector<string> vval(1);  // CCfits really wants you to use a vector
     for (iter=this->params.begin(); iter!= this->params.end(); iter++) {
@@ -820,15 +833,25 @@ void CutoutMaker::push_seg_file(string fname)
 }
 
 
+
+template <typename T> T get_median(vector<T> &vec)
+{
+    vector<T> vcpy = vec;
+
+    std::sort( vcpy.begin(), vcpy.end() );
+
+    long i=vcpy.size()/2;
+    return vcpy[i];
+}
+
 // make scales to put all the images on the same zero point
 void CutoutMaker::make_scale_factors()
 {
     this->scale_list.push_back(1.0);  // the coadd is not scaled
-    this->scale_list.push_back(1.0);  // the reference image
 
-    // note the reference is at position 1, the first SE image
-    this->magzp_ref = this->magzp_list[1];
-    for (long i=2; i<this->magzp_list.size(); i++) {
+    this->magzp_ref = get_median(this->magzp_list);
+    cerr<<"median ref zero point: "<<this->magzp_ref<<"\n";
+    for (long i=1; i<this->magzp_list.size(); i++) {
         cutout_t magzp = this->magzp_list[i];
         cutout_t scale = pow(10.0, 0.4*(this->magzp_ref-magzp) );
         this->scale_list.push_back(scale);
