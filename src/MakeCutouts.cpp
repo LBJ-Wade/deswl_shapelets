@@ -129,7 +129,7 @@
    extension, but contains the cutouts of the seg images.
 
    TODO
-       - explore compression
+       - incorporate Daniel's feature map.
 */
 
 // CCfits has some unused variables, so use this to suppress warnings that would otherwise 
@@ -212,8 +212,6 @@ class CutoutMaker
 
         template <typename T>
             void write_cutout(const Image<T> *image,
-                              const Image<cutout_t> *sky_image,
-                              const Image<badpix_t> *badpix_image,
                               int iobj, int icut,
                               cutout_t scale);
 
@@ -521,25 +519,48 @@ static void vposition_to_xy(const vector<vector<Position> > *pvec,
         }
     }
 }
+string get_desdata() {
+    string desdata("undefined");
+    const char *desdata_c=getenv("DESDATA");
+    if (desdata_c) {
+        desdata=desdata_c;
+        if (desdata.size() == 0) {
+            desdata="undefined";
+        }
+    }
+
+    return desdata;
+}
 
 // write all params to an extension                                 
 void CutoutMaker::write_metadata(CCfits::FITS *fits)
 {
     std::map<std::string,ConvertibleString>::const_iterator iter;
+    std::stringstream ss;
+    string fmt;
 
     vector<string> col_names;
     vector<string> col_fmts;
 
+
     col_names.push_back("magzp_ref");
     col_fmts.push_back("E");
 
-    std::stringstream ss;
+    ss.str("");
+
+    vector<string> desdata_vec(1);
+    desdata_vec[0]=get_desdata();
+    ss<<desdata_vec[0].size()<<"A";
+    fmt=ss.str();
+    col_names.push_back("DESDATA");
+    col_fmts.push_back(fmt);
+
     for (iter=this->params.begin(); iter!= this->params.end(); iter++) {
         string key=iter->first;
         string val=iter->second;
         ss.str("");
         ss<<val.size()<<"A";
-        string fmt=ss.str();
+        fmt=ss.str();
 
         col_names.push_back(key);
         col_fmts.push_back(fmt);
@@ -556,6 +577,8 @@ void CutoutMaker::write_metadata(CCfits::FITS *fits)
     vector<cutout_t> magzp_ref_vec(1);
     magzp_ref_vec[0] = this->magzp_ref;
     table->column("magzp_ref").write(magzp_ref_vec,firstrow);
+
+    table->column("DESDATA").write(desdata_vec,firstrow);
 
     vector<string> vval(1);  // CCfits really wants you to use a vector
     for (iter=this->params.begin(); iter!= this->params.end(); iter++) {
@@ -607,6 +630,14 @@ void CutoutMaker::write_image_info(CCfits::FITS *fits)
     table->column("magzp").write(this->magzp_list,firstrow);
     table->column("scale").write(this->scale_list,firstrow);
 }
+
+void make_number_vec(vector<long> *vec, long n)
+{
+    vec->resize(n);
+    for (long i=0; i<n; i++) {
+        vec->at(i) = i+1;
+    }
+}
 // write catalog, file table, and metadata table
 void CutoutMaker::write_catalog()
 {
@@ -615,6 +646,9 @@ void CutoutMaker::write_catalog()
 
     cerr<<"  writing catalog\n";
     int max_cutouts=this->get_max_cutouts();
+
+    vector<long> number_vec;
+    make_number_vec(&number_vec, this->box_size.size());
 
     std::stringstream ss;
     ss<<max_cutouts<<"J";
@@ -626,6 +660,9 @@ void CutoutMaker::write_catalog()
 
     vector<string> col_names;
     vector<string> col_fmts;
+
+    col_names.push_back("number");
+    col_fmts.push_back("1J");
 
     col_names.push_back("ncutout");
     col_fmts.push_back("1J");
@@ -675,6 +712,7 @@ void CutoutMaker::write_catalog()
                                          col_units);
 
     int firstrow=1;
+    table->column("number").write(number_vec,firstrow);
     table->column("ncutout").write(this->cutout_count,firstrow);
     table->column("box_size").write(this->box_size,firstrow);
 
@@ -1061,12 +1099,13 @@ void CutoutMaker::set_start_rows_and_npix()
 /*
    Scale is only for the cutouts and weight images. Must be applied after sky
    subtraction.  Send as negative to avoid application.
+
+   badpix can be null;  can send with weight image to set zero when
+   there is a bad pixel
 */
 
 template <typename T>
 void CutoutMaker::write_cutout(const Image<T> *image,
-                               const Image<cutout_t> *sky_image,
-                               const Image<badpix_t> *badpix_image,
                                int iobj, int icut,
                                cutout_t scale)
 {
@@ -1078,6 +1117,7 @@ void CutoutMaker::write_cutout(const Image<T> *image,
 
     int box_size=this->box_size[iobj];
 
+    cutout_t val=0;
     Image<cutout_t> tim(box_size,box_size);
     for (int ix=0, x=startx; ix<box_size; ix++, x++) {
         if (x < 0 || x >= xmax ) continue;
@@ -1085,19 +1125,12 @@ void CutoutMaker::write_cutout(const Image<T> *image,
         for (int iy=0, y=starty; iy<box_size; iy++, y++) {
             if (y < 0 || y >= ymax ) continue;
 
-            tim(ix,iy) = (*image)(x,y);
+            val = (*image)(x,y);
             
-            if (sky_image != NULL) {
-                tim(ix,iy) -= (*sky_image)(x,y);
-            }
-            if (badpix_image != NULL) {
-                if ( (*badpix_image)(x,y) != 0 ) {
-                    tim(ix,iy) = 0;
-                }
-            }
             if (scale > 0) {
-                tim(ix,iy) *= scale;
+                val *= scale;
             }
+            tim(ix,iy) = val;
         }
     }
 
@@ -1105,38 +1138,6 @@ void CutoutMaker::write_cutout(const Image<T> *image,
     tim.write_sub_flat(this->fits, start_row);
 }
 
-/*
-void CutoutMaker::write_fake_coadd_seg()
-{
-    
-    Image<cutout_t> *sky_null=NULL;
-    Image<badpix_t> *badpix_null=NULL;
-
-    long ncol=0, nrow=0;
-    get_image_shape(this->params["coadd_file"],
-                    this->params["coadd_hdu"],
-                    &ncol,
-                    &nrow);
-
-    Image<seg_t> seg_image(ncol,nrow);
-    for (long i=0; i<ncol; i++) {
-        for (long j=0; j<ncol; j++) {
-            seg_image(i,j) = DEFVAL;
-        }
-    }
-
-    for (int i=0; i<this->nobj; ++i) {
-        int ncut=this->cutout_pos[i].size();
-        for (int j=0; j<ncut; j++) {
-            if (this->orig_file_id[i][j] == 0) {
-                // NULLs for sky and badpix
-                this->write_cutout(&seg_image, sky_null, badpix_null, i, j);
-            }
-        }
-    }
-
-}
-*/
 
 // here we use the fact that the coadd is always in position ifile==0
 // note either image or seg_image is written, depending on cut_type
@@ -1144,8 +1145,6 @@ void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
 {
     Image<cutout_t> image;
     Image<seg_t> seg_image;
-    Image<cutout_t> *sky_null=NULL;
-    Image<badpix_t> *badpix_null=NULL;
     cutout_t scale=-9999; // negative means don't apply it
     int hdu=0;
 
@@ -1182,14 +1181,30 @@ void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
         int ncut=this->cutout_pos[i].size();
         for (int j=0; j<ncut; j++) {
             if (this->orig_file_id[i][j] == 0) {
-                // NULLs for sky and badpix
                 if (cut_type==CUTOUT_SEG) {
-                    this->write_cutout(&seg_image, sky_null, badpix_null, i, j,
-                                       scale);
+                    this->write_cutout(&seg_image, i, j, scale);
                 } else {
-                    this->write_cutout(&image, sky_null, badpix_null, i, j,
-                                       scale);
+                    this->write_cutout(&image, i, j, scale);
                 }
+            }
+        }
+    }
+}
+
+// subtract the sky, setting to zero for bad pixels
+void subtract_sky_image_with_bpm(Image<cutout_t> *image,
+                                 const Image<cutout_t> *sky,
+                                 const Image<badpix_t> *bpm)
+{
+    int xmax=image->getXMax();
+    int ymax=image->getYMax();
+
+    for (int ix=0; ix<xmax; ix++) {
+        for (int iy=0; iy<ymax; iy++) {
+            if ( (*bpm)(ix,iy) != 0) {
+                (*image)(ix,iy) = 0.0;
+            } else {
+                (*image)(ix,iy) -= (*sky)(ix,iy);
             }
         }
     }
@@ -1199,21 +1214,25 @@ void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
 // scaled to the same zeropoint
 void CutoutMaker::write_cutouts_from_file(int ifile)
 {
-    Image<badpix_t> *badpix_null=NULL;
 
     // ifile==0 means coadd
     if (ifile==0) {
         return;
     }
 
-    int hdu=0, sky_hdu=0;
+    int hdu=0, sky_hdu=0, badpix_hdu=0;
     string filename=this->setup_se_file(ifile, CUTOUT_IMAGE, &hdu);
     string sky_filename=this->setup_se_file(ifile, CUTOUT_SKY, &sky_hdu);
+    string badpix_filename=this->setup_se_file(ifile, 
+            CUTOUT_BADPIX, &badpix_hdu);
 
     this->print_file_progress(ifile,"image",filename);
 
     Image<cutout_t> image(filename, hdu);
     Image<cutout_t> sky_image(sky_filename, sky_hdu);
+    Image<badpix_t> bpm(badpix_filename, badpix_hdu);
+
+    subtract_sky_image_with_bpm(&image, &sky_image, &bpm);
 
     cutout_t scale = this->scale_list[ifile];
 
@@ -1221,18 +1240,29 @@ void CutoutMaker::write_cutouts_from_file(int ifile)
         int ncut=this->cutout_pos[i].size();
         for (int j=0; j<ncut; j++) {
             if (this->orig_file_id[i][j] == ifile) {
-                // null for badpix
-                this->write_cutout(&image, &sky_image, badpix_null, i, j,
-                                   scale);
+                this->write_cutout(&image, i, j, scale);
             }
         }
     }
 }
 
+void set_weight_zero_at_bad_pix(Image<cutout_t> *wt,
+                                Image<badpix_t> *bpm)
+{
+    int xmax=wt->getXMax();
+    int ymax=wt->getYMax();
+
+    for (int ix=0; ix<xmax; ix++) {
+        for (int iy=0; iy<ymax; iy++) {
+            if ( (*bpm)(ix,iy) != 0) {
+                (*wt)(ix,iy) = 0.0;
+            }
+        }
+    }
+}
 // For weight image we scale by 1/scale^2
 void CutoutMaker::write_weight_cutouts_from_file(int ifile)
 {
-    Image<cutout_t> *sky_null=NULL;
     // ifile==0 means coadd
     if (ifile==0) {
         return;
@@ -1245,9 +1275,10 @@ void CutoutMaker::write_weight_cutouts_from_file(int ifile)
 
     this->print_file_progress(ifile,"weight",filename);
 
-    Image<cutout_t> image(filename, hdu);
+    Image<cutout_t> wt(filename, hdu);
+    Image<badpix_t> bpm(badpix_filename, badpix_hdu);
 
-    Image<badpix_t> badpix_image(badpix_filename, badpix_hdu);
+    set_weight_zero_at_bad_pix(&wt, &bpm);
 
     cutout_t scale = this->scale_list[ifile];
     cutout_t scale_inv2 = 1.0/(scale*scale);
@@ -1256,9 +1287,7 @@ void CutoutMaker::write_weight_cutouts_from_file(int ifile)
         int ncut=this->cutout_pos[i].size();
         for (int j=0; j<ncut; j++) {
             if (this->orig_file_id[i][j] == ifile) {
-                // NULL for sky
-                this->write_cutout(&image, sky_null, &badpix_image, i, j,
-                                   scale_inv2);
+                this->write_cutout(&wt, i, j, scale_inv2);
             }
         }
     }
@@ -1270,8 +1299,6 @@ void CutoutMaker::write_seg_cutouts_from_file(int ifile)
     if (ifile==0) {
         return;
     }
-    Image<cutout_t> *sky_null=NULL;
-    Image<badpix_t> *badpix_null=NULL;
     cutout_t scale=-9999; // negative means don't apply it
 
     int hdu=0;
@@ -1287,8 +1314,7 @@ void CutoutMaker::write_seg_cutouts_from_file(int ifile)
         for (int j=0; j<ncut; j++) {
             if (this->orig_file_id[i][j] == ifile) {
                 // null for badpix
-                this->write_cutout(&seg_image, sky_null, badpix_null, i, j,
-                                   scale);
+                this->write_cutout(&seg_image, i, j, scale);
             }
         }
     }
