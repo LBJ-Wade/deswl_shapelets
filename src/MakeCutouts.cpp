@@ -77,15 +77,15 @@
    The "object_data" extension is a table with an entry for each object in the
    coadd.  This table lines up row-by-row with the input catalog.
 
-     ncutout            i4       number of cutouts for this object
-     box_size           i4       box size for each cutout
-     file_id            i4[NMAX] zero-offset id into the file names in the 
+     ncutout            i8       number of cutouts for this object
+     box_size           i8       box size for each cutout
+     file_id            i8[NMAX] zero-offset id into the file names in the 
                                  second extension
-     start_row          i4[NMAX] zero-offset, points to start of each cutout.
+     start_row          i8[NMAX] zero-offset, points to start of each cutout.
      orig_row           f8[NMAX] zero-offset position in original image
      orig_col           f8[NMAX] zero-offset position in original image
-     orig_start_row     i4[NMAX] zero-offset start corner in original image
-     orig_start_col     i4[NMAX] zero-offset start corner in original image
+     orig_start_row     i8[NMAX] zero-offset start corner in original image
+     orig_start_col     i8[NMAX] zero-offset start corner in original image
      cutout_row         f8[NMAX] zero-offset position in cutout imag
      cutout_col         f8[NMAX] zero-offset position in cutout image
      dudrow             f8[NMAX] jacobian of transformation 
@@ -607,28 +607,30 @@ void CutoutMaker::write_metadata(CCfits::FITS *fits)
     vector<string> col_names;
     vector<string> col_fmts;
 
+    // 8 byte integer
+    const char *kfmt="K";
 
     col_names.push_back("magzp_ref");
     col_fmts.push_back("E");
 
     col_names.push_back("se_hdu");
-    col_fmts.push_back("J");
+    col_fmts.push_back(kfmt);
     col_names.push_back("se_wt_hdu");
-    col_fmts.push_back("J");
+    col_fmts.push_back(kfmt);
     col_names.push_back("se_badpix_hdu");
-    col_fmts.push_back("J");
+    col_fmts.push_back(kfmt);
     col_names.push_back("sky_hdu");
-    col_fmts.push_back("J");
+    col_fmts.push_back(kfmt);
     col_names.push_back("seg_hdu");
-    col_fmts.push_back("J");
+    col_fmts.push_back(kfmt);
     col_names.push_back("coadd_hdu");
-    col_fmts.push_back("J");
+    col_fmts.push_back(kfmt);
     col_names.push_back("coadd_wt_hdu");
-    col_fmts.push_back("J");
+    col_fmts.push_back(kfmt);
     col_names.push_back("coadd_seg_hdu");
-    col_fmts.push_back("J");
+    col_fmts.push_back(kfmt);
     col_names.push_back("fake_coadd_seg");
-    col_fmts.push_back("J");
+    col_fmts.push_back(kfmt);
 
 
     ss.str("");
@@ -759,8 +761,8 @@ void CutoutMaker::write_catalog()
     make_number_vec(&number_vec, this->box_size.size());
 
     std::stringstream ss;
-    ss<<max_cutouts<<"J";
-    string jfmt = ss.str();
+    ss<<max_cutouts<<"K";
+    string kfmt = ss.str();
     ss.str("");
     ss<<max_cutouts<<"D";
     string dfmt = ss.str();
@@ -770,19 +772,19 @@ void CutoutMaker::write_catalog()
     vector<string> col_fmts;
 
     col_names.push_back("number");
-    col_fmts.push_back("1J");
+    col_fmts.push_back("1K");
 
     col_names.push_back("ncutout");
-    col_fmts.push_back("1J");
+    col_fmts.push_back("1K");
 
     col_names.push_back("box_size");
-    col_fmts.push_back("1J");
+    col_fmts.push_back("1K");
 
     col_names.push_back("file_id");
-    col_fmts.push_back(jfmt);
+    col_fmts.push_back(kfmt);
 
     col_names.push_back("start_row");
-    col_fmts.push_back(jfmt);
+    col_fmts.push_back(kfmt);
 
     col_names.push_back("orig_row");
     col_fmts.push_back(dfmt);
@@ -791,9 +793,9 @@ void CutoutMaker::write_catalog()
 
 
     col_names.push_back("orig_start_row");
-    col_fmts.push_back(jfmt);
+    col_fmts.push_back(kfmt);
     col_names.push_back("orig_start_col");
-    col_fmts.push_back(jfmt);
+    col_fmts.push_back(kfmt);
 
     col_names.push_back("cutout_row");
     col_fmts.push_back(dfmt);
@@ -1256,7 +1258,7 @@ void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
     cutout_t scale=-9999; // negative means don't apply it
     int hdu=0;
 
-    const char *type=NULL;
+    const char *print_type=NULL;
     string fname;
     if (cut_type==CUTOUT_SEG && this->params["fake_coadd_seg"]) {
         cerr<<"    faking coadd seg image\n";
@@ -1267,13 +1269,13 @@ void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
     if (cut_type==CUTOUT_SEG) {
         cerr<<"    loading coadd seg image\n";
         hdu = this->params["coadd_seg_hdu"];
-        type="weight";
+        print_type="seg";
         fname=this->params["coaddseg_file"];
         seg_image.load(fname, hdu);
     } else if (cut_type==CUTOUT_WEIGHT) {
         cerr<<"    loading coadd weightimage\n";
         hdu = this->params["coadd_wt_hdu"];
-        type="weight";
+        print_type="weight";
         fname=this->params["coadd_file"];
         image.load(fname, hdu);
         scale = this->scale_list[0];
@@ -1281,13 +1283,13 @@ void CutoutMaker::write_cutouts_from_coadd(enum cutout_type cut_type)
     } else {
         cerr<<"    loading coadd image\n";
         hdu = this->params["coadd_hdu"];
-        type="image";
+        print_type="image";
         fname=this->params["coadd_file"];
         image.load(fname, hdu);
         scale = this->scale_list[0];
     }
 
-    this->print_file_progress(0,type,fname);
+    this->print_file_progress(0,print_type,fname);
 
     for (long i=0; i<this->nobj; ++i) {
         long ncut=this->cutout_pos[i].size();
