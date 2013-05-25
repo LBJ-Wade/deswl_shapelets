@@ -887,30 +887,13 @@ inline int getBitPix<int>() { return LONG_IMG; }
 
 template <typename T>
 void create_mosaic(fitsfile* fits, long total_pixels,
-                   string extname, bool use_compression)
+                   string extname)
 {
     int fitserr=0;
 
-    /*
-    if (use_compression) {
-        // these must be called before making the image
-        fits_set_compression_type(fits, RICE_1, &fitserr);
-        if (fitserr != 0) {
-            fits_report_error(stderr,fitserr);
-            throw WriteException("Failed to set compression");
-        }
-
-        long tilesize[2] = {box_size, 100*box_size};
-        fits_set_tile_dim(fits, 2, tilesize, &fitserr);
-        if (fitserr != 0) {
-            fits_report_error(stderr,fitserr);
-            throw WriteException("Failed to set tile size");
-        }
-    }
-    */
-
     int n_axes = 1;
     long dims[1] = {total_pixels};
+    cerr<<"        mosaic size: "<<dims[0]<<"\n";
 
     Assert(getBitPix<T>());
     int bitpix = getBitPix<T>();
@@ -1448,10 +1431,10 @@ void CutoutMaker::write_mosaic(enum cutout_type cut_type)
 
     if (cut_type==CUTOUT_SEG) {
         create_mosaic<seg_t>(this->fits, this->total_pixels,
-                           extname, false);
+                           extname);
     } else {
         create_mosaic<cutout_t>(this->fits, this->total_pixels,
-                extname, false);
+                extname);
     }
 
     this->write_cutouts_from_coadd(cut_type);
