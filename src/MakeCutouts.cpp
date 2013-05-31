@@ -604,33 +604,38 @@ void CutoutMaker::write_metadata(CCfits::FITS *fits)
     std::stringstream ss;
     string fmt;
 
+    vector<string> col_names_req;
+    vector<string> col_fmts_req;
+    vector<string> col_names_add;
+    vector<string> col_fmts_add;
+
     vector<string> col_names;
     vector<string> col_fmts;
 
     // 8 byte integer
     const char *kfmt="K";
 
-    col_names.push_back("magzp_ref");
-    col_fmts.push_back("E");
+    col_names_req.push_back("magzp_ref");
+    col_fmts_req.push_back("E");
 
-    col_names.push_back("se_hdu");
-    col_fmts.push_back(kfmt);
-    col_names.push_back("se_wt_hdu");
-    col_fmts.push_back(kfmt);
-    col_names.push_back("se_badpix_hdu");
-    col_fmts.push_back(kfmt);
-    col_names.push_back("sky_hdu");
-    col_fmts.push_back(kfmt);
-    col_names.push_back("seg_hdu");
-    col_fmts.push_back(kfmt);
-    col_names.push_back("coadd_hdu");
-    col_fmts.push_back(kfmt);
-    col_names.push_back("coadd_wt_hdu");
-    col_fmts.push_back(kfmt);
-    col_names.push_back("coadd_seg_hdu");
-    col_fmts.push_back(kfmt);
-    col_names.push_back("fake_coadd_seg");
-    col_fmts.push_back(kfmt);
+    col_names_req.push_back("se_hdu");
+    col_fmts_req.push_back(kfmt);
+    col_names_req.push_back("se_wt_hdu");
+    col_fmts_req.push_back(kfmt);
+    col_names_req.push_back("se_badpix_hdu");
+    col_fmts_req.push_back(kfmt);
+    col_names_req.push_back("sky_hdu");
+    col_fmts_req.push_back(kfmt);
+    col_names_req.push_back("seg_hdu");
+    col_fmts_req.push_back(kfmt);
+    col_names_req.push_back("coadd_hdu");
+    col_fmts_req.push_back(kfmt);
+    col_names_req.push_back("coadd_wt_hdu");
+    col_fmts_req.push_back(kfmt);
+    col_names_req.push_back("coadd_seg_hdu");
+    col_fmts_req.push_back(kfmt);
+    col_names_req.push_back("fake_coadd_seg");
+    col_fmts_req.push_back(kfmt);
 
 
     ss.str("");
@@ -639,9 +644,13 @@ void CutoutMaker::write_metadata(CCfits::FITS *fits)
     desdata_vec[0]=get_desdata();
     ss<<desdata_vec[0].size()<<"A";
     fmt=ss.str();
-    col_names.push_back("DESDATA");
-    col_fmts.push_back(fmt);
+    col_names_req.push_back("DESDATA");
+    col_fmts_req.push_back(fmt);
 
+    col_names=col_names_req;
+    col_fmts = col_fmts_req;
+
+    // add non-required keywords
     for (iter=this->params.begin(); iter!= this->params.end(); iter++) {
         string key=iter->first;
         if ( std::find(col_names.begin(), col_names.end(), key)==col_names.end()) {
@@ -688,10 +697,12 @@ void CutoutMaker::write_metadata(CCfits::FITS *fits)
 
     table->column("DESDATA").write(desdata_vec,firstrow);
 
+    // add not-required keywords
     vector<string> vval(1);  // CCfits really wants you to use a vector
     for (iter=this->params.begin(); iter!= this->params.end(); iter++) {
         string key=iter->first;
-        if ( std::find(col_names.begin(), col_names.end(), key)==col_names.end()) {
+        if ( std::find(col_names_req.begin(), col_names_req.end(), key)==col_names_req.end()) {
+            cerr<<"        writing key: "<<key<<"\n";
             vval[0]=iter->second;
             table->column(key).write(vval,firstrow);
         }
@@ -820,6 +831,10 @@ void CutoutMaker::write_catalog()
                                          col_names,
                                          col_fmts,
                                          col_units);
+
+
+    //this->write_image_info(&fits);
+    //this->write_metadata(&fits);
 
     long firstrow=1;
     table->column("number").write(number_vec,firstrow);
