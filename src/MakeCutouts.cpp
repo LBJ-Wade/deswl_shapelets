@@ -386,6 +386,13 @@ void CutoutMaker::read_coadd_cat()
         this->nobj++;
     }
 
+    /*
+    this->nobj=10;
+    this->pos.resize(10);
+    this->skypos.resize(10);
+    this->box_size.resize(10);
+    */
+
     this->set_skybounds();
 }
 
@@ -679,21 +686,21 @@ void CutoutMaker::write_metadata(CCfits::FITS *fits)
     table->column("magzp_ref").write(dvec,firstrow);
 
     ivec[0] = this->params["se_hdu"];
-    table->column("se_hdu").write(dvec,firstrow);
+    table->column("se_hdu").write(ivec,firstrow);
     ivec[0] = this->params["se_wt_hdu"];
-    table->column("se_wt_hdu").write(dvec,firstrow);
+    table->column("se_wt_hdu").write(ivec,firstrow);
     ivec[0] = this->params["se_badpix_hdu"];
-    table->column("se_badpix_hdu").write(dvec,firstrow);
+    table->column("se_badpix_hdu").write(ivec,firstrow);
     ivec[0] = this->params["sky_hdu"];
-    table->column("sky_hdu").write(dvec,firstrow);
+    table->column("sky_hdu").write(ivec,firstrow);
     ivec[0] = this->params["seg_hdu"];
-    table->column("seg_hdu").write(dvec,firstrow);
+    table->column("seg_hdu").write(ivec,firstrow);
     ivec[0] = this->params["coadd_hdu"];
-    table->column("coadd_hdu").write(dvec,firstrow);
+    table->column("coadd_hdu").write(ivec,firstrow);
     ivec[0] = this->params["coadd_wt_hdu"];
-    table->column("coadd_wt_hdu").write(dvec,firstrow);
+    table->column("coadd_wt_hdu").write(ivec,firstrow);
     ivec[0] = this->params["fake_coadd_seg"];
-    table->column("fake_coadd_seg").write(dvec,firstrow);
+    table->column("fake_coadd_seg").write(ivec,firstrow);
 
     table->column("DESDATA").write(desdata_vec,firstrow);
 
