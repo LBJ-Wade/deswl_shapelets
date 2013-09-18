@@ -1005,7 +1005,7 @@ void CutoutMaker::make_scale_factors()
 
     this->magzp_ref = this->params["magzp_ref"];
     cerr<<"ref zero point: "<<this->magzp_ref<<"\n";
-    for (long i=0; i<this->magzp_list.size(); i++) {
+    for (long i=0; i<long(this->magzp_list.size()); i++) {
         cutout_t magzp = this->magzp_list[i];
         cutout_t scale = pow(10.0, 0.4*(this->magzp_ref-magzp) );
         this->scale_list.push_back(scale);
@@ -1225,8 +1225,8 @@ void CutoutMaker::write_cutout(const Image<T> *image,
 void CutoutMaker::write_fake_coadd_seg() 
 {
     
-    Image<cutout_t> *sky_null=NULL;
-    Image<badpix_t> *badpix_null=NULL;
+    //Image<cutout_t> *sky_null=NULL;
+    //Image<badpix_t> *badpix_null=NULL;
     cutout_t scale=-9999; // negative means don't apply it
 
     long ncol=0, nrow=0;
