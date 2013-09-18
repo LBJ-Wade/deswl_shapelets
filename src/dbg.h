@@ -20,6 +20,9 @@
 #include <fstream>
 
 #ifdef MEM_TEST
+// valarray includes somethings that get messed up if it is included after
+// mmgr.h.  So make sure it gets included first.
+#include <valarray>
 #include "mmgr.h"
 #endif
 
