@@ -176,11 +176,14 @@ const int SE_BADPIX_HDU = 3;
 const int SE_WT_HDU     = 4;
 
 const int SKY_HDU       = 2;
-const int SEG_HDU       = 1;
+//const int SEG_HDU       = 1;
+// now second hdu for fz files
+const int SEG_HDU       = 2;
 
 const int COADD_HDU     = 2;
 const int COADD_WT_HDU  = 3;
-const int COADD_SEG_HDU = 1;
+//const int COADD_SEG_HDU = 1;
+const int COADD_SEG_HDU = 2;
 
 enum cutout_type {
     CUTOUT_IMAGE,
