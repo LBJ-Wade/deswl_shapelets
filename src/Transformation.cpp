@@ -21,7 +21,7 @@ Transformation::Transformation() :
 Transformation::Transformation(const ConfigFile& params) : 
     _is_ra_dec(false), _u(0), _v(0), _dudx(0), _dudy(0), _dvdx(0), _dvdy(0)
 {
-  this->initFromParams(params);
+    this->initFromParams(params);
 }
 
 void Transformation::initFromParams(const ConfigFile& params) {
@@ -353,15 +353,15 @@ static void readWCSFits(
     if (fits_read_key(fitsptr,TSTRING,(char*)"CTYPE2",temp,NULL,&status))
         dbg<<"fits read ctype2: "<<status<<std::endl;
     if ((wcstype == TAN && (
-			    std::string(temp) != "DEC--TAN" &&
-			    std::string(temp) != "DEC--TPV" 
-			    )) ||
-	(wcstype == TNX && std::string(temp) != "DEC--TNX")) {
-      dbg << "ctype = "<<temp<<std::endl;
-      throw ReadException(
-			  std::string("Error ctype2 (")+temp+") is not as expected");
+                std::string(temp) != "DEC--TAN" &&
+                std::string(temp) != "DEC--TPV" 
+    )) ||
+        (wcstype == TNX && std::string(temp) != "DEC--TNX")) {
+        dbg << "ctype = "<<temp<<std::endl;
+        throw ReadException(
+            std::string("Error ctype2 (")+temp+") is not as expected");
     }
-    
+
     if (fits_read_key(fitsptr,TDOUBLE,(char*)"CRVAL1",&crval[0],NULL,&status))
         dbg<<"fits read crval1: "<<status<<std::endl;
     if (fits_read_key(fitsptr,TDOUBLE,(char*)"CRVAL2",&crval[1],NULL,&status))
@@ -517,16 +517,16 @@ static void readTANFits(
                     pvstr[6] = '\0'; 
                 }
                 double temp;
-		if (fits_read_key(fitsptr,TDOUBLE,pvstr,&temp,NULL,&status)) {
-		  dbg<<"Problem reading key: "<<pvstr<<" for n,i,j,k = "<<
-		    n<<','<<i<<','<<j<<','<<k<<std::endl;
-		  
-		  // Set default values if not here
-		  if (k==1) temp=1;
-		  else temp=0;
-		  dbg<<"Setting to default: "<<temp<<std::endl;
-		  status=0;
-		}
+                if (fits_read_key(fitsptr,TDOUBLE,pvstr,&temp,NULL,&status)) {
+                    dbg<<"Problem reading key: "<<pvstr<<" for n,i,j,k = "<<
+                        n<<','<<i<<','<<j<<','<<k<<std::endl;
+
+                    // Set default values if not here
+                    if (k==1) temp=1;
+                    else temp=0;
+                    dbg<<"Setting to default: "<<temp<<std::endl;
+                    status=0;
+                }
                 pv[pvnum](i,j) = temp;
             }
             if (status) break;
