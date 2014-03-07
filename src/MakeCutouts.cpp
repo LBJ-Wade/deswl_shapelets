@@ -427,13 +427,14 @@ static fitsfile *_close_fits(fitsfile *fits)
     }
     return NULL;
 }
-
-static fitsfile *_open_fits(string filename)
+//READWRITE
+//READONLY
+static fitsfile *_open_fits(string filename, int mode)
 {
     fitsfile *fits=NULL;
     int fitserr=0;
 
-    fits_open_file(&fits,filename.c_str(),READWRITE,&fitserr);
+    fits_open_file(&fits,filename.c_str(),mode,&fitserr);
     if (fitserr != 0) {
         fits_report_error(stderr,fitserr);
         throw WriteException(
@@ -447,7 +448,7 @@ static void get_image_shape(string filename, int hdu, long *ncol, long *nrow)
 {
     int fitserr=0;
 
-    fitsfile *fits=_open_fits(filename);
+    fitsfile *fits=_open_fits(filename,READONLY);
 
     fits_movabs_hdu(fits,hdu,0,&fitserr);
     if (fitserr != 0) {
@@ -482,7 +483,7 @@ static double get_dbl_keyword(string filename, int hdu, const char *keyname)
 {
     int status=0;
 
-    fitsfile *fits=_open_fits(filename);
+    fitsfile *fits=_open_fits(filename,READONLY);
 
     fits_movabs_hdu(fits,hdu,0,&status);
     if (status != 0) {
@@ -941,7 +942,7 @@ void create_mosaic(fitsfile* fits, long total_pixels,
 
 void CutoutMaker::open_fits()
 {
-    this->fits=_open_fits(this->cutout_filename);
+    this->fits=_open_fits(this->cutout_filename,READWRITE);
 }
 
 
@@ -1039,6 +1040,7 @@ void CutoutMaker::load_data()
     double coadd_magzp = get_dbl_keyword(this->params["coadd_file"],
                                          this->params["coadd_hdu"],
                                          "SEXMGZPT");
+
     this->magzp_list.push_back(coadd_magzp);
     this->push_image_file(this->params["coadd_file"]);
     this->push_sky_file(this->params["coadd_file"]);
