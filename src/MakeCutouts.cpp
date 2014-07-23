@@ -229,6 +229,7 @@ class CutoutMaker
         void close_fits();
 
         void push_image_file(string fname);
+        void push_wcs_file(string fname);
         void push_sky_file(string fname);
         void push_seg_file(string fname);
         void load_data();
@@ -280,6 +281,7 @@ class CutoutMaker
         string imlist_path;
 
         vector<string> image_file_list;
+        vector<string> wcs_file_list; // only used if wcs is in a separate file
         vector<string> sky_file_list;
         vector<string> seg_file_list;
         vector<cutout_t> scale_list;
@@ -287,6 +289,7 @@ class CutoutMaker
         cutout_t magzp_ref;
 
         long max_image_filename_len;
+        long max_wcs_filename_len;
         long max_sky_filename_len;
         long max_seg_filename_len;
 
@@ -409,8 +412,11 @@ void CutoutMaker::offset_positions()
 
 void CutoutMaker::load_coadd_trans()
 {
-    string fname=this->params["coadd_file"];
-    int hdu = this->params["coadd_hdu"];
+    string fname=this->params["coadd_wcs_file"];
+    int hdu = this->params["coadd_wcs_hdu"];
+    if (fname != this->params["coadd_file"]) {
+        cerr<<"Reading coadd wcs: "<<fname<<" "<<hdu<<"\n";
+    }
     this->coadd_trans.readWCS(fname,hdu);
 }
 
@@ -725,7 +731,7 @@ void CutoutMaker::write_image_info(CCfits::FITS *fits)
 {
     long nfiles=this->image_file_list.size();
 
-    long ncols=5;
+    long ncols=6;
     vector<string> col_names(ncols);
     vector<string> col_fmts(ncols);
     vector<string> col_units(ncols);
@@ -736,20 +742,25 @@ void CutoutMaker::write_image_info(CCfits::FITS *fits)
     col_fmts[0] = ss.str();
 
     ss.str("");
-    ss<<this->max_sky_filename_len<<"A";
-    col_names[1] = "sky_path";
+    ss<<this->max_wcs_filename_len<<"A";
+    col_names[1] = "wcs_path";
     col_fmts[1] = ss.str();
 
     ss.str("");
-    ss<<this->max_seg_filename_len<<"A";
-    col_names[2] = "seg_path";
+    ss<<this->max_sky_filename_len<<"A";
+    col_names[2] = "sky_path";
     col_fmts[2] = ss.str();
 
-    col_names[3] = "magzp";
-    col_fmts[3] = "E";
+    ss.str("");
+    ss<<this->max_seg_filename_len<<"A";
+    col_names[3] = "seg_path";
+    col_fmts[3] = ss.str();
 
-    col_names[4] = "scale";
+    col_names[4] = "magzp";
     col_fmts[4] = "E";
+
+    col_names[5] = "scale";
+    col_fmts[5] = "E";
 
 
     CCfits::Table* table = fits->addTable("image_info",nfiles,
@@ -757,6 +768,7 @@ void CutoutMaker::write_image_info(CCfits::FITS *fits)
 
     long firstrow=1;
     table->column("image_path").write(this->image_file_list,firstrow);
+    table->column("wcs_path").write(this->wcs_file_list,firstrow);
     table->column("sky_path").write(this->sky_file_list,firstrow);
     table->column("seg_path").write(this->seg_file_list,firstrow);
     table->column("magzp").write(this->magzp_list,firstrow);
@@ -972,6 +984,15 @@ void CutoutMaker::push_image_file(string fname)
         this->max_image_filename_len=fname.size();
     }
 }
+void CutoutMaker::push_wcs_file(string fname)
+{
+    this->wcs_file_list.push_back(fname);
+
+    if (int(fname.size()) > this->max_wcs_filename_len) {
+        this->max_wcs_filename_len=fname.size();
+    }
+}
+
 void CutoutMaker::push_sky_file(string fname)
 {
     this->sky_file_list.push_back(fname);
@@ -1031,6 +1052,7 @@ void CutoutMaker::load_data()
         throw ReadException(err);
     }
 
+
     this->max_image_filename_len=0;
     this->max_sky_filename_len=0;
     this->max_seg_filename_len=0;
@@ -1046,15 +1068,30 @@ void CutoutMaker::load_data()
     this->push_sky_file(this->params["coadd_file"]);
     this->push_seg_file(this->params["coaddseg_file"]);
 
-    string image_path, sky_path, seg_path;
-    double magzp;
-    while (sedatafile >> image_path >> sky_path >> seg_path >> magzp) {
-        this->push_image_file(image_path);
-        this->push_sky_file(sky_path);
-        this->push_seg_file(seg_path);
-        this->magzp_list.push_back(magzp);
-    }
+    // only for bookkeeping right now
+    this->push_wcs_file(this->params["coadd_wcs_file"]);
 
+    string image_path, sky_path, seg_path, wcs_path;
+    double magzp;
+
+    if (this->params["use_alt_wcs"]) {
+        while (sedatafile >> image_path >> sky_path >> seg_path >> magzp >> wcs_path) {
+            this->push_image_file(image_path);
+            this->push_sky_file(sky_path);
+            this->push_seg_file(seg_path);
+            this->magzp_list.push_back(magzp);
+            this->push_wcs_file(wcs_path);
+        }
+
+    } else {
+        while (sedatafile >> image_path >> sky_path >> seg_path >> magzp) {
+            this->push_image_file(image_path);
+            this->push_sky_file(sky_path);
+            this->push_seg_file(seg_path);
+            this->magzp_list.push_back(magzp);
+            this->push_wcs_file(image_path);
+        }
+    }
     cerr<<"read "
         <<this->image_file_list.size()
         <<" se images"<<std::endl;
@@ -1494,9 +1531,13 @@ void CutoutMaker::get_file_cutout_info(int ifile, const Bounds *bounds)
     long ncol=0, nrow=0;
     get_image_shape(filename, hdu, &ncol, &nrow);
 
+    string wcs_filename=this->wcs_file_list[ifile];
     Transformation trans;
-    hdu = this->params["se_hdu"];
-    trans.readWCS(filename, hdu);
+    hdu = this->params["se_wcs_hdu"];
+    if (wcs_filename != filename) {
+        cerr<<"                wcs: "<<wcs_filename<<" "<<hdu<<"\n";
+    }
+    trans.readWCS(wcs_filename, hdu);
     Transformation inv_trans;
 
     // rough inverse trans, only valid on the bounds of this image
@@ -1595,6 +1636,12 @@ void set_default_params(ConfigFile *params)
 
     params->set("fake_coadd_seg", 0);
 
+    // by default we grab the wcs from the same file and hdu as the image
+    params->set("coadd_wcs_hdu",COADD_HDU);
+    params->set("se_wcs_hdu",SE_HDU);
+
+    params->set("use_alt_wcs",0);
+
 }
 // check params.  also set some default params
 bool check_params(const ConfigFile *params)
@@ -1626,6 +1673,7 @@ bool check_params(const ConfigFile *params)
         ok=false;
     }
 
+
     return ok;
 }
 
@@ -1635,6 +1683,13 @@ void load_params(int argc, char **argv, ConfigFile *params)
     for(int k=1;k<argc;k++) {
         params->append(argv[k]);
     }
+
+    // if coadd_wcs_file is not sent, default to the coadd file
+    // note coadd_wcs_hdu already has a default set
+    if (!params->keyExists("coadd_wcs_file")) {
+        params->set("coadd_wcs_file", params->get("coadd_file"));
+    }
+
 }
 
 int main(int argc, char **argv)
