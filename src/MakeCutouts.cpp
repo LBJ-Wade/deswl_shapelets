@@ -762,6 +762,7 @@ void CutoutMaker::write_image_info(CCfits::FITS *fits)
     col_names[5] = "scale";
     col_fmts[5] = "E";
 
+    long max_cutouts=this->get_max_cutouts();
 
     CCfits::Table* table = fits->addTable("image_info",nfiles,
                                           col_names,col_fmts,col_units);
@@ -905,8 +906,9 @@ void CutoutMaker::write_catalog()
     to_valarray_vec(&this->dvdcol, &deriv, max_cutouts);
     table->column("dvdcol").writeArrays(deriv,firstrow);
 
-
+    cerr<<"  writing image info\n";
     this->write_image_info(&fits);
+    cerr<<"  writing meta data\n";
     this->write_metadata(&fits);
 
     // RAII will write and flush the data
