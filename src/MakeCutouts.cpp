@@ -762,7 +762,7 @@ void CutoutMaker::write_image_info(CCfits::FITS *fits)
     col_names[5] = "scale";
     col_fmts[5] = "E";
 
-    long max_cutouts=this->get_max_cutouts();
+    //long max_cutouts=this->get_max_cutouts();
 
     CCfits::Table* table = fits->addTable("image_info",nfiles,
                                           col_names,col_fmts,col_units);
