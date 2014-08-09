@@ -1,0 +1,15 @@
+*.os
+*.o
+testwl
+testnl
+findstars
+measurepsf
+measureshear
+fullpipe
+multishear
+calcq
+shearave
+g08special
+g10star
+make-cutouts
+test-psfrec
