@@ -11,17 +11,24 @@
        The coadd image file.  Holds the image and weight image.
    cat_file
        The meds input file.  This is an ascii file with the following
-       columns
-           ra dec row col box_size
+       columns.  Below are the types the columns are read into
+           id ra dec row col box_size
+           i8 f8 f8  f8  f8  i8
    coadd_srclist
-       An ascii file with a list of the coadd input images.  it has
-       the following columns
+       An ascii file with a list of the coadd input images.  it has the
+       following columns.  Below are the types these are read into.
 
-           image background_image segmentation_image zeropoint
+           image_id image  background_image segmentation_image zeropoint (wcs_file)
+           i8       string string           string             f8        (string)
 
-       The image is the single-epoch "red" image and background is
-       the "bkg" file.  The segmentation image holds the sextractor
-       segmentation map
+       The image is the single-epoch "red" image and background is the "bkg"
+       file.  The segmentation image holds the sextractor segmentation map.
+       The image_id field is arbitrary; for DES it is generally set to the
+       image database id.
+
+       Note the wcs_file is an optional separate file to hold the wcs solution.
+       Send use_alt_wcs=True to specify that column will exist, and se_wcs_hdu
+       to specify the HDU.
 
    cutout_file
        The name of the output file.
@@ -77,6 +84,8 @@
    The "object_data" extension is a table with an entry for each object in the
    coadd.  This table lines up row-by-row with the input catalog.
 
+     id                 i8       The id column from the input file
+     number             i8       SExtractor "NUMBER" column from catalog
      ncutout            i8       number of cutouts for this object
      box_size           i8       box size for each cutout
      file_id            i8[NMAX] zero-offset id into the file names in the 
@@ -201,7 +210,7 @@ class CutoutMaker
         ~CutoutMaker();
 
         void set_skybounds();
-        void read_coadd_cat();
+        void read_coadd_ascii();
         void append_cutout_info(const Position *pos,
                                 const Transformation *trans,
                                 long index);
@@ -253,7 +262,7 @@ class CutoutMaker
 
     private:
 
-        //vector<long> id;
+        vector<long> id;
         vector<Position> pos;
         vector<Position> skypos;
         //vector<long> flags;
@@ -280,6 +289,7 @@ class CutoutMaker
         Bounds skybounds; 
         string imlist_path;
 
+        vector<long> image_id_list;
         vector<string> image_file_list;
         vector<string> wcs_file_list; // only used if wcs is in a separate file
         vector<string> sky_file_list;
@@ -313,7 +323,7 @@ CutoutMaker::CutoutMaker(const ConfigFile *input_params) :
         ncutout(0)
 
 {
-    this->read_coadd_cat();
+    this->read_coadd_ascii();
 
     this->offset_positions();
     this->load_coadd_trans();
@@ -362,7 +372,7 @@ static long make_box_size_even(long box_size)
     }
     return box_size;
 }
-void CutoutMaker::read_coadd_cat()
+void CutoutMaker::read_coadd_ascii()
 {
     string fname=this->params["cat_file"];
     if (!DoesFileExist(fname)) {
@@ -372,13 +382,16 @@ void CutoutMaker::read_coadd_cat()
 
     std::ifstream cat(fname.c_str(), std::ios::in);
 
+    long id;
     double ra,dec,row,col;
     long bsize;
     this->nobj=0;
 
-    while (cat >> ra >> dec >> row >> col >> bsize) {
+    while (cat >> id >> ra >> dec >> row >> col >> bsize) {
 
         bsize = make_box_size_even(bsize);
+
+        this->id.push_back(id);
 
         Position sky_pos(ra,dec);
         Position image_pos(col,row);
@@ -391,13 +404,6 @@ void CutoutMaker::read_coadd_cat()
 
         this->nobj++;
     }
-
-    /*
-    this->nobj=10;
-    this->pos.resize(10);
-    this->skypos.resize(10);
-    this->box_size.resize(10);
-    */
 
     this->set_skybounds();
 }
@@ -731,49 +737,55 @@ void CutoutMaker::write_image_info(CCfits::FITS *fits)
 {
     long nfiles=this->image_file_list.size();
 
-    long ncols=6;
+    long ncols=7;
     vector<string> col_names(ncols);
     vector<string> col_fmts(ncols);
     vector<string> col_units(ncols);
 
+    col_names[0] = "image_id";
+    col_fmts[0] = "K"; // 8-byte integer
+
     std::stringstream ss;
     ss<<this->max_image_filename_len<<"A";
-    col_names[0] = "image_path";
-    col_fmts[0] = ss.str();
-
-    ss.str("");
-    ss<<this->max_wcs_filename_len<<"A";
-    col_names[1] = "wcs_path";
+    col_names[1] = "image_path";
     col_fmts[1] = ss.str();
 
     ss.str("");
-    ss<<this->max_sky_filename_len<<"A";
-    col_names[2] = "sky_path";
+    ss<<this->max_wcs_filename_len<<"A";
+    col_names[2] = "wcs_path";
     col_fmts[2] = ss.str();
 
     ss.str("");
-    ss<<this->max_seg_filename_len<<"A";
-    col_names[3] = "seg_path";
+    ss<<this->max_sky_filename_len<<"A";
+    col_names[3] = "sky_path";
     col_fmts[3] = ss.str();
 
-    col_names[4] = "magzp";
-    col_fmts[4] = "E";
+    ss.str("");
+    ss<<this->max_seg_filename_len<<"A";
+    col_names[4] = "seg_path";
+    col_fmts[4] = ss.str();
 
-    col_names[5] = "scale";
+    col_names[5] = "magzp";
     col_fmts[5] = "E";
+
+    col_names[6] = "scale";
+    col_fmts[6] = "E";
 
     //long max_cutouts=this->get_max_cutouts();
 
     CCfits::Table* table = fits->addTable("image_info",nfiles,
                                           col_names,col_fmts,col_units);
 
+
     long firstrow=1;
+    table->column("image_id").write(this->image_id_list,firstrow);
     table->column("image_path").write(this->image_file_list,firstrow);
     table->column("wcs_path").write(this->wcs_file_list,firstrow);
     table->column("sky_path").write(this->sky_file_list,firstrow);
     table->column("seg_path").write(this->seg_file_list,firstrow);
     table->column("magzp").write(this->magzp_list,firstrow);
     table->column("scale").write(this->scale_list,firstrow);
+
 }
 
 void make_number_vec(vector<long> *vec, long n)
@@ -806,8 +818,11 @@ void CutoutMaker::write_catalog()
     vector<string> col_names;
     vector<string> col_fmts;
 
+    col_names.push_back("id");
+    col_fmts.push_back("1K"); // 8-byte integer
+
     col_names.push_back("number");
-    col_fmts.push_back("1K");
+    col_fmts.push_back("1K"); // 8-byte integer
 
     col_names.push_back("ncutout");
     col_fmts.push_back("1K");
@@ -861,6 +876,7 @@ void CutoutMaker::write_catalog()
     //this->write_metadata(&fits);
 
     long firstrow=1;
+    table->column("id").write(this->id,firstrow);
     table->column("number").write(number_vec,firstrow);
     table->column("ncutout").write(this->cutout_count,firstrow);
     table->column("box_size").write(this->box_size,firstrow);
@@ -1056,15 +1072,19 @@ void CutoutMaker::load_data()
 
 
     this->max_image_filename_len=0;
+    this->max_wcs_filename_len=0;
     this->max_sky_filename_len=0;
     this->max_seg_filename_len=0;
 
     // first push the coadd, always first
     // note sky file for coadd is itself
+
+
     double coadd_magzp = get_dbl_keyword(this->params["coadd_file"],
                                          this->params["coadd_hdu"],
                                          "SEXMGZPT");
 
+    this->image_id_list.push_back(this->params["coadd_image_id"]);
     this->magzp_list.push_back(coadd_magzp);
     this->push_image_file(this->params["coadd_file"]);
     this->push_sky_file(this->params["coadd_file"]);
@@ -1074,10 +1094,12 @@ void CutoutMaker::load_data()
     this->push_wcs_file(this->params["coadd_wcs_file"]);
 
     string image_path, sky_path, seg_path, wcs_path;
+    long image_id;
     double magzp;
 
     if (this->params["use_alt_wcs"]) {
-        while (sedatafile >> image_path >> sky_path >> seg_path >> magzp >> wcs_path) {
+        while (sedatafile >> image_id >> image_path >> sky_path >> seg_path >> magzp >> wcs_path) {
+            this->image_id_list.push_back(image_id);
             this->push_image_file(image_path);
             this->push_sky_file(sky_path);
             this->push_seg_file(seg_path);
@@ -1086,7 +1108,8 @@ void CutoutMaker::load_data()
         }
 
     } else {
-        while (sedatafile >> image_path >> sky_path >> seg_path >> magzp) {
+        while (sedatafile >> image_id >> image_path >> sky_path >> seg_path >> magzp) {
+            this->image_id_list.push_back(image_id);
             this->push_image_file(image_path);
             this->push_sky_file(sky_path);
             this->push_seg_file(seg_path);
@@ -1643,6 +1666,8 @@ void set_default_params(ConfigFile *params)
     params->set("se_wcs_hdu",SE_HDU);
 
     params->set("use_alt_wcs",0);
+
+    params->set("coadd_image_id",-9999);
 
 }
 // check params.  also set some default params
