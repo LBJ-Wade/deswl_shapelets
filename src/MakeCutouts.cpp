@@ -18,8 +18,8 @@
        An ascii file with a list of the coadd input images.  it has the
        following columns.  Below are the types these are read into.
 
-           image_id image  background_image segmentation_image zeropoint (wcs_file)
-           i8       string string           string             f8        (string)
+           image_id flags image  background_image segmentation_image zeropoint (wcs_file)
+           i8       i8    string string           string             f8        (string)
 
        The image is the single-epoch "red" image and background is the "bkg"
        file.  The segmentation image holds the sextractor segmentation map.
@@ -27,7 +27,7 @@
        image database id.
 
        Note the wcs_file is an optional separate file to hold the wcs solution.
-       Send use_alt_wcs=True to specify that column will exist, and se_wcs_hdu
+       Send use_alt_wcs=1 to specify that column will exist, and se_wcs_hdu
        to specify the HDU.
 
    cutout_file
@@ -290,6 +290,7 @@ class CutoutMaker
         string imlist_path;
 
         vector<long> image_id_list;
+        vector<long> image_flags_list;
         vector<string> image_file_list;
         vector<string> wcs_file_list; // only used if wcs is in a separate file
         vector<string> sky_file_list;
@@ -737,7 +738,7 @@ void CutoutMaker::write_image_info(CCfits::FITS *fits)
 {
     long nfiles=this->image_file_list.size();
 
-    long ncols=7;
+    long ncols=8;
     vector<string> col_names(ncols);
     vector<string> col_fmts(ncols);
     vector<string> col_units(ncols);
@@ -745,31 +746,34 @@ void CutoutMaker::write_image_info(CCfits::FITS *fits)
     col_names[0] = "image_id";
     col_fmts[0] = "K"; // 8-byte integer
 
+    col_names[1] = "image_flags";
+    col_fmts[1] = "K"; // 8-byte integer
+
     std::stringstream ss;
     ss<<this->max_image_filename_len<<"A";
-    col_names[1] = "image_path";
-    col_fmts[1] = ss.str();
-
-    ss.str("");
-    ss<<this->max_wcs_filename_len<<"A";
-    col_names[2] = "wcs_path";
+    col_names[2] = "image_path";
     col_fmts[2] = ss.str();
 
     ss.str("");
-    ss<<this->max_sky_filename_len<<"A";
-    col_names[3] = "sky_path";
+    ss<<this->max_wcs_filename_len<<"A";
+    col_names[3] = "wcs_path";
     col_fmts[3] = ss.str();
 
     ss.str("");
-    ss<<this->max_seg_filename_len<<"A";
-    col_names[4] = "seg_path";
+    ss<<this->max_sky_filename_len<<"A";
+    col_names[4] = "sky_path";
     col_fmts[4] = ss.str();
 
-    col_names[5] = "magzp";
-    col_fmts[5] = "E";
+    ss.str("");
+    ss<<this->max_seg_filename_len<<"A";
+    col_names[5] = "seg_path";
+    col_fmts[5] = ss.str();
 
-    col_names[6] = "scale";
+    col_names[6] = "magzp";
     col_fmts[6] = "E";
+
+    col_names[7] = "scale";
+    col_fmts[7] = "E";
 
     //long max_cutouts=this->get_max_cutouts();
 
@@ -779,6 +783,7 @@ void CutoutMaker::write_image_info(CCfits::FITS *fits)
 
     long firstrow=1;
     table->column("image_id").write(this->image_id_list,firstrow);
+    table->column("image_flags").write(this->image_flags_list,firstrow);
     table->column("image_path").write(this->image_file_list,firstrow);
     table->column("wcs_path").write(this->wcs_file_list,firstrow);
     table->column("sky_path").write(this->sky_file_list,firstrow);
@@ -1085,6 +1090,7 @@ void CutoutMaker::load_data()
                                          "SEXMGZPT");
 
     this->image_id_list.push_back(this->params["coadd_image_id"]);
+    this->image_flags_list.push_back(0);
     this->magzp_list.push_back(coadd_magzp);
     this->push_image_file(this->params["coadd_file"]);
     this->push_sky_file(this->params["coadd_file"]);
@@ -1094,12 +1100,14 @@ void CutoutMaker::load_data()
     this->push_wcs_file(this->params["coadd_wcs_file"]);
 
     string image_path, sky_path, seg_path, wcs_path;
-    long image_id;
+    long image_id, image_flags;
     double magzp;
 
     if (this->params["use_alt_wcs"]) {
-        while (sedatafile >> image_id >> image_path >> sky_path >> seg_path >> magzp >> wcs_path) {
+        cerr<<"    reading with alt wcs\n";
+        while (sedatafile >> image_id >> image_flags >> image_path >> sky_path >> seg_path >> magzp >> wcs_path) {
             this->image_id_list.push_back(image_id);
+            this->image_flags_list.push_back(image_flags);
             this->push_image_file(image_path);
             this->push_sky_file(sky_path);
             this->push_seg_file(seg_path);
@@ -1108,8 +1116,9 @@ void CutoutMaker::load_data()
         }
 
     } else {
-        while (sedatafile >> image_id >> image_path >> sky_path >> seg_path >> magzp) {
+        while (sedatafile >> image_id >> image_flags >> image_path >> sky_path >> seg_path >> magzp) {
             this->image_id_list.push_back(image_id);
+            this->image_flags_list.push_back(image_flags);
             this->push_image_file(image_path);
             this->push_sky_file(sky_path);
             this->push_seg_file(seg_path);
