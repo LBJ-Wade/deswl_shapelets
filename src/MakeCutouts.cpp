@@ -115,8 +115,7 @@
    The extension "image_info", contains info about each image.  Currently this
    is just the file paths.  The file_id column above point into this structure.
 
-     image_id             i8       image id from image table for 
-                                   SE images, coadd table for coadds
+     image_id             i8       an id for the image
      image_flags          i8       flag bitmask for the image
      image_path           SXX      full path to source images
      wcs_path             SXX      full path to wcs file
