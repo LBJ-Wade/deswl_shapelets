@@ -142,6 +142,7 @@
 
    TODO
        - incorporate Daniel's feature map.
+       - move to using const references instead of const pointers
 */
 
 // CCfits has some unused variables, so use this to suppress warnings that would otherwise 
