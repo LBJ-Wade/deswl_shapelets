@@ -7,5 +7,5 @@
 
 std::string GetWlVersion()
 {
-    return "0.7"
+    return "0.7";
 }
