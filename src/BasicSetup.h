@@ -11,8 +11,15 @@
 #include "Name.h"
 #include "fp.h" // Generated with xxd -i fitsparams.config fp.h
 
+#if defined (__INTEL_COMPILER) && defined(OPENMP_LINK)
+__thread std::ostream* dbgout = 0;
+__thread bool XDEBUG = false;
+#else
 std::ostream* dbgout = 0;
 bool XDEBUG = false;
+#endif
+
+
 
 // Some things that are done at the beginning of each executable
 inline int BasicSetup(int argc, char **argv, ConfigFile& params, std::string exec)

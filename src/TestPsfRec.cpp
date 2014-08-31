@@ -11,9 +11,13 @@
 // for Position
 #include "Bounds.h"
 
+#if defined (__INTEL_COMPILER) && defined(OPENMP_LINK)
+__thread std::ostream* dbgout = 0;
+__thread bool XDEBUG = false;
+#else
 std::ostream* dbgout = 0;
-bool XDEBUG = true;
-
+bool XDEBUG = false;
+#endif
 
 int main(int argc, char **argv) 
 {

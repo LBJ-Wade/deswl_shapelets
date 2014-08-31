@@ -22,9 +22,13 @@
 #include "PsiHelper.h"
 #include "BinomFact.h"
 
+#if defined (__INTEL_COMPILER) && defined(OPENMP_LINK)
+__thread std::ostream* dbgout = 0;
+__thread bool XDEBUG = false;
+#else
 std::ostream* dbgout = 0;
-bool XDEBUG = true;
-//bool XDEBUG = false;
+bool XDEBUG = false;
+#endif
 
 bool show_tests = false;
 bool should_throw = true;
