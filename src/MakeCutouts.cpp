@@ -1755,8 +1755,6 @@ static void make_cutouts(ConfigFile *params)
 
     maker.write_catalog();
 
-    cerr<<"  writing bmask mosaic\n";
-    maker.write_mosaic(CUTOUT_BMASK);
 
     cerr<<"  writing cutout mosaic\n";
     maker.write_mosaic(CUTOUT_IMAGE);
@@ -1764,6 +1762,9 @@ static void make_cutouts(ConfigFile *params)
     maker.write_mosaic(CUTOUT_WEIGHT);
     cerr<<"  writing seg mosaic\n";
     maker.write_mosaic(CUTOUT_SEG);
+
+    cerr<<"  writing bmask mosaic\n";
+    maker.write_mosaic(CUTOUT_BMASK);
 
     cerr<<"output is in : "<<params->get("cutout_file")<<"\n";
 }
