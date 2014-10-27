@@ -2,6 +2,7 @@
 #define ImageH
 
 #include <memory>
+#include <stdint.h>
 #include "MyMatrix.h"
 #include "dbg.h"
 #include "Bounds.h"
@@ -169,6 +170,7 @@ private:
 
 extern template class Image<double>;
 extern template class Image<float>;
+//extern template class Image<uint16_t>;
 
 #endif
 

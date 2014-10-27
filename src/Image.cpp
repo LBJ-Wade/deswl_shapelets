@@ -103,6 +103,8 @@ template <>
 inline int getBitPix<float>() { return FLOAT_IMG; }
 template <> 
 inline int getBitPix<int>() { return LONG_IMG; }
+template <> 
+inline int getBitPix<uint16_t>() { return USHORT_IMG; }
 
 template <typename T> 
 inline int getDataType() { return 0; }
@@ -113,6 +115,8 @@ template <>
 inline int getDataType<float>() { return TFLOAT; }
 template <> 
 inline int getDataType<int>() { return TINT; }
+template <> 
+inline int getDataType<uint16_t>() { return TUSHORT; }
 
 template <typename T> 
 void Image<T>::readFits()
@@ -840,3 +844,4 @@ T Image<T>::median() const
 template class Image<double>;
 template class Image<float>;
 template class Image<int>;
+//template class Image<uint16_t>;
