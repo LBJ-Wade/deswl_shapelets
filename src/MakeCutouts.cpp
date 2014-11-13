@@ -85,12 +85,12 @@
    coadd.  This table lines up row-by-row with the input catalog.
 
      id                 i8       The id column from the input file
-     number             i8       SExtractor "NUMBER" column from catalog
+     number             i8       SExtractor NUMBER column from catalog
      ncutout            i8       number of cutouts for this object
      box_size           i8       box size for each cutout
      file_id            i8[NMAX] zero-offset id into the file names in the 
-                                 second extension
-     start_row          i8[NMAX] zero-offset, points to start of each cutout.
+                                 image_info extension
+     start_row          i8[NMAX] zero-offset, start of cutout in the image extensions.
      orig_row           f8[NMAX] zero-offset position in original image
      orig_col           f8[NMAX] zero-offset position in original image
      orig_start_row     i8[NMAX] zero-offset start corner in original image
@@ -119,8 +119,8 @@
      image_flags          i8       flag bitmask for the image
      image_path           SXX      full path to source images
      wcs_path             SXX      full path to wcs file
-     sky_path             SYY      full path to sky images
-     seg_path             SZZ      full path to segmentation images
+     sky_path             SXX      full path to sky images
+     seg_path             SXX      full path to segmentation images
      magzp                f4       magnitude zero point
      scale                f4       scale factor used to place on common system
 
