@@ -12,8 +12,8 @@
    cat_file
        The meds input file.  This is an ascii file with the following
        columns.  Below are the types the columns are read into
-           id ra dec row col box_size
-           i8 f8 f8  f8  f8  i8
+           id row col box_size
+           i8  f8  f8        i8
    coadd_srclist
        An ascii file with a list of the coadd input images.  it has the
        following columns.  Below are the types these are read into.
@@ -274,7 +274,6 @@ class CutoutMaker
         vector<long> id;
         vector<Position> pos;
         vector<Position> skypos;
-        //vector<long> flags;
 
         vector<long> cutout_count;
         vector<long> box_size;
@@ -334,10 +333,10 @@ CutoutMaker::CutoutMaker(const ConfigFile *input_params) :
         ncutout(0)
 
 {
+    this->load_coadd_trans();
     this->read_coadd_ascii();
 
     this->offset_positions();
-    this->load_coadd_trans();
 
     this->imlist_path=this->params["coadd_srclist"];
     this->cutout_filename=this->params["cutout_file"];
@@ -370,9 +369,6 @@ void CutoutMaker::set_skybounds()
     long nrows=this->skypos.size();
 
     for(long i=0; i<nrows; ++i) {
-        //if (!this->flags[i]) {
-        //    this->skybounds += this->skypos[i];
-        //}
         this->skybounds += this->skypos[i];
     }
 }
@@ -395,20 +391,20 @@ void CutoutMaker::read_coadd_ascii()
     std::ifstream cat(fname.c_str(), std::ios::in);
 
     long id;
-    double ra,dec,row,col;
+    double row,col;
     long bsize;
     this->nobj=0;
 
-    while (cat >> id >> ra >> dec >> row >> col >> bsize) {
+    while (cat >> id >> row >> col >> bsize) {
 
         bsize = make_box_size_even(bsize);
 
         this->id.push_back(id);
 
-        Position sky_pos(ra,dec);
         Position image_pos(col,row);
 
-        sky_pos *= 3600.; // deg->arcsec
+        // in arcsec
+        Position sky_pos = this->coadd_trans(image_pos);
 
         this->pos.push_back(image_pos);
         this->skypos.push_back(sky_pos);
